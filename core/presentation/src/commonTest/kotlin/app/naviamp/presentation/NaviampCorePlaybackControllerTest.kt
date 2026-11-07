@@ -61,6 +61,69 @@ import kotlin.test.assertTrue
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackControllerTest {
+    @Test
+    fun finalPausedProgressSurvivesImmediateAndDelayedRestoreInsideTheSaveThrottle() = runTest {
+        for (terminationDelayMillis in listOf(0L, 2_000L)) {
+            var now = 10_000L
+            val fixture = playbackFixture(this, nowEpochMillis = { now })
+            val longQueue = fixture.live.state.value.queue.let { queue ->
+                queue.copy(tracks = queue.tracks.map { it.copy(durationSeconds = 600) })
+            }
+            fixture.live.replace(fixture.live.state.value.copy(
+                queue = longQueue, currentTrack = longQueue.current,
+                progress = PlaybackProgress(20.0, 600.0),
+            ))
+            fixture.controller.attachNativePlayback()
+            fixture.effects.observer!!.onProgressChanged(PlaybackProgress(280.297, 600.0))
+            fixture.effects.observer!!.onStateChanged(PlaybackState.Paused)
+            now += 100L
+            fixture.effects.observer!!.onProgressChanged(PlaybackProgress(282.7, 600.0))
+            assertEquals(282.7, fixture.sessionRepository.sessions["source"]!!.positionSeconds)
+
+            now += terminationDelayMillis
+            val restarted = playbackFixture(this, nowEpochMillis = { now })
+            restarted.sessionRepository.sessions["source"] = fixture.sessionRepository.sessions["source"]
+            restarted.controller.restoreSession("source")
+            assertEquals(282.7, restarted.effects.restoredStartPositionSeconds)
+            assertEquals(listOf("one", "two", "three", "four", "five"),
+                restarted.live.state.value.queue.tracks.map { it.id.value })
+            assertEquals("two", restarted.live.state.value.currentTrack?.id?.value)
+            assertEquals(0, restarted.effects.starts)
+        }
+    }
+
+    @Test
+    fun playingProgressRemainsThrottledAndUnchangedPausedProgressDoesNotWriteAgain() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer!!.onProgressChanged(PlaybackProgress(30.0, 180.0))
+        fixture.effects.observer!!.onProgressChanged(PlaybackProgress(31.0, 180.0))
+        assertEquals(30.0, fixture.sessionRepository.sessions["source"]!!.positionSeconds)
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Paused)
+        fixture.effects.observer!!.onProgressChanged(PlaybackProgress(31.5, 180.0))
+        val writes = fixture.sessionRepository.saveCount
+        repeat(5) {
+            fixture.effects.observer!!.onProgressChanged(PlaybackProgress(31.5, 180.0))
+        }
+        assertEquals(31.5, fixture.sessionRepository.sessions["source"]!!.positionSeconds)
+        assertEquals(writes, fixture.sessionRepository.saveCount)
+        fixture.effects.observer!!.onProgressChanged(PlaybackProgress.Unknown)
+        assertEquals(writes, fixture.sessionRepository.saveCount)
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        fixture.effects.observer!!.onProgressChanged(PlaybackProgress(32.0, 180.0))
+        assertEquals(31.5, fixture.sessionRepository.sessions["source"]!!.positionSeconds)
+    }
+
+    @Test
+    fun finalProgressBeforePauseAlsoPreservesTheCheckpoint() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer!!.onProgressChanged(PlaybackProgress(30.0, 180.0))
+        fixture.effects.observer!!.onProgressChanged(PlaybackProgress(31.5, 180.0))
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Paused)
+        assertEquals(31.5, fixture.sessionRepository.sessions["source"]!!.positionSeconds)
+    }
+
     @Test fun explicitSeekPersistsInsideThePauseSaveThrottle() = runTest {
         val fixture = playbackFixture(this)
         fixture.controller.attachNativePlayback()
@@ -1250,8 +1313,10 @@ private class PlaybackTestEffects : NaviampCorePlaybackEffectPort {
 
 private class RecordingPlaybackSessionRepository : PlaybackSessionRepository {
     val sessions = mutableMapOf<String?, PlaybackSessionSettings?>()
+    var saveCount = 0
     override fun loadPlaybackSession(sourceId: String?): PlaybackSessionSettings? = sessions[sourceId]
     override fun savePlaybackSession(session: PlaybackSessionSettings?, sourceId: String?) {
+        saveCount += 1
         sessions[sourceId] = session
     }
 }
