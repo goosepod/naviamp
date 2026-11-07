@@ -1386,6 +1386,7 @@ private fun NowPlayingDetails(
                                 )
                             }
                             nowPlayingTrackMenuActions(
+                                canStartRadio = nowPlaying.canStartRadio,
                                 visualizerAvailable = nowPlaying.visualizerAvailable,
                                 isLive = nowPlaying.isLive,
                                 hasDetails = nowPlaying.detailSections.isNotEmpty(),
@@ -1395,12 +1396,15 @@ private fun NowPlayingDetails(
                                 sleepTimerLabel = nowPlaying.sleepTimer.label,
                             ).forEach { action ->
                                 NaviampDropdownMenuItem(
-                                    label = action.label,
+                                    label = if (action.action == NaviampAction.StartTrackRadio)
+                                        stringResource(Res.string.tv_start_radio) else action.label,
                                     icon = action.icon,
                                     enabled = action.enabled,
                                     onClick = {
                                         actionMenuExpanded = false
                                         when (action.action) {
+                                            NaviampAction.StartTrackRadio ->
+                                                actions.currentTrack(NowPlayingCurrentTrackAction.StartRadio)
                                             NaviampAction.ChangeVisualizer -> visualizerMenuExpanded = true
                                             NaviampAction.DownloadTrack ->
                                                 actions.currentTrack(NowPlayingCurrentTrackAction.Download)
