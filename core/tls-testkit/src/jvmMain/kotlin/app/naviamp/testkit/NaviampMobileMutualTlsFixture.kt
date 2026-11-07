@@ -26,6 +26,12 @@ fun withNaviampMobileMutualTlsFixture(block: (NaviampMobileMutualTlsFixtureHandl
             val mutual = fixture.startServer(pauseAudioAfterBytes = 262_144)
             val privateCa = fixture.startServer(requireClientCertificate = false)
             val wrongName = wrongHost.startServer()
+            // Binding TCP sockets alone leaves first-use TLS initialization unverified.
+            // The wrong-name listener is healthy for its own certificate name; native
+            // tests still connect by IP and must reject that hostname mismatch.
+            fixture.verifyTlsServerReady(mutual)
+            fixture.verifyTlsServerReady(privateCa)
+            wrongHost.verifyTlsServerReady(wrongName, hostname = "wrong.invalid")
             val control = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
             val done = CountDownLatch(1)
             val endpoints = NaviampMobileTlsEndpoints(control.address.port,

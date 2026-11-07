@@ -10,10 +10,27 @@ import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
+import javax.net.ssl.SSLHandshakeException
 
 class NaviampMobileMutualTlsFixtureTest {
+    @Test fun readinessRequiresTrustedIdentityAndHostnameWithoutContaminatingHttpAudits() {
+        NaviampMutualTlsFixture().use { fixture ->
+            val server = fixture.startServer()
+            fixture.verifyTlsServerReady(server)
+            assertTrue(server.requestedPaths.isEmpty())
+            assertTrue(server.peerSubjects.isEmpty())
+            assertTrue(server.requestedRanges.isEmpty())
+            assertEquals(0L, server.audioBytesSent.get())
+            assertFailsWith<SSLHandshakeException> {
+                fixture.verifyTlsServerReady(server, hostname = "wrong.invalid")
+            }
+            assertTrue(server.requestedPaths.isEmpty())
+        }
+    }
+
     @Test fun concurrentFixturesIgnoreOccupiedLegacyPortsAndReleaseTheirOwnSockets() {
         val sentinels = (59974..59977).mapNotNull { port ->
             // A preexisting listener already supplies the occupied-port condition; never stop it.

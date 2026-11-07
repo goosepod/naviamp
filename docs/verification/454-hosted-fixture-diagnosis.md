@@ -245,3 +245,26 @@ and deadlines are unchanged; a passing observed run alone will not prove why the
 
 Earlier issue/PR checkpoint text described the keytool limit as 45 seconds. Source inspection
 confirms its actual unchanged limit is 30 seconds; the timeout classification remains valid.
+
+## TLS readiness candidate
+
+The fixture previously published readiness after binding listeners, without ever completing a
+TLS handshake. Its host readiness probe verified only HTTP bootstrap. The next candidate verifies
+each HTTPS listener before publishing the manifest: trusted mutual TLS, private-CA server TLS,
+and the wrong-name listener using its own certificate hostname `wrong.invalid`. Each connection
+uses the owning disposable CA/client identity, normal hostname verification, and bounded five-second
+connect/read waits. Any setup failure aborts provisioning; no native case is retried.
+
+These are TLS-only connections. They send no HTTP requests, leave identity/path/range/audio audit
+counters untouched, and cannot resume into the independent Apple client. The Apple tests still
+connect to the wrong-name listener by IP and must reject it. All native rejection/authentication,
+streaming and seek assertions and deadlines remain unchanged. Fixture provisioning runs before
+simulator boot and retains the startup/recording evidence.
+
+Both local JVM fixture tests pass, including strict hostname rejection, untouched HTTP audits,
+concurrent fixture isolation and socket cleanup. A standalone recorded fixture completes all three
+TLS readiness handshakes, serves bootstrap and stops normally; its readable 443,617-byte recording
+contains 6,553 events with no private environment sentinel or sensitive metadata event types.
+The recorder-only aged/fresh run at `42358080227` remains pinned to the preceding `cd45c2cb5`
+source so it can preserve the original first-handshake behavior. Hosted corrective acceptance is
+still required; readiness is a candidate, not a claim that the OS/JVM delay is fully explained.
