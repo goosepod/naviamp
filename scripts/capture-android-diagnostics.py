@@ -43,6 +43,10 @@ def capture(output, timeout):
     for arguments, filename in [(['shell', 'getprop'], 'properties.txt'),
                                 (['shell', 'dumpsys', 'connectivity'], 'connectivity.txt'),
                                 (['shell', 'dumpsys', 'mdns'], 'mdns.txt'),
+                                (['shell', 'dumpsys', 'window', 'windows'], 'windows.txt'),
+                                (['shell', 'dumpsys', 'SurfaceFlinger', '--list'], 'surfaces.txt'),
+                                (['pull', '/sdcard/Android/data/app.naviamp.ui.test/files/raster-diagnostics',
+                                  str(output / 'raster')], 'raster-pull.txt'),
                                 (['logcat', '-d', '-t', '8000', '-v', 'threadtime'], 'logcat.txt')]:
         run(['adb', '-s', serial, *arguments], filename)
 

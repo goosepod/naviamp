@@ -36,14 +36,15 @@ else: print('fixture diagnostics')
                                     '--timeout-seconds', '1'], check=True,
                                    env={**os.environ, 'PATH': f'{root}{os.pathsep}{os.environ["PATH"]}',
                                         'MODE': mode, 'CALLS': str(calls)})
-                    self.assertLess(time.monotonic() - started, 8)
+                    self.assertLess(time.monotonic() - started, 12)
                     commands = calls.read_text().splitlines()
-                    self.assertEqual(5 if mode in ['online', 'hung-shell'] else 1, len(commands))
+                    self.assertEqual(8 if mode in ['online', 'hung-shell'] else 1, len(commands))
                     if mode in ['absent', 'offline', 'hung-discovery']:
                         self.assertIn('skipped', (output / 'status.txt').read_text())
                     else:
                         self.assertTrue(all('-s emulator-5554' in c for c in commands[1:]))
                         self.assertTrue((output / 'logcat.txt').exists())
+                        self.assertTrue((output / 'raster-pull.txt').exists())
                     if mode == 'hung-shell':
                         self.assertIn('timed out', (output / 'properties.txt').read_text())
 
