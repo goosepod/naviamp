@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Observe only this invocation's standalone native test; preserve its exit status."""
 import argparse
+from contextlib import nullcontext
+import json
 import os
 from pathlib import Path
+import runpy
 import shlex
 import subprocess
 import time
@@ -23,9 +26,9 @@ def matching_pids(process_table, executable):
 def processes(executable):
     try:
         # Read executable paths, not every process's potentially paged-out argument vector.
-        table = subprocess.check_output(['ps', '-axo', 'pid=,comm='], text=True)
+        table = subprocess.check_output(['ps', '-axo', 'pid=,comm='], text=True, timeout=5)
         return matching_pids(table, executable)
-    except (OSError, subprocess.CalledProcessError) as error:
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
         print(f'Native process diagnostics unavailable: {error}', flush=True)
         return set()
 
@@ -53,7 +56,8 @@ def capture(pid, output, age, fixture_bootstrap=None):
         pid_file = fixture_bootstrap.with_name('fixture.pid')
         try:
             fixture_pid = int(pid_file.read_text().strip())
-            command = subprocess.check_output(['ps', '-p', str(fixture_pid), '-o', 'command='], text=True).strip()
+            command = subprocess.check_output(['ps', '-p', str(fixture_pid), '-o', 'command='],
+                                              text=True, timeout=5).strip()
             # A recycled PID or another fixture must never be sampled.
             if owns_fixture(command, fixture_bootstrap):
                 jcmd = Path(os.environ['JAVA_HOME']) / 'bin/jcmd'
@@ -61,7 +65,7 @@ def capture(pid, output, age, fixture_bootstrap=None):
                 commands.insert(0, ('fixture-sockets', ['lsof', '-nP', '-a', '-p', str(fixture_pid), '-iTCP']))
                 if age == 'failed':
                     commands.append(('fixture-threads', [str(jcmd), str(fixture_pid), 'Thread.print']))
-        except (OSError, ValueError, KeyError, subprocess.CalledProcessError):
+        except (OSError, ValueError, KeyError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
             pass
     for name, command in commands:
         with Path(str(stem) + f'.{name}.log').open('w') as log:
@@ -107,12 +111,25 @@ def main():
     parser.add_argument('--executable', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--fixture-bootstrap', type=Path)
+    parser.add_argument('--capture-loopback', action='store_true',
+                        help='Capture packet metadata on this owned fixture only (manual diagnosis)')
     parser.add_argument('command', nargs=argparse.REMAINDER)
     args = parser.parse_args()
     command = args.command[1:] if args.command[:1] == ['--'] else args.command
     if not command:
         parser.error('A test command is required after --')
-    return observe(command, str(args.executable.resolve()), args.output, args.fixture_bootstrap)
+    if args.capture_loopback and args.fixture_bootstrap is None:
+        parser.error('Loopback observation requires the owned fixture bootstrap')
+    args.output.mkdir(parents=True, exist_ok=True, mode=0o700)
+    scope = nullcontext()
+    if args.capture_loopback:
+        helper = runpy.run_path(str(Path(__file__).with_name('diagnose-ios-fixture-lifetime.py')))
+        scope = helper['packets'](args.fixture_bootstrap, args.output / 'loopback-packets.log')
+    with scope:
+        result = observe(command, str(args.executable.resolve()), args.output, args.fixture_bootstrap)
+        # Retain the actual command result even if diagnostic observer teardown fails afterward.
+        (args.output / 'native-command-result.json').write_text(json.dumps({'exitCode': result}))
+    return result
 
 
 if __name__ == '__main__':
