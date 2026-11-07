@@ -96,3 +96,49 @@ class NativeReplayCleanupTest(unittest.TestCase):
                 HELPER['remove_owned_device'](record)
                 self.assertEqual(('delete', self.device_id), calls[-1])
                 self.assertEqual(['xcrun', 'simctl', 'shutdown', self.device_id], run.call_args.args[0])
+
+
+class NativeReplayFixtureStartupTest(unittest.TestCase):
+    def run_startup(self, appears_after, exit_code=None, timeout=None):
+        from types import SimpleNamespace
+        clock = SimpleNamespace(now=0.0)
+        clock.monotonic = lambda: clock.now
+        clock.sleep = lambda seconds: setattr(clock, 'now', clock.now + seconds)
+        bootstrap = Mock()
+        bootstrap.exists.side_effect = lambda: clock.now >= appears_after
+        fixture = Mock()
+        fixture.poll.return_value = exit_code
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            error = None
+            with patch.dict(HELPER['wait_fixture_ready'].__globals__, time=clock), \
+                    patch('subprocess.run', return_value=SimpleNamespace(returncode=0)) as probe:
+                try:
+                    options = {} if timeout is None else {'timeout': timeout}
+                    HELPER['wait_fixture_ready'](output, bootstrap, fixture, output, **options)
+                except RuntimeError as failure:
+                    error = str(failure)
+            return error, json.loads((output / 'fixture-startup.json').read_text()), probe.call_count
+
+    def test_slow_certificate_generation_has_a_separate_provisioning_budget(self):
+        error, report, probes = self.run_startup(95)
+        self.assertIsNone(error)
+        self.assertEqual(180, report['budgetSeconds'])
+        self.assertEqual(95, report['bootstrapSeconds'])
+        self.assertEqual('ready', report['status'])
+        self.assertEqual(1, probes)
+
+    def test_missing_bootstrap_still_fails_at_its_bounded_setup_deadline(self):
+        error, report, probes = self.run_startup(95, timeout=1)
+        self.assertEqual('Owned fixture did not become ready', error)
+        self.assertEqual('failed', report['status'])
+        self.assertIsNone(report['bootstrapSeconds'])
+        self.assertEqual(1, report['seconds'])
+        self.assertEqual(0, probes)
+
+    def test_dead_fixture_fails_without_retrying_a_native_suite(self):
+        error, report, probes = self.run_startup(0, exit_code=1)
+        self.assertEqual('Owned fixture exited during startup', error)
+        self.assertEqual('failed', report['status'])
+        self.assertEqual(0, probes)
+

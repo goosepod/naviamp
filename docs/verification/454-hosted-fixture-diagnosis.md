@@ -174,3 +174,25 @@ with packet metadata on each. Replay fixtures also start after their own simulat
 failed-boot regression proves that no fixture starts and the owned device is still cleaned up.
 Exact-source hosted acceptance is recorded on PR #531; this document preserves the reproduction
 and verification plan without treating earlier passing controls as corrective-head acceptance.
+
+## Corrective-head acceptance checkpoint
+
+Head `78c4cb7c0`, [Verify 42350790835](https://github.com/goosepod/naviamp/actions/runs/42350790835),
+passes the ordinary 17-method native suite and the first independent cold replay (another 17).
+Their initial control response bytes arrive after approximately 76ms and 32ms. No native assertion
+fails in these 34 executions. The second replay never enters native testing: it reaches the old
+90-second fixture-startup limit. That is incomplete acceptance, not a third passing suite.
+
+The ordinary job log measures about 83 seconds from fixture-runtime preparation finishing to live
+fixture readiness. The fixture builds two independent certificate sets using 26 separate keytool
+JVM invocations before publishing its bootstrap. The replay's 90-second setup limit leaves very
+little margin; its discarded readiness output does not distinguish late bootstrap publication
+from an unhealthy control probe. The preserved failure is not classified more narrowly than that.
+
+Cold fixture provisioning now has a separate bounded 180-second budget and retains
+`fixture-startup.json` (bootstrap-publication time, probe durations/results, total duration/status)
+and `fixture-readiness.log`. An exited process or setup deadline still fails. This changes only
+pre-test provisioning, not the native ten-second HTTP deadline or any TLS/playback assertion.
+Three regressions cover bootstrap publication after 95 seconds, bounded missing-bootstrap failure,
+and immediate failure of an exited fixture. All 31 selected local helper tests pass. Exact-head
+acceptance still requires all three independent native suites and the full required matrix.

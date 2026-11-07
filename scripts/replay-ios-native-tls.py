@@ -57,6 +57,43 @@ def stop_fixture(fixture, bootstrap, root):
                 fixture.wait()
 
 
+def wait_fixture_ready(root, bootstrap, fixture, output, timeout=180):
+    """Provision generated certificates/server before any native assertion deadline starts."""
+    started = time.monotonic()
+    report = {'budgetSeconds': timeout, 'bootstrapSeconds': None, 'probes': [], 'status': 'starting'}
+    try:
+        while True:
+            if fixture.poll() is not None:
+                raise RuntimeError('Owned fixture exited during startup')
+            remaining = timeout - (time.monotonic() - started)
+            if remaining <= 0:
+                raise RuntimeError('Owned fixture did not become ready')
+            if bootstrap.exists():
+                if report['bootstrapSeconds'] is None:
+                    report['bootstrapSeconds'] = time.monotonic() - started
+                probe_started = time.monotonic()
+                probe = {'startedSeconds': probe_started - started, 'exitCode': None}
+                with (output / 'fixture-readiness.log').open('a') as log:
+                    try:
+                        probe['exitCode'] = subprocess.run(
+                            ['python3', 'scripts/mobile-mtls-fixture.py', 'ready', str(bootstrap)],
+                            cwd=root, stdout=log, stderr=subprocess.STDOUT,
+                            timeout=min(10, remaining)).returncode
+                    except subprocess.TimeoutExpired:
+                        log.write('Host readiness probe exceeded its setup budget\n')
+                probe['seconds'] = time.monotonic() - probe_started
+                report['probes'].append(probe)
+                if probe['exitCode'] == 0:
+                    report['status'] = 'ready'
+                    return
+            time.sleep(min(0.25, remaining))
+    finally:
+        report['seconds'] = time.monotonic() - started
+        if report['status'] != 'ready':
+            report['status'] = 'failed'
+        (output / 'fixture-startup.json').write_text(json.dumps(report, indent=2))
+
+
 def remove_owned_device(record):
     if not record.exists():
         return
@@ -123,18 +160,7 @@ def replay(root, output, runs):
                 fixture = subprocess.Popen([str(java), '@build/mobile-mtls-fixture.args', str(bootstrap)],
                                            cwd=root, stdout=log, stderr=subprocess.STDOUT)
                 (run / 'fixture.pid').write_text(str(fixture.pid))
-                deadline = time.monotonic() + 90
-                while True:
-                    if fixture.poll() is not None:
-                        raise RuntimeError('Owned fixture exited during startup')
-                    if bootstrap.exists():
-                        ready = subprocess.run(['python3', 'scripts/mobile-mtls-fixture.py', 'ready', str(bootstrap)],
-                                               cwd=root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
-                        if ready.returncode == 0:
-                            break
-                    if time.monotonic() >= deadline:
-                        raise RuntimeError('Owned fixture did not become ready')
-                    time.sleep(0.25)
+                wait_fixture_ready(root, bootstrap, fixture, run)
                 stage = 'native execution'
                 env = os.environ.copy()
                 env['SIMCTL_CHILD_NAVIAMP_MTLS_FIXTURE_BOOTSTRAP'] = bootstrap.read_text()
