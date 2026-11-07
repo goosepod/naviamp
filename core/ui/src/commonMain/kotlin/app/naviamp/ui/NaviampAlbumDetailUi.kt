@@ -343,7 +343,7 @@ private fun AlbumDetailContent(
                         colors,
                         onTrackAction = onTrackAction,
                         canSelect = true,
-                        canStartRadio = false,
+                        canStartRadio = track.canStartRadio,
                         canAddToQueue = true,
                         canDownload = true,
                         canAddToPlaylist = true,

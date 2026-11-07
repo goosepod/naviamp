@@ -50,6 +50,7 @@ import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.SleepTimerState
 import app.naviamp.domain.playback.sleepTimerDisplayLabel
+import app.naviamp.domain.provider.isDiscoveryPreview
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
@@ -1597,6 +1598,7 @@ fun AlbumDetails.toSharedAlbumDetailUi(
     popularTrackIds: Set<String> = emptySet(),
     canFavoriteAlbum: Boolean = false,
     showAlbumInformation: Boolean = true,
+    supportsTrackRadio: Boolean = false,
 ): SharedAlbumDetailUi {
     val sections = tracks.albumDiscSections().map { section ->
         SharedAlbumDiscSectionUi(
@@ -1609,7 +1611,10 @@ fun AlbumDetails.toSharedAlbumDetailUi(
                     coverArtUrl,
                     fallbackCoverArtId = album.coverArtId ?: album.id.value,
                     popular = track.id.value in popularTrackIds,
-                ).copy(hasAlbum = false)
+                ).copy(
+                    hasAlbum = false,
+                    canStartRadio = supportsTrackRadio && !track.isInternetRadioTrack() && !track.id.isDiscoveryPreview(),
+                )
             },
         )
     }
