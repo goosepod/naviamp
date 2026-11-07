@@ -23,10 +23,11 @@ class NaviampCoreTrackActionController(
     }
 
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? {
+        val albumContext = registry.albumDetails.takeIf { command is NaviampCoreCommand.Detail.AlbumTrack }
         val (request, tracks) = when (command) {
             is NaviampCoreCommand.Media.TrackAction -> command.request to registry.search.tracks
             is NaviampCoreCommand.Library.TrackAction -> command.request to registry.libraryTracks
-            is NaviampCoreCommand.Detail.AlbumTrack -> command.request to registry.albumDetails?.tracks.orEmpty().inAlbumOrder()
+            is NaviampCoreCommand.Detail.AlbumTrack -> command.request to albumContext?.tracks.orEmpty().inAlbumOrder()
             is NaviampCoreCommand.Detail.ArtistPopularTrack -> command.request to
                 if (registry.artistPopularTracks.any { it.id.value == command.request.track.id }) {
                     registry.artistPopularTracks
@@ -50,7 +51,11 @@ class NaviampCoreTrackActionController(
             return NaviampCoreCommandResult.Completed
         }
         when (request.action) {
-            app.naviamp.ui.SharedTrackRowAction.Select -> media.play(tracks, index)
+            app.naviamp.ui.SharedTrackRowAction.Select -> if (albumContext != null) {
+                media.playAlbum(albumContext.album, tracks, index = index)
+            } else {
+                media.play(tracks, index)
+            }
             app.naviamp.ui.SharedTrackRowAction.PlayNext -> media.playNext(listOf(track))
             app.naviamp.ui.SharedTrackRowAction.PlayNextTrack -> media.playNextTrack(track)
             app.naviamp.ui.SharedTrackRowAction.StartRadio -> media.startTrackRadio(track)
