@@ -1,5 +1,7 @@
 """Diagnostic failures must remain visible and capture must stay on owned loopback ports."""
 from pathlib import Path
+import json
+import re
 import runpy
 import tempfile
 import unittest
@@ -44,3 +46,29 @@ class FixtureLifetimeDiagnosticsTest(unittest.TestCase):
         for ports in ([0, 1, 2, 3], [1, 1, 2, 3], [1, 2, 3], [1, 2, 3, '4 or host example.test']):
             with self.subTest(ports=ports), self.assertRaises(ValueError):
                 HELPER['packet_filter'](ports)
+
+    def test_passing_control_cannot_erase_a_failed_or_skipped_condition(self):
+        passed = {'exitCode': 0, 'cases': [{'outcome': 'passed'}]}
+        self.assertEqual(0, HELPER['comparison_exit_code']([passed, passed]))
+        for result in ({'exitCode': 1, 'cases': [{'outcome': 'passed'}]},
+                       {'exitCode': 0, 'cases': [{'outcome': 'failure'}]},
+                       {'exitCode': 0, 'cases': [{'outcome': 'skipped'}]},
+                       {'exitCode': 0, 'cases': []}):
+            with self.subTest(result=result):
+                self.assertEqual(1, HELPER['comparison_exit_code']([result, passed]))
+        self.assertEqual(1, HELPER['comparison_exit_code']([]))
+
+    def test_manual_diagnosis_cannot_displace_standard_checks_or_publish_a_receipt(self):
+        workflow = (Path(__file__).resolve().parents[2] / '.github/workflows/verify.yml').read_text()
+        standard, diagnostic = workflow.split('  ios-fixture-lifetime-diagnostic:', 1)
+        standard_jobs = standard.split('jobs:', 1)[1]
+        self.assertNotIn('ios_fixture_lifetime_diagnostic', standard_jobs)
+        for context in ('Shared and Android tests', 'Desktop native tests (macOS)',
+                        'Desktop native tests (Windows)', 'Desktop native tests (Linux)', 'iOS simulator tests'):
+            self.assertIn('name: ' + context, standard_jobs)
+        self.assertIn('name: Android emulator native tests (API ${{ matrix.api-level }})', standard_jobs)
+        api_levels = json.loads(re.search(r'api-level:\s*(\[[^\]]+\])', standard_jobs).group(1))
+        self.assertTrue({30, 35}.issubset(api_levels))
+        self.assertIn("github.event_name == 'workflow_dispatch' && inputs.ios_fixture_lifetime_diagnostic", diagnostic)
+        self.assertNotIn('Write verification evidence', diagnostic)
+        self.assertNotIn('verified-source-', diagnostic)

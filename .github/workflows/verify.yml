@@ -680,12 +680,16 @@ jobs:
           path: ${{ runner.temp }}/naviamp-verification/evidence.txt
 
   ios-fixture-lifetime-diagnostic:
-    name: iOS fixture lifetime diagnosis (diagnostic only)
+    name: iOS fixture diagnosis (daemon=${{ matrix.daemon }}, diagnostic only)
     if: github.event_name == 'workflow_dispatch' && inputs.ios_fixture_lifetime_diagnostic
     runs-on: macos-latest
     timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        daemon: [true, false]
     env:
-      GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g
+      GRADLE_OPTS: -Dorg.gradle.daemon=${{ matrix.daemon }} -Dorg.gradle.jvmargs=-Xmx4g
       TZ: America/Los_Angeles
     steps:
       - uses: actions/checkout@v7
@@ -702,13 +706,13 @@ jobs:
       - name: Compare aged and fresh fixtures with the same native binary
         run: |
           python3 scripts/diagnose-ios-fixture-lifetime.py \
-            --minimum-age-seconds 1200 --pairs 2 \
+            --compile-full --minimum-age-seconds 0 --pairs 2 \
             --output build/ios-fixture-lifetime
       - name: Preserve diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ios-fixture-lifetime-diagnostics
+          name: ios-fixture-lifetime-diagnostics-daemon-${{ matrix.daemon }}
           if-no-files-found: error
           path: |
             build/ios-fixture-lifetime/**/*.log
