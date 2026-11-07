@@ -6,6 +6,8 @@ import com.sun.net.httpserver.HttpsServer
 import com.sun.net.httpserver.HttpServer
 import com.sun.net.httpserver.HttpsExchange
 import java.net.InetSocketAddress
+import java.net.Socket
+import java.net.URI
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Files
@@ -21,6 +23,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicLong
 import javax.net.ssl.KeyManagerFactory
 import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLSocket
 import javax.net.ssl.TrustManagerFactory
 
 /** Real loopback HTTPS and disposable identities; never changes an OS or JVM trust store. */
@@ -86,6 +89,37 @@ class NaviampMutualTlsFixture(
 
     fun startServer(requireClientCertificate: Boolean = true, pauseAudioAfterBytes: Int? = null, port: Int = 0, useTls: Boolean = true): Server =
         Server(requireClientCertificate, pauseAudioAfterBytes, port, useTls).also { servers += it }
+
+    /** Prove the owned listener can finish TLS before a mobile test's assertion clock starts.
+     * No HTTP request is sent, so authentication/path/range audits still belong to the test.
+     */
+    internal fun verifyTlsServerReady(server: Server, hostname: String = "127.0.0.1") {
+        val endpoint = URI(server.baseUrl)
+        require(endpoint.scheme == "https" && endpoint.host == "127.0.0.1")
+        val started = System.nanoTime()
+        println("Disposable TLS readiness starting: port=${endpoint.port} hostname=$hostname")
+        val keys = KeyStore.getInstance("PKCS12").apply {
+            Files.newInputStream(clientKeyStore).use { load(it, password.toCharArray()) }
+        }
+        val identity = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm()).apply {
+            init(keys, password.toCharArray())
+        }
+        val trust = KeyStore.getInstance("PKCS12").apply {
+            load(null, null)
+            setCertificateEntry("ca", keys.getCertificate("ca"))
+        }
+        val authorities = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm()).apply { init(trust) }
+        val context = SSLContext.getInstance("TLS").apply { init(identity.keyManagers, authorities.trustManagers, null) }
+        Socket().use { connection ->
+            connection.connect(InetSocketAddress("127.0.0.1", endpoint.port), 5_000)
+            (context.socketFactory.createSocket(connection, hostname, endpoint.port, true) as SSLSocket).use { socket ->
+                socket.soTimeout = 5_000
+                socket.sslParameters = socket.sslParameters.apply { endpointIdentificationAlgorithm = "HTTPS" }
+                socket.startHandshake()
+            }
+        }
+        println("Disposable TLS readiness passed: port=${endpoint.port} milliseconds=${(System.nanoTime() - started) / 1_000_000}")
+    }
 
     inner class Server internal constructor(requireClientCertificate: Boolean, private val pauseAudioAfterBytes: Int?, port: Int, private val useTls: Boolean) : AutoCloseable {
         val requestedPaths: MutableList<String> = Collections.synchronizedList(mutableListOf())
