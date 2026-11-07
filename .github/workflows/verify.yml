@@ -632,6 +632,9 @@ jobs:
             build/ios-native-replays/run-*/summary.json
             build/ios-native-replays/run-*/native.log
             build/ios-native-replays/run-*/fixture.log
+            build/ios-native-replays/run-*/fixture-startup.json
+            build/ios-native-replays/run-*/fixture-readiness.log
+            build/ios-native-replays/run-*/cleanup-complete
             build/ios-native-replays/run-*/boot.log
             build/ios-native-replays/run-*/services.log
             build/ios-native-replays/run-*/diagnostics/**
