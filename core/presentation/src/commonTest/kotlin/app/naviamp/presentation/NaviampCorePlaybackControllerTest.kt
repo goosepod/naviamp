@@ -30,6 +30,7 @@ import app.naviamp.domain.playback.PlaybackProfileTargetType
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
@@ -467,6 +468,123 @@ class NaviampCorePlaybackControllerTest {
         assertEquals(42.0, fixture.effects.restoredStartPositionSeconds)
         assertEquals("remembered-two", fixture.sidecars.loadedTracks.single())
         assertEquals(0, fixture.effects.starts)
+    }
+
+    @Test
+    fun streamTitlePublishedBeforeTheSidecarLoadSurvivesIt() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        val metadata = PlaybackStreamMetadata(title = "Artist - Live title")
+
+        // A live stream reports Playing and then its first ICY title on the next poll, before the
+        // sidecar load launched by Playing runs and resets the track's sidecars.
+        fixture.effects.observer?.onStateChanged(PlaybackState.Playing)
+        fixture.effects.observer?.onMetadataChanged(metadata)
+        runCurrent()
+
+        assertEquals(listOf("two"), fixture.sidecars.loadedTracks)
+        assertEquals(metadata, fixture.sidecars.snapshot().streamMetadata)
+    }
+
+    @Test
+    fun streamTitleOfThePreviousTrackIsNotRestoredForTheNextTrack() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer?.onMetadataChanged(PlaybackStreamMetadata(title = "Previous title"))
+        val next = fixture.live.state.value.queue.copy(currentIndex = 2)
+        fixture.live.replace(fixture.live.state.value.copy(currentTrack = next.current, queue = next))
+
+        fixture.effects.observer?.onStateChanged(PlaybackState.Playing)
+        runCurrent()
+
+        assertEquals(listOf("three"), fixture.sidecars.loadedTracks)
+        assertEquals(PlaybackStreamMetadata(), fixture.sidecars.snapshot().streamMetadata)
+    }
+
+    @Test
+    fun returningToAnEarlierStationDoesNotRestoreItsPreviousTitle() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+
+        // Station A ("two") publishes its first title; its sidecar load consumes the cached restore.
+        fixture.effects.observer?.onStateChanged(PlaybackState.Playing)
+        fixture.effects.observer?.onMetadataChanged(PlaybackStreamMetadata(title = "A - first title"))
+        runCurrent()
+
+        // Switch to station B ("three") before it publishes any metadata, then back to A: A must start
+        // from empty sidecars instead of the title cached from its previous playback session.
+        fun switchTo(index: Int) {
+            val queue = fixture.live.state.value.queue.copy(currentIndex = index)
+            fixture.live.replace(fixture.live.state.value.copy(currentTrack = queue.current, queue = queue))
+            fixture.effects.observer?.onStateChanged(PlaybackState.Playing)
+            runCurrent()
+        }
+        switchTo(2)
+        switchTo(1)
+
+        assertEquals(listOf("two", "three", "two"), fixture.sidecars.loadedTracks)
+        assertEquals(PlaybackStreamMetadata(), fixture.sidecars.snapshot().streamMetadata)
+    }
+
+    @Test
+    fun rapidReturnDoesNotRestoreATitlePublishedAfterTheInitialSidecarLoad() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        runCurrent()
+        fixture.effects.observer!!.onMetadataChanged(PlaybackStreamMetadata(title = "A - later title"))
+        for (index in listOf(2, 1)) {
+            val queue = fixture.live.state.value.queue.copy(currentIndex = index)
+            fixture.live.replace(fixture.live.state.value.copy(currentTrack = queue.current, queue = queue))
+            fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        }
+        runCurrent()
+        assertEquals(listOf("two", "two"), fixture.sidecars.loadedTracks)
+        assertEquals(PlaybackStreamMetadata(), fixture.sidecars.snapshot().streamMetadata)
+    }
+
+    @Test
+    fun leavingAStationBeforeTheNextOnePlaysInvalidatesItsTitle() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        runCurrent()
+        fixture.effects.observer!!.onMetadataChanged(PlaybackStreamMetadata(title = "A - old title"))
+        for (index in listOf(2, 1)) {
+            val queue = fixture.live.state.value.queue.copy(currentIndex = index)
+            fixture.live.replace(fixture.live.state.value.copy(currentTrack = queue.current, queue = queue))
+        }
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        runCurrent()
+        assertEquals(PlaybackStreamMetadata(), fixture.sidecars.snapshot().streamMetadata)
+    }
+
+    @Test
+    fun cancelledOldSidecarLoadCannotOverwriteAFreshTitleAfterReturningToTheStation() = runTest {
+        val releaseOldLoad = CompletableDeferred<Unit>()
+        var first = true
+        val sidecars = PlaybackTestSidecars(beforeLoad = { track ->
+            if (track.id.value == "two" && first) {
+                first = false
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { releaseOldLoad.await() }
+            }
+        })
+        val fixture = playbackFixture(this, sidecars)
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer!!.onMetadataChanged(PlaybackStreamMetadata(title = "A - old title"))
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        runCurrent()
+        val fresh = PlaybackStreamMetadata(title = "A - fresh title")
+        for (index in listOf(2, 1)) {
+            val queue = fixture.live.state.value.queue.copy(currentIndex = index)
+            fixture.live.replace(fixture.live.state.value.copy(currentTrack = queue.current, queue = queue))
+            fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+            if (index == 1) fixture.effects.observer!!.onMetadataChanged(fresh)
+            runCurrent()
+        }
+        releaseOldLoad.complete(Unit)
+        runCurrent()
+        assertEquals(fresh, fixture.sidecars.snapshot().streamMetadata)
     }
 
     @Test
@@ -1140,12 +1258,20 @@ private class RecordingPlaybackSessionRepository : PlaybackSessionRepository {
 
 private class PlaybackTestSidecars(
     private val blockingTrackId: String? = null,
+    private val beforeLoad: suspend (Track) -> Unit = {},
 ) : NaviampCoreNowPlayingSidecarPort {
     val loadedTracks = mutableListOf<String>()
     val cancelledTracks = mutableListOf<String>()
-    override fun snapshot() = NaviampCoreNowPlayingSidecars()
+    private var streamMetadata = PlaybackStreamMetadata()
+    override fun snapshot() = NaviampCoreNowPlayingSidecars(streamMetadata = streamMetadata)
+    override fun updateStreamMetadata(metadata: PlaybackStreamMetadata) {
+        streamMetadata = metadata
+    }
     override suspend fun loadForTrack(track: Track) {
+        // Like the production sidecars, a track load starts from empty sidecars.
+        streamMetadata = PlaybackStreamMetadata()
         loadedTracks += track.id.value
+        beforeLoad(track)
         if (track.id.value == blockingTrackId) {
             try {
                 awaitCancellation()
