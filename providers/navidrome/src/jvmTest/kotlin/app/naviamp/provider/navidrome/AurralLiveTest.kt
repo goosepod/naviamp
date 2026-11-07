@@ -391,16 +391,13 @@ class AurralLiveTest {
             username = checkNotNull(System.getenv("NAVIAMP_AURRAL_TEST_USER")),
             password = checkNotNull(System.getenv("NAVIAMP_AURRAL_TEST_PASSWORD")),
             tlsSettings = NavidromeTlsSettings(insecureSkipTlsVerification =
-                System.getenv("NAVIAMP_AURRAL_TEST_INSECURE") == "true"))
+                System.getenv("NAVIAMP_AURRAL_TEST_INSECURE") == "true",
+                customCertificatePath = System.getenv("NAVIAMP_AURRAL_TEST_CA")))
     }
 
     @Test fun nativeDiscoveryAndOpenSubsonicUseTheSameConnectionAndTlsPolicy() = runBlocking {
-        val url = System.getenv("NAVIAMP_AURRAL_TEST_URL") ?: return@runBlocking
-        val connection = NavidromeConnection.fromPassword(providerId = ProviderIdAurral, baseUrl = url,
-            username = checkNotNull(System.getenv("NAVIAMP_AURRAL_TEST_USER")),
-            password = checkNotNull(System.getenv("NAVIAMP_AURRAL_TEST_PASSWORD")),
-            tlsSettings = NavidromeTlsSettings(insecureSkipTlsVerification =
-                System.getenv("NAVIAMP_AURRAL_TEST_INSECURE") == "true"))
+        val connection = liveConnection() ?: return@runBlocking
+        val url = connection.baseUrl
         val provider = NavidromeProvider(connection)
         assertNotNull(provider.validateConnection().serverVersion)
         assertTrue(provider.artists(3).isNotEmpty())
