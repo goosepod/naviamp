@@ -314,6 +314,24 @@ jobs:
             if [ "$status" -ne 0 ]; then exit "$status"; fi
           done
 
+      - name: Require repeated API 35 raster execution
+        if: needs.changes.outputs.run_full == 'true' && matrix.api-level == 35 && contains(github.event.pull_request.labels.*.name, 'verify:android-raster-repeat')
+        timeout-minutes: 15
+        run: |
+          set -o pipefail
+          evidence="$PWD/build/android-raster-replays"
+          mkdir -p "$evidence"
+          cp -R core/ui/build/outputs/androidTest-results/connected/debug "$evidence/initial"
+          for attempt in $(seq 1 10); do
+            status=0
+            ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.animationProbe=true \
+              -Pandroid.testInstrumentationRunnerArguments.class=app.naviamp.ui.AndroidRasterPlacementTest \
+              :core:ui:connectedDebugAndroidTest --rerun --console=plain \
+              | tee "$evidence/run-$attempt.log" || status=$?
+            cp -R core/ui/build/outputs/androidTest-results/connected/debug "$evidence/run-$attempt"
+            if [ "$status" -ne 0 ]; then exit "$status"; fi
+          done
+
       - name: Repeat API 35 DNS-SD discovery tests
         if: needs.changes.outputs.run_full == 'true' && matrix.api-level == 35
         run: |
@@ -356,6 +374,7 @@ jobs:
             core/ui/build/outputs/androidTest-results/**
             build/android-emulator-diagnostics/**
             build/android-compose-replays/**
+            build/android-raster-replays/**
             build/mobile-mtls-run.*/fixture.log
             /tmp/naviamp-dnssd-repeat-*.txt
             /tmp/naviamp-emulator.log
