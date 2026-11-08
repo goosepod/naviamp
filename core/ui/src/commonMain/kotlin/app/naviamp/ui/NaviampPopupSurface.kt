@@ -61,21 +61,6 @@ private object WindowOrigin : PopupPositionProvider {
         layoutDirection: LayoutDirection, popupContentSize: IntSize) = IntOffset.Zero
 }
 
-internal fun naviampMenuPosition(anchor: IntRect, window: IntSize, content: IntSize,
-    direction: LayoutDirection, offset: IntOffset, margin: Int): IntOffset {
-    val horizontal = if (direction == LayoutDirection.Ltr)
-        listOf(anchor.left + offset.x, anchor.right - content.width + offset.x)
-    else listOf(anchor.right - content.width - offset.x, anchor.left - offset.x)
-    val x = horizontal.firstOrNull { it >= 0 && it + content.width <= window.width }
-        ?: horizontal.first().coerceIn(0, (window.width - content.width).coerceAtLeast(0))
-    val top = margin.coerceAtMost((window.height - content.height).coerceAtLeast(0))
-    val bottom = (window.height - margin - content.height).coerceAtLeast(top)
-    val y = listOf(anchor.bottom + offset.y, anchor.top - content.height + offset.y)
-        .firstOrNull { it in top..bottom }
-        ?: (anchor.top - content.height / 2 + offset.y).coerceIn(top, bottom)
-    return IntOffset(x, y)
-}
-
 @Composable
 private fun NaviampViewportPopup(onDismissRequest: () -> Unit, properties: PopupProperties,
     scrim: Color = Color.Transparent, content: @Composable BoxScope.() -> Unit) {
@@ -133,6 +118,7 @@ internal fun NaviampWindowDropdownMenu(expanded: Boolean, onDismissRequest: () -
     val density = LocalDensity.current
     val pixelOffset = with(density) { IntOffset(offset.x.roundToPx(), offset.y.roundToPx()) }
     val margin = with(density) { 48.dp.roundToPx() }
+    val shadowPadding = with(density) { 32.dp.roundToPx() }
     val viewportPosition = remember { object : PopupPositionProvider {
         override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize,
             layoutDirection: LayoutDirection, popupContentSize: IntSize): IntOffset {
@@ -167,8 +153,7 @@ internal fun NaviampWindowDropdownMenu(expanded: Boolean, onDismissRequest: () -
         Layout(content = {
             Box(Modifier.padding(32.dp)) {
                 Surface(color = containerColor, shape = shape, shadowElevation = shadowElevation,
-                    modifier = Modifier.onGloballyPositioned { menuBounds = it.boundsInWindow() }
-                        .graphicsLayer { this.alpha = alpha; scaleX = scale; scaleY = scale }) {
+                    modifier = Modifier.onGloballyPositioned { menuBounds = it.boundsInWindow() }) {
                     Column(modifier.padding(vertical = 8.dp).width(IntrinsicSize.Max).verticalScroll(scroll), content = content)
                 }
             }
@@ -183,9 +168,16 @@ internal fun NaviampWindowDropdownMenu(expanded: Boolean, onDismissRequest: () -
         }) { measurables, constraints ->
             val menu = measurables.single().measure(constraints.copy(minWidth = 0, minHeight = 0))
             val windowSize = IntSize(constraints.maxWidth, constraints.maxHeight)
-            val position = naviampMenuPosition(anchor, windowSize, IntSize(menu.width, menu.height),
-                layoutDirection, pixelOffset, margin)
-            layout(windowSize.width, windowSize.height) { menu.place(position.x, position.y) }
+            val geometry = naviampMenuGeometry(anchor, windowSize, IntSize(menu.width, menu.height),
+                layoutDirection, pixelOffset, margin, shadowPadding)
+            layout(windowSize.width, windowSize.height) {
+                menu.placeWithLayer(geometry.paddedPosition.x, geometry.paddedPosition.y) {
+                    this.alpha = alpha
+                    scaleX = scale
+                    scaleY = scale
+                    transformOrigin = geometry.transformOrigin
+                }
+            }
         }
     }
 }

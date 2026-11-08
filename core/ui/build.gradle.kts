@@ -99,6 +99,7 @@ android {
                 "app.naviamp.ui.AndroidAnimationProbeTest",
                 "app.naviamp.ui.AndroidRasterPlacementTest",
                 "app.naviamp.ui.AndroidVisualizerMountTest",
+                "app.naviamp.ui.NaviampMenuAttachmentTest",
                 "app.naviamp.ui.NaviampDialogInitialFocusTest",
                 "app.naviamp.ui.NaviampSmartPlaylistReferencePickerTest",
                 "app.naviamp.ui.NaviampSmartPlaylistSummaryUiTest",
