@@ -8,6 +8,7 @@ data class SmartPlaylistPreview(
     val exampleTracks: List<Track> = emptyList(),
     val unsupportedFields: List<String> = emptyList(),
     val message: String? = null,
+    val indexedTrackCount: Int? = null,
 ) {
     val available: Boolean
         get() = matchingTrackCount != null
@@ -16,17 +17,22 @@ data class SmartPlaylistPreview(
 fun previewSmartPlaylist(
     definition: SmartPlaylistDefinition,
     tracks: List<Track>,
-    exampleLimit: Int = 5,
+    exampleLimit: Int = 50,
     nowEpochMillis: Long,
 ): SmartPlaylistPreview {
     val unsupported = definition.rules
         .flatMapTo(linkedSetOf(), SmartPlaylistRule::unsupportedPreviewFields)
-    if (definition.libraryIds != null && tracks.any { it.musicFolderId == null }) {
+    if ((definition.libraryIds != null || definition.rules.any { it.usesLibraryMembership() }) &&
+        tracks.any { it.musicFolderId.isNullOrBlank() }
+    ) {
         unsupported += SmartPlaylistFields.LibraryId
     }
     if (unsupported.isNotEmpty()) {
-        return SmartPlaylistPreview(unsupportedFields = unsupported.sorted())
+        return SmartPlaylistPreview(unsupportedFields = unsupported.sorted(), indexedTrackCount = tracks.size)
     }
+
+    // An empty local index cannot establish that the server has zero matches.
+    if (tracks.isEmpty()) return SmartPlaylistPreview(indexedTrackCount = 0)
 
     val selectedLibraryIds = definition.libraryIds?.toSet()
     val matches = tracks.asSequence()
@@ -50,7 +56,13 @@ fun previewSmartPlaylist(
         matchingTrackCount = matches.size,
         resultTrackCount = resultCount,
         exampleTracks = matches.take(minOf(exampleLimit.coerceAtLeast(0), resultCount)),
+        indexedTrackCount = tracks.size,
     )
+}
+
+private fun SmartPlaylistRule.usesLibraryMembership(): Boolean = when (this) {
+    is SmartPlaylistCondition -> field == SmartPlaylistFields.LibraryId
+    is SmartPlaylistGroup -> rules.any { it.usesLibraryMembership() }
 }
 
 private fun SmartPlaylistRule.unsupportedPreviewFields(): Set<String> =
@@ -177,7 +189,7 @@ private fun Track.previewValues(field: String): List<Any?> = when (field) {
     SmartPlaylistFields.HasCoverArt -> listOf(coverArtId != null)
     SmartPlaylistFields.LastPlayed -> listOf(lastPlayedAtIso8601)
     SmartPlaylistFields.DateLoved -> listOf(favoritedAtIso8601)
-    SmartPlaylistFields.LibraryId -> listOf(musicFolderId)
+    SmartPlaylistFields.LibraryId -> listOf(musicFolderId?.toLongOrNull())
     else -> emptyList()
 }
 

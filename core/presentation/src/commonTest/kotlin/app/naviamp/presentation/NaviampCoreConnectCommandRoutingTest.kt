@@ -17,6 +17,30 @@ import kotlin.test.assertNull
 
 class NaviampCoreConnectCommandRoutingTest {
     @Test
+    fun mainPlaybackCommandsStopSamplesBeforeRoutingButSampleInitiatedPauseDoesNot() = kotlinx.coroutines.test.runTest {
+        val events = mutableListOf<String>()
+        val delegate = object : NaviampCoreCommandHandler {
+            override fun dispatch(command: NaviampCoreCommand) { events += "dispatch" }
+            override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult {
+                events += "execute"
+                return NaviampCoreCommandResult.Completed
+            }
+        }
+        val handler = NaviampCoreConnectCommandHandler(delegate, null) { events += "stop sample" }
+        fun playback(action: app.naviamp.ui.NowPlayingPlaybackAction) = NaviampCoreCommand.NowPlaying.Playback(
+            app.naviamp.ui.NowPlayingPlaybackActionRequest(action))
+        handler.dispatch(playback(app.naviamp.ui.NowPlayingPlaybackAction.Pause))
+        assertEquals(listOf("dispatch"), events)
+        events.clear()
+        handler.dispatch(playback(app.naviamp.ui.NowPlayingPlaybackAction.Resume))
+        assertEquals(listOf("stop sample", "dispatch"), events)
+        events.clear()
+        handler.execute(NaviampCoreCommand.Detail.Album(
+            NaviampAlbumDetailActionRequest(album, NaviampAlbumDetailCommand.Play(shuffle = false))))
+        assertEquals(listOf("stop sample", "execute"), events)
+    }
+
+    @Test
     fun albumPlayPreservesShuffleIntent() {
         val selection = NaviampCoreCommand.Detail.Album(
             NaviampAlbumDetailActionRequest(album, NaviampAlbumDetailCommand.Play(shuffle = true)),

@@ -61,6 +61,7 @@ fun ColumnScope.NaviampProductRouteContent(
                 NaviampRoute.Home -> SharedHomeRoute(
                     colors = colors,
                     home = shellState.home,
+                    discoveryPlayback = shellState.home.samplePlayback,
                     actions = shellActions.homeActions,
                     mediaActions = shellActions.mediaActions,
                 )
@@ -82,6 +83,8 @@ fun ColumnScope.NaviampProductRouteContent(
                     keptDownloaded = shellState.artistDetail.detail?.artist?.id in shellState.downloads.keptArtistIds,
                     appearanceState = artistAppearanceState,
                     albumCollectionLayout = shellState.general.interfaceSettings.albumCollectionLayout,
+                    artistPlaylistLayout = shellState.general.interfaceSettings.artistPlaylistLayout,
+                    artistAppearanceAlbumLayout = shellState.general.interfaceSettings.artistAppearanceAlbumLayout,
                     albumSortOrder = shellState.general.interfaceSettings.albumSortOrder,
                     groupAlbumsByReleaseType = shellState.general.interfaceSettings.groupAlbumsByReleaseType,
                     actions = shellActions.artistDetailActions,

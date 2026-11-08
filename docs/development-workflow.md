@@ -57,7 +57,8 @@ integration branch, large late merge conflicts, and fixes that exist only in one
 6. Run the complete release verification matrix against the release branch.
 7. Create `.github/releases/vX.Y.Z.md` from `.github/RELEASE_TEMPLATE.md`.
 8. Tag the accepted commit. The tag workflow builds all artifacts and creates a draft GitHub Release.
-9. Review and publish the draft, then create an Announcements Discussion linking to the release.
+9. Review the draft and verify its name is exactly `Naviamp vX.Y.Z`, with no descriptive suffix.
+   Publish it, verify the published name, then create an Announcements Discussion linking to the release.
 10. Close the milestone when its shipped state is accurate.
 11. Mirror the accepted commits and tags to Forgejo using the procedure below.
 
@@ -71,14 +72,45 @@ and every packaging job succeed.
 If an issue must be removed after the release branch is cut, prefer fixing or reverting that issue's
 complete pull request rather than assembling a release from an undocumented collection of commits.
 
+### Scope freeze and concurrent contributions
+
+The release-preparation PR is a focused update for versioning, changelogs, contributor credits, and
+release evidence after the selected product PRs have merged into `main`. It is not an integration
+branch for outstanding feature PRs. Unmerged work moves to a later milestone rather than blocking
+the release or being merged indirectly through its preparation PR.
+
+Record the accepted `main` commit and selected scope when cutting `release/<version>`. After that
+cut, normal contributor PRs still target `main` and can merge for a later release. Do not merge the
+advancing `main` branch into a frozen release branch: bring across only individually reviewed
+release blockers and required release metadata through focused PRs. A release branch does not need
+to contain every commit currently on `main` to ship.
+
+Fix blockers in `main` first and port the accepted fix to the release branch when practical. A
+release-first fix must return to `main` promptly through a focused PR, without pulling unrelated
+release version or changelog edits over newer mainline metadata. Verify the actual ported diff;
+conflict resolution can change behavior even when the original fix passed.
+
+Any late scope addition requires an explicit scope decision, updated notes and contributor credits,
+and fresh verification of the changed candidate. Never inherit passing status from an earlier tree.
+Before merging a contributor PR, compare it with current `main`, resolve conflicts on its own
+branch, and rerun the affected checks. Resolving a conflict must not silently broaden release scope.
+
 ## Release notes and Discord announcements
+
+GitHub release names must be exactly `Naviamp vX.Y.Z` (for example, `Naviamp v2.9.0`).
+Do not append subtitles, feature descriptions, codenames, or other suffixes. Put those details
+in the release body or announcement text.
 
 Create `.github/releases/vX.Y.Z.md` from [`.github/RELEASE_TEMPLATE.md`](../.github/RELEASE_TEMPLATE.md)
 for the GitHub Release body. The tag workflow uses that versioned file verbatim when it exists. If
 it is absent, GitHub generates a draft from labeled merged pull requests before the workflow uses
-the matching `CHANGELOG.md` section as a compatibility fallback. The project's Discord
-**announcements** channel receives published GitHub releases through a webhook, so the same release
-body must work as both the detailed GitHub page and a compact Discord announcement.
+the matching `CHANGELOG.md` section as a compatibility fallback. The project's existing Discord
+**announcements** webhook forwards published GitHub releases. That existing delivery does not by
+itself satisfy the owner's separate-format requirement: before publishing notes with detailed
+GitHub references and credits, ensure Discord delivery uses the plain bulleted announcement plus
+Thanks. A template edit alone does not change webhook formatting. Do not send a second announcement
+without accounting for the existing webhook, and do not claim delivery formatting is implemented
+until that integration has been verified.
 
 - Begin with a plain-language summary followed by no more than three highlights. The beginning must
   remain useful if a notification surface shows only part of the body.
@@ -95,17 +127,33 @@ body must work as both the detailed GitHub page and a compact Discord announceme
 - Keep bullets concise and independently understandable. Avoid tables, deep nesting, raw issue-title
   dumps, and internal implementation language.
 - Do not use emoji.
-- Link each substantive change to its GitHub issue and pull request. Prefer those durable records to
+- In GitHub release notes, link each substantive change to its GitHub issue and pull request. Prefer those durable records to
   individual commit links because they contain the rationale, acceptance criteria, verification, and
   complete commit history.
 - Add a GitHub comparison link for the complete commit-level changelog. Link an individual commit
   only when that exact commit is important to understand or audit.
-- Use absolute GitHub URLs so links continue to work after the release body is forwarded to Discord.
+- In GitHub release notes, credit community contributors on each relevant change by public GitHub handle, distinguishing
+  reporting, implementation, testing, documentation, and translation work. Keep the originating
+  issue and implementation PR links next to that change; use a commit link when neither exists.
+- Include a deduplicated **Thanks** section for community contributions in the GitHub release,
+  About-page release changelog, Discord announcement, and Announcements Discussion. Include people
+  whose release contributions are not represented by commit authorship, and honor anonymous credit
+  requests. Omit the section when there are no community contributors to thank.
+- Welcome first-time contributors in Thanks. Verify prior release acknowledgments and repository
+  contribution history, including non-code contributions, rather than trusting GitHub's generated
+  first-PR list alone. First-time means the person's first release acknowledgment for contributing
+  to Naviamp. Use previous release Thanks sections as the durable acknowledgment record, and credit
+  only contributions included in the release.
+- Keep About-page changelogs, Discord posts, and similar announcements as their existing plain
+  bulleted lists, adding only Thanks. Do not append issue, PR, or commit references or per-change
+  contributor credits to those lists. Prepare this plain-list version for Discord delivery rather
+  than forwarding the detailed GitHub release body unchanged.
+- Use absolute GitHub URLs so links remain usable outside the repository and in copied release notes.
 
 The GitHub Release is the canonical announcement record. The required GitHub Discussion may use a
 shorter editorial introduction, but it should link back to the release rather than maintain a
-different list of changes. The Discord webhook is notification delivery, not a third changelog that
-must be edited separately.
+different list of changes. Derive the plain Discord announcement and its Thanks section from that
+same accepted release content; formatting differences must not introduce a different release scope.
 
 ## Recovering an existing release build
 

@@ -31,6 +31,8 @@ fun naviampCoreStreamingPlaybackServices(
         persist = persistPlaybackSettings,
     )
     return NaviampCorePlaybackServices(
+        samples = NaviampCoreEngineSamplePlayback(scope, engine, providerSource,
+            verifyProviderNetworkCertificates, { settings.current().volumePercent }),
         effects = NaviampCorePlaybackEngineAdapter(
             scope = scope,
             engine = engine,

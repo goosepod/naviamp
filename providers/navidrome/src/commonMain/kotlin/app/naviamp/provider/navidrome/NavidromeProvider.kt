@@ -1,5 +1,8 @@
 package app.naviamp.provider.navidrome
 
+import app.naviamp.domain.provider.isDiscoveryPreview
+import app.naviamp.domain.provider.DiscoveryPreviewTrackPrefix
+
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumExplicitStatus
@@ -64,6 +67,10 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistValue
 import app.naviamp.domain.source.normalizedMusicFolderIds
 import app.naviamp.domain.source.ConnectionPasswordRequiredStatus
 import app.naviamp.domain.source.SubsonicAuthApiKey
+import app.naviamp.domain.radio.SimilarityAdminDiagnostics
+import app.naviamp.domain.radio.SimilarityAdminStatus
+import app.naviamp.domain.radio.SimilarityPluginInfo
+import app.naviamp.domain.radio.isSimilarityTimeout
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -96,13 +103,35 @@ private data class NavidromeArtistCatalog(
 @OptIn(ExperimentalAtomicApi::class)
 class NavidromeProvider(
     private val connection: NavidromeConnection,
-    private val httpClient: NavidromeHttpClient = createDefaultNavidromeHttpClient(connection.tlsSettings),
+    httpClient: NavidromeHttpClient = createDefaultNavidromeHttpClient(connection.tlsSettings),
 ) : MediaProvider,
     ArtistPopularTracksClient,
     SimilarArtistsClient {
+    private val httpClient: NavidromeHttpClient = (httpClient as? KtorNavidromeHttpClient)
+        ?.withConnectionHeaderNames(connection.customHeaders.mapNotNull { header ->
+            header.normalized()?.takeIf { !it.value.isNullOrBlank() }?.name
+        }.toSet()) ?: httpClient
     private val profile = subsonicProviderProfile(connection.providerId)
+    private val aurralDiscovery =
+        if (profile.providerId == app.naviamp.domain.provider.ProviderIdAurral) {
+            app.naviamp.provider.aurral.AurralDiscoveryClient(connection, this.httpClient,
+                resolveLibraryArtist = { identityKey, mbid ->
+                    val candidateId = "artist:${identityKey.urlEncode().replace("%3A", ":", ignoreCase = true)}"
+                    val raw = get("getArtist.view", mapOf("id" to candidateId)).subsonicResponse()["artist"] as? JsonObject
+                    raw?.takeIf { it.stringValue("musicBrainzId").equals(mbid, ignoreCase = true) }?.toArtist()
+                }, resolveLibraryAlbum = { identityKey, mbid ->
+                    val candidateId = "album:${identityKey.urlEncode().replace("%3A", ":", ignoreCase = true)}"
+                    val raw = get("getAlbum.view", mapOf("id" to candidateId)).subsonicResponse()["album"] as? JsonObject
+                    raw?.takeIf { it.stringValue("id") == candidateId && it.stringValue("musicBrainzId").equals(mbid, ignoreCase = true) &&
+                        (it["song"] as? JsonArray)?.isNotEmpty() == true }?.toAlbum()
+                })
+        } else null
+    override val discovery: app.naviamp.domain.provider.ProviderDiscovery? get() = aurralDiscovery
     override val id: ProviderId = ProviderId(profile.providerId)
     override val displayName: String = profile.displayName
+    override val supportsPlaybackByteTransport: Boolean = true
+    override val requiresAuthenticatedPlaybackTransport: Boolean
+        get() = connection.tlsSettings != NavidromeTlsSettings() || customHeaders.isNotEmpty()
     override val source: String = NavidromeAgentMetadataSource
     override val selectedMusicFolderIds: List<String> =
         normalizedMusicFolderIds(connection.selectedMusicFolderIds)
@@ -114,6 +143,7 @@ class NavidromeProvider(
                 append(selectedMusicFolderIds.joinToString(","))
             }
         }
+    override val discoveryAccountScope: String = "${id.value}:${connection.normalizedBaseUrl}:${connection.username}"
     private val customHeaders: Map<String, String> =
         connection.customHeaders
             .mapNotNull { header ->
@@ -128,6 +158,7 @@ class NavidromeProvider(
         connection.copy(nativeToken = nativeToken)
     private val baseCapabilities: ProviderCapabilities =
         ProviderCapabilities(
+            supportsSimilarityDiagnostics = profile.generatedRadio,
             supportsStreamingTranscode = profile.streamingTranscode,
             supportsDownloadTranscode = profile.downloadTranscode,
             supportsArtistRadio = profile.generatedRadio,
@@ -252,6 +283,9 @@ class NavidromeProvider(
             folderCount = scanStatus.intValue("folderCount"),
         )
     }
+
+    override suspend fun libraries(): List<app.naviamp.domain.provider.MediaLibrary> =
+        musicFolders().map { app.naviamp.domain.provider.MediaLibrary(it.id, it.name) }
 
     suspend fun musicFolders(): List<NavidromeMusicFolder> {
         val response = get("getMusicFolders.view")
@@ -548,8 +582,16 @@ class NavidromeProvider(
     override suspend fun track(trackId: TrackId): Track? = song(trackId)
 
     override suspend fun libraryTracksPage(request: MediaPageRequest): MediaPage<Track>? =
-        if (!bulkMetadataEnumeration) null else pageAcrossSelectedMusicFolders(request, { it: Track -> it.id.value }) { folder, limit, offset ->
+        if (!bulkMetadataEnumeration) null else nativeAlphabeticalPage(
+            kind = AlphabeticalLibraryKind.Tracks,
+            request = request,
+            mapper = { it.toNativeTrack() },
+        ) ?: pageAcrossSelectedMusicFolders(request, { it: Track -> it.id.value }) { folder, limit, offset ->
             searchForMusicFolder(query = "", songCount = limit, songOffset = offset, musicFolderId = folder).tracks
+                .map { track ->
+                    if (track.musicFolderId == null && folder != null) track.copy(musicFolderId = folder)
+                    else track
+                }
         }
 
     override suspend fun tracksPage(request: MediaPageRequest): MediaPage<Track> =
@@ -929,6 +971,9 @@ class NavidromeProvider(
         return playlistsForMusicFolder(limit, musicFolderId = null)
     }
 
+    override suspend fun playlistOwnedByCurrentUser(playlist: Playlist): Boolean? =
+        playlist.owner?.takeIf { it.isNotBlank() }?.let { it == authenticatedUsername }
+
     private suspend fun playlistsForMusicFolder(limit: Int, musicFolderId: String?): List<Playlist> {
         val response = get(
             endpoint = "getPlaylists.view",
@@ -1048,6 +1093,23 @@ class NavidromeProvider(
             endpoint = "playlist/${playlistId.urlEncode()}",
             body = json.encodeToString(JsonObject.serializer(), body),
         )
+    }
+
+    override suspend fun inspectSmartPlaylist(playlistId: String): app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult {
+        requireNativeSmartPlaylists()
+        val original = try {
+            getNativeJson("playlist/${playlistId.urlEncode()}").toNativeDataObject()
+        } catch (error: NavidromeHttpException) {
+            return when (error.statusCode) {
+                403 -> app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult.Unavailable(
+                    app.naviamp.domain.smartplaylist.SmartPlaylistDefinitionUnavailable.PermissionDenied)
+                404 -> app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult.Unavailable(
+                    app.naviamp.domain.smartplaylist.SmartPlaylistDefinitionUnavailable.NotFound)
+                else -> throw error
+            }
+        }
+        return app.naviamp.domain.smartplaylist.inspectSmartPlaylistObject(original,
+            mapDefinition = { it.withoutLibraryScopeForEditing() })
     }
 
     override suspend fun smartPlaylistDefinition(playlistId: String): SmartPlaylistDefinition {
@@ -1314,37 +1376,127 @@ class NavidromeProvider(
         )
     }
 
-    override suspend fun artistRadio(artistId: ArtistId, count: Int): List<Track> =
-        similarSongs(
-            endpoint = "getSimilarSongs2.view",
-            responseKey = "similarSongs2",
-            id = artistId.value,
-            count = count,
-        ).ifEmpty {
-            artistRadioFallback(artistId, count)
-        }
+    override suspend fun artistRadio(artistId: ArtistId, count: Int): List<Track> {
+        val similar = similarSongs("getSimilarSongs2.view", "similarSongs2", artistId.value, count)
+        if (profile.providerId != app.naviamp.domain.provider.ProviderIdAurral)
+            return similar.ifEmpty { artistRadioFallback(artistId, count) }
+        val seed = knownTracks.load().values.firstOrNull { it.artistId == artistId }
+            ?: artistRadioFallback(artistId, 1).firstOrNull()
+        return seed?.let { aurralLibraryRadioFallback(it.id, count, similar) }.orEmpty()
+    }
 
-    override suspend fun albumRadio(albumId: AlbumId, count: Int): List<Track> =
-        similarSongs(
-            endpoint = "getSimilarSongs.view",
-            responseKey = "similarSongs",
-            id = albumId.value,
-            count = count,
-        ).ifEmpty {
-            albumRadioFallback(albumId, count)
-        }
+    override suspend fun albumRadio(albumId: AlbumId, count: Int): List<Track> {
+        val similar = similarSongs("getSimilarSongs.view", "similarSongs", albumId.value, count)
+        if (profile.providerId != app.naviamp.domain.provider.ProviderIdAurral)
+            return similar.ifEmpty { albumRadioFallback(albumId, count) }
+        val seed = knownTracks.load().values.firstOrNull { it.albumId == albumId }
+            ?: albumRadioFallback(albumId, 1).firstOrNull()
+        return seed?.let { aurralLibraryRadioFallback(it.id, count, similar) }.orEmpty()
+    }
 
-    override suspend fun trackRadio(trackId: TrackId, count: Int): List<Track> =
-        similarSongs(
-            endpoint = "getSimilarSongs.view",
-            responseKey = "similarSongs",
-            id = trackId.value,
-            count = count,
-        )
+    override suspend fun instantMixTracks(trackId: TrackId, count: Int): List<Track> =
+        if (profile.providerId == app.naviamp.domain.provider.ProviderIdAurral) trackRadio(trackId, count)
+        else similarSongs("getSimilarSongs.view", "similarSongs", trackId.value, count)
             .filterNot { it.id == trackId }
-            .ifEmpty {
-                trackRadioFallback(trackId, count)
+
+    override suspend fun trackRadio(trackId: TrackId, count: Int): List<Track> {
+        val similar = similarSongs("getSimilarSongs.view", "similarSongs", trackId.value, count)
+            .filterNot { it.id == trackId }
+        return if (profile.providerId == app.naviamp.domain.provider.ProviderIdAurral)
+            aurralLibraryRadioFallback(trackId, count, similar)
+        else similar.ifEmpty { trackRadioFallback(trackId, count) }
+    }
+
+    override suspend fun similarityAdminDiagnostics(): SimilarityAdminDiagnostics {
+        if (!profile.nativeAuthentication) return SimilarityAdminDiagnostics(SimilarityAdminStatus.Unavailable)
+        if (nativeToken.isNullOrBlank()) return SimilarityAdminDiagnostics(SimilarityAdminStatus.NativeLoginRequired)
+        var details = SimilarityAdminDiagnostics(SimilarityAdminStatus.Available)
+        try {
+            val config = try {
+                json.parseToJsonElement(nativeHttpResponse("config/").body).jsonObject["config"] as? JsonObject
+                    ?: throw NavidromeException("Invalid admin configuration response")
+            } catch (failure: NavidromeHttpException) {
+                if (failure.statusCode != 404) throw failure
+                null // Older servers may expose plugin inventory without configuration inspection.
             }
+            details = details.copy(
+                pluginsEnabled = (config?.get("Plugins") as? JsonObject)?.get("Enabled")?.jsonPrimitive?.booleanOrNull,
+                externalServicesEnabled = config?.get("EnableExternalServices")?.jsonPrimitive?.booleanOrNull,
+                agents = config?.get("Agents")?.let { value ->
+                    when (value) {
+                        is JsonArray -> value.mapNotNull { it.jsonPrimitive.contentOrNull }
+                        else -> value.jsonPrimitive.contentOrNull?.split(',')
+                    }?.map { it.trim() }?.filter { it.isNotEmpty() }
+                },
+            )
+            if (details.pluginsEnabled == false) return details
+            val inventory = json.parseToJsonElement(nativeHttpResponse("plugin/").body)
+            val rows = (inventory as? JsonArray) ?: (inventory as? JsonObject)?.get("data") as? JsonArray
+                ?: throw NavidromeException("Invalid plugin inventory response")
+            val plugins = rows.map { value ->
+                val plugin = value as? JsonObject ?: throw NavidromeException("Invalid plugin row")
+                val id = plugin.stringValue("id")?.takeIf { it.isNotBlank() }
+                    ?: throw NavidromeException("Missing plugin ID")
+                val manifest = (plugin["manifest"] as? JsonObject) ?: plugin.stringValue("manifest")?.let {
+                    runCatching { json.parseToJsonElement(it) as? JsonObject }.getOrNull()
+                }
+                SimilarityPluginInfo(
+                    id = id, name = manifest?.stringValue("name") ?: id,
+                    version = manifest?.stringValue("version"),
+                    enabled = plugin["enabled"]?.jsonPrimitive?.booleanOrNull,
+                    hasError = !plugin.stringValue("lastError").isNullOrBlank(),
+                )
+            }
+            return details.copy(plugins = plugins)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: NavidromeHttpException) {
+            return details.copy(status = when (failure.statusCode) {
+                401 -> SimilarityAdminStatus.NativeLoginRequired
+                403 -> SimilarityAdminStatus.NotAdmin
+                404 -> SimilarityAdminStatus.Unavailable
+                else -> SimilarityAdminStatus.Failed
+            }, httpStatus = failure.statusCode)
+        } catch (failure: Exception) {
+            return details.copy(status = if (failure.isSimilarityTimeout()) SimilarityAdminStatus.TimedOut else SimilarityAdminStatus.Failed)
+        }
+    }
+
+    override suspend fun similaritySupport(): app.naviamp.domain.radio.SimilaritySupport = diagnosticRequest {
+        val versions = openSubsonicExtensionVersions(failOnError = true).versions
+        if (versions.supportsOpenSubsonicExtension("sonicSimilarity", 1)) {
+            app.naviamp.domain.radio.SimilaritySupport.Advertised
+        } else app.naviamp.domain.radio.SimilaritySupport.Missing
+    }
+
+    override suspend fun similarityEndpointTracks(
+        trackId: TrackId,
+        endpoint: app.naviamp.domain.radio.SimilarityEndpoint,
+        count: Int,
+    ): List<Track> = diagnosticRequest {
+        val response = when (endpoint) {
+            app.naviamp.domain.radio.SimilarityEndpoint.Regular -> get(
+                "getSimilarSongs.view", mapOf("id" to trackId.value, "count" to count.toString()),
+            ).subsonicResponse()["similarSongs"]?.jsonObject?.arrayValue("song").orEmpty()
+                .mapNotNull { (it as? JsonObject)?.toTrack() }
+            app.naviamp.domain.radio.SimilarityEndpoint.Sonic -> get(
+                "getSonicSimilarTracks.view", mapOf("id" to trackId.value, "count" to count.toString()),
+            ).subsonicResponse().arrayValue("sonicMatch")
+                .mapNotNull { (it as? JsonObject)?.get("entry")?.jsonObject?.toTrack() }
+        }
+        response
+    }
+
+    private suspend fun <T> diagnosticRequest(request: suspend () -> T): T = try {
+        request()
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (failure: NavidromeException) {
+        throw app.naviamp.domain.radio.SimilarityRequestException(
+            httpStatus = (failure as? NavidromeHttpException)?.statusCode,
+            serverCode = failure.subsonicErrorCode,
+        )
+    }
 
     override suspend fun sonicSimilarTracks(trackId: TrackId, count: Int): List<Track> =
         sonicSimilarTrackMatches(trackId, count).map { match -> match.track }
@@ -1375,7 +1527,7 @@ class NavidromeProvider(
                 .filterNot { it.track.id == trackId }
         }.getOrElse { cause ->
             if (cause is NavidromeException && (cause.subsonicErrorCode == 70 ||
-                    cause is NavidromeHttpException && cause.statusCode in listOf(404, 501))) emptyList()
+                    cause is NavidromeHttpException && cause.statusCode in listOf(404, 501))) throw UnsupportedOperationException()
             else throw cause
         }
 
@@ -1414,6 +1566,7 @@ class NavidromeProvider(
         }
 
     override suspend fun lyrics(trackId: TrackId): Lyrics? {
+        if (trackId.isDiscoveryPreview()) return null
         val structured = if (supportsSongLyrics != false) {
             try {
                 get("getLyricsBySongId.view", buildMap {
@@ -1441,6 +1594,7 @@ class NavidromeProvider(
             displayArtist = legacy.stringValue("artist"), displayTitle = legacy.stringValue("title"))
     }
     override suspend fun reportNowPlaying(trackId: TrackId) {
+        if (trackId.isDiscoveryPreview()) return
         if (!supportsPlaybackReport) {
             if (capabilities.supportsPlayReporting) get("scrobble.view", mapOf("id" to trackId.value, "submission" to "false"))
             return
@@ -1454,12 +1608,14 @@ class NavidromeProvider(
     }
 
     override suspend fun reportLegacyNowPlaying(trackId: TrackId) {
+        if (trackId.isDiscoveryPreview()) return
         if (capabilities.supportsPlayReporting) {
             get("scrobble.view", mapOf("id" to trackId.value, "submission" to "false"))
         }
     }
 
     override suspend fun submitListen(trackId: TrackId, startedAtEpochMillis: Long) {
+        if (trackId.isDiscoveryPreview()) return
         if (capabilities.supportsPlayReporting) get("scrobble.view", mapOf(
             "id" to trackId.value, "submission" to "true", "time" to startedAtEpochMillis.toString(),
         ))
@@ -1470,7 +1626,7 @@ class NavidromeProvider(
         state: PlaybackReportState,
         positionSeconds: Double?,
     ) {
-        if (!supportsPlaybackReport) return
+        if (trackId.isDiscoveryPreview() || !supportsPlaybackReport) return
         reportPlayback(
             trackId = trackId,
             state = state,
@@ -1480,6 +1636,12 @@ class NavidromeProvider(
     }
 
     override suspend fun streamUrl(request: StreamRequest): String {
+        if (request.trackId.isDiscoveryPreview()) {
+            require(aurralDiscovery != null)
+            val id = request.trackId.value.removePrefix(DiscoveryPreviewTrackPrefix)
+            require(id.toLongOrNull()?.let { it > 0 } == true)
+            return "${connection.normalizedBaseUrl}/api/deezer/preview/$id.mp3"
+        }
         val params = when (val quality = capabilities.effectiveStreamingQuality(request.quality)) {
             StreamQuality.Original -> mapOf("id" to request.trackId.value, "format" to "raw")
             is StreamQuality.Transcoded -> {
@@ -1499,6 +1661,7 @@ class NavidromeProvider(
     }
 
     override suspend fun downloadUrl(request: StreamRequest): String {
+        require(!request.trackId.isDiscoveryPreview()) { "Samples cannot be downloaded as Library tracks" }
         if (!capabilities.supportsDownloads) throw NavidromeException("Navidrome request failed.", 50)
         return if (request.quality == StreamQuality.Original && !profile.originalDownloadsUseStream) url("download.view", mapOf("id" to request.trackId.value))
         else streamUrl(request.copy(startPositionSeconds = null))
@@ -1543,7 +1706,7 @@ class NavidromeProvider(
         coverArtUrl(coverArtId, CoverArtSize.Thumbnail)
 
     override fun coverArtUrl(coverArtId: String, size: CoverArtSize): String =
-        url(
+        if (aurralDiscovery != null && (coverArtId.startsWith("https://") || coverArtId.startsWith("http://"))) coverArtId else url(
             "getCoverArt.view",
             mapOf(
                 "id" to coverArtId,
@@ -1574,7 +1737,9 @@ class NavidromeProvider(
         httpClient.getBytes(url, headers = customHeaders)
 
     override suspend fun bytesForOwnedUrl(url: String): ByteArray? =
-        if (ownsUrl(url)) bytes(url) else null
+        if (!ownsUrl(url)) null
+        else if (aurralDiscovery?.ownsDiscoveryCoverUrl(url) == true) aurralDiscovery.discoveryCoverBytes(url)
+        else bytes(url)
 
     suspend fun download(url: String, writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit): Boolean =
         httpClient.download(url, headers = customHeaders, writeChunk = writeChunk)
@@ -1630,6 +1795,45 @@ class NavidromeProvider(
 
     private suspend fun albumRadioFallback(albumId: AlbumId, count: Int): List<Track> =
         album(albumId).tracks.shuffled().take(count.coerceAtLeast(1))
+
+    private suspend fun aurralLibraryRadioFallback(trackId: TrackId, count: Int, similar: List<Track> = emptyList()): List<Track> {
+        val known = knownTracks.load()[trackId]
+        val seed = if (known == null || known.genres.isEmpty()) {
+            try { song(trackId) ?: known } catch (failure: NavidromeException) {
+                if (!failure.isUnsupportedRadioCatalog()) throw failure
+                known
+            }
+        } else known
+        seed ?: return emptyList()
+        val target = count.coerceIn(1, 300)
+        val fetchCount = (target * 6).coerceIn(80, 300)
+        val genreMatches = similar.toMutableList()
+        val recommended = app.naviamp.domain.radio.libraryRadioMixTracks(seed, genreMatches, count = target)
+        if (!app.naviamp.domain.radio.libraryRadioMixNeedsMoreCandidates(seed, recommended, target)) return recommended
+        for (genre in seed.genres.map(String::trim).filter(String::isNotEmpty).distinctBy(String::lowercase).take(3)) {
+            genreMatches += optionalRadioCatalog { randomSongs(fetchCount, genre = genre) }
+                // Guard servers ignoring the filter when returned tags explicitly disagree.
+                .filter { it.genres.isEmpty() || it.genres.any { tag -> tag.equals(genre, ignoreCase = true) } }
+                .shuffled()
+        }
+        val matched = app.naviamp.domain.radio.libraryRadioMixTracks(seed, genreMatches, count = target)
+        if (!app.naviamp.domain.radio.libraryRadioMixNeedsMoreCandidates(seed, matched, target)) return matched
+        // Missing/sparse tags must not trap Radio on the seed artist. Fill from the same selected
+        // Library scope, still applying the shared artist cap and retaining genre priority.
+        val library = optionalRadioCatalog { randomSongs(fetchCount) }.shuffled()
+        val mixed = app.naviamp.domain.radio.libraryRadioMixTracks(seed, genreMatches, library, count = target)
+        if (mixed.size >= target) return mixed
+        return app.naviamp.domain.radio.libraryRadioMixTracks(seed, genreMatches, library,
+            fallbackTracks = trackRadioFallback(trackId, target), count = target)
+    }
+
+    private suspend fun optionalRadioCatalog(load: suspend () -> List<Track>): List<Track> =
+        try { load() } catch (failure: NavidromeException) {
+            if (failure.isUnsupportedRadioCatalog()) emptyList() else throw failure
+        }
+
+    private fun NavidromeException.isUnsupportedRadioCatalog(): Boolean =
+        subsonicErrorCode == 70 || this is NavidromeHttpException && statusCode in listOf(404, 501)
 
     private suspend fun trackRadioFallback(trackId: TrackId, count: Int): List<Track> {
         val seed = knownTracks.load()[trackId] ?: song(trackId) ?: return emptyList()
@@ -2133,6 +2337,7 @@ class NavidromeProvider(
             name = stringValue("name") ?: "Internet Radio",
             streamUrl = stringValue("streamUrl") ?: throw NavidromeException("Internet radio station is missing a stream URL."),
             homePageUrl = stringValue("homePageUrl"),
+            coverArtUrl = stringValue("coverArt")?.let { coverArtUrl(it) },
         )
 
     private fun JsonObject.toTrack(): Track =
@@ -2314,6 +2519,8 @@ class NavidromeProvider(
 
 
 interface NavidromeHttpClient {
+    suspend fun deleteJson(url: String, headers: Map<String, String> = emptyMap()): String =
+        throw UnsupportedOperationException()
     suspend fun postForm(url: String, body: String, headers: Map<String, String> = emptyMap()): String =
         throw UnsupportedOperationException()
     suspend fun get(url: String): String
@@ -2358,6 +2565,7 @@ interface NavidromeHttpClient {
 data class NavidromeHttpResponse(
     val body: String,
     val headers: Map<String, String> = emptyMap(),
+    val statusCode: Int = 200,
 ) {
     fun header(name: String): String? =
         headers.entries.firstOrNull { (key, _) -> key.equals(name, ignoreCase = true) }?.value
@@ -2446,7 +2654,7 @@ open class NavidromeException(
 class NavidromePasswordRequiredException :
     NavidromeException(ConnectionPasswordRequiredStatus, 41)
 
-class NavidromeHttpException(val statusCode: Int) :
+class NavidromeHttpException(val statusCode: Int, val responseBody: String? = null) :
     NavidromeException("Navidrome returned HTTP $statusCode.")
 
 class NavidromeRateLimitException(

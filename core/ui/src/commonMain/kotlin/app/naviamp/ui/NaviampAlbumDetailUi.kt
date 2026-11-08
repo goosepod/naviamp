@@ -241,6 +241,7 @@ private fun AlbumDetailContent(
                     96.dp,
                     4.dp,
                     fallbackUrl = detail.album.fallbackCoverArtUrl,
+                    mediaKind = SharedMediaItemKind.Album,
                 )
             }
             Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
@@ -320,8 +321,9 @@ private fun AlbumDetailContent(
                             url = section.coverArtUrl ?: detail.album.coverArtUrl,
                             colors = colors,
                             size = 40.dp,
-                            cornerRadius = mediaArtworkCornerRadius(SharedMediaItemKind.Album, 40.dp, 3.dp),
+                            cornerRadius = resolvedMediaArtworkCornerRadius(SharedMediaItemKind.Album, 40.dp, 3.dp),
                             fallbackUrl = section.fallbackCoverArtUrl ?: detail.album.fallbackCoverArtUrl,
+                            mediaKind = SharedMediaItemKind.Album,
                         )
                         Text(
                             text = section.title?.let {
@@ -341,7 +343,7 @@ private fun AlbumDetailContent(
                         colors,
                         onTrackAction = onTrackAction,
                         canSelect = true,
-                        canStartRadio = false,
+                        canStartRadio = track.canStartRadio,
                         canAddToQueue = true,
                         canDownload = true,
                         canAddToPlaylist = true,

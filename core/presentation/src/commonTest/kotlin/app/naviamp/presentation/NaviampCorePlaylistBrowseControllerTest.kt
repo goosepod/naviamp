@@ -35,6 +35,48 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCorePlaylistBrowseControllerTest {
+    @Test fun delayedLibraryNamesCannotLeakAcrossSourceReset() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        val provider = object : MediaProvider by PlaylistBrowseTestProvider() {
+            override suspend fun libraries(): List<app.naviamp.domain.provider.MediaLibrary> {
+                gate.await()
+                return listOf(app.naviamp.domain.provider.MediaLibrary("1", "Previous account"))
+            }
+        }
+        val (store, controller) = controller(provider)
+        val refresh = launch { controller.execute(NaviampCoreCommand.Playlists.Refresh) }
+        runCurrent()
+        controller.resetForSourceChange()
+        gate.complete(Unit)
+        refresh.join()
+        assertTrue(store.state.value.shell.playlists.availableLibraries.isEmpty())
+        assertTrue(store.state.value.shell.playlistDetail.availableLibraries.isEmpty())
+    }
+
+    @Test fun libraryNamesReachBothEditorsAndSurviveOptionalLookupFailure() = runTest {
+        var fail = false
+        val provider = object : MediaProvider by PlaylistBrowseTestProvider() {
+            override val selectedMusicFolderIds = listOf("2")
+            override suspend fun libraries(): List<app.naviamp.domain.provider.MediaLibrary> {
+                if (fail) error("Offline")
+                return listOf(app.naviamp.domain.provider.MediaLibrary("2", "Music Archive"))
+            }
+        }
+        val (store, controller) = controller(provider)
+        controller.execute(NaviampCoreCommand.Playlists.Refresh)
+        val shell = store.state.value.shell
+        assertEquals("Music Archive", shell.playlists.availableLibraries.single().name)
+        assertEquals(shell.playlists.availableLibraries, shell.playlistDetail.availableLibraries)
+        assertEquals(listOf("2"), shell.playlists.selectedConnectionLibraryIds)
+        fail = true
+        controller.execute(NaviampCoreCommand.Playlists.Refresh)
+        assertEquals(shell.playlists.availableLibraries, store.state.value.shell.playlists.availableLibraries)
+        assertFalse(store.state.value.shell.playlists.refreshing)
+        controller.resetForSourceChange()
+        assertTrue(store.state.value.shell.playlists.availableLibraries.isEmpty())
+        assertTrue(store.state.value.shell.playlistDetail.availableLibraries.isEmpty())
+    }
+
     @Test
     fun membershipReconciliationRejectsOlderListSuccessAndFailure() = runTest {
         for (failRefresh in listOf(false, true)) {

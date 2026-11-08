@@ -44,6 +44,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -73,6 +74,21 @@ import kotlinx.coroutines.flow.StateFlow
 /** Shared ten-foot shell. Android reports a TV display; it does not assemble this product UI. */
 @Composable
 fun NaviampTelevisionAppShell(
+    modifier: Modifier = Modifier,
+    uiState: NaviampAppShellUiState,
+    settingsSync: NaviampSettingsSyncUi = NaviampSettingsSyncUi(),
+    playbackProgress: StateFlow<PlaybackProgress>? = null,
+    visualizerBandsProvider: () -> List<Float> = { uiState.nowPlaying?.visualizerFrame?.bands.orEmpty() },
+    actions: NaviampAppShellActions,
+    syncActions: NaviampSettingsSyncActions,
+) {
+    NaviampBackNavigation(uiState, actions, modifier) { contentModifier ->
+        NaviampTelevisionAppShellContent(modifier = contentModifier, uiState = uiState, settingsSync = settingsSync, playbackProgress = playbackProgress, visualizerBandsProvider = visualizerBandsProvider, actions = actions, syncActions = syncActions)
+    }
+}
+
+@Composable
+private fun NaviampTelevisionAppShellContent(
     modifier: Modifier = Modifier,
     uiState: NaviampAppShellUiState,
     settingsSync: NaviampSettingsSyncUi = NaviampSettingsSyncUi(),
@@ -241,6 +257,7 @@ fun NaviampTelevisionAppShell(
         }
     }
 
+    CompositionLocalProvider(LocalSquareAlbumArtwork provides interfaceSettings.squareAlbumArtwork) {
     NaviampFontSizeScope(
         fontSize = interfaceSettings.generalFontSize,
     ) {
@@ -474,6 +491,7 @@ fun NaviampTelevisionAppShell(
         }
     }
     }
+    }
 }
 
 internal fun televisionSettingsBackgroundRoute(
@@ -668,6 +686,7 @@ private fun TelevisionConnectedContent(
         )
         uiState.shellChrome.selectedRoute == SharedRoute.Home -> TelevisionHome(
             home = uiState.home,
+            discoveryPlayback = uiState.home.samplePlayback,
             colors = colors,
             actions = actions.homeActions,
             mediaActions = televisionMediaActions,
@@ -722,6 +741,7 @@ private fun TelevisionConnectedContent(
         else -> ConnectedContent(
             colors = colors,
             uiState = uiState,
+            showFullNowPlaying = false,
             playbackProgress = playbackProgress,
             visualizerBandsProvider = visualizerBandsProvider,
             settingsSync = settingsSync,

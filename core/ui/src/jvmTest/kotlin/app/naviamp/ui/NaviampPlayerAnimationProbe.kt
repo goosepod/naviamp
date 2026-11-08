@@ -55,6 +55,7 @@ fun main() {
     val nativeAlphaReference = integrated && verifyPixels && !expectFallback &&
         System.getProperty("os.name").startsWith("Mac") &&
         System.getenv("NAVIAMP_RASTER_FORCE_SKIA") != "true" && NativeMetalVisualizerHost.libraryAvailable()
+    val popupRenderer = probePopupRenderer(System.getenv("NAVIAMP_PROBE_POPUP_RENDER_API"))
     if (integrated) configureNaviampDesktopRasterLayers()
     application {
     val compositor = remember { System.getenv("NAVIAMP_PROBE_COMPOSITOR") == "true" }
@@ -84,6 +85,10 @@ fun main() {
         state = probeWindowState,
         alwaysOnTop = verifyPixels,
     ) {
+        DisposableEffect(window, popupRenderer) {
+            val observation = observeProbePopupWindows(window, popupRenderer)
+            onDispose { observation.close() }
+        }
         val marquee = phase == "marquee" || phase.endsWith("combined")
         val smooth = phase == "waveform" || phase.endsWith("combined")
         val playbackValue = remember { mutableFloatStateOf(.2f) }
@@ -207,7 +212,13 @@ fun main() {
             if (nativeAlphaReference) verifyNativeDecodeFailure(window)
             val baselineSize = probeWindowState.size
             val baselinePosition = probeWindowState.position
-            val counters = probeLayers(window).map { layer ->
+            val mainLayers = probeLayers(window)
+            System.getenv("NAVIAMP_PROBE_EXPECT_RENDER_API")?.let { expected ->
+                check(mainLayers.isNotEmpty() && mainLayers.all { it.renderApi.name == expected }) {
+                    "Probe renderer mismatch: expected=$expected actual=${mainLayers.map { it.renderApi }}"
+                }
+            }
+            val counters = mainLayers.map { layer ->
                 val count = AtomicLong()
                 val delegate = requireNotNull(layer.renderDelegate)
                 layer.renderDelegate = object : SkikoRenderDelegate {
@@ -254,6 +265,8 @@ fun main() {
                     }
                 }
                 val capturePixels = verifyPixels && next != "hidden-combined"
+                val tooltipBackground = if (capturePixels && tooltipProbe && next == "tooltip")
+                    captureProbe(window, "$mode-cycle$cycle-tooltip-background").pixels else null
                 if (popupProbe) popupVisible = next == "popup-combined"
                 if (tooltipProbe) popupVisible = next == "tooltip"
                 if (hoverProbe) kotlinx.coroutines.withTimeout(90_000) {
@@ -321,6 +334,11 @@ fun main() {
                     check(popupBounds.all { (popup, bounds) -> popup.bounds == bounds }) { "Native popup geometry changed" }
                     val afterCapture = captureProbe(window, "$mode-cycle$cycle-$next-after", dimmed)
                     if (menuProbe && popupVisible) verifyMenuPaint(afterCapture.pixels)
+                    if (tooltipBackground != null) {
+                        val tooltip = window.ownedWindows.single { it.isShowing && it.name != RasterOverlayWindowName }
+                        verifyProbeTooltipTransparency(tooltipBackground, afterCapture.pixels,
+                            window.locationOnScreen, tooltip.bounds)
+                    }
                     val beforeCapture = requireNotNull(beforePixels)
                     verifyProbeAlpha(afterCapture.pixels, window, alphaBounds, dimmed, nativeAlphaReference)
                     transparentBounds.forEachIndexed { index, rect -> verifyProbeBackground(afterCapture.pixels, window, rect, index, dimmed,
@@ -436,10 +454,11 @@ private fun captureProbe(window: java.awt.Window, name: String, dimmed: Boolean 
         intensity in .35..1.04 && kotlin.math.abs(green - 85 * intensity) <= 6 &&
             kotlin.math.abs(blue - 51 * intensity) <= 6
     } else !probePixelsDiffer(pixel, marker, if (dimmed) 6 else 2)
+    // Retain the failing native image too: an opaque black popup is evidence, not an absent run.
+    javax.imageio.ImageIO.write(image, "png", java.io.File(directory, "$name.png"))
     check(markerVisible) {
         "Probe is obscured by another window (marker=%06x expected=%06x active=%s)".format(pixel and 0xffffff, marker, window.isActive)
     }
-    javax.imageio.ImageIO.write(image, "png", java.io.File(directory, "$name.png"))
     return ProbeCapture(image, pointer)
 }
 

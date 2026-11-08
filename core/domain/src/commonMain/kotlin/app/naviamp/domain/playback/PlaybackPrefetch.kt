@@ -1,5 +1,7 @@
 package app.naviamp.domain.playback
 
+import app.naviamp.domain.provider.isDiscoveryPreview
+
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
@@ -138,7 +140,7 @@ fun <Provider> planAudioPrefetchWork(
         includeCurrentTrack = includeCurrentTrack,
     )
     val normalizedSidecarDepth = sidecarDepth.coerceIn(0, stats.configuredDepth)
-    val items = tracks.mapIndexedNotNull { index, track ->
+    val items = tracks.filterNot { it.id.isDiscoveryPreview() }.mapIndexedNotNull { index, track ->
         val key = AudioPrefetchKey(activeSourceId, track.id, activeQuality)
         val cacheAudio = completedAudio?.contains(key) != true
         val prepareSidecars = index < normalizedSidecarDepth && completedSidecars?.contains(key) != true

@@ -11,6 +11,16 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class PlaybackAudioSourceResolverTest {
+    @Test fun discoveryPreviewsNeverConsultOwnedOrCachedAudio() = runTest {
+        val plan = resolvePlaybackAudioSource("source", track("discovery-preview:42"), StreamQuality.Original, true,
+            downloadedAudio = { _, _, _ -> error("Must not read downloads") },
+            cachedAudio = { _, _, _ -> error("Must not read cache") },
+            cachedAudioForTrack = { _, _ -> error("Must not read fallback cache") })
+        assertNull(plan.localAudio)
+        assertNull(plan.fallbackLocalAudio)
+        assertEquals(PlaybackSource.ProviderStream, plan.source)
+    }
+
     @Test
     fun unadvertisedStreamOffsetUsesEngineSeeking() = runTest {
         val plan = resolvePlaybackAudioSource(

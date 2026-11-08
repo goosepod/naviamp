@@ -6,6 +6,14 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class PlatformCapabilitiesTest {
+    @Test fun certificateConfigurationIsPartOfTheSharedProviderContract() {
+        val capabilities = PlatformCapabilities()
+        for (capability in listOf(PlatformCapability.InsecureServerVerification, PlatformCapability.CustomServerCertificates, PlatformCapability.ClientCertificates)) {
+            assertTrue(capabilities.isReleaseReady(capability))
+        }
+        assertFalse(capabilities.withStatus(PlatformCapability.ClientCertificates, PlatformCapabilityStatus.Unavailable)
+            .supports(PlatformCapability.ClientCertificates))
+    }
     @Test
     fun unknownCapabilitiesFailClosed() {
         val capabilities = PlatformCapabilities()

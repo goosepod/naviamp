@@ -2,6 +2,8 @@ package app.naviamp.provider.navidrome
 
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 /**
  * Provider-common owner for Navidrome's rotating native JWT.
@@ -19,14 +21,22 @@ class NavidromeNativeSessionController(
     private val authenticate: suspend (NavidromeConnection, String) -> NavidromeConnection = { connection, password ->
         connection.withNativeTokenFromPassword(password, required = true)
     },
+    private val createProvider: (NavidromeConnection) -> NavidromeProvider = { NavidromeProvider(it) },
 ) {
     suspend fun provider(password: String?): NavidromeProvider? {
         val active = currentProvider() ?: return null
         val suppliedPassword = password?.takeIf { it.isNotBlank() } ?: return active
         val saved = savedConnection() ?: return active
+        val sourceId = currentSourceId()
         prepareConnection(saved)
         val refreshedConnection = authenticate(saved, suppliedPassword)
-        return NavidromeProvider(refreshedConnection).also { refreshedProvider ->
+        val refreshedProvider = createProvider(refreshedConnection)
+        // Native authentication alone does not negotiate OpenSubsonic capabilities. Publish only
+        // a fully initialized provider, just as for the initial connection.
+        refreshedProvider.validateConnection()
+        currentCoroutineContext().ensureActive()
+        if (currentProvider() !== active || currentSourceId() != sourceId) return null
+        return refreshedProvider.also {
             replaceProvider(refreshedProvider)
             persist(refreshedProvider)
         }

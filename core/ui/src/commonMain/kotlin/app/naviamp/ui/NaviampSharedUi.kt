@@ -81,6 +81,25 @@ fun NaviampSharedAppShell(
     onCastPicker: () -> Unit = {},
     onCastSelectLocal: () -> Unit = {},
 ) {
+    NaviampBackNavigation(uiState, actions, modifier) { contentModifier ->
+        NaviampSharedAppShellContent(modifier = contentModifier, uiState = uiState, settingsSync = settingsSync, playbackProgress = playbackProgress, visualizerBandsProvider = visualizerBandsProvider, actions = actions, syncActions = syncActions, applicationUpdateChecker = applicationUpdateChecker, castOutput = castOutput, onCastPicker = onCastPicker, onCastSelectLocal = onCastSelectLocal)
+    }
+}
+
+@Composable
+private fun NaviampSharedAppShellContent(
+    modifier: Modifier = Modifier,
+    uiState: NaviampAppShellUiState,
+    settingsSync: NaviampSettingsSyncUi = NaviampSettingsSyncUi(),
+    playbackProgress: StateFlow<PlaybackProgress>? = null,
+    visualizerBandsProvider: () -> List<Float> = { uiState.nowPlaying?.visualizerFrame?.bands.orEmpty() },
+    actions: NaviampAppShellActions,
+    syncActions: NaviampSettingsSyncActions,
+    applicationUpdateChecker: NaviampApplicationUpdateChecker? = null,
+    castOutput: NaviampCastOutputUi = NaviampCastOutputUi(),
+    onCastPicker: () -> Unit = {},
+    onCastSelectLocal: () -> Unit = {},
+) {
     val navigationActions = actions.navigationActions
     val connectionActions = actions.connectionActions
     val valueActions = actions.valueActions
@@ -186,6 +205,7 @@ fun NaviampSharedAppShell(
         includeStandardScale = true,
     ) {
     CompositionLocalProvider(
+        LocalSquareAlbumArtwork provides interfaceSettings.squareAlbumArtwork,
         LocalTrackSwipeSettings provides interfaceSettings.trackSwipes,
         LocalNaviampTooltipsEnabled provides interfaceSettings.showDesktopTooltips,
     ) {
@@ -325,6 +345,8 @@ fun NaviampSharedAppShell(
                             capabilities = connectionCapabilities,
                             settingsSyncStatus = settingsSyncStatus,
                             onFormChanged = connectionActions.onFormChanged,
+                            onChooseServerCertificate = connectionActions.onChooseServerCertificate,
+                            onChooseClientCertificate = connectionActions.onChooseClientCertificate,
                             onConnect = connectionActions.onConnect,
                             onImportSettingsSyncFile = syncActions.onImportFile,
                             onCancel = connectionActions.onCancelConnectionForm.takeIf { connected },
@@ -333,6 +355,7 @@ fun NaviampSharedAppShell(
                         ConnectedContent(
                             colors = colors,
                             uiState = uiState,
+                            showFullNowPlaying = showFullNowPlaying,
                             playbackProgress = effectivePlaybackProgress,
                             visualizerBandsProvider = visualizerBandsProvider,
                             settingsSync = settingsSync,
@@ -469,6 +492,7 @@ internal fun sharedRouteUsesOwnScroll(
 internal fun ConnectedContent(
     colors: NaviampColors,
     uiState: NaviampAppShellUiState,
+    showFullNowPlaying: Boolean,
     playbackProgress: StateFlow<PlaybackProgress>?,
     visualizerBandsProvider: () -> List<Float>,
     settingsSync: NaviampSettingsSyncUi,
@@ -540,7 +564,6 @@ internal fun ConnectedContent(
         .copy(onCreateRadioDj = onCreateRadioDj)
     val effectivePlaybackProgress = playbackProgress.takeIf { remoteNowPlaying == null }
     val selectedRoute = shellChrome.selectedRoute
-    val nowPlayingOpen = shellChrome.nowPlayingOpen
     val selectedVisualizer = shellChrome.selectedVisualizer
     val onTrackAction = mediaActions.onTrackAction
     val onMediaItemAction = mediaActions.onMediaItemAction
@@ -610,6 +633,8 @@ internal fun ConnectedContent(
             colors = colors,
             screen = artistDetail,
             albumCollectionLayout = interfaceSettings.albumCollectionLayout,
+            artistPlaylistLayout = interfaceSettings.artistPlaylistLayout,
+            artistAppearanceAlbumLayout = interfaceSettings.artistAppearanceAlbumLayout,
             albumSortOrder = interfaceSettings.albumSortOrder,
             groupAlbumsByReleaseType = interfaceSettings.groupAlbumsByReleaseType,
             actions = artistDetailActions,
@@ -647,6 +672,7 @@ internal fun ConnectedContent(
             SharedRoute.Home -> SharedHomeRoute(
                 colors = colors,
                 home = home,
+                discoveryPlayback = home.samplePlayback,
                 actions = homeActions,
                 mediaActions = mediaActions,
                 scrollState = homeScrollState,
@@ -839,9 +865,9 @@ internal fun ConnectedContent(
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = supportsPlayerWorkspace(maxWidth.value, maxHeight.value)
         val layout = interfaceSettings.nowPlaying.wideLayout
-        val docked = nowPlayingOpen && nowPlaying != null && wide && layout == WideNowPlayingLayout.Split
+        val docked = showFullNowPlaying && nowPlaying != null && wide && layout == WideNowPlayingLayout.Split
         LaunchedEffect(docked) { actions.navigationActions.onPlayerDockedChanged(docked) }
-        if (nowPlayingOpen && nowPlaying != null) {
+        if (showFullNowPlaying && nowPlaying != null) {
             NaviampPlayerWorkspace(wide, layout, onLayoutChanged = {
                 valueActions.onInterfaceSettingsChanged(interfaceSettings.copy(nowPlaying = interfaceSettings.nowPlaying.copy(wideLayout = it)))
             }, player = { panelLayout ->
@@ -1071,6 +1097,12 @@ fun NaviampSettingsContent(
         supportsAudioOutputDeviceSelection = playback.audioOutputDeviceSelectionAvailable,
         audioOutputDevices = playback.audioOutputDevices,
         supportsSonicSimilarity = playback.sonicSimilarityAvailable,
+        similarityTest = playback.similarityTest.takeIf { it.sourceId == connectionSettings.currentSourceId }
+            ?: NaviampSimilarityTestUi(),
+        radioDiagnostics = playback.radioDiagnostics,
+        onTestSimilarity = maintenanceActions.onTestSimilarity.takeIf {
+            connectionSettings.currentSourceId != null && playback.similarityDiagnosticsAvailable
+        },
         connectionCapabilities = connectionSettings.capabilities,
         showMobileNetworkQuality = playback.showMobileNetworkQuality,
         downloadBytes = playback.downloadBytes,
@@ -1090,6 +1122,8 @@ fun NaviampSettingsContent(
         settingsSyncAutoExportEnabled = settingsSync.autoExportEnabled,
         onSettingsSyncAutoExportChanged = syncActions.onAutoExportChanged.takeIf { settingsSync.available },
         onConnectionFormChanged = connectionActions.onFormChanged,
+        onChooseServerCertificate = connectionActions.onChooseServerCertificate,
+        onChooseClientCertificate = connectionActions.onChooseClientCertificate,
         onConnect = connectionActions.onConnect,
         onCancelConnectionForm = connectionActions.onCancelConnectionForm,
         onInterfaceSettingsChanged = valueActions.onInterfaceSettingsChanged,
@@ -1143,7 +1177,7 @@ fun NaviampMiniNowPlaying(
                 .weight(1f)
                 .clickable(onClick = onOpen),
         ) {
-            NaviampCoverArt(nowPlaying.coverArtUrl, colors, 40.dp, 5.dp)
+            NaviampCoverArt(nowPlaying.coverArtUrl, colors, 40.dp, 5.dp, mediaKind = if (nowPlaying.isLive) SharedMediaItemKind.RadioStation else SharedMediaItemKind.Track)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(
                     nowPlaying.subtitle.ifBlank { "Nothing Playing" },

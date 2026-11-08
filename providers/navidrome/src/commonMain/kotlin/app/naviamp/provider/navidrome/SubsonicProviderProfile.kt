@@ -1,6 +1,7 @@
 package app.naviamp.provider.navidrome
 
 import app.naviamp.domain.provider.ProviderIdNavidrome
+import app.naviamp.domain.provider.ProviderIdAurral
 import app.naviamp.domain.provider.ProviderIdSubsonic
 import app.naviamp.domain.provider.ProviderIdBandcamp
 import app.naviamp.domain.provider.ProviderProtocolFamily
@@ -40,6 +41,11 @@ fun subsonicProviderProfile(providerId: String): SubsonicProviderProfile {
     return when (descriptor.id) {
         ProviderIdNavidrome -> navidromeProviderProfile(descriptor.displayName)
         ProviderIdSubsonic -> genericSubsonicProviderProfile(descriptor.displayName)
+        ProviderIdAurral -> genericSubsonicProviderProfile(descriptor.displayName).copy(
+            providerId = ProviderIdAurral,
+            downloadTranscode = false,
+            ratings = false,
+        )
         ProviderIdBandcamp -> bandcampProviderProfile(descriptor.displayName)
         else -> SubsonicProviderProfile(
             providerId = descriptor.id,

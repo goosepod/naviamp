@@ -267,17 +267,24 @@ fun StandardPlaylistManagementList(
     scrollState: ScrollState? = null,
     dragViewportTop: Float = 0f,
     dragViewportBottom: Float = Float.POSITIVE_INFINITY,
+    onTrackAction: (SharedTrackRowActionRequest) -> Unit = {},
+    capabilities: PlaylistTrackCapabilities = PlaylistTrackCapabilities(),
+    playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
+    onSaveWithBaseline: (suspend (List<SharedTrackRowUi>, List<SharedTrackRowUi>) -> Unit)? = null,
 ) {
-    var entries by remember(initialTracks) {
+    val initialTrackIds = initialTracks.map { it.id }
+    val currentTracksById = initialTracks.associateBy { it.id }
+    var entries by remember(initialTrackIds) {
         mutableStateOf(initialTracks.mapIndexed { index, track ->
             PlaylistManagementEntry(key = "$index:${track.id}", track = track)
         })
     }
-    var savedTracks by remember(initialTracks) { mutableStateOf(initialTracks) }
-    var undoEntries by remember(initialTracks) { mutableStateOf<List<PlaylistManagementEntry>?>(null) }
-    var saving by remember(initialTracks) { mutableStateOf(false) }
-    var errorMessage by remember(initialTracks) { mutableStateOf<String?>(null) }
-    var draggingIndex by remember { mutableStateOf<Int?>(null) }
+    var savedTracks by remember(initialTrackIds) { mutableStateOf(initialTracks) }
+    var undoEntries by remember(initialTrackIds) { mutableStateOf<List<PlaylistManagementEntry>?>(null) }
+    var saving by remember(initialTrackIds) { mutableStateOf(false) }
+    var errorMessage by remember(initialTrackIds) { mutableStateOf<String?>(null) }
+    var positionEntryKey by remember(initialTrackIds) { mutableStateOf<String?>(null) }
+    var draggingIndex by remember(initialTrackIds) { mutableStateOf<Int?>(null) }
     var dragOffsetY by remember { mutableStateOf(0f) }
     var dragPointerY by remember { mutableStateOf(Float.NaN) }
     val scope = rememberCoroutineScope()
@@ -326,6 +333,7 @@ fun StandardPlaylistManagementList(
     }
 
     fun apply(index: Int, action: TrackSwipeAction) {
+        if (saving || draggingIndex != null) return
         val updated = applyPlaylistEditTrackAction(entries, index, action)
         if (updated != entries) {
             undoEntries = entries
@@ -372,14 +380,15 @@ fun StandardPlaylistManagementList(
                 PlaylistManagementActionButton(
                     colors = colors,
                     label = if (saving) "Saving..." else "Save changes",
-                    enabled = entries.map { it.track } != savedTracks && !saving,
+                    enabled = entries.map { it.track.id } != savedTracks.map { it.id } && !saving,
                     onClick = {
                         saving = true
                         errorMessage = null
                         scope.launch {
                             val requestedTracks = entries.map { it.track }
                             try {
-                                onSave(requestedTracks)
+                                if (onSaveWithBaseline != null) onSaveWithBaseline(savedTracks, requestedTracks)
+                                else onSave(requestedTracks)
                                 savedTracks = requestedTracks
                                 undoEntries = null
                             } catch (error: Throwable) {
@@ -411,13 +420,29 @@ fun StandardPlaylistManagementList(
                     ) { swipeModifier ->
                         PlaylistManagementTrackRow(
                             colors = colors,
-                            track = entry.track,
+                            track = currentTracksById[entry.track.id] ?: entry.track,
                             index = index,
                             trackNumberWidth = trackNumberWidth,
                             rowStepPx = rowStepPx,
                             modifier = swipeModifier,
                             isDragging = isDragging,
                             dragEnabled = !saving,
+                            menu = {
+                                PlaylistTrackOverflowMenu(
+                                    colors, currentTracksById[entry.track.id] ?: entry.track, capabilities, onTrackAction,
+                                    playlistChoices = playlistChoices,
+                                    editActions = playlistTrackEditActions(true, index, entries.size, saving || draggingIndex != null),
+                                    onEdit = { action ->
+                                        val currentIndex = entries.indexOfFirst { it.key == entry.key }
+                                        if (!saving && draggingIndex == null && currentIndex >= 0) when (action) {
+                                            PlaylistTrackEditAction.MoveToTop -> apply(currentIndex, TrackSwipeAction.MoveToTop)
+                                            PlaylistTrackEditAction.MoveToBottom -> apply(currentIndex, TrackSwipeAction.MoveToBottom)
+                                            PlaylistTrackEditAction.Remove -> apply(currentIndex, TrackSwipeAction.Remove)
+                                            PlaylistTrackEditAction.MoveToPosition -> positionEntryKey = entry.key
+                                        }
+                                    },
+                                )
+                            },
                             onTrackSelected = { onTrackSelected(entry.track) },
                             onDragStart = {
                                 draggingIndex = index
@@ -458,6 +483,24 @@ fun StandardPlaylistManagementList(
             }
         }
     }
+    positionEntryKey?.let { entryKey ->
+        val index = entries.indexOfFirst { it.key == entryKey }
+        if (index >= 0) PlaylistTrackPositionDialog(
+            colors, index + 1, entries.size,
+            onDismiss = { positionEntryKey = null },
+            onMove = { position ->
+                if (!saving) {
+                    val updated = movePlaylistTrackToPosition(entries, index, position)
+                    if (updated != entries) {
+                        undoEntries = entries
+                        entries = updated
+                        errorMessage = null
+                    }
+                }
+                positionEntryKey = null
+            },
+        )
+    }
 }
 
 @Composable
@@ -465,10 +508,14 @@ fun SmartPlaylistTrackList(
     colors: NaviampColors,
     tracks: List<SharedTrackRowUi>,
     onTrackSelected: (SharedTrackRowUi) -> Unit,
+    onTrackAction: (SharedTrackRowActionRequest) -> Unit = {},
+    capabilities: PlaylistTrackCapabilities = PlaylistTrackCapabilities(),
+    playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
+    isSmartPlaylist: Boolean = true,
 ) {
     val trackNumberWidth = trackNumberColumnWidth(tracks.size)
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(
+        if (isSmartPlaylist) Text(
             "Generated tracks - edit the smart playlist rules to change this list",
             color = colors.secondaryText,
             fontSize = 12.sp,
@@ -489,6 +536,7 @@ fun SmartPlaylistTrackList(
                 )
                 PlaylistTrackIdentity(track = track, colors = colors, modifier = Modifier.weight(1f))
                 Text(track.meta, color = colors.mutedText, fontSize = 11.sp)
+                PlaylistTrackOverflowMenu(colors, track, capabilities, onTrackAction, playlistChoices = playlistChoices)
             }
         }
     }
@@ -504,6 +552,7 @@ private fun PlaylistManagementTrackRow(
     modifier: Modifier,
     isDragging: Boolean,
     dragEnabled: Boolean,
+    menu: @Composable () -> Unit,
     onTrackSelected: () -> Unit,
     onDragStart: () -> Unit,
     onDrag: (Float, Float) -> Unit,
@@ -558,6 +607,7 @@ private fun PlaylistManagementTrackRow(
                 )
                 .padding(5.dp),
         )
+        menu()
     }
 }
 

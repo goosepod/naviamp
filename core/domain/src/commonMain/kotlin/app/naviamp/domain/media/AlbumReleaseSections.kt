@@ -30,7 +30,9 @@ fun List<Album>.groupedByReleaseSection(): List<AlbumReleaseSectionGroup> {
     }
 }
 
-fun Album.releaseSection(): AlbumReleaseSection {
+fun Album.releaseSection(): AlbumReleaseSection = albumReleaseSection(releaseTypes)
+
+fun albumReleaseSection(releaseTypes: List<String>): AlbumReleaseSection {
     val types = releaseTypes.map { it.trim().lowercase() }.filter { it.isNotEmpty() }
     return when {
         types.any { "soundtrack" in it || "score" in it } -> AlbumReleaseSection.Soundtracks

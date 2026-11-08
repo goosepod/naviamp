@@ -1,5 +1,6 @@
 package app.naviamp.android
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -21,6 +22,7 @@ import app.naviamp.presentation.NaviampExternalMediaItem
 import app.naviamp.presentation.NaviampExternalMediaRootId
 import app.naviamp.presentation.NaviampExternalPlaybackSnapshot
 import app.naviamp.presentation.NaviampExternalPlaybackPublicationPlanner
+import app.naviamp.presentation.NaviampPlaybackServicePresentationCoordinator
 import app.naviamp.presentation.NaviampExternalPlaybackState
 import app.naviamp.presentation.NaviampExternalQueueId
 import app.naviamp.presentation.NaviampExternalPlaylistsId
@@ -44,8 +46,12 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
     private var bridge: NaviampCoreExternalPlaybackBridge? = null
     private var snapshot = NaviampExternalPlaybackSnapshot()
     private var snapshotJob: Job? = null
-    private var foreground = false
     private val publicationPlanner = NaviampExternalPlaybackPublicationPlanner()
+    private val presentation = NaviampPlaybackServicePresentationCoordinator(
+        establish = { startForeground(NotificationId, notification(it)) },
+        update = ::updateMediaNotification,
+        remove = { stopForeground(STOP_FOREGROUND_REMOVE) },
+    )
 
     override fun onCreate() {
         super.onCreate()
@@ -59,9 +65,12 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.getBooleanExtra(IntentExtraForegroundStart, false) == true) {
+            presentation.startRequested(snapshot)
+        }
         attachBridge()
         when (intent?.action) {
-            ActionPlayPause -> if (snapshot.state == NaviampExternalPlaybackState.Playing) bridge?.pause() else bridge?.play()
+            ActionPlayPause -> bridge?.playPause()
             ActionPrevious -> bridge?.previous()
             ActionNext -> bridge?.next()
             ActionFavorite -> bridge?.toggleFavorite()
@@ -148,17 +157,7 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
             notifyChildrenChanged(NaviampExternalPlaylistsId)
             notifyChildrenChanged(NaviampExternalRadioId)
         }
-        if (next.shouldRetainPlaybackService) {
-            if (publication.notification || !foreground) {
-                val notification = notification(next)
-                if (!foreground) {
-                    startForeground(NotificationId, notification)
-                    foreground = true
-                } else {
-                    getSystemService(NotificationManager::class.java).notify(NotificationId, notification)
-                }
-            }
-        }
+        presentation.publish(next, publication.notification)
 
         // AndroidNaviampPlaybackLifecycle applies Core's grace-period retention decision and
         // stops this service after stable idle. Stopping directly from a transient idle snapshot
@@ -291,6 +290,14 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
             if (item.playable) playableItem(item) else browsableItem(item.mediaId, item.title, item.subtitle)
         }.toMutableList()
 
+    // Every notification built below has MediaStyle and this service's MediaSession token.
+    // Android exempts media-session notifications from POST_NOTIFICATIONS, including updates.
+    // https://developer.android.com/develop/ui/compose/notifications/notification-permission#media-sessions
+    @SuppressLint("NotificationPermission")
+    private fun updateMediaNotification(value: NaviampExternalPlaybackSnapshot) {
+        getSystemService(NotificationManager::class.java).notify(NotificationId, notification(value))
+    }
+
     private fun notification(value: NaviampExternalPlaybackSnapshot): Notification {
         val current = value.current
         val playPause = if (value.state == NaviampExternalPlaybackState.Playing) {
@@ -355,10 +362,7 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
     }
 
     private fun releaseForeground() {
-        if (foreground) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            foreground = false
-        }
+        presentation.release()
     }
 
     private fun createNotificationChannel() {
@@ -406,6 +410,7 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
 
     companion object {
         internal const val ActionRefresh = "app.naviamp.android.v2.action.REFRESH_PLAYBACK"
+        private const val IntentExtraForegroundStart = "app.naviamp.android.v2.extra.FOREGROUND_START"
         internal const val ActionReleaseForeground = "app.naviamp.android.v2.action.RELEASE_FOREGROUND"
         private const val ActionPlayPause = "app.naviamp.android.v2.action.PLAY_PAUSE"
         private const val ActionPrevious = "app.naviamp.android.v2.action.PREVIOUS"
@@ -420,6 +425,8 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
         private const val CustomActionRepeat = "app.naviamp.action.REPEAT"
 
         fun refreshIntent(context: Context): Intent = context.naviampPlaybackServiceIntent(ActionRefresh)
+        fun foregroundStartIntent(context: Context): Intent =
+            refreshIntent(context).putExtra(IntentExtraForegroundStart, true)
         fun releaseForegroundIntent(context: Context): Intent =
             context.naviampPlaybackServiceIntent(ActionReleaseForeground)
     }

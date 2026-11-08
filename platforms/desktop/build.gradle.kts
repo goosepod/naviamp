@@ -247,6 +247,7 @@ kotlin {
         }
         val desktopTest by getting {
             dependencies {
+                implementation(project(":core:testkit"))
                 implementation(libs.kotlin.test)
                 implementation(libs.kotlinx.coroutines.test)
             }
@@ -258,6 +259,9 @@ tasks.matching { it.name == "desktopProcessResources" || it.name == "processDesk
     .configureEach { dependsOn(prepareDesktopNativeResources) }
 
 tasks.named<Test>("desktopTest") {
+    // BASS codec registrations are process-global and outlive BASS_Free. Keep native
+    // integration suites isolated so one suite cannot pre-register another's plugins.
+    forkEvery = 1
     val castProbe = providers.environmentVariable("NAVIAMP_CAST_PROBE").orElse("")
     inputs.property("castProbe", castProbe)
     inputs.property("castPlaybackProbe", providers.environmentVariable("NAVIAMP_CAST_PLAYBACK_PROBE").orElse("false"))
@@ -265,6 +269,8 @@ tasks.named<Test>("desktopTest") {
     val mprisIntegration = providers.environmentVariable("NAVIAMP_MPRIS_INTEGRATION").orElse("false")
     inputs.property("mprisIntegration", mprisIntegration)
     outputs.upToDateWhen { mprisIntegration.get() != "true" }
+    // Live acceptance must execute against the configured server rather than reuse a test report.
+    outputs.upToDateWhen { !providers.environmentVariable("NAVIAMP_AURRAL_TEST_URL").isPresent }
     dependsOn(prepareDesktopNativeResources)
     providers.gradleProperty("naviamp.bass.test.outputDevice").orNull?.let { outputDevice ->
         systemProperty("naviamp.bass.test.outputDevice", outputDevice)
@@ -275,6 +281,26 @@ tasks.named<Test>("desktopTest") {
             resources.dir("playback/bass/$platform").asFile.absolutePath
         }.get(),
     )
+}
+
+tasks.register<JavaExec>("runDesktopMutualTlsAppFixture") {
+    group = "verification"
+    description = "Serve disposable mTLS media and seed a fresh profile for visible-app acceptance"
+    dependsOn("desktopTestClasses")
+    classpath = tasks.named<Test>("desktopTest").get().classpath
+    mainClass.set("app.naviamp.desktop.DesktopMutualTlsAppFixtureKt")
+    args(providers.gradleProperty("naviamp.mtls.fixtureDirectory")
+        .orElse(layout.buildDirectory.dir("mtls-app-fixture").map { it.asFile.absolutePath }).get())
+}
+
+tasks.register<JavaExec>("prepareDesktopAurralAppFixture") {
+    group = "verification"
+    description = "Seed a fresh disposable Aurral acceptance profile from explicit test environment variables"
+    dependsOn("desktopTestClasses")
+    classpath = tasks.named<Test>("desktopTest").get().classpath
+    mainClass.set("app.naviamp.desktop.DesktopAurralAppFixtureKt")
+    val fixtureDirectory = providers.gradleProperty("naviamp.aurral.fixtureDirectory")
+    doFirst { args(fixtureDirectory.get()) }
 }
 
 fun desktopNativePlatformId(): String {

@@ -1,0 +1,7 @@
+Initial Mac beta: Naviamp 2.9.0 (57).
+
+Please test TestFlight installation; typing and pasting into connection fields; connecting to your compatible music server; quitting and reopening with a usable saved connection; browsing/searching and artwork; audible playback, pause/resume, seeking, previous/next and queue advancement.
+
+Also test Radio/Autoplay, visualizers, downloads and file/import/export dialogs if those controls are available in this build, including cancelled or denied sandbox file access. Check menus, keyboard interaction, resize/minimize/restore, sleep/output changes and network interruption/reconnect.
+
+Music is not bundled; use a test library/account where possible. Send feedback through TestFlight with app version/build, Mac model/architecture, OS and reproduction steps. Remove credentials, tokens and private server details from reports.

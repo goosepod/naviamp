@@ -36,14 +36,23 @@ internal fun NaviampRasterWaveform(
     val clock = remember(identity) { TimeSource.Monotonic.markNow() }
     val prediction = remember(identity) { NaviampProgressPrediction() }
     val currentValue by rememberUpdatedState(value)
-    val content = remember(images, smooth, durationSeconds, identity) { NaviampRasterContent(value = { currentValue() }, render = { value ->
-        val start = prediction.update(value, smooth, durationSeconds, clock.elapsedNow().inWholeMilliseconds)
-        val motion = if (smooth) progressLayerMotion(start, durationSeconds) else null
-        if (images.isEmpty()) emptyList() else listOf(
-            NaviampRasterLayer(images[0], reveal = start, revealMotion = motion, clipFromStart = true),
-            NaviampRasterLayer(images[1], reveal = start, revealMotion = motion),
-        )
-    }) }
+    val content = remember(images, smooth, durationSeconds, identity) {
+        var revision = -1L
+        var layers = emptyList<NaviampRasterLayer>()
+        NaviampRasterContent(value = { currentValue() }, render = { value ->
+            val start = prediction.update(value, smooth, durationSeconds, clock.elapsedNow().inWholeMilliseconds)
+            // Telemetry remains live; an equivalent compositor timeline needs no new submission.
+            if (revision == prediction.revision) return@NaviampRasterContent layers
+            revision = prediction.revision
+            val motion = if (smooth) progressLayerMotion(start, durationSeconds) else null
+            val started = TimeSource.Monotonic.markNow()
+            layers = if (images.isEmpty()) emptyList() else listOf(
+                NaviampRasterLayer(images[0], reveal = start, revealMotion = motion, clipFromStart = true, revealStarted = started),
+                NaviampRasterLayer(images[1], reveal = start, revealMotion = motion, revealStarted = started),
+            )
+            layers
+        })
+    }
     Box(Modifier.fillMaxSize().onSizeChanged { viewport = it }) {
         NaviampAnimatedRaster(content, Modifier.fillMaxSize(), with(density) { 4.dp.toPx() })
     }

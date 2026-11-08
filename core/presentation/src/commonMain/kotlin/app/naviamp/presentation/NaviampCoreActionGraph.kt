@@ -36,6 +36,7 @@ data class NaviampCoreActionAvailability(
     val chooseSyncFolder: Boolean = false,
     val importFolder: Boolean = false,
     val exportFolder: Boolean = false,
+    val chooseCertificate: Boolean = false,
 )
 
 /** Builds the one action graph consumed unchanged by Android, Desktop, and iOS hosts. */
@@ -51,18 +52,30 @@ fun createNaviampCoreActions(
             is NaviampCoreCommandResult.SmartPlaylistPreviewed -> result.preview
             NaviampCoreCommandResult.Completed,
             is NaviampCoreCommandResult.SmartPlaylistLoaded,
+            is NaviampCoreCommandResult.SmartPlaylistInspected,
+            is NaviampCoreCommandResult.SmartPlaylistReferencesLoaded,
             -> error("Core did not return a smart-playlist preview.")
         }
 
     suspend fun loadSmartPlaylist(command: NaviampCoreCommand.SmartPlaylist.Load) =
         when (val result = handler.execute(command)) {
             is NaviampCoreCommandResult.SmartPlaylistLoaded -> result.definition
+            is NaviampCoreCommandResult.SmartPlaylistInspected,
+            is NaviampCoreCommandResult.SmartPlaylistReferencesLoaded,
             is NaviampCoreCommandResult.SmartPlaylistPreviewed ->
                 error("Core did not return a smart-playlist definition.")
             NaviampCoreCommandResult.Completed -> error("Core did not return a smart-playlist definition.")
         }
 
+    suspend fun inspectSmartPlaylist(item: app.naviamp.ui.SharedMediaItemUi, password: String? = null) =
+        (handler.execute(NaviampCoreCommand.SmartPlaylist.Inspect(item, password)) as? NaviampCoreCommandResult.SmartPlaylistInspected)
+            ?.editing ?: error("Core did not return a smart-playlist inspection.")
+
     val smartPlaylist = NaviampSmartPlaylistActions(
+        onReferences = {
+            (handler.execute(NaviampCoreCommand.SmartPlaylist.References) as NaviampCoreCommandResult.SmartPlaylistReferencesLoaded).references
+        },
+        onSyncLibrary = { progress -> handler.execute(NaviampCoreCommand.SmartPlaylist.SyncLibrary(progress)) },
         onPreview = ::previewSmartPlaylist,
         onSave = { definition -> handler.execute(NaviampCoreCommand.SmartPlaylist.Save(definition)) },
         onUpdate = { playlist, definition ->
@@ -74,6 +87,8 @@ fun createNaviampCoreActions(
         onUpdateWithPassword = { playlist, definition, password ->
             handler.execute(NaviampCoreCommand.SmartPlaylist.Update(playlist, definition, password))
         },
+        onInspect = { inspectSmartPlaylist(it) },
+        onInspectWithPassword = { item, password -> inspectSmartPlaylist(item, password) },
         onLoad = { playlist -> loadSmartPlaylist(NaviampCoreCommand.SmartPlaylist.Load(playlist)) },
         onLoadWithPassword = { playlist, password ->
             loadSmartPlaylist(NaviampCoreCommand.SmartPlaylist.Load(playlist, password))
@@ -89,6 +104,8 @@ fun createNaviampCoreActions(
         ),
         connectionActions = NaviampConnectionSettingsActions(
             onFormChanged = { send(NaviampCoreCommand.Connection.ChangeForm(it)) },
+            onChooseServerCertificate = if (availability.chooseCertificate) ({ send(NaviampCoreCommand.Connection.ChooseCertificate(NaviampConnectionCertificateKind.ServerAuthority)) }) else null,
+            onChooseClientCertificate = if (availability.chooseCertificate) ({ send(NaviampCoreCommand.Connection.ChooseCertificate(NaviampConnectionCertificateKind.ClientIdentity)) }) else null,
             onConnect = { send(NaviampCoreCommand.Connection.Connect) },
             onEditCurrentConnection = { send(NaviampCoreCommand.Connection.EditCurrent) },
             onNewConnection = { send(NaviampCoreCommand.Connection.New) },
@@ -112,6 +129,7 @@ fun createNaviampCoreActions(
             onAudioCacheLocationChanged = { send(NaviampCoreCommand.Settings.ChangeAudioCacheLocation(it)) },
         ),
         maintenanceActions = NaviampSettingsMaintenanceActions(
+            onTestSimilarity = { send(NaviampCoreCommand.Settings.TestSimilarity) },
             onOpenStatsForNerds = { send(NaviampCoreCommand.Settings.OpenStats) },
             onClearCache = { send(NaviampCoreCommand.Settings.ClearCache) },
             onClearLibrary = { send(NaviampCoreCommand.Settings.ClearLibrary) },
@@ -241,16 +259,37 @@ fun createNaviampCoreActions(
             onAlbumAction = { send(NaviampCoreCommand.Detail.ArtistAlbum(it)) },
             onPopularTrackAction = { send(NaviampCoreCommand.Detail.ArtistPopularTrack(it)) },
             onKeepDownloaded = { send(NaviampCoreCommand.Downloads.PrepareArtist(it.id, it.title)) },
+            onPlaylistSelected = { playlist -> send(NaviampCoreCommand.Media.ItemAction(
+                app.naviamp.ui.NaviampMediaItemActionRequest(playlist,
+                    app.naviamp.ui.NaviampMediaItemCommand.Playlist(app.naviamp.ui.NaviampPlaylistMediaCommand.Select)),
+            )) },
+            onPlaylistsRefresh = { send(NaviampCoreCommand.Detail.RefreshArtistPlaylists(it)) },
         ),
         playlistDetailActions = NaviampPlaylistDetailActions(
             onBack = { send(NaviampCoreCommand.Navigation.BackFromPlaylist) },
             onPlaylistAction = { send(NaviampCoreCommand.Playlists.Detail(it)) },
-            onUpdateStandardPlaylist = { playlist, tracks ->
-                handler.execute(NaviampCoreCommand.Playlists.UpdateTracks(playlist, tracks))
+            onUpdateStandardPlaylist = { playlist, expectedTracks, tracks ->
+                handler.execute(NaviampCoreCommand.Playlists.UpdateTracks(playlist, tracks, expectedTracks.map { it.id }))
             },
             onTrackAction = { send(NaviampCoreCommand.Detail.PlaylistTrack(it)) },
         ),
         homeActions = NaviampHomeActions(
+            onDiscoveryArtistSelected = { send(NaviampCoreCommand.Home.OpenDiscoveryArtist(it)) },
+            onDiscoveryArtistDetails = { send(NaviampCoreCommand.Home.SelectDiscoveryArtist(it)) },
+            onDiscoveryArtistDismiss = { send(NaviampCoreCommand.Home.DismissDiscoveryArtist) },
+            onDiscoveryFeedback = { id, action -> send(NaviampCoreCommand.Home.DiscoveryFeedback(id, action)) },
+            onDiscoveryAction = { id, action -> send(NaviampCoreCommand.Home.DiscoveryAction(id, action)) },
+            onDiscoveryRelease = { send(NaviampCoreCommand.Home.SelectDiscoveryRelease(it)) },
+            onDiscoveryLibraryRelease = { source, generation, id -> send(NaviampCoreCommand.Home.OpenDiscoveryLibraryRelease(source, generation, id)) },
+            onDiscoveryReleaseAction = { source, generation, id, action -> send(NaviampCoreCommand.Home.DiscoveryReleaseAction(source, generation, id, action)) },
+            onDiscoveryViewport = { index, offset, section -> send(NaviampCoreCommand.Home.DiscoveryViewport(index, offset, section)) },
+            onDiscoveryBrowse = { send(NaviampCoreCommand.Home.Browse(it)) },
+            onDiscoveryRequests = { send(NaviampCoreCommand.Home.ShowDiscoveryRequests) },
+            onDiscoveryRequestsDismiss = { send(NaviampCoreCommand.Home.DismissDiscoveryRequests) },
+            onDiscoveryRequestsRefresh = { send(NaviampCoreCommand.Home.RefreshDiscoveryRequests) },
+            onDiscoveryRequestSelected = { source, generation, id -> send(NaviampCoreCommand.Home.OpenDiscoveryRequest(source, generation, id)) },
+            onDiscoveryRequestsExternal = { source, generation -> send(NaviampCoreCommand.Home.OpenDiscoveryRequestsExternal(source, generation)) },
+            onDiscoveryLibraryArtist = { send(NaviampCoreCommand.Home.OpenDiscoveryLibraryArtist(it)) },
             onFavoriteArtistSortChanged = { send(NaviampCoreCommand.Settings.ChangeFavoriteArtistSort(it)) },
             onRefresh = { send(NaviampCoreCommand.Home.Refresh) },
             onRecentRadioSelected = { send(NaviampCoreCommand.Home.SelectRecentRadio(it)) },

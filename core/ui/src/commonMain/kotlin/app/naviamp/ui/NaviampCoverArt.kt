@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
@@ -57,6 +58,7 @@ fun NaviampCoverArt(
     modifier: Modifier = Modifier,
     decodeSize: Dp = size,
     fallbackUrl: String? = null,
+    mediaKind: SharedMediaItemKind,
 ) {
     val targetSidePx = with(LocalDensity.current) {
         ceil(decodeSize.toPx()).toInt().coerceIn(MinCoverArtSidePx, MaxCoverArtSidePx)
@@ -99,7 +101,7 @@ fun NaviampCoverArt(
     Box(
         modifier = modifier
             .size(size)
-            .clip(RoundedCornerShape(cornerRadius))
+            .clip(RoundedCornerShape(resolvedMediaArtworkCornerRadius(mediaKind, size, cornerRadius)))
             .background(colors.albumArtPlaceholder),
     ) {
         outgoingImage?.let {
@@ -113,10 +115,10 @@ fun NaviampCoverArt(
         image?.let {
             Image(
                 bitmap = it,
-                contentDescription = "Album art",
+                contentDescription = null,
                 contentScale = ContentScale.Crop,
                 alpha = incomingAlpha.value,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().testTag("cover-art-image"),
             )
         }
     }
@@ -252,7 +254,15 @@ private object NaviampCoverArtCache {
                         try {
                             platformCoverArtBytes(url)
                                 ?.takeIf { it.isNotEmpty() }
-                                ?.let { decodePlatformCoverArt(it, targetSidePx) }
+                                ?.let { bytes ->
+                                    val image = decodePlatformCoverArt(bytes, targetSidePx) ?: return@let null
+                                    // Palette input has a fixed resolution, independent of which
+                                    // thumbnail or player cover won the loading race.
+                                    val samples = mutex.withLock { palettes[url] } ?:
+                                        if (targetSidePx == PaletteCoverArtSidePx) image.rgbSamples else
+                                            decodePlatformCoverArt(bytes, PaletteCoverArtSidePx)?.rgbSamples ?: image.rgbSamples
+                                    image.copy(rgbSamples = samples)
+                                }
                         } catch (cancelled: CancellationException) {
                             throw cancelled
                         } catch (_: Exception) {

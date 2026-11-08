@@ -76,6 +76,7 @@ data class NaviampCoreStoredRepositories(
     val maintenance: CacheMaintenanceRepository<StorageCacheStats>,
     val pendingProviderActions: PendingProviderActionRepository,
     val updateAudioCacheLimit: (Long) -> Unit = {},
+    val discoveryAcquisitions: app.naviamp.domain.provider.DiscoveryAcquisitionRepository = app.naviamp.domain.provider.MemoryDiscoveryAcquisitionRepository(),
 )
 
 data class NaviampCoreStoredServiceCatalog(
@@ -108,6 +109,7 @@ fun naviampCoreStoredServiceCatalog(
     clockEpochMillis: () -> Long,
     favoritedAtIso8601: () -> String,
     diagnostics: NaviampCoreDiagnosticsPort = emptyNaviampCoreDiagnosticsPort(),
+    certificateFiles: NaviampCoreCertificateFilePort? = null,
 ): NaviampCoreStoredServiceCatalog {
     val initialInterfaceSettings = settings.loadInterface()
     val initialPlaybackSettings = settings.loadPlayback()
@@ -165,7 +167,9 @@ fun naviampCoreStoredServiceCatalog(
         favoritedAtIso8601 = favoritedAtIso8601,
     )
     val services = defaults.copy(
+        certificateFiles = certificateFiles,
         content = defaults.content.copy(
+            discoveryAcquisitions = repositories.discoveryAcquisitions,
             libraryGenreRefresh = NaviampCoreLibraryGenreRefreshPort {
                 val activeSourceId = sourceId() ?: return@NaviampCoreLibraryGenreRefreshPort
                 val provider = providerSource.current() ?: return@NaviampCoreLibraryGenreRefreshPort

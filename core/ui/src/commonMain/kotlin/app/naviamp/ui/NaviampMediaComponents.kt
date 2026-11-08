@@ -47,6 +47,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -139,6 +141,10 @@ fun TrackRow(
     Row(
         modifier = swipeModifier
             .fillMaxWidth()
+            .semantics {
+                contentDescription = listOf(trackNumber?.toString().orEmpty(), track.title,
+                    track.subtitle, track.meta, track.durationLabel).filter(String::isNotBlank).joinToString(", ")
+            }
             .then(
                 if (background) {
                     Modifier
@@ -193,7 +199,7 @@ fun TrackRow(
             }
         }
         if (showCoverArt) {
-            NaviampCoverArt(track.coverArtUrl, colors, coverArtSize, coverArtCornerRadius)
+            NaviampCoverArt(track.coverArtUrl, colors, coverArtSize, coverArtCornerRadius, mediaKind = SharedMediaItemKind.Track)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(titleSubtitleSpacing)) {
             Text(track.title, color = colors.primaryText, style = titleStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -227,7 +233,7 @@ fun TrackRow(
                         Text(" - $albumTitle", color = colors.secondaryText, style = subtitleStyle)
                     }
                 }
-            } else {
+            } else if (track.subtitle.isNotBlank()) {
                 Text(track.subtitle, color = colors.secondaryText, style = subtitleStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
@@ -272,7 +278,7 @@ fun TrackRow(
                 }
                 NaviampAction.StartTrackRadio -> if (canStartRadio) {
                     NaviampRowMenuItem(
-                        action.label,
+                        stringResource(Res.string.tv_start_radio),
                         action.icon,
                         { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.StartRadio)) },
                         action.enabled,
@@ -648,10 +654,10 @@ internal fun MixCard(
         modifier = Modifier
             .width(154.dp)
             .height(120.dp)
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(resolvedMediaArtworkCornerRadius(SharedMediaItemKind.Album, 154.dp, 6.dp)))
             .clickable(onClick = onClick),
     ) {
-        NaviampCoverArt(album.coverArtUrl, colors, 154.dp, 6.dp)
+        NaviampCoverArt(album.coverArtUrl, colors, 154.dp, 6.dp, mediaKind = SharedMediaItemKind.Album)
         Column(
             verticalArrangement = Arrangement.Bottom,
             modifier = Modifier
@@ -743,6 +749,7 @@ internal fun HomeSection(
     title: String,
     items: List<SharedMediaItemUi>,
     colors: NaviampColors,
+    mediaKind: SharedMediaItemKind,
     onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
     onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
     stationStyle: Boolean = false,
@@ -766,6 +773,7 @@ internal fun HomeSection(
                 } else {
                     SharedMediaRow(
                         item = item,
+                        mediaKind = mediaKind,
                         colors = colors,
                         onClick = onItemSelected?.let { { it(item) } },
                         onFavoriteToggled = onFavoriteToggled,
@@ -781,6 +789,7 @@ internal fun MediaSection(
     title: String,
     items: List<SharedMediaItemUi>,
     colors: NaviampColors,
+    mediaKind: SharedMediaItemKind,
     onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
     onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
 ) {
@@ -791,6 +800,7 @@ internal fun MediaSection(
         items.forEach { item ->
             SharedMediaRow(
                 item = item,
+                mediaKind = mediaKind,
                 colors = colors,
                 onClick = onItemSelected?.let { { it(item) } },
                 onFavoriteToggled = onFavoriteToggled,
@@ -812,7 +822,7 @@ fun SharedMediaRow(
     coverArtCornerRadius: Dp = 5.dp,
     verticalPadding: Dp = 7.dp,
     modifier: Modifier = Modifier,
-    mediaKind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
+    mediaKind: SharedMediaItemKind,
 ) {
     Row(
         modifier = modifier
@@ -826,6 +836,10 @@ fun SharedMediaRow(
                     rowModifier
                 }
             }
+            .semantics {
+                contentDescription = listOf(item.title, item.subtitle, item.meta)
+                    .filter(String::isNotBlank).joinToString(", ")
+            }
             .padding(horizontal = 8.dp, vertical = verticalPadding),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -835,7 +849,8 @@ fun SharedMediaRow(
             colors = colors,
             covers = coverUrls,
             size = coverArtSize,
-            cornerRadius = mediaArtworkCornerRadius(mediaKind, coverArtSize, coverArtCornerRadius),
+            cornerRadius = resolvedMediaArtworkCornerRadius(mediaKind, coverArtSize, coverArtCornerRadius),
+            mediaKind = mediaKind,
         )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(
@@ -908,7 +923,20 @@ fun SharedAlbumGridTile(
     onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
     modifier: Modifier = Modifier,
     tileSize: Dp = 144.dp,
+) = SharedMediaGridTile(item, SharedMediaItemKind.Album, colors, onClick, menuItems, onFavoriteToggled, modifier, tileSize)
+
+@Composable
+fun SharedMediaGridTile(
+    item: SharedMediaItemUi,
+    mediaKind: SharedMediaItemKind,
+    colors: NaviampColors,
+    onClick: () -> Unit,
+    menuItems: List<NaviampRowMenuItem> = emptyList(),
+    onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
+    modifier: Modifier = Modifier,
+    tileSize: Dp = 144.dp,
 ) {
+    val cornerRadius = resolvedMediaArtworkCornerRadius(mediaKind, tileSize, 8.dp)
     val favoriteMenuItem = if (item.canFavorite && onFavoriteToggled != null) {
         NaviampRowMenuItem(
             label = if (item.favoriteActive) "Remove favorite" else "Favorite",
@@ -924,10 +952,11 @@ fun SharedAlbumGridTile(
     ) {
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
-                .clickable(onClick = onClick),
+                .clip(RoundedCornerShape(cornerRadius))
+                .clickable(onClick = onClick)
+                .semantics { contentDescription = item.title },
         ) {
-            NaviampCoverArt(item.coverArtUrl, colors, tileSize, 8.dp)
+            MultiCoverArt(colors, listOfNotNull(item.coverArtUrl).ifEmpty { item.coverArtUrls }, tileSize, cornerRadius, mediaKind = mediaKind)
             if (item.favoriteActive) {
                 Icon(
                     imageVector = NaviampTransportIcons.HeartFilled,
@@ -1877,7 +1906,7 @@ private fun ArtistMixSelectedArtist(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        NaviampCoverArt(artist.coverArtUrl, colors, 30.dp, 15.dp)
+        NaviampCoverArt(artist.coverArtUrl, colors, 30.dp, 15.dp, mediaKind = SharedMediaItemKind.Artist)
         Text(artist.title, color = colors.primaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
@@ -1949,7 +1978,7 @@ private fun AlbumMixSelectedAlbum(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        NaviampCoverArt(album.coverArtUrl, colors, 30.dp, 4.dp)
+        NaviampCoverArt(album.coverArtUrl, colors, 30.dp, 4.dp, mediaKind = SharedMediaItemKind.Album)
         Text(album.title, color = colors.primaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
@@ -1971,7 +2000,7 @@ private fun AlbumMixAlbumTile(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
-        NaviampCoverArt(album.coverArtUrl, colors, 72.dp, 6.dp)
+        NaviampCoverArt(album.coverArtUrl, colors, 72.dp, 6.dp, mediaKind = SharedMediaItemKind.Album)
         Text(
             album.title,
             color = colors.primaryText,
@@ -2009,7 +2038,7 @@ private fun ArtistMixArtistTile(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-        NaviampCoverArt(artist.coverArtUrl, colors, 64.dp, 32.dp)
+        NaviampCoverArt(artist.coverArtUrl, colors, 64.dp, 32.dp, mediaKind = SharedMediaItemKind.Artist)
         Text(
             artist.title,
             color = colors.primaryText,
@@ -2106,6 +2135,7 @@ fun InternetRadioContent(
                 val stationItem = station.item
                 SharedMediaRow(
                     item = stationItem,
+                    mediaKind = SharedMediaItemKind.RadioStation,
                     colors = colors,
                     onClick = {
                         handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Select))
@@ -2208,9 +2238,9 @@ internal fun InternetRadioStationDialog(
         title = { Text(if (initialStation == null) stringResource(Res.string.tv_new_station) else stringResource(Res.string.connection_edit_station)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(Res.string.favorite_artists_sort_name)) }, singleLine = true, modifier = Modifier.naviampTextInputFocus())
-                OutlinedTextField(value = streamUrl, onValueChange = { streamUrl = it }, label = { Text(stringResource(Res.string.connection_stream_url)) }, singleLine = true, modifier = Modifier.naviampTextInputFocus())
-                OutlinedTextField(value = homePageUrl, onValueChange = { homePageUrl = it }, label = { Text(stringResource(Res.string.connection_home_page_url)) }, singleLine = true, modifier = Modifier.naviampTextInputFocus())
+                OutlinedTextField(colors = naviampOutlinedTextFieldColors(), value = name, onValueChange = { name = it }, label = { Text(stringResource(Res.string.favorite_artists_sort_name)) }, singleLine = true, modifier = Modifier.naviampTextInputFocus())
+                OutlinedTextField(colors = naviampOutlinedTextFieldColors(), value = streamUrl, onValueChange = { streamUrl = it }, label = { Text(stringResource(Res.string.connection_stream_url)) }, singleLine = true, modifier = Modifier.naviampTextInputFocus())
+                OutlinedTextField(colors = naviampOutlinedTextFieldColors(), value = homePageUrl, onValueChange = { homePageUrl = it }, label = { Text(stringResource(Res.string.connection_home_page_url)) }, singleLine = true, modifier = Modifier.naviampTextInputFocus())
             }
         },
         confirmButton = {

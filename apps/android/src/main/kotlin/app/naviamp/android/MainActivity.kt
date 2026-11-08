@@ -10,8 +10,6 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
@@ -72,13 +70,12 @@ class MainActivity : FragmentActivity() {
                     settingsImportRequest = null
                 }
             }
-            AndroidNaviampPlaybackLifecycle(runtime.core)
+            AndroidNaviampPlaybackLifecycle(runtime.core, lifecycle)
             CompositionLocalProvider(LocalNaviampSystemBackDispatcher provides systemBackDispatcher) {
                 NaviampAndroidRasterHost {
                     Box {
                         NaviampCoreApp(
                             core = runtime.core,
-                            modifier = Modifier.safeDrawingPadding().imePadding(),
                             applicationSurface = naviampApplicationSurface(),
                             screenAwakeEffect = remember(window) { AndroidScreenAwakeEffect(window) },
                             applicationUpdateChecker = runtime.applicationUpdateChecker,

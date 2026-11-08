@@ -41,4 +41,5 @@ if (( version_code > 65535 )); then
   exit 1
 fi
 
+"${PYTHON:-python3}" "$repo_root/scripts/validate-ios-version.py"
 echo "Version is valid: $version ($version_code)"

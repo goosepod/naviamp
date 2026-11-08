@@ -40,6 +40,8 @@ class NaviampShellCapabilityMapperTest {
             .withStatus(PlatformCapability.SettingsImportExport, PlatformCapabilityStatus.Experimental)
             .withStatus(PlatformCapability.FileSelection, PlatformCapabilityStatus.Available)
             .withStatus(PlatformCapability.CustomServerCertificates, PlatformCapabilityStatus.Available)
+            .withStatus(PlatformCapability.InsecureServerVerification, PlatformCapabilityStatus.Unavailable)
+            .withStatus(PlatformCapability.ClientCertificates, PlatformCapabilityStatus.Unavailable)
             .withStatus(PlatformCapability.ApplicationUpdates, PlatformCapabilityStatus.Available)
             .withStatus(PlatformCapability.SoftwareVolumeControl, PlatformCapabilityStatus.Available)
             .withStatus(PlatformCapability.HoverTooltips, PlatformCapabilityStatus.Available)

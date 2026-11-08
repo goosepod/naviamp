@@ -9,6 +9,54 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SettingsSyncDocumentTest {
+    @Test fun everyInterfaceLanguageSurvivesExportImportAndOlderDefaultsRemainCompatible() {
+        for (language in InterfaceLanguage.entries) {
+            val settings = InterfaceSettings(language = language)
+            val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(interfaceSettings = settings), 1L, "test")
+            val restored = SettingsSyncJson.decode(SettingsSyncJson.encode(document)).preferences.interfaceSettings.normalized()
+            assertEquals(settings, restored)
+        }
+        for (name in listOf("English", "Spanish")) {
+            val restored = SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"language":"$name"}}}""")
+            assertEquals(name, restored.preferences.interfaceSettings.language.name)
+        }
+        assertEquals(InterfaceLanguage.System, SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{}}}""")
+            .preferences.interfaceSettings.language)
+        kotlin.test.assertFailsWith<kotlinx.serialization.SerializationException> {
+            SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"language":"Unknown"}}}""")
+        }
+    }
+    @Test
+    fun artistPlaylistVisibilityRoundTripsThroughSyncAndDefaultsOnForOlderExports() {
+        for (enabled in listOf(false, true)) {
+            val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(
+                interfaceSettings = InterfaceSettings(showArtistPlaylists = enabled)), 1L, "test")
+            val restored = SettingsSyncJson.decode(SettingsSyncJson.encode(document)).preferences.interfaceSettings.normalized()
+            assertEquals(enabled, restored.showArtistPlaylists)
+        }
+        assertTrue(SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{}}}""")
+            .preferences.interfaceSettings.normalized().showArtistPlaylists)
+        kotlin.test.assertFailsWith<kotlinx.serialization.SerializationException> {
+            SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"showArtistPlaylists":"invalid"}}}""")
+        }
+    }
+    @Test
+    fun independentRadioBatchSizesRoundTripWithOlderDefaultsAndImportedNormalization() {
+        val document = SettingsSyncDocument(preferences = SettingsSyncPreferences(
+            playback = PlaybackSettings(radioMinimumTracks = 40, sonicAutoplayMinimumTracks = 90)))
+        val restored = SettingsSyncJson.decode(SettingsSyncJson.encode(document)).preferences.playback
+        assertEquals(40, restored.radioMinimumTracks)
+        assertEquals(90, restored.sonicAutoplayMinimumTracks)
+        val older = SettingsSyncJson.decode("""{"preferences":{"playback":{"sonicAutoplayEnabled":true}}}""").preferences.playback
+        assertEquals(10, older.radioMinimumTracks)
+        assertEquals(10, older.sonicAutoplayMinimumTracks)
+        for ((raw, expected) in listOf(Int.MIN_VALUE to 10, 14 to 10, 15 to 20, 95 to 100, Int.MAX_VALUE to 100)) {
+            val imported = SettingsSyncJson.decode("""{"preferences":{"playback":{"radioMinimumTracks":$raw,"sonicAutoplayMinimumTracks":$raw}}}""").preferences.playback
+            assertEquals(expected, imported.radioMinimumTracks)
+            assertEquals(expected, imported.sonicAutoplayMinimumTracks)
+        }
+    }
+
     @Test
     fun cachedAudioUpgradeRoundTripsAndOlderExportsDefaultOff() {
         val document = buildSettingsSyncDocument(
@@ -62,6 +110,19 @@ class SettingsSyncDocumentTest {
         ).preferences.interfaceSettings
         assertEquals(InterfaceFontSize.Standard, older.generalFontSize)
         assertEquals(InterfaceFontSize.Standard, older.nowPlayingFontSize)
+    }
+
+    @Test fun keepTelevisionControlsVisibleRoundTripsAndOlderExportsDefaultOff() {
+        for (enabled in listOf(false, true)) {
+            val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(
+                interfaceSettings = InterfaceSettings(
+                    nowPlaying = NowPlayingDisplaySettings(keepTelevisionControlsVisible = enabled),
+                )), 1L, "test")
+            val imported = SettingsSyncJson.decode(SettingsSyncJson.encode(document)).preferences.interfaceSettings.normalized()
+            assertEquals(enabled, imported.nowPlaying.keepTelevisionControlsVisible)
+        }
+        assertFalse(SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"nowPlaying":{}}}}""")
+            .preferences.interfaceSettings.nowPlaying.keepTelevisionControlsVisible)
     }
 
     @Test fun keepScreenAwakeRoundTripsAndOlderExportsDefaultOff() {
@@ -131,7 +192,7 @@ class SettingsSyncDocumentTest {
     }
 
     @Test
-    fun sonicSimilarityChoiceRoundTripsAndOlderExportsUseAutomaticSupport() {
+    fun sonicSimilarityChoiceRoundTripsAndOlderExportsUseStoredPreference() {
         val disabled = PlaybackSettings(
             sonicSimilarityEnabled = false,
             sonicSimilarityPreferenceConfigured = true,
@@ -148,8 +209,15 @@ class SettingsSyncDocumentTest {
         val older = SettingsSyncJson.decode(
             """{"preferences":{"playback":{"sonicSimilarityEnabled":false}}}""",
         ).preferences.playback
-        assertTrue(older.effectiveSonicSimilarityEnabled())
-        assertFalse(older.sonicSimilarityPreferenceConfigured)
+        assertFalse(older.effectiveSonicSimilarityEnabled())
+        assertTrue(older.sonicSimilarityPreferenceConfigured)
+
+        val legacyAutomatic = older.copy(sonicSimilarityEnabled = false, sonicSimilarityPreferenceConfigured = false)
+        val explicitExport = SettingsSyncJson.decode(SettingsSyncJson.encode(
+            SettingsSyncDocument(preferences = SettingsSyncPreferences(playback = legacyAutomatic))))
+            .preferences.playback
+        assertFalse(explicitExport.effectiveSonicSimilarityEnabled())
+        assertTrue(explicitExport.sonicSimilarityPreferenceConfigured)
     }
 
     @Test

@@ -44,6 +44,11 @@ of imported values. Keep only genuinely device-specific settings local.
 
 ## Release Announcements
 
+GitHub release names must be exactly `Naviamp vX.Y.Z` (for example, `Naviamp v2.9.0`).
+Never append a subtitle, feature description, codename, colon, or other suffix. Put feature
+highlights in the release body and announcement text. Verify the exact release name before
+publishing and after publication. This is an explicit owner requirement.
+
 Whenever a new Naviamp release is pushed, create a GitHub Discussion in the **Announcements**
 category that explains what is new, what changed, important fixes, and any upgrade or compatibility
 notes. Feature branches and other unreleased work do not receive release announcements.
@@ -52,8 +57,32 @@ Release notes must compare the release with the previous public release, not nar
 the release branch. A platform or feature shipping for the first time is one complete new
 capability; prerelease implementation fixes are not separate public changes.
 
-Order announcements by product significance. Major launches lead the title, summary, and
-highlights. Improvements and fixes to previously released behavior follow.
+Order announcement content by product significance. Major launches lead the summary and
+highlights; GitHub release names retain the exact format above. Improvements and fixes to
+previously released behavior follow.
+
+## Release Contributor Acknowledgments
+
+For each GitHub release-note change involving a community contributor, credit the contributor by
+GitHub handle and state their role accurately (for example, reported by, fixed by, or translated by).
+Link the GitHub release-note entry directly to the originating issue and implementation PR; use a
+commit link when there is no issue or PR. Use absolute links in GitHub release notes.
+
+Track contributors across releases and explicitly welcome first-time contributors. Verify first-time
+status against earlier releases and repository contribution history, including issue reports,
+testing, documentation, and translations; do not rely only on commit authors or GitHub's generated
+first-PR list. A first-time contributor is someone receiving their first release acknowledgment for
+a contribution to Naviamp. Do not announce credits for work that has not shipped.
+
+Include a deduplicated **Thanks** section in the GitHub release notes, shared About-page release
+changelog, Discord announcement, and release Announcements Discussion whenever a release has
+community contributions. Thank everyone who contributed to that release, including reporters and
+testers, and identify first-time contributors. Use public handles or the contributor's preferred
+public attribution; honor requests to remain anonymous. Keep attribution consistent across channels.
+The About-page changelog, Discord posts, and similar announcements retain their existing plain
+bulleted change lists, without issue, PR, or commit references or per-change contributor credits.
+Only add the Thanks section to those formats; detailed links and per-change credits belong in the
+GitHub release notes. When forwarding release notes to Discord, prepare this plain-list version.
 
 ## In-App Release Changelog
 

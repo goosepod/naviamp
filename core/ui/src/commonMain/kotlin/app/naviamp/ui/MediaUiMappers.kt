@@ -50,6 +50,7 @@ import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.SleepTimerState
 import app.naviamp.domain.playback.sleepTimerDisplayLabel
+import app.naviamp.domain.provider.isDiscoveryPreview
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
@@ -318,6 +319,8 @@ fun HomeContent.toSharedHomeUi(
                 mediaKind = SharedMediaItemKind.MixBuilder,
                 action = SharedHomeCollectionItemAction.SelectMixBuilder,
                 mixBuilder = builder,
+                artwork = SharedHomeCollectionArtwork.MixBuilderGenerated,
+                artworkKey = builder.id,
             )
         })
         sonicDiscoveryRows.rows.forEach { row ->
@@ -1043,6 +1046,7 @@ fun nowPlayingTrackCapabilities(
     canRepeatQueue: Boolean = false,
     canSaveQueueAsPlaylist: Boolean = false,
     canAddToPlaylist: Boolean = true,
+    isPreview: Boolean = false,
 ): NowPlayingTrackCapabilities =
     NowPlayingTrackCapabilities(
         canPlayPause = hasPlaybackTarget &&
@@ -1051,12 +1055,12 @@ fun nowPlayingTrackCapabilities(
         canSeek = supportsSeek && !isLiveStream,
         canChangeVolume = supportsSoftwareVolume,
         canRepeat = canRepeatQueue && !isLiveStream,
-        canStartRadio = supportsTrackRadio && !isLiveStream,
-        canAddToPlaylist = canAddToPlaylist && !isLiveStream,
-        canSaveQueueAsPlaylist = canSaveQueueAsPlaylist && !isLiveStream,
-        canFavorite = supportsTrackFavorites && !isLiveStream,
-        canRate = supportsTrackRatings && !isLiveStream,
-        lyricsAvailable = !isLiveStream,
+        canStartRadio = supportsTrackRadio && !isLiveStream && !isPreview,
+        canAddToPlaylist = canAddToPlaylist && !isLiveStream && !isPreview,
+        canSaveQueueAsPlaylist = canSaveQueueAsPlaylist && !isLiveStream && !isPreview,
+        canFavorite = supportsTrackFavorites && !isLiveStream && !isPreview,
+        canRate = supportsTrackRatings && !isLiveStream && !isPreview,
+        lyricsAvailable = !isLiveStream && !isPreview,
     )
 
 fun nowPlayingEmbeddedTagRows(tags: List<Pair<String, String>>?): List<Pair<String, String>> =
@@ -1594,6 +1598,7 @@ fun AlbumDetails.toSharedAlbumDetailUi(
     popularTrackIds: Set<String> = emptySet(),
     canFavoriteAlbum: Boolean = false,
     showAlbumInformation: Boolean = true,
+    supportsTrackRadio: Boolean = false,
 ): SharedAlbumDetailUi {
     val sections = tracks.albumDiscSections().map { section ->
         SharedAlbumDiscSectionUi(
@@ -1606,7 +1611,10 @@ fun AlbumDetails.toSharedAlbumDetailUi(
                     coverArtUrl,
                     fallbackCoverArtId = album.coverArtId ?: album.id.value,
                     popular = track.id.value in popularTrackIds,
-                ).copy(hasAlbum = false)
+                ).copy(
+                    hasAlbum = false,
+                    canStartRadio = supportsTrackRadio && !track.isInternetRadioTrack() && !track.id.isDiscoveryPreview(),
+                )
             },
         )
     }
@@ -1654,6 +1662,8 @@ fun ArtistDetails.toSharedArtistDetailUi(
     appearanceLoadFailed: Boolean = false,
     appearancesTruncated: Boolean = false,
     popularTracks: List<Track> = emptyList(),
+    showArtistTopTracks: Boolean = true,
+    artistTopTracksLimit: Int = app.naviamp.domain.settings.DefaultArtistTopTracksLimit,
     popularTracksStatus: String? = null,
     similarArtists: List<SimilarArtistMatch> = emptyList(),
     similarArtistsStatus: String? = null,
@@ -1687,8 +1697,10 @@ fun ArtistDetails.toSharedArtistDetailUi(
         appearancesTruncated = appearancesTruncated,
         localLibraryLabel = artistLocalLibraryLabel(albums.size),
         biography = info?.biography.takeIf { showArtistInformation },
-        popularTracks = popularTracks.map { it.toSharedTrackRowUi(coverArtUrl).copy(hasArtist = false) },
-        popularTracksStatus = popularTracksStatus,
+        popularTracks = if (showArtistTopTracks) popularTracks.take(app.naviamp.domain.settings.normalizedArtistTopTracksLimit(artistTopTracksLimit))
+            .map { it.toSharedTrackRowUi(coverArtUrl).copy(hasArtist = false) } else emptyList(),
+        popularTracksVisible = showArtistTopTracks,
+        popularTracksStatus = popularTracksStatus.takeIf { showArtistTopTracks },
         similarArtists = similarArtists.map { it.toSharedSimilarArtistUi() },
         similarArtistsStatus = similarArtistsStatus,
         similarArtistsExpanded = similarArtistsExpanded,
@@ -1724,6 +1736,7 @@ fun InternetRadioStation.toNowPlayingStationUi(): NaviampNowPlayingItemUi =
         title = name,
         subtitle = homePageUrl ?: "Internet radio",
         coverArtUrl = radioStationArtworkUrl(this),
+        mediaKind = SharedMediaItemKind.RadioStation,
     )
 
 fun radioArtworkUrl(
@@ -1776,6 +1789,17 @@ fun radioTrackArtworkQuery(streamTitle: String?): String? =
         ?.trim()
         ?.takeIf { it.length >= 3 }
 
+/** The search result that is the song a station announces, as "Artist - Title" or as the title alone. */
+fun radioTrackArtworkMatch(tracks: List<Track>, streamTitle: String?): Track? {
+    val announced = radioTrackArtworkQuery(streamTitle) ?: return null
+    return tracks.firstOrNull { track ->
+        track.coverArtId != null && (
+            announced.equals("${track.artistName} - ${track.title}", ignoreCase = true) ||
+                announced.equals(track.title, ignoreCase = true)
+            )
+    }
+}
+
 private fun streamMetadataArtworkUrl(properties: Map<String, String>): String? {
     val artworkKeys = setOf(
         "artwork",
@@ -1798,7 +1822,8 @@ private fun streamMetadataArtworkUrl(properties: Map<String, String>): String? {
 }
 
 private fun radioStationArtworkUrl(station: InternetRadioStation): String =
-    knownRadioStationArtworkUrl(station)
+    station.coverArtUrl
+        ?: knownRadioStationArtworkUrl(station)
         ?: station.homePageUrl?.let(::faviconUrl)
         ?: generatedRadioTileUrl(station.name)
 

@@ -26,6 +26,9 @@ fun connectionFormError(
 ): String? {
     val provider = providerDescriptor(form.providerId)
     if (!provider.selectable) return "${provider.displayName} support is not available yet."
+    if (provider.id == app.naviamp.domain.provider.ProviderIdAurral && form.authenticationMode == SubsonicAuthApiKey) {
+        return "connection_api_key_unsupported"
+    }
     return connectionFormError(
         serverUrl = form.serverUrl,
         username = form.username,

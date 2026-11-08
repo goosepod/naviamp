@@ -18,6 +18,32 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NaviampCoreActionGraphTest {
+    @Test fun previewSyncUsesItsDedicatedAwaitedCommandAndForwardsProgress() = kotlinx.coroutines.test.runTest {
+        val received = mutableListOf<app.naviamp.domain.library.LibrarySyncProgress>()
+        val handler = object : NaviampCoreCommandHandler {
+            override fun dispatch(command: NaviampCoreCommand) = error("Sync must be awaited")
+            override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult {
+                val sync = command as NaviampCoreCommand.SmartPlaylist.SyncLibrary
+                sync.onProgress(app.naviamp.domain.library.LibrarySyncProgress(
+                    app.naviamp.domain.library.LibrarySyncProgressPhase.LoadingTracks, trackCount = 500, total = 2000))
+                return NaviampCoreCommandResult.Completed
+            }
+        }
+        createNaviampCoreActions(handler).shell.playlistsActions.smartPlaylist.onSyncLibrary!!(received::add)
+        assertEquals(500, received.single().trackCount)
+        assertEquals(2000, received.single().total)
+    }
+
+    @Test fun artistPlaylistActionsUseSharedPlaylistNavigationAndRefreshCommands() {
+        val handler = RecordingCoreCommandHandler()
+        val actions = createNaviampCoreActions(handler).shell.artistDetailActions
+        actions.onPlaylistSelected(SharedMediaItemUi("mine", "My playlist", ""))
+        actions.onPlaylistsRefresh("artist")
+        val selected = assertIs<NaviampCoreCommand.Media.ItemAction>(handler.dispatched[0])
+        assertEquals("mine", selected.request.item.id)
+        assertEquals(app.naviamp.ui.NaviampMediaItemCommand.Playlist(app.naviamp.ui.NaviampPlaylistMediaCommand.Select), selected.request.command)
+        assertEquals(NaviampCoreCommand.Detail.RefreshArtistPlaylists("artist"), handler.dispatched[1])
+    }
     @Test
     fun visibleVisualizerDemandUsesTheSharedCommandGraph() {
         val handler = RecordingCoreCommandHandler()
@@ -121,6 +147,27 @@ class NaviampCoreActionGraphTest {
         val command = assertIs<NaviampCoreCommand.SmartPlaylist.Load>(handler.executed.single())
         assertEquals(playlist, command.playlist)
         assertEquals("secret", command.password)
+    }
+
+    @Test
+    fun inspectionAndPasswordRecoveryUseTheCommonCommandGraph() = runTest {
+        val editing = app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult.ReadOnly("original rules")
+        val handler = RecordingCoreCommandHandler(NaviampCoreCommandResult.SmartPlaylistInspected(editing))
+        val smart = createNaviampCoreActions(handler).shell.playlistsActions.smartPlaylist
+        val item = SharedMediaItemUi("p", "Smart", "")
+        assertEquals(editing, smart.onInspectWithPassword(item, "secret"))
+        val command = assertIs<NaviampCoreCommand.SmartPlaylist.Inspect>(handler.executed.single())
+        assertEquals(item, command.playlist)
+        assertEquals("secret", command.password)
+    }
+
+    @Test
+    fun builderLibrarySyncAwaitsTheDedicatedTrackSyncCommand() = runTest {
+        val handler = RecordingCoreCommandHandler()
+        val smart = createNaviampCoreActions(handler).shell.playlistsActions.smartPlaylist
+        requireNotNull(smart.onSyncLibrary).invoke {}
+        assertIs<NaviampCoreCommand.SmartPlaylist.SyncLibrary>(handler.executed.single())
+        assertEquals(emptyList<NaviampCoreCommand>(), handler.dispatched)
     }
 
     private fun actionsStatePlaybackSettings() = app.naviamp.domain.settings.PlaybackSettings()

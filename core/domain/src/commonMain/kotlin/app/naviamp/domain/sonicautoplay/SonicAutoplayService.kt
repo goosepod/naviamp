@@ -1,8 +1,13 @@
 package app.naviamp.domain.sonicautoplay
 
+import app.naviamp.domain.provider.isDiscoveryPreview
+
 import app.naviamp.domain.Track
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.radio.SimilarityRequest
+import app.naviamp.domain.radio.SimilarityService
+import app.naviamp.domain.radio.SimilaritySeedMatches
 
 class SonicAutoplayService(
     private val provider: () -> MediaProvider?,
@@ -12,38 +17,38 @@ class SonicAutoplayService(
     suspend fun continuationTracks(
         queue: PlaybackQueue,
         limit: Int = DefaultSonicAutoplayAppendCount,
+        preferSonicSimilarity: Boolean = true,
+        onResult: (app.naviamp.domain.radio.SimilarityResult) -> Unit = {},
     ): List<Track> {
-        val activeProvider = provider()
-            ?.takeIf { it.capabilities.supportsSonicSimilarity }
-            ?: return emptyList()
+        val activeProvider = provider() ?: return emptyList()
         val seeds = queue.sonicAutoplaySeeds(seedCount)
         if (seeds.isEmpty()) return emptyList()
 
         val blockedTrackIds = queue.tracks.map { it.id }.toSet()
-        return seeds
-            .flatMapIndexed { seedIndex, seed ->
-                runCatching {
-                    activeProvider.sonicSimilarTrackMatches(seed.id, candidatesPerSeed)
-                        .filterNot { match -> match.track.id in blockedTrackIds || match.track.id == seed.id }
-                        .mapIndexed { matchIndex, match ->
-                            SonicAutoplayCandidate(
-                                track = match.track,
-                                score = match.score(seedIndex, matchIndex),
-                            )
-                        }
-                }.getOrDefault(emptyList())
-            }
-            .groupBy { candidate -> candidate.track.id }
-            .mapNotNull { (_, candidates) -> candidates.maxByOrNull { it.score } }
-            .sortedByDescending { candidate -> candidate.score }
-            .map { candidate -> candidate.track }
-            .take(limit.coerceAtLeast(1))
+        val targetCount = limit.coerceIn(1, MaxSonicAutoplayAppendCount)
+        val result = SimilarityService(activeProvider).load(SimilarityRequest(
+            seeds.map { it.id }, excludedTrackIds = blockedTrackIds,
+            countPerSeed = maxOf(candidatesPerSeed, targetCount * 2), preferSonic = preferSonicSimilarity,
+        ))
+        onResult(result)
+        fun ranked(matches: List<SimilaritySeedMatches>): List<Track> =
+            matches.flatMapIndexed { seedIndex, seed ->
+                seed.matches.mapIndexed { matchIndex, match ->
+                    SonicAutoplayCandidate(match.track, match.score(seedIndex, matchIndex))
+                }
+            }.groupBy { it.track.id }
+                .mapNotNull { (_, candidates) -> candidates.maxByOrNull { it.score } }
+                .sortedByDescending { it.score }
+                .map { it.track }
+        return ranked(result.seedMatches)
+            .distinctBy { it.id }
+            .take(targetCount)
     }
 }
 
 fun PlaybackQueue.sonicAutoplaySeeds(limit: Int = DefaultSonicAutoplaySeedCount): List<Track> {
-    val current = current ?: return emptyList()
-    return (listOf(current) + backTo())
+    val current = current?.takeUnless { it.id.isDiscoveryPreview() } ?: return emptyList()
+    return (listOf(current) + backTo()).filterNot { it.id.isDiscoveryPreview() }
         .distinctBy { track -> track.id }
         .take(limit.coerceAtLeast(1))
 }
@@ -60,4 +65,5 @@ private const val SeedPenalty = 0.02
 private const val MatchPenalty = 0.001
 const val DefaultSonicAutoplaySeedCount = 3
 const val DefaultSonicAutoplayCandidatesPerSeed = 12
-const val DefaultSonicAutoplayAppendCount = 8
+const val DefaultSonicAutoplayAppendCount = app.naviamp.domain.radio.DefaultRadioMinimumTracks
+const val MaxSonicAutoplayAppendCount = app.naviamp.domain.radio.MaxRadioMinimumTracks

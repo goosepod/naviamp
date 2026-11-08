@@ -26,6 +26,23 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class NavidromeCoreProviderSessionPortTest {
+    @Test fun aurralSavedAccountRestoresThroughTheSharedRouterWithoutNavidromeLoginOrIdMigration() = runTest {
+        val source = savedSource(providerId = app.naviamp.domain.provider.ProviderIdAurral)
+        val repository = TestMediaSourceRepository(source)
+        val port = NavidromeCoreProviderSessionPort(mediaSources = repository, initialSource = source,
+            sessionOpener = NavidromeProviderSessionOpener { request, _ ->
+                assertEquals(app.naviamp.domain.provider.ProviderIdAurral, request.providerId)
+                assertFalse(request.nativeAuthEnabled)
+                assertFalse(request.nativeAuthRequired)
+                session(request.savedConnectionForLogin!!)
+            }, canonicalIdMigrationSupport = { error("Aurral must not use Navidrome ID migration") })
+        val router = subsonicFamilyProviderSessionRouter(port)
+        router.connect(NaviampCoreConnectionRequest.Saved(source.id), NaviampConnectionAttemptPlan(true, false, false, false))
+        assertEquals(app.naviamp.domain.provider.ProviderIdAurral, router.currentProvider()?.id?.value)
+        assertNotNull(router.currentProvider()?.discovery)
+        assertEquals(source.id, router.currentSourceId())
+        assertFalse(port.refreshActiveSession())
+    }
     @Test
     fun failedPreparationKeepsThePreviousProviderAndCredentials() = runTest {
         val source = savedSource()

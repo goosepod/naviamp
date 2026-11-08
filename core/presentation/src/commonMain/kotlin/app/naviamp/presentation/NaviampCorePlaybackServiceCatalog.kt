@@ -112,6 +112,8 @@ fun naviampCorePlaybackServiceCatalog(
         },
     )
     return NaviampCorePlaybackServices(
+        samples = NaviampCoreEngineSamplePlayback(scope, engine, providerSource,
+            verifyProviderNetworkCertificates, { settings.current().volumePercent }),
         effects = effects,
         settings = settings,
         sidecars = NaviampCoreProviderNowPlayingSidecars(

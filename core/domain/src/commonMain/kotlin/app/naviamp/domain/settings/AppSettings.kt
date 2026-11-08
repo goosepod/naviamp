@@ -69,6 +69,11 @@ fun ConnectionFormState.selectProvider(providerId: String): ConnectionFormState 
     val current = providerDescriptor(this.providerId)
     val selected = providerDescriptor(providerId)
     if (!selected.selectable || selected.id == current.id) return this
+    // An explicit reclassification of this same OpenSubsonic server retains its account/library scope.
+    if (setOf(current.id, selected.id) == setOf(
+            app.naviamp.domain.provider.ProviderIdSubsonic, app.naviamp.domain.provider.ProviderIdAurral,
+        ) && authenticationMode != app.naviamp.domain.source.SubsonicAuthApiKey
+    ) return copy(providerId = selected.id)
     val nextServerUrl = when {
         selected.fixedServerUrl != null -> selected.fixedServerUrl
         current.fixedServerUrl != null && serverUrl == current.fixedServerUrl -> ""
@@ -172,7 +177,13 @@ data class InterfaceSettings(
     val keepScreenAwake: Boolean = false,
     val showDesktopTooltips: Boolean = true,
     val showArtistInformation: Boolean = true,
+    val showArtistPlaylists: Boolean = true,
+    val artistPlaylistLayout: AlbumCollectionLayout = AlbumCollectionLayout.List,
+    val artistAppearanceAlbumLayout: AlbumCollectionLayout = AlbumCollectionLayout.List,
+    val showArtistTopTracks: Boolean = true,
+    val artistTopTracksLimit: Int = DefaultArtistTopTracksLimit,
     val showAlbumInformation: Boolean = true,
+    val squareAlbumArtwork: Boolean = false,
     val appBackgroundStyle: AppBackgroundStyle = AppBackgroundStyle.Aurora,
     val auroraTone: AuroraTone = AuroraTone.Dark,
     val auroraColorSteps: Int = 3,
@@ -193,6 +204,7 @@ data class InterfaceSettings(
     val trackSwipes: TrackSwipeSettings = TrackSwipeSettings(),
 ) {
     fun normalized(): InterfaceSettings = copy(
+        artistTopTracksLimit = normalizedArtistTopTracksLimit(artistTopTracksLimit),
         auroraColorSteps = auroraColorSteps.coerceIn(2, 5),
         auroraAngleDegrees = auroraAngleDegrees.coerceIn(0, 180),
         albumBlurRadiusDp = albumBlurRadiusDp.coerceIn(MinAlbumBlurRadiusDp, MaxAlbumBlurRadiusDp),
@@ -208,6 +220,10 @@ data class InterfaceSettings(
         globalKeyboardShortcuts = globalKeyboardShortcuts.normalized(),
     )
 }
+
+const val DefaultArtistTopTracksLimit = 10
+val ArtistTopTracksLimits = (5..50 step 5).toList()
+fun normalizedArtistTopTracksLimit(value: Int): Int = ((value.coerceIn(5, 50) + 2) / 5) * 5
 
 @Serializable
 enum class HomeSectionLayout(val label: String) {
@@ -247,7 +263,10 @@ fun InterfaceSettings.homeSectionPresentation(sectionId: String): HomeSectionPre
 
 fun defaultHomeSectionPresentation(sectionId: String): HomeSectionPresentationSettings =
     HomeSectionPresentationSettings(
-        homeLayout = if (sectionId == HomeSectionIds.MixesForYou || sectionId == HomeSectionIds.NavibeatMixes) {
+        homeLayout = if (sectionId in setOf(
+            HomeSectionIds.FavoriteArtists, HomeSectionIds.MixesForYou, HomeSectionIds.MixBuilders,
+            HomeSectionIds.RecentlyAdded, HomeSectionIds.RecentPlaylists, HomeSectionIds.NavibeatMixes,
+        )) {
             HomeSectionLayout.Carousel
         } else {
             HomeSectionLayout.List
@@ -417,6 +436,8 @@ data class NowPlayingDisplaySettings(
     val scrollTrackTitle: Boolean = true,
     val scrollArtistName: Boolean = false,
     val scrollAlbumName: Boolean = false,
+    val keepTelevisionControlsVisible: Boolean = false,
+    val fillArtworkArea: Boolean = false,
 ) {
     fun normalized(): NowPlayingDisplaySettings = copy(
         splitPaneBackgroundOpacityPercent = splitPaneBackgroundOpacityPercent.coerceIn(0, 100),
@@ -441,6 +462,21 @@ enum class InterfaceLanguage(
     System(languageTag = null),
     English(languageTag = "en"),
     Spanish(languageTag = "es"),
+    Arabic(languageTag = "ar"),
+    ChineseSimplified(languageTag = "zh-CN"),
+    Dutch(languageTag = "nl"),
+    French(languageTag = "fr"),
+    German(languageTag = "de"),
+    Hindi(languageTag = "hi"),
+    Indonesian(languageTag = "id"),
+    Italian(languageTag = "it"),
+    Japanese(languageTag = "ja"),
+    Korean(languageTag = "ko"),
+    Polish(languageTag = "pl"),
+    PortugueseBrazil(languageTag = "pt-BR"),
+    Russian(languageTag = "ru"),
+    Turkish(languageTag = "tr"),
+    Ukrainian(languageTag = "uk"),
 }
 
 @Serializable
@@ -465,9 +501,11 @@ data class PlaybackSettings(
     val preferWordSyncedLyrics: Boolean = false,
     val lyricsSearchOrder: List<LyricsSourcePreference> = DefaultLyricsSearchOrder,
     val sonicSimilarityEnabled: Boolean = false,
-    /** Distinguishes the old opt-in default from a user's explicit choice. */
-    val sonicSimilarityPreferenceConfigured: Boolean = false,
+    /** Retained for older clients; Radio always exports an explicit method choice. */
+    val sonicSimilarityPreferenceConfigured: Boolean = true,
     val sonicAutoplayEnabled: Boolean = false,
+    val radioMinimumTracks: Int = app.naviamp.domain.radio.DefaultRadioMinimumTracks,
+    val sonicAutoplayMinimumTracks: Int = app.naviamp.domain.radio.DefaultRadioMinimumTracks,
     val previousButtonBehavior: PreviousButtonBehavior = PreviousButtonBehavior.RestartThenPrevious,
     val upNextSelectionBehavior: UpNextSelectionBehavior = UpNextSelectionBehavior.MoveSelectedToCurrent,
     val removePlayedTracksFromQueue: Boolean = false,
@@ -488,6 +526,9 @@ data class PlaybackSettings(
 
 fun PlaybackSettings.normalized(): PlaybackSettings =
     copy(
+        sonicSimilarityPreferenceConfigured = true,
+        radioMinimumTracks = app.naviamp.domain.radio.normalizedRadioMinimumTracks(radioMinimumTracks),
+        sonicAutoplayMinimumTracks = app.naviamp.domain.radio.normalizedRadioMinimumTracks(sonicAutoplayMinimumTracks),
         lyricsTimingPreference = effectiveLyricsTimingPreference(),
         preferSyncedLyrics = false,
         preferWordSyncedLyrics = false,
@@ -500,13 +541,9 @@ fun PlaybackSettings.normalized(): PlaybackSettings =
         downloadQuality = downloadQuality.normalized(),
     )
 
-/**
- * Sonic similarity is available by default once a server advertises it. Older settings documents
- * stored the original false default without recording whether the user chose it, so they remain
- * automatic until the user explicitly changes the preference.
- */
+/** The stored preference is explicit; unconfigured documents default to Instant Mix. */
 fun PlaybackSettings.effectiveSonicSimilarityEnabled(): Boolean =
-    sonicSimilarityEnabled || !sonicSimilarityPreferenceConfigured
+    sonicSimilarityEnabled
 
 @Serializable
 enum class DownloadedTrackPlayback(
@@ -631,6 +668,8 @@ data class PlaybackSettingsChange(
 fun PlaybackSettings.effectiveForEngine(playbackEngine: PlaybackEngine): PlaybackSettings {
     val effectiveGapless = playbackEngine.supportsGapless && gaplessEnabled
     return copy(
+        radioMinimumTracks = app.naviamp.domain.radio.normalizedRadioMinimumTracks(radioMinimumTracks),
+        sonicAutoplayMinimumTracks = app.naviamp.domain.radio.normalizedRadioMinimumTracks(sonicAutoplayMinimumTracks),
         replayGainMode = if (playbackEngine.supportsReplayGain) {
             replayGainMode
         } else {

@@ -69,6 +69,45 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreNowPlayingMediaControllerTest {
     @Test
+    fun delayedLoadingPresentationCannotOverwriteNewerPlayingState() {
+        for (alreadyPlaying in listOf(false, true)) {
+            val track = nowPlayingTrack("current")
+            val live = NaviampLivePlaybackController(NaviampLivePlaybackState(
+                currentTrack = track, queue = PlaybackQueue(listOf(track), 0),
+                playbackState = PlaybackState.Loading))
+            val store = NaviampCoreStateStore()
+            var duringProviderRead: (() -> Unit)? = null
+            val providers = NaviampCoreMediaProviderSource {
+                val callback = duringProviderRead
+                duringProviderRead = null
+                callback?.invoke()
+                null
+            }
+            val presenter = NaviampCoreNowPlayingPresenter(store, providers, live,
+                NaviampPlaybackQueueCoordinator(live), NowPlayingTestEffects(), NowPlayingTestSidecars())
+            if (alreadyPlaying) {
+                live.updatePlaybackState(PlaybackState.Playing)
+                presenter.publish()
+                live.updatePlaybackState(PlaybackState.Loading)
+            }
+            // Model a native callback publishing Playing while another callback maps Loading.
+            duringProviderRead = {
+                live.updatePlaybackState(PlaybackState.Playing)
+                presenter.publish()
+            }
+            presenter.publish()
+            assertEquals(PlaybackState.Playing, live.state.value.playbackState)
+            assertEquals(true, store.state.value.shell.nowPlaying?.isPlaying)
+            duringProviderRead = { throw IllegalStateException("Mapping failed") }
+            assertFailsWith<IllegalStateException> { presenter.publish() }
+            live.updatePlaybackState(PlaybackState.Paused)
+            presenter.publish()
+            assertEquals(true, store.state.value.shell.nowPlaying?.isPaused,
+                "A failed mapping must release the publication owner and publish new state")
+        }
+    }
+
+    @Test
     fun collapseClosesNowPlayingSynchronously() = runTest {
         val fixture = mediaFixture(this)
         fixture.store.updateShell { shell ->
@@ -706,6 +745,19 @@ class NaviampCoreNowPlayingMediaControllerTest {
         assertEquals(before, fixture.live.state.value)
         assertTrue(fixture.effects.selections.isEmpty())
         assertTrue(fixture.effects.appliedQueues.isEmpty())
+        assertEquals(app.naviamp.domain.radio.RadioBuildOutcome.Failed, fixture.store.state.value.shell.playback.radioDiagnostics?.outcome)
+    }
+
+    @Test
+    fun emptyRadioRefreshKeepsQueueAndReportsNoExpansion() = runTest {
+        val fixture = mediaFixture(this)
+        fixture.provider.trackRadioTracks = listOf(nowPlayingTrack("current"))
+        val before = fixture.live.state.value
+        fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))
+        assertEquals(before, fixture.live.state.value)
+        assertTrue(fixture.effects.appliedQueues.isEmpty())
+        assertEquals(app.naviamp.domain.radio.RadioBuildOutcome.Empty, fixture.store.state.value.overlays.radioNotice?.outcome)
+        assertEquals("Playing current radio while the queue builds.", fixture.store.state.value.overlays.status)
     }
 
     @Test
@@ -723,6 +775,23 @@ class NaviampCoreNowPlayingMediaControllerTest {
 
         assertEquals(newer, fixture.live.state.value)
         assertEquals(listOf("different:0"), fixture.effects.selections)
+    }
+
+    @Test
+    fun delayedRadioCannotAppendAfterTheSelectedMethodChanges() = runTest {
+        val fixture = mediaFixture(this)
+        val gate = CompletableDeferred<Unit>()
+        fixture.provider.trackRadioGate = gate
+        fixture.provider.trackRadioTracks = listOf(nowPlayingTrack("stale"))
+        val request = async { fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio)) }
+        runCurrent()
+        val before = fixture.live.state.value
+        fixture.store.updateShell { it.copy(playback = it.playback.copy(settings =
+            it.playback.settings.copy(sonicSimilarityEnabled = true))) }
+        gate.complete(Unit)
+        request.await()
+        assertEquals(before, fixture.live.state.value)
+        assertTrue(fixture.effects.appliedQueues.isEmpty())
     }
 
     @Test

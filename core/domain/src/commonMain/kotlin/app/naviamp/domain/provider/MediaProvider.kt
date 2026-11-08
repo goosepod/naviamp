@@ -18,12 +18,20 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.network.SharedHttpClient
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
+import app.naviamp.domain.smartplaylist.editingResult
 import app.naviamp.domain.media.ArtistDiscography
 
 interface MediaProvider {
+    val discovery: ProviderDiscovery? get() = null
+    /** Stable account identity for requests, independent of library-folder display filters. */
+    val discoveryAccountScope: String get() = cacheNamespace
     val id: ProviderId
     val displayName: String
     val capabilities: ProviderCapabilities
+    /** Native URL consumers cannot reproduce this connection's TLS identity/trust or headers. */
+    val requiresAuthenticatedPlaybackTransport: Boolean get() = false
+    /** Implements streamTrackBytes for ordinary playback, independently of TLS/header requirements. */
+    val supportsPlaybackByteTransport: Boolean get() = false
     val cacheNamespace: String
         get() = id.value
     val selectedMusicFolderIds: List<String>
@@ -32,6 +40,7 @@ interface MediaProvider {
 
     suspend fun validateConnection(): ConnectionValidation
     suspend fun libraryScanStatus(): LibraryScanStatus? = null
+    suspend fun libraries(): List<MediaLibrary> = emptyList()
     suspend fun recentlyAddedAlbums(limit: Int = 20): List<Album>
     suspend fun album(albumId: AlbumId): AlbumDetails
     /** Complete paged album membership for downloads; null when the source cannot guarantee it. */
@@ -105,6 +114,8 @@ interface MediaProvider {
             request.toMediaPage(emptyList())
         }
     suspend fun playlists(limit: Int = 20): List<Playlist> = emptyList()
+    /** Creator ownership, distinct from shared edit/manage permission; null when not knowable. */
+    suspend fun playlistOwnedByCurrentUser(playlist: Playlist): Boolean? = null
     suspend fun playlistTracks(playlistId: String): List<Track> = emptyList()
     suspend fun createPlaylist(name: String, trackIds: List<TrackId>): Playlist {
         throw UnsupportedOperationException("Playlist creation is not supported by $displayName.")
@@ -115,6 +126,9 @@ interface MediaProvider {
     suspend fun updateSmartPlaylist(playlistId: String, definition: SmartPlaylistDefinition) {
         throw UnsupportedOperationException("Smart playlist edits are not supported by $displayName.")
     }
+    suspend fun inspectSmartPlaylist(playlistId: String): app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult =
+        smartPlaylistDefinition(playlistId).editingResult()
+
     suspend fun smartPlaylistDefinition(playlistId: String): SmartPlaylistDefinition {
         throw UnsupportedOperationException("Smart playlist loading is not supported by $displayName.")
     }
@@ -164,6 +178,18 @@ interface MediaProvider {
     suspend fun artistRadio(artistId: ArtistId, count: Int = 50): List<Track> = emptyList()
     suspend fun albumRadio(albumId: AlbumId, count: Int = 50): List<Track> = emptyList()
     suspend fun trackRadio(trackId: TrackId, count: Int = 50): List<Track> = emptyList()
+    /** Selected regular similarity, without client-side substitution when the server returns no matches. */
+    suspend fun instantMixTracks(trackId: TrackId, count: Int = 50): List<Track> = trackRadio(trackId, count)
+    /** Fresh capability discovery and raw responses for an explicit similarity diagnostic. */
+    suspend fun similaritySupport(): app.naviamp.domain.radio.SimilaritySupport =
+        throw UnsupportedOperationException()
+    suspend fun similarityAdminDiagnostics(): app.naviamp.domain.radio.SimilarityAdminDiagnostics =
+        app.naviamp.domain.radio.SimilarityAdminDiagnostics(app.naviamp.domain.radio.SimilarityAdminStatus.Unavailable)
+    suspend fun similarityEndpointTracks(
+        trackId: TrackId,
+        endpoint: app.naviamp.domain.radio.SimilarityEndpoint,
+        count: Int,
+    ): List<Track> = throw UnsupportedOperationException()
     suspend fun genreRadio(genre: String, count: Int = 50): List<Track> =
         randomSongs(limit = count, genre = genre)
     suspend fun sonicSimilarTracks(trackId: TrackId, count: Int = 50): List<Track> = emptyList()
@@ -284,6 +310,7 @@ data class ProviderCapabilities(
     val supportsDownloads: Boolean = true,
     val supportsListenSubmission: Boolean = false,
     val supportsGenreTrackBrowsing: Boolean = false,
+    val supportsSimilarityDiagnostics: Boolean = false,
 )
 
 fun ProviderCapabilities.effectiveStreamingQuality(requested: StreamQuality): StreamQuality =

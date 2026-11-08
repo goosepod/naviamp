@@ -4,12 +4,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onLast
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onRoot
-import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.graphics.asSkiaBitmap
 import androidx.compose.ui.test.runDesktopComposeUiTest
 import app.naviamp.domain.Album
@@ -56,11 +58,11 @@ class NaviampAlbumDiscUiTest {
                         }
                     }
                     waitUntil(timeoutMillis = 5_000) {
-                        onAllNodesWithContentDescription("Album art").fetchSemanticsNodes().size == 3
+                        onAllNodesWithTag("cover-art-image", useUnmergedTree = true).fetchSemanticsNodes().size == 3
                     }
                     listOf("Disc 1", "Disc 2").forEach { label ->
                         val heading = onNodeWithText(label).fetchSemanticsNode().boundsInRoot
-                        val art = onAllNodesWithContentDescription("Album art").fetchSemanticsNodes()
+                        val art = onAllNodesWithTag("cover-art-image", useUnmergedTree = true).fetchSemanticsNodes()
                             .map { it.boundsInRoot }.single { abs(it.center.y - heading.center.y) < 1f }
                         assertEquals(40f, art.width)
                         assertEquals(art.width, art.height)
@@ -121,7 +123,7 @@ class NaviampAlbumDiscUiTest {
                                 }
                             }
                             waitUntil(timeoutMillis = 5_000) {
-                                onAllNodesWithContentDescription("Album art").fetchSemanticsNodes().size == detail.discSections.size + 1
+                                onAllNodesWithTag("cover-art-image", useUnmergedTree = true).fetchSemanticsNodes().size == detail.discSections.size + 1
                             }
                             detail.discSections.forEach { section ->
                                 onNodeWithText("Disc ${section.number}").performScrollTo().assertIsDisplayed()
@@ -175,6 +177,33 @@ class NaviampAlbumDiscUiTest {
         }
         onNodeWithText("Disc 1").assertDoesNotExist()
         onNodeWithText("7.").assertIsDisplayed()
+    }
+
+    @Test
+    fun albumTrackOverflowStartsRadioForTheSelectedTrack() = runDesktopComposeUiTest(900, 750) {
+        val detail = album(listOf(track("seed", 1, 1))).toSharedAlbumDetailUi({ null }, supportsTrackRadio = true)
+        val requests = mutableListOf<SharedTrackRowActionRequest>()
+        setContent {
+            MaterialTheme(colorScheme = darkColorScheme()) {
+                NaviampAlbumDetailContent(NaviampColors.Dark, NaviampAlbumDetailScreenUi(detail = detail),
+                    actions = NaviampAlbumDetailActions(onBack = {}, onAlbumAction = {}, onTrackAction = { requests += it }))
+            }
+        }
+        onAllNodesWithContentDescription("More actions").onLast().performClick()
+        onNodeWithText("Start Radio").performClick()
+        assertEquals(listOf("seed"), requests.map { it.track.id })
+        assertEquals(listOf(SharedTrackRowAction.StartRadio), requests.map { it.action })
+    }
+
+    @Test
+    fun albumTrackRadioRequiresProviderSupportAndLibraryIdentity() {
+        val tracks = listOf(track("owned", 1, 1), track("discovery-preview:101", 1, 2),
+            track("internet-radio:station", 1, 3))
+        val supported = album(tracks).toSharedAlbumDetailUi({ null }, supportsTrackRadio = true)
+        assertEquals(listOf(true, false, false), supported.tracks.map { it.canStartRadio })
+        assertEquals(listOf(false, false, false),
+            album(tracks).toSharedAlbumDetailUi({ null }).tracks.map { it.canStartRadio })
+        assertEquals(listOf(true, false, false), supported.discSections.flatMap { it.tracks }.map { it.canStartRadio })
     }
 
     private fun album(tracks: List<Track>) = AlbumDetails(

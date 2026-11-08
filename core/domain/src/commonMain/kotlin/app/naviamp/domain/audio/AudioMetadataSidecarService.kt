@@ -1,5 +1,11 @@
 package app.naviamp.domain.audio
 
+import app.naviamp.domain.AudioInfo
+import app.naviamp.domain.StreamRequest
+import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.provider.isDiscoveryPreview
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withTimeoutOrNull
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
@@ -51,6 +57,48 @@ class AudioMetadataSidecarService(
         return audioTags(localAudio)
     }
 
+    /** Reads a bounded original-file header when no local tags or file properties are available.
+     * This does not enable caching, download a complete track, or inspect discovery samples.
+     */
+    suspend fun metadataForTrack(
+        sourceId: String,
+        provider: MediaProvider,
+        track: Track,
+        quality: StreamQuality,
+        audioCachingEnabled: Boolean,
+        localAudio: PlaybackLocalAudio? = null,
+    ): AudioFileMetadata {
+        if (track.id.isDiscoveryPreview()) return AudioFileMetadata()
+        val localTags = try {
+            localAudio?.let { audioTags(it) } ?: audioTagsForTrack(
+                sourceId, track, quality, audioCachingEnabled,
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            emptyList()
+        }
+        if (localTags.isNotEmpty() && track.audioInfo?.samplingRateHz != null && track.audioInfo.bitDepth != null) {
+            return AudioFileMetadata(localTags)
+        }
+        if (!provider.supportsPlaybackByteTransport) return AudioFileMetadata(localTags)
+        val key = Triple(sourceId, provider.cacheNamespace, track.id)
+        val remote = probeMutex.withLock {
+            if (cachedProbeKey == key) return@withLock cachedProbe
+            val result = withTimeoutOrNull(10_000) { probeAudioFileMetadata(provider, track) }
+            if (result != null) {
+                cachedProbeKey = key
+                cachedProbe = result
+            }
+            result
+        }
+        return AudioFileMetadata(localTags.ifEmpty { remote?.tags.orEmpty() }, remote?.audioInfo)
+    }
+
+    private val probeMutex = Mutex()
+    private var cachedProbeKey: Triple<String, String, app.naviamp.domain.TrackId>? = null
+    private var cachedProbe: AudioFileMetadata? = null
+
     fun embeddedLyrics(tags: List<AudioTag>) =
         lyricsFromAudioTags(tags)
 
@@ -85,3 +133,55 @@ class AudioMetadataSidecarService(
 
 private fun app.naviamp.domain.ReplayGain.hasAnyValue(): Boolean =
     trackGainDb != null || albumGainDb != null || trackPeak != null || albumPeak != null
+
+/** Original file properties, distinct from the decoder's possibly transcoded stream format. */
+data class AudioFileMetadata(
+    val tags: List<AudioTag> = emptyList(),
+    val audioInfo: AudioInfo? = null,
+)
+
+private class AudioProbeComplete : CancellationException("Metadata header received")
+
+private suspend fun probeAudioFileMetadata(provider: MediaProvider, track: Track): AudioFileMetadata? {
+    val bytes = ByteArray(MaximumAudioTagProbeBytes)
+    var size = 0
+    var acceptedResponse = false
+    return try {
+        try {
+            val success = provider.streamTrackBytes(
+                StreamRequest(track.id, StreamQuality.Original),
+                rangeHeader = "bytes=0-${MaximumAudioTagProbeBytes - 1}",
+                headOnly = false,
+                onResponse = { response ->
+                    acceptedResponse = response.statusCode == 200 ||
+                        (response.statusCode == 206 && response.contentRange?.startsWith("bytes 0-") == true)
+                    if (!acceptedResponse) throw AudioProbeComplete()
+                },
+                writeChunk = { chunk, count ->
+                    if (!acceptedResponse) throw AudioProbeComplete()
+                    val copied = minOf(count, bytes.size - size)
+                    chunk.copyInto(bytes, size, 0, copied)
+                    size += copied
+                    // A server may ignore Range. Stop consuming at the memory/network budget.
+                    if (size == bytes.size) throw AudioProbeComplete()
+                    if (size >= 42 && bytes[0] == 'f'.code.toByte() && bytes[1] == 'L'.code.toByte()) {
+                        val prefix = bytes.copyOf(size)
+                        if (audioInfoFromAudioBytes(prefix) != null && audioTagsFromAudioBytes(prefix).isNotEmpty()) {
+                            throw AudioProbeComplete()
+                        }
+                    }
+                },
+            )
+            if (!success) return null
+        } catch (_: AudioProbeComplete) {
+            // The scoped streaming response is closed as this exception unwinds the provider.
+        }
+        if (!acceptedResponse || size == 0) return null
+        val prefix = bytes.copyOf(size)
+        AudioFileMetadata(audioTagsFromAudioBytes(prefix), audioInfoFromAudioBytes(prefix))
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        null // Missing metadata must not interrupt playback; failures remain retryable.
+    }
+}

@@ -10,6 +10,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import app.naviamp.ui.NaviampLocaleEnvironment
 import app.naviamp.ui.createNaviampLocaleEffect
 import app.naviamp.ui.NaviampApplicationUpdateChecker
@@ -19,9 +22,11 @@ import app.naviamp.ui.NaviampBusyDialog
 import app.naviamp.ui.NaviampCastOutputUi
 import app.naviamp.ui.defaultNaviampApplicationUpdateChecker
 import app.naviamp.ui.NaviampDiagnosticsUi
+import app.naviamp.ui.naviampContentInsets
 import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampStatsForNerdsDialog
 import app.naviamp.ui.NaviampTelevisionAppShell
+import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.CoroutineScope
 import app.naviamp.app.NaviampPlaybackOutputSelection
 import app.naviamp.app.NaviampRemoteOutputKind
@@ -100,6 +105,11 @@ fun NaviampCoreApp(
     },
 ) {
     val state by core.state.collectAsState()
+    NaviampDiscoveryAcquisitionRefresh(core, state)
+    NaviampCoreSettingsStorageRefresh(
+        core = core,
+        visible = state.shell.shellChrome.selectedRoute == SharedRoute.Settings,
+    )
     val playbackOutput by core.playbackOutputs.state.collectAsState()
     val selectedCast = (playbackOutput as? NaviampPlaybackOutputSelection.Remote)
         ?.takeIf { it.target.kind == NaviampRemoteOutputKind.Cast }
@@ -118,6 +128,7 @@ fun NaviampCoreApp(
     NaviampLocaleEnvironment(state.shell.general.interfaceSettings.language, remember { createNaviampLocaleEffect() }) {
         NaviampScreenAwakeEnvironment(screenAwakeEffect, state.shell.general.interfaceSettings.keepScreenAwake) {
             CompositionLocalProvider(LocalNaviampApplicationSurface provides applicationSurface) {
+              Box(Modifier.fillMaxSize()) {
                 app.naviamp.ui.NaviampWindowEnvironment(
                     controller = windowController,
                     platform = state.shell.capabilities.desktopShortcutPlatform,
@@ -125,7 +136,7 @@ fun NaviampCoreApp(
                 ) {
                     when (applicationSurface) {
                         NaviampApplicationSurface.Standard -> NaviampSharedAppShell(
-                            modifier = modifier,
+                            modifier = modifier.naviampContentInsets(),
                             uiState = state.shell,
                             settingsSync = state.settingsSync,
                             playbackProgress = core.playbackProgress,
@@ -138,7 +149,7 @@ fun NaviampCoreApp(
                             onCastSelectLocal = core::selectLocalPlayback,
                         )
                         NaviampApplicationSurface.Television -> NaviampTelevisionAppShell(
-                            modifier = modifier,
+                            modifier = modifier.naviampContentInsets(),
                             uiState = state.shell,
                             settingsSync = state.settingsSync,
                             playbackProgress = core.playbackProgress,
@@ -151,6 +162,13 @@ fun NaviampCoreApp(
                 state.overlays.busyMessage?.let { message ->
                     NaviampBusyDialog(message)
                 }
+                state.overlays.radioNotice?.let { notice ->
+                    app.naviamp.ui.NaviampRadioNotice(
+                        app.naviamp.ui.NaviampColors.Dark, notice,
+                        onDismiss = { core.dispatch(NaviampCoreCommand.Settings.DismissRadioNotice) },
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                    )
+                }
                 core.castPickerState?.let { pickerState ->
                     val picker by pickerState.collectAsState()
                     if (picker.visible) app.naviamp.ui.NaviampCastPickerDialog(
@@ -161,6 +179,7 @@ fun NaviampCoreApp(
                 if (state.overlays.statsForNerdsVisible) {
                     NaviampCoreDiagnosticsPresentation(core, statsForNerdsPresenter)
                 }
+              }
             }
         }
     }
@@ -175,6 +194,13 @@ internal fun NaviampCoreDiagnosticsPresentation(
     val updates = remember(core) { naviampCoreDiagnosticsUpdates(core::statsForNerdsDiagnostics) }
     val diagnostics = updates.collectAsState(remember(core) { core.statsForNerdsDiagnostics() })
     presenter(diagnostics, remember(core) { { core.dispatch(NaviampCoreCommand.Settings.CloseStats) } })
+}
+
+@Composable
+internal fun NaviampCoreSettingsStorageRefresh(core: NaviampCore, visible: Boolean) {
+    LaunchedEffect(core, visible) {
+        if (visible) core.maintainSettingsStorage()
+    }
 }
 
 /** The single product surface mounted unchanged by every thin platform client. */

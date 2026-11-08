@@ -1,4 +1,5 @@
 package app.naviamp.presentation
+import app.naviamp.domain.isInternetRadioTrack
 
 import app.naviamp.app.NaviampConnectionController
 import app.naviamp.app.NaviampConnectionRuntimeState
@@ -28,8 +29,13 @@ import app.naviamp.ui.NowPlayingPlaybackAction
 import app.naviamp.ui.NowPlayingPlaybackActionRequest
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 import app.naviamp.ui.SharedRoute
+import app.naviamp.ui.toSharedMediaItemUi
+import app.naviamp.ui.toCacheSettingsUi
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 data class NaviampCoreInitialState(
@@ -93,8 +99,10 @@ class NaviampCore private constructor(
     private val nowPlayingController: NaviampCoreNowPlayingMediaController,
     private val nowPlayingPresenter: NaviampCoreNowPlayingPresenter,
     private val providerSessionLifecycle: NaviampCoreProviderSessionLifecycle,
+    private val homeController: NaviampCoreHomeController,
     private val providerSource: NaviampCoreMediaProviderSource,
     private val sidecars: NaviampCoreNowPlayingSidecarPort,
+    private val samplePlayback: NaviampCoreSamplePlaybackController,
     private val diagnostics: NaviampCoreDiagnosticsPort,
     private val connectController: NaviampCoreConnectController?,
     private val castController: NaviampCoreCastController?,
@@ -165,6 +173,26 @@ class NaviampCore private constructor(
         external = diagnostics.snapshot(),
     )
 
+    /** Uses the same storage facts as Stats for Nerds, only while Settings is mounted. */
+    internal suspend fun maintainSettingsStorage() {
+        while (currentCoroutineContext().isActive) {
+            val stats = runCatching { diagnostics.snapshot().storage }.getOrNull()
+            if (stats != null) {
+                stateStore.updateShell { shell ->
+                    val refreshed = shell.cache.settings.toCacheSettingsUi(stats, shell.capabilities)
+                    shell.copy(
+                        cache = shell.cache.copy(
+                            audioCacheDiagnostics = refreshed.audioCacheDiagnostics,
+                            downloadsDiagnostics = refreshed.downloadsDiagnostics,
+                        ),
+                        playback = shell.playback.copy(downloadBytes = stats.downloadBytes),
+                    )
+                }
+            }
+            delay(2_000L)
+        }
+    }
+
     fun tickSleepTimer(nowEpochMillis: Long) {
         playbackController.tickSleepTimer(nowEpochMillis)
     }
@@ -184,6 +212,7 @@ class NaviampCore private constructor(
     fun close() {
         if (closed) return
         closed = true
+        samplePlayback.close()
         castPicker?.close()
         castController?.close()
         connectController?.close()
@@ -203,6 +232,7 @@ class NaviampCore private constructor(
     suspend fun maintainProviderSession() {
         providerSessionLifecycle.maintainWhileMounted()
     }
+    suspend fun maintainDiscoveryAcquisitions() = homeController.maintainDiscoveryAcquisitions()
 
     companion object {
         fun create(
@@ -233,12 +263,23 @@ class NaviampCore private constructor(
             val queue = NaviampPlaybackQueueCoordinator(livePlayback)
             val playbackOutputs = NaviampPlaybackOutputSelectionController()
             val routedPlaybackEffects = NaviampCoreOutputPlaybackEffects(services.playback.effects, playbackOutputs)
+            var pauseMainForSample: () -> Unit = routedPlaybackEffects::pause
+            val samplePlayback = NaviampCoreSamplePlaybackController(scope, services.playback.samples,
+                providerSource, {
+                    stateStore.state.value.shell.connect.remoteNowPlaying?.let {
+                        if (it.isPlaying) app.naviamp.domain.playback.PlaybackState.Playing else app.naviamp.domain.playback.PlaybackState.Paused
+                    } ?: livePlayback.state.value.playbackState
+                }, { pauseMainForSample() }, publish = { sample ->
+                    stateStore.updateShell { shell -> shell.copy(home = shell.home.copy(samplePlayback = sample)) }
+                }, prepareMain = routedPlaybackEffects::prepareForPreview)
+            routedPlaybackEffects.beforeStart = samplePlayback::stop
             val deferredArtistNavigator = DeferredArtistNavigator()
             val mediaRegistry = NaviampCoreMediaRegistry()
             val navigation = NaviampCoreNavigationController(
                 navigationState,
                 stateStore,
                 deferredArtistNavigator,
+                onLeaveDiscovery = samplePlayback::stop,
                 persistNowPlayingOpen = { open ->
                     val sourceId = stateStore.state.value.shell.connectionSettings.currentSourceId
                     services.playback.sessions.updateNowPlayingOpen(open, sourceId)
@@ -279,14 +320,29 @@ class NaviampCore private constructor(
                 services.content.sonicHomeDiscovery,
                 mediaRegistry = mediaRegistry,
                 observedAtIso8601 = services.favoritedAtIso8601,
+                externalUri = services.content.externalUri,
+                openLibraryArtist = { mediaDetails.selectArtist(it.toSharedMediaItemUi()) },
+                openLibraryAlbum = { album -> mediaDetails.selectAlbum(album.toSharedMediaItemUi(coverArtUrl = { id ->
+                    id?.let { providerSource.current()?.coverArtUrl(it) }
+                })) },
+                playDiscoverySample = { samplePlayback.toggle(it) },
+                stopDiscoverySample = samplePlayback::stop,
+                acquisitionRepository = services.content.discoveryAcquisitions,
+                nowMillis = services.clockEpochMillis,
             )
+            val similarity = NaviampCoreSimilarityController(stateStore, providerSource) { provider ->
+                livePlayback.state.value.currentTrack?.takeUnless { it.isInternetRadioTrack() }
+                    ?: mediaRegistry.tracks().firstOrNull { !it.isInternetRadioTrack() }
+                    ?: provider.tracks(limit = 1).firstOrNull { !it.isInternetRadioTrack() }
+            }
             val settings = NaviampCoreSettingsController(
                 stateStore,
                 services.settings.interfaceSettings,
                 services.playback.settings,
                 services.settings.cacheSettings,
                 services.settings.maintenance,
-                refreshLibrary = catalog::refreshAfterConnection,
+                refreshLibrary = catalog::refreshLocalLibraryIndex,
+                testSimilarity = similarity::test,
                 onDatabaseReset = { completeDatabaseReset() },
                 onLocalSettingsChanged = { notifyLocalSettingsChanged() },
                 onInterfaceSettingsChanged = { interfaceSettings ->
@@ -319,6 +375,7 @@ class NaviampCore private constructor(
                 services.radio.playback,
                 services.radio.recents,
                 onPlaybackStarted = { station ->
+                    samplePlayback.stop()
                     val track = app.naviamp.domain.radio.internetRadioTrack(station)
                     queue.startQueue(listOf(track), 0)
                     livePlayback.updateCurrentTrack(track)
@@ -399,6 +456,7 @@ class NaviampCore private constructor(
                 navigation::openNowPlaying,
                 downloads::playlistTracksChanged,
                 playbackProfiles,
+                syncLibrary = catalog::syncSmartPlaylistPreview,
             )
             val playback = NaviampCorePlaybackController(
                 scope,
@@ -539,7 +597,14 @@ class NaviampCore private constructor(
                 stateStore,
                 services.connection,
                 initialState.connectionInventory,
+                certificateFiles = services.certificateFiles,
                   onSourceChanging = { previousSourceId, newSourceId ->
+                    similarity.resetForSourceChange()
+                    stateStore.updateShell { shell -> shell.copy(playback = shell.playback.copy(
+                        similarityTest = app.naviamp.ui.NaviampSimilarityTestUi(), radioDiagnostics = null,
+                        similarityDiagnosticsAvailable = false,
+                    )) }
+                    stateStore.update { it.copy(overlays = it.overlays.copy(radioNotice = null)) }
                     playback.resetForSourceChange(previousSourceId, newSourceId)
                     playlistMembership.reset()
                     downloads.resetForSourceChange()
@@ -567,6 +632,7 @@ class NaviampCore private constructor(
                                 capabilities = capabilities,
                                 playback = shell.playback.copy(
                                     sonicSimilarityAvailable = capabilities.sonicSimilarity,
+                                    similarityDiagnosticsAvailable = providerCapabilities.supportsSimilarityDiagnostics,
                                 ),
                             )
                         }
@@ -684,13 +750,16 @@ class NaviampCore private constructor(
                         services.clockEpochMillis)
                 }
             }
-            val castSessions = castEffect?.let { NaviampCastSessionController(it, playbackOutputs) }
-            val castPicker = services.cast?.discovery?.let { effect ->
+            val castSessions = castEffect?.let {
+                NaviampCastSessionController(it, playbackOutputs).takeIf { sessions -> sessions.start() }
+            }
+            val availableCast = services.cast?.takeIf { castSessions != null }
+            val castPicker = availableCast?.discovery?.let { effect ->
                 NaviampCoreCastPickerController(scope,
                     app.naviamp.app.NaviampCastDiscoveryController(effect, services.clockEpochMillis),
                     checkNotNull(castSessions), playbackOutputs)
             }
-            val cast = services.cast?.let { castServices ->
+            val cast = availableCast?.let { castServices ->
                 NaviampCoreCastController(
                     scope = scope,
                     sessions = checkNotNull(castSessions),
@@ -714,26 +783,31 @@ class NaviampCore private constructor(
                     controller.start()
                 }
             }
-            val commandHandler = NaviampCoreConnectCommandHandler(router, connect)
+            val commandHandler = NaviampCoreConnectCommandHandler(router, connect, samplePlayback::stop)
+            pauseMainForSample = { commandHandler.dispatch(NaviampCoreCommand.NowPlaying.Playback(
+                NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.Pause))) }
             livePlayback.observe { live -> connect?.onLocalPlaybackChanged(live) }
             nowPlayingPresenter.publish()
             scope.launch { connection.restoreInitialConnection() }
             return NaviampCore(
                 stateStore = stateStore,
                 playbackProgress = livePlayback.progress,
-                actions = createNaviampCoreActions(commandHandler, actionAvailability, connect?.actions),
+                actions = createNaviampCoreActions(commandHandler,
+                    actionAvailability.copy(chooseCertificate = services.certificateFiles != null), connect?.actions),
                 commands = commandHandler,
                 playbackController = playback,
                 nowPlayingController = nowPlaying,
                 nowPlayingPresenter = nowPlayingPresenter,
                 providerSessionLifecycle = providerSessionLifecycle,
+                homeController = home,
                 providerSource = providerSource,
                 sidecars = services.playback.sidecars,
+                samplePlayback = samplePlayback,
                 diagnostics = services.diagnostics,
                 connectController = connect,
                 castController = cast,
                 castPicker = castPicker,
-                showCastRoutePicker = services.cast?.showRoutePicker,
+                showCastRoutePicker = availableCast?.showRoutePicker,
                 playbackOutputs = playbackOutputs,
             )
         }

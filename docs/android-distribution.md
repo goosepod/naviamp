@@ -6,10 +6,13 @@ selects the shared Standard or Television surface at runtime. Both launcher entr
 and optional leanback/touchscreen declarations live in the same manifest.
 
 The former “Naviamp TV” setup/restoration text was product copy inside that shared app, not a
-separate application. Both maintained translations now call it Naviamp. Debug builds still use
+separate application. The shared translated setup copy calls it Naviamp. Debug builds still use
 `app.naviamp.android.v2test` and “Naviamp v2 Test” so they can coexist with the installed release;
 that distinction applies equally to phone and TV. Benchmark/profileable variants are development
 tools, not device-specific distributions.
+
+For the accepted v2.10.0 scope and the distinction between package readiness, deferred device
+testing and store review, see the [distribution handoff](releases/v2.10.0-readiness.md).
 
 ## Build and distribute
 

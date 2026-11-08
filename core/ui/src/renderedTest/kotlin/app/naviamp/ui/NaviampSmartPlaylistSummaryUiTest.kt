@@ -1,0 +1,148 @@
+package app.naviamp.ui
+
+import androidx.compose.ui.test.*
+import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.runtime.mutableStateOf
+import app.naviamp.domain.smartplaylist.*
+import app.naviamp.domain.settings.ConnectionFormMusicFolder
+import kotlin.test.*
+
+@OptIn(ExperimentalTestApi::class)
+class NaviampSmartPlaylistSummaryUiTest {
+    @Test fun libraryNamesResolveInNestedConditionsAndRestrictionsWithoutChangingIds() = runComposeUiTest {
+        val libraries = mutableStateOf(emptyList<ConnectionFormMusicFolder>())
+        val definition = SmartPlaylistDefinition("Libraries", libraryIds = listOf("1", "2"), rules = listOf(
+            SmartPlaylistGroup(SmartPlaylistMatch.Any, listOf(
+                SmartPlaylistCondition(SmartPlaylistOperator.Is, SmartPlaylistFields.LibraryId, SmartPlaylistValue.Number(1)),
+                SmartPlaylistCondition(SmartPlaylistOperator.IsNot, SmartPlaylistFields.LibraryId, SmartPlaylistValue.Text("2")),
+            )),
+        ))
+        val original = definition.toNspJson()
+        setContent { SmartPlaylistSummarySection(definition, NaviampColors(), libraries = libraries.value) }
+        runOnIdle { libraries.value = listOf(ConnectionFormMusicFolder("1", "Music Library"), ConnectionFormMusicFolder("2", "Classical")) }
+        onNodeWithText("Libraries: Music Library, Classical").assertExists()
+        onNodeWithText("is Music Library", substring = true).assertExists()
+        onNodeWithText("is not Classical", substring = true).assertExists()
+        assertEquals(original, definition.toNspJson())
+    }
+
+    @Test fun summaryShowsNestedLogicExclusionsSortAndLimitWithoutOwnerNotice() = runComposeUiTest {
+        val definition = definition()
+        setContent { SmartPlaylistSummarySection(definition, NaviampColors()) }
+        onNodeWithText("Match all of these:", substring = true).assertExists()
+        onNodeWithText("Match any of these:", substring = true).assertExists()
+        onNodeWithText("Favorite tracks", substring = true).assertExists()
+        onNodeWithText("Sort by: Year (highest first)").assertExists()
+        onNodeWithText("20% of matching tracks.").assertExists()
+        onNodeWithTag("smart-playlist-owner-notice").assertDoesNotExist()
+    }
+
+    @Test fun summaryReadsValuesWithoutJsonAndUpdatesNamesWithoutRewritingIds() = runComposeUiTest {
+        val references = mutableStateOf(emptyList<SmartPlaylistReference>())
+        val definition = SmartPlaylistDefinition("Readable", rules = listOf(
+            SmartPlaylistCondition(SmartPlaylistOperator.InPlaylist, "id", SmartPlaylistValue.Text("saved-id")),
+            SmartPlaylistCondition(SmartPlaylistOperator.NotInPlaylist, "id", SmartPlaylistValue.Text("missing-id")),
+            SmartPlaylistCondition(SmartPlaylistOperator.Contains, SmartPlaylistFields.Title, SmartPlaylistValue.Text("A \"quoted\" song")),
+            SmartPlaylistCondition(SmartPlaylistOperator.Is, SmartPlaylistFields.Loved, SmartPlaylistValue.Flag(true)),
+            SmartPlaylistCondition(SmartPlaylistOperator.InTheRange, SmartPlaylistFields.Rating,
+                SmartPlaylistValue.Range(SmartPlaylistValue.Decimal(2.5), SmartPlaylistValue.Number(5))),
+            SmartPlaylistCondition(SmartPlaylistOperator.InTheRange, SmartPlaylistFields.Date,
+                SmartPlaylistValue.Range(SmartPlaylistValue.Text("2026-01-01"), SmartPlaylistValue.Text("2026-02-01"))),
+            SmartPlaylistCondition(SmartPlaylistOperator.InTheLast, SmartPlaylistFields.LastPlayed, SmartPlaylistValue.Number(30)),
+            SmartPlaylistCondition(SmartPlaylistOperator.NotInTheLast, SmartPlaylistFields.LastPlayed, SmartPlaylistValue.Number(1)),
+            SmartPlaylistCondition(SmartPlaylistOperator.IsMissing, SmartPlaylistFields.Album, SmartPlaylistValue.Flag(false)),
+            SmartPlaylistCondition(SmartPlaylistOperator.IsPresent, SmartPlaylistFields.Artist, SmartPlaylistValue.Flag(false)),
+            SmartPlaylistCondition(SmartPlaylistOperator.Is, SmartPlaylistFields.ExplicitStatus, SmartPlaylistValue.Text("c")),
+        ))
+        val original = definition.toNspJson()
+        setContent { SmartPlaylistSummarySection(definition, NaviampColors(), references.value) }
+        onNodeWithText("Unavailable playlist (saved-id)", substring = true).assertExists()
+        runOnIdle { references.value = listOf(
+            SmartPlaylistReference("saved-id", "Folk Music", "Alice"),
+            SmartPlaylistReference("another-id", "Folk Music", "Bob"),
+        ) }
+        onNodeWithText("Track in playlist Folk Music (Alice)", substring = true).assertExists()
+        onNodeWithText("Track not in playlist Unavailable playlist (missing-id)", substring = true).assertExists()
+        onNodeWithText("contains A \"quoted\" song", substring = true).assertExists()
+        onNodeWithText("Favorite tracks", substring = true).assertExists()
+        onNodeWithText("between 2.5 – 5", substring = true).assertExists()
+        onNodeWithText("between 2026-01-01 – 2026-02-01", substring = true).assertExists()
+        onNodeWithText("in the last 30 days", substring = true).assertExists()
+        onNodeWithText("not in the last 1 day", substring = true).assertExists()
+        onNodeWithText("Album is present", substring = true).assertExists()
+        onNodeWithText("Artist is missing", substring = true).assertExists()
+        onNodeWithText("Explicit Status is clean", substring = true).assertExists()
+        onNodeWithText("is missing false", substring = true).assertDoesNotExist()
+        assertEquals(original, definition.toNspJson())
+    }
+
+    @Test fun favoritePlaylistSummaryExplainsSelectionSortLimitAndNamedLibraries() = runComposeUiTest {
+        val definition = SmartPlaylistDefinition("Favorites", rules = listOf(
+            SmartPlaylistCondition(SmartPlaylistOperator.Is, SmartPlaylistFields.Loved, SmartPlaylistValue.Flag(true)),
+        ), sort = listOf(SmartPlaylistSort(SmartPlaylistFields.Loved, true)), limit = 500, libraryIds = listOf("2"))
+        val json = definition.toNspJson()
+        setContent { SmartPlaylistSummarySection(definition, NaviampColors(),
+            libraries = listOf(ConnectionFormMusicFolder("2", "Music"))) }
+        onNodeWithText("Favorite tracks").assertExists()
+        onNodeWithText("Sort by: Favorite tracks first").assertExists()
+        onNodeWithText("At most 500 tracks.").assertExists()
+        onNodeWithText("Libraries: Music").assertExists()
+        onNodeWithText("All of:", substring = true).assertDoesNotExist()
+        onNodeWithText("is yes", substring = true).assertDoesNotExist()
+        assertEquals(json, definition.toNspJson())
+    }
+
+    @Test fun booleanPredicatesAndMultipleSortsRemainReadable() = runComposeUiTest {
+        val fields = listOf(SmartPlaylistFields.Loved, SmartPlaylistFields.AlbumLoved, SmartPlaylistFields.ArtistLoved,
+            SmartPlaylistFields.HasCoverArt, SmartPlaylistFields.Compilation, SmartPlaylistFields.Missing)
+        val rules = fields.flatMap { field -> listOf(true, false).map { value ->
+            SmartPlaylistCondition(SmartPlaylistOperator.Is, field, SmartPlaylistValue.Flag(value))
+        } }
+        setContent { SmartPlaylistSummarySection(SmartPlaylistDefinition("Boolean rules", rules = rules,
+            sort = listOf(SmartPlaylistSort(SmartPlaylistFields.Artist), SmartPlaylistSort(SmartPlaylistFields.DateAdded, true))),
+            NaviampColors()) }
+        listOf("Favorite tracks", "Tracks not marked as favorites", "Tracks from favorite albums",
+            "Tracks from albums not marked as favorites", "Tracks by favorite artists",
+            "Tracks by artists not marked as favorites", "Tracks with artwork", "Tracks without artwork",
+            "Tracks from compilations", "Tracks not from compilations", "Tracks with missing files",
+            "Tracks with available files").forEach { onNodeWithText(it, substring = true).assertExists() }
+        onNodeWithText("Sort by: 1. Artist (A–Z), 2. Date Added (newest first)").assertExists()
+    }
+
+    @Test fun collapsingOptionsAndAdvancedPreservesTheWholeDefinition() = runComposeUiTest {
+        var saved: SmartPlaylistDefinition? = null
+        val visible = mutableStateOf(true)
+        val initial = definition()
+        setContent {
+            if (visible.value) SmartPlaylistBuilderDialog(NaviampColors(), SmartPlaylistDraft.fromDefinition(initial),
+                availableLibraries = listOf(ConnectionFormMusicFolder("a", "A"), ConnectionFormMusicFolder("b", "B")),
+                selectedConnectionLibraryIds = listOf("a", "b"),
+                onDismissRequest = { visible.value = false }, onSave = { saved = it })
+        }
+        onNodeWithText("Refresh delay").assertDoesNotExist()
+        onNodeWithTag("smart-playlist-options-toggle").performScrollTo().performClick()
+        onNodeWithText("Refresh delay").assertExists()
+        onNodeWithTag("smart-playlist-options-toggle").performScrollTo().performClick()
+        onNodeWithText("Refresh delay").assertDoesNotExist()
+        onNodeWithTag("smart-playlist-advanced-toggle").performScrollTo().performClick()
+        onNodeWithText("Import JSON").assertExists()
+        onNodeWithTag("smart-playlist-advanced-toggle").performScrollTo().performClick()
+        onNodeWithText("Import JSON").assertDoesNotExist()
+        onNodeWithTag(SmartPlaylistSaveTestTag).performClick()
+        waitUntil(timeoutMillis = 5_000) { saved != null }
+        // The callback precedes saving-state updates and dismissal. Finish that UI work before
+        // test-host cleanup drains its frame scope outside the normal UI-thread synchronization.
+        awaitIdle()
+        onNodeWithTag(SmartPlaylistSaveTestTag).assertDoesNotExist()
+        runOnIdle { assertEquals(initial, saved) }
+    }
+
+    private fun definition() = SmartPlaylistDefinition("Owned mix", comment = "", match = SmartPlaylistMatch.All,
+        rules = listOf(SmartPlaylistCondition(SmartPlaylistOperator.IsNot, SmartPlaylistFields.Artist, SmartPlaylistValue.Text("Excluded Artist")),
+            SmartPlaylistGroup(SmartPlaylistMatch.Any, listOf(
+            SmartPlaylistCondition(SmartPlaylistOperator.IsNot, SmartPlaylistFields.Loved, SmartPlaylistValue.Flag(false)),
+            SmartPlaylistCondition(SmartPlaylistOperator.Contains, SmartPlaylistFields.Genre, SmartPlaylistValue.Text("rock")),
+        ))),
+        sort = listOf(SmartPlaylistSort(SmartPlaylistFields.Year, true)),
+        limitPercent = 20, isPublic = true, libraryIds = listOf("b"), refreshDelay = "12h")
+}

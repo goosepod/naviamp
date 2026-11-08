@@ -11,6 +11,16 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ProviderCatalogTest {
+    @Test fun aurralIsAfterNavidromeAndReclassificationRetainsPortableConnectionInputs() {
+        assertEquals(listOf(ProviderIdNavidrome, ProviderIdAurral), NaviampProviderCatalog.take(2).map { it.id })
+        assertEquals(ProviderProtocolFamily.Subsonic, providerDescriptor(ProviderIdAurral).protocolFamily)
+        val original = ConnectionFormState(providerId = ProviderIdSubsonic, serverUrl = "https://music.test",
+            username = "test", password = "saved", skipTlsVerification = true, selectedMusicFolderIds = listOf("1"))
+        assertEquals(original.copy(providerId = ProviderIdAurral), original.selectProvider(ProviderIdAurral))
+        assertEquals(original, original.selectProvider(ProviderIdAurral).selectProvider(ProviderIdSubsonic))
+        assertEquals("connection_api_key_unsupported", connectionFormError(original.copy(providerId = ProviderIdAurral,
+            authenticationMode = app.naviamp.domain.source.SubsonicAuthApiKey, apiKey = "admin-key"), false))
+    }
     @Test
     fun catalogSeparatesProviderIdentityFromSharedProtocolFamily() {
         val navidrome = providerDescriptor(ProviderIdNavidrome)

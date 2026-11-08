@@ -1,6 +1,8 @@
 package app.naviamp.provider.navidrome
 
 import app.naviamp.domain.network.urlEncodedParameter
+import app.naviamp.domain.app.PlatformCapabilities
+import app.naviamp.domain.app.PlatformCapability
 import io.ktor.client.HttpClient
 
 internal const val NavidromeConnectTimeoutMillis = 15_000L
@@ -15,7 +17,11 @@ fun String.urlEncode(): String =
 
 expect fun createDefaultNavidromeHttpClient(tlsSettings: NavidromeTlsSettings): NavidromeHttpClient
 
-expect fun createDefaultNavidromeKtorClient(tlsSettings: NavidromeTlsSettings): HttpClient
+/** Optional native challenge facts for diagnostics; engines without delegate challenges need not emit events. */
+expect fun createDefaultNavidromeKtorClient(
+    tlsSettings: NavidromeTlsSettings,
+    onTlsChallenge: (NavidromeTlsChallengeEvent) -> Unit = {},
+): HttpClient
 
 @OptIn(kotlin.time.ExperimentalTime::class)
 internal fun navidromeCurrentTimeMillis(): Long =
@@ -27,7 +33,11 @@ data class NavidromeTlsCapabilities(
     val clientCertificates: Boolean,
 )
 
-expect fun navidromeTlsCapabilities(): NavidromeTlsCapabilities
+fun navidromeTlsCapabilities(): NavidromeTlsCapabilities = NavidromeTlsCapabilities(
+    insecureSkipVerification = PlatformCapabilities().supports(PlatformCapability.InsecureServerVerification),
+    customServerCertificates = PlatformCapabilities().supports(PlatformCapability.CustomServerCertificates),
+    clientCertificates = PlatformCapabilities().supports(PlatformCapability.ClientCertificates),
+)
 
 internal fun NavidromeTlsSettings.requireSupportedBy(capabilities: NavidromeTlsCapabilities) {
     if (insecureSkipTlsVerification && !capabilities.insecureSkipVerification) {

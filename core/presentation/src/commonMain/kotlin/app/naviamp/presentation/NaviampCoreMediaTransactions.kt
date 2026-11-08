@@ -1,4 +1,6 @@
 package app.naviamp.presentation
+import app.naviamp.domain.radio.radioDiagnostics
+import app.naviamp.domain.radio.radioSimilarityMethod
 
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
@@ -162,9 +164,10 @@ class NaviampCoreMediaTransactions(
         if (!queuePlayback.play(tracks, index, shuffle)) publish("No tracks are available.")
     }
 
-    fun playAlbum(album: Album, tracks: List<Track>, shuffle: Boolean = false) {
+    fun playAlbum(album: Album, tracks: List<Track>, shuffle: Boolean = false, index: Int = 0) {
         if (!queuePlayback.play(
                 tracks = tracks,
+                index = index,
                 shuffle = shuffle,
                 groupTarget = PlaybackProfileTarget(PlaybackProfileTargetType.Album, album.id.value),
                 groupLabel = album.title,
@@ -207,7 +210,8 @@ class NaviampCoreMediaTransactions(
         busyIndicator.during("Loading track radio...") {
             runCatching {
                 val settings = stateStore.state.value.shell.playback.settings
-                RadioService(provider, tuning = settings.radioTuning)
+                RadioService(provider, count = settings.radioMinimumTracks, tuning = settings.radioTuning,
+                    onSimilarityResult = { recordRadioDiagnostics(it.radioDiagnostics()) })
                     .trackRadio(seed, settings.effectiveSonicSimilarityEnabled())
             }.onSuccess { if (playNext) playNext(it) else addToQueue(it) }
                 .onFailure { publish(it.message ?: "Could not load track radio.") }
@@ -509,11 +513,30 @@ class NaviampCoreMediaTransactions(
             currentPlayback.queue.current?.id == request.seedTrack.id
         if (!retainCurrent) play(listOf(request.seedTrack))
         publish("Playing ${request.label} while the queue builds.")
-        when (val result = seededRadioBuildResult(request, RadioService(provider, tuning = radioTuning()))) {
+        var diagnostics: app.naviamp.domain.radio.RadioBuildDiagnostics? = null
+        val radioSettings = stateStore.state.value.shell.playback.settings
+        val radioService = RadioService(
+            provider, count = radioSettings.radioMinimumTracks,
+            tuning = radioSettings.radioTuning,
+            similarityMethod = radioSettings.radioSimilarityMethod(),
+            onSimilarityResult = { result -> result.radioDiagnostics()?.let { diagnostics = it } },
+        )
+        fun currentRadioSettings() = stateStore.state.value.shell.playback.settings.let {
+            it.radioSimilarityMethod() == radioSettings.radioSimilarityMethod() &&
+                it.radioMinimumTracks == radioSettings.radioMinimumTracks
+        }
+        stateStore.update { it.copy(overlays = it.overlays.copy(radioNotice = null)) }
+        when (val result = seededRadioBuildResult(request, radioService)) {
             is SeededRadioBuildResult.Ready -> {
                 val stillPlayingSeed = playback.state.value.currentTrack?.id == request.seedTrack.id &&
                     playback.state.value.queue.current?.id == request.seedTrack.id
-                if (!stillPlayingSeed || sourceId != activeSourceId() || !providerSource.isCurrent(provider)) return
+                if (!stillPlayingSeed || sourceId != activeSourceId() || !providerSource.isCurrent(provider) || !currentRadioSettings()) return
+                if (result.queue.size <= 1) {
+                    recordRadioDiagnostics(diagnostics ?: app.naviamp.domain.radio.RadioBuildDiagnostics(
+                        app.naviamp.domain.radio.RadioBuildOutcome.Empty,
+                    ))
+                    return
+                }
                 val update = queue.replaceGeneratedRadioUpcomingTracks(
                     currentTrack = request.seedTrack,
                     fetchedTracks = result.queue.filterNot { it.id == request.seedTrack.id },
@@ -525,18 +548,28 @@ class NaviampCoreMediaTransactions(
                 }
                 rememberRecentRadio(result.recentRadioStream, result.queue)
                 onStarted()
+                recordRadioDiagnostics(diagnostics?.takeUnless { it.outcome == app.naviamp.domain.radio.RadioBuildOutcome.Empty })
                 publish("Playing ${request.label}.")
             }
             is SeededRadioBuildResult.Failed -> {
                 if (result.error is CancellationException) throw result.error
-                if (sourceId == activeSourceId() && providerSource.isCurrent(provider)) {
+                if (sourceId == activeSourceId() && providerSource.isCurrent(provider) && currentRadioSettings() &&
+                    playback.state.value.currentTrack?.id == request.seedTrack.id) {
+                    recordRadioDiagnostics(diagnostics ?: app.naviamp.domain.radio.RadioBuildDiagnostics(
+                        app.naviamp.domain.radio.RadioBuildOutcome.Failed,
+                    ))
                     publish("Playing ${request.label}; the rest of the queue could not be built.")
                 }
             }
         }
     }
 
-    private fun radioTuning() = stateStore.state.value.shell.playback.settings.radioTuning
+    private fun recordRadioDiagnostics(result: app.naviamp.domain.radio.RadioBuildDiagnostics?) {
+        stateStore.update { state -> state.copy(
+            shell = state.shell.copy(playback = state.shell.playback.copy(radioDiagnostics = result)),
+            overlays = state.overlays.copy(radioNotice = result),
+        ) }
+    }
 
     private fun rememberRecentRadio(stream: RecentRadioStream?, tracks: List<Track>) {
         if (stream == null) return

@@ -1,0 +1,58 @@
+package app.naviamp.provider.navidrome
+
+import app.naviamp.domain.radio.*
+import kotlinx.coroutines.runBlocking
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlin.test.assertNull
+
+/** Opt-in test against a disposable server. Credentials stay in environment variables. */
+class NavidromeSimilarityLiveTest {
+    @Test
+    fun inspectNativeAdminApiWithoutChangingServer() = runBlocking {
+        if (System.getenv("NAVIAMP_SIMILARITY_TEST_ADMIN") != "true") return@runBlocking
+        val url = checkNotNull(System.getenv("NAVIAMP_SIMILARITY_TEST_URL"))
+        val user = checkNotNull(System.getenv("NAVIAMP_SIMILARITY_TEST_USER"))
+        val password = checkNotNull(System.getenv("NAVIAMP_SIMILARITY_TEST_PASSWORD"))
+        val connection = NavidromeConnection.fromPassword(baseUrl = url, username = user, password = password)
+            .withNativeTokenFromPassword(password, required = true)
+        val provider = NavidromeProvider(connection)
+        val details = provider.similarityAdminDiagnostics()
+        assertEquals(SimilarityAdminStatus.Available, details.status)
+        val enabled = System.getenv("NAVIAMP_SIMILARITY_TEST_PLUGINS") == "true"
+        assertEquals(enabled, details.pluginsEnabled)
+        if (!enabled) assertNull(details.plugins)
+        else assertTrue(details.plugins.orEmpty().any { it.id == "audiomuseai" && it.version == "10.0.0" })
+        println("Admin live check: status=${details.status}, pluginsEnabled=${details.pluginsEnabled}, plugin IDs=${details.plugins?.map { it.id }}")
+        val report = testSimilarity(provider, provider.tracks(limit = 1).first())
+        assertEquals(details.pluginsEnabled, report.admin.pluginsEnabled)
+        assertEquals(SimilarityResultKind.Matches, report.regular.kind)
+    }
+
+    @Test
+    fun probeUsesRealServerAndRadioResolvesUnadvertisedSonicToInstantMix() = runBlocking {
+        val url = System.getenv("NAVIAMP_SIMILARITY_TEST_URL") ?: return@runBlocking
+        val user = checkNotNull(System.getenv("NAVIAMP_SIMILARITY_TEST_USER"))
+        val password = checkNotNull(System.getenv("NAVIAMP_SIMILARITY_TEST_PASSWORD"))
+        val provider = NavidromeProvider(NavidromeConnection.fromPassword(baseUrl = url, username = user, password = password))
+        provider.validateConnection()
+        val seed = provider.tracks(limit = 1).first()
+        val report = testSimilarity(provider, seed)
+        val expected = System.getenv("NAVIAMP_SIMILARITY_TEST_SUPPORT") ?: "Missing"
+        assertEquals(SimilaritySupport.valueOf(expected), report.support)
+        assertTrue(report.sonic.kind != SimilarityResultKind.Matches)
+        println("Similarity live check: support=${report.support}, sonic=${report.sonic}, regular=${report.regular}")
+        var diagnostics: RadioBuildDiagnostics? = null
+        val tracks = runCatching {
+            RadioService(provider, onSimilarityResult = { diagnostics = it.radioDiagnostics() })
+                .trackRadio(seed, preferSonicSimilarity = true)
+        }.getOrDefault(emptyList())
+        if (provider.capabilities.supportsSonicSimilarity) assertTrue(tracks.isEmpty(), "An advertised Sonic failure must remain visible")
+        else assertTrue(tracks.isNotEmpty(), "Unadvertised Sonic must select usable Instant Mix")
+        assertTrue(diagnostics != null)
+        val regular = RadioService(provider).trackRadio(seed, preferSonicSimilarity = false)
+        assertTrue(regular.isNotEmpty(), "Explicit Instant Mix should use the test server recommendations")
+        println("Similarity live check: Sonic diagnostics=$diagnostics, explicit Instant Mix tracks=${regular.size}")
+    }
+}

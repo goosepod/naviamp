@@ -1,4 +1,6 @@
 package app.naviamp.presentation
+import app.naviamp.domain.provider.isDiscoveryPreview
+import app.naviamp.domain.radio.radioDiagnostics
 
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampPlaybackCommandController
@@ -44,6 +46,8 @@ import app.naviamp.ui.NowPlayingSleepTimerActionRequest
 import app.naviamp.ui.NaviampVisualizer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
 /** Owns Now Playing transport, queue commands, volume, repeat/shuffle, and sleep-timer policy. */
@@ -81,10 +85,14 @@ class NaviampCorePlaybackController(
     private var reportingTrackId: app.naviamp.domain.TrackId? = null
     private var sidecarTrackId: app.naviamp.domain.TrackId? = null
     private var sidecarLoadJob: Job? = null
+    private var streamMetadata = PlaybackStreamMetadata()
+    private var streamMetadataTrackId: app.naviamp.domain.TrackId? = null
+    private var observedPlaybackTrackId = playback.state.value.currentTrack?.id
     private var sonicAutoplayJob: Job? = null
     private val sonicAutoplay = SonicAutoplayService(providerSource::current)
     private var persistedQueue = PlaybackQueue()
     private var persistedStationId: String? = null
+    private var persistedSeekGeneration = 0L
     private var sourceTransitionTargetId: String? = null
     private var connectHandoffAwaitingStart = false
 
@@ -357,7 +365,19 @@ class NaviampCorePlaybackController(
 
     fun attachNativePlayback() {
         updateVisualizerSampling()
-        playback.observe { persistSession(force = false) }
+        playback.observe { live ->
+            if (live.currentTrack?.id != observedPlaybackTrackId) {
+                observedPlaybackTrackId = live.currentTrack?.id
+                // Invalidate synchronously when leaving a track, even if the next track never
+                // reaches Playing or its queued sidecar load is cancelled before starting.
+                sidecarLoadJob?.cancel()
+                sidecarTrackId = null
+                streamMetadata = PlaybackStreamMetadata()
+                streamMetadataTrackId = null
+                presenter.updateStreamMetadata(PlaybackStreamMetadata())
+            }
+            persistSession(force = false)
+        }
         effects.attach(object : NaviampCorePlaybackObserver {
             override fun onStateChanged(state: PlaybackState) {
                 if (state == PlaybackState.Playing) connectHandoffAwaitingStart = false
@@ -389,20 +409,22 @@ class NaviampCorePlaybackController(
             }
 
             override fun onProgressChanged(progress: PlaybackProgress) {
+                // Native Pause can precede its final clock sample. That sample is the resume
+                // checkpoint even when Pause just saved an older position inside the throttle.
+                val pausedPositionChanged = playback.state.value.let { live ->
+                    live.playbackState == PlaybackState.Paused &&
+                        progress.positionSeconds != null &&
+                        live.progress.positionSeconds != progress.positionSeconds
+                }
                 playback.updateProgress(progress)
                 reportPlayback(playback.state.value.playbackState, progress)
-                persistSession(force = false)
+                persistSession(force = pausedPositionChanged)
             }
 
             override fun onMetadataChanged(metadata: PlaybackStreamMetadata) {
-                presenter.updateStreamMetadata(metadata)
-                presenter.publish(display)
-                playback.state.value.currentStation?.let { station ->
-                    scope.launch {
-                        sidecars.loadInternetRadioArtwork(station, metadata)
-                        presenter.publish(display)
-                    }
-                }
+                streamMetadata = metadata
+                streamMetadataTrackId = playback.state.value.currentTrack?.id
+                publishStreamMetadata(metadata)
             }
 
             override fun onSourceChanged(source: PlaybackSource, quality: StreamQuality?) {
@@ -528,7 +550,9 @@ class NaviampCorePlaybackController(
                     playbackQueue = live.queue,
                     progressPositionSeconds = live.progress.positionSeconds,
                 ),
-                force = force || structuralChange,
+                // A seek can follow Pause within the telemetry save interval and then receive no
+                // further clock updates. Persist each accepted seek independently of that throttle.
+                force = force || structuralChange || live.progress.seekGeneration != persistedSeekGeneration,
                 nowMillis = nowEpochMillis(),
                 saveIntervalMillis = PlaybackSessionSaveIntervalMillis,
             )
@@ -536,6 +560,7 @@ class NaviampCorePlaybackController(
         if (plan is PlaybackSessionSavePlan.Save) {
             persistedQueue = live.queue
             persistedStationId = live.currentStation?.id
+            persistedSeekGeneration = live.progress.seekGeneration
         }
     }
 
@@ -562,21 +587,33 @@ class NaviampCorePlaybackController(
         val expectedQueue = expectedState.queue
         val expectedProvider = providerSource.current()
         val expectedSourceId = stateStore.state.value.shell.connectionSettings.currentSourceId
-        if (!stateStore.state.value.shell.playback.settings.sonicAutoplayEnabled) return
-        if (expectedProvider?.capabilities?.supportsSonicSimilarity != true) return
+        val expectedSettings = stateStore.state.value.shell.playback.settings
+        if (!expectedSettings.sonicAutoplayEnabled) return
+        if (expectedProvider == null) return
 
         sonicAutoplayJob?.cancel()
         sonicAutoplayJob = scope.launch {
-            val tracks = sonicAutoplay.continuationTracks(expectedQueue)
+            var diagnostics: app.naviamp.domain.radio.RadioBuildDiagnostics? = null
+            val tracks = sonicAutoplay.continuationTracks(expectedQueue,
+                limit = expectedSettings.sonicAutoplayMinimumTracks,
+                preferSonicSimilarity = expectedSettings.effectiveSonicSimilarityEnabled(),
+                onResult = { diagnostics = it.radioDiagnostics(autoplay = true) })
             val currentState = playback.state.value
             val currentShell = stateStore.state.value.shell
             val requestIsCurrent =
                 currentState.playbackState == PlaybackState.Finished &&
                     currentState.queue == expectedQueue &&
                     currentShell.connectionSettings.currentSourceId == expectedSourceId &&
-                    currentShell.playback.settings.sonicAutoplayEnabled
+                    currentShell.playback.settings.sonicAutoplayEnabled &&
+                    currentShell.playback.settings.sonicAutoplayMinimumTracks == expectedSettings.sonicAutoplayMinimumTracks &&
+                    currentShell.playback.settings.effectiveSonicSimilarityEnabled() == expectedSettings.effectiveSonicSimilarityEnabled() &&
+                    providerSource.isCurrent(expectedProvider)
             if (!requestIsCurrent) return@launch
 
+            stateStore.update { state -> state.copy(
+                shell = state.shell.copy(playback = state.shell.playback.copy(radioDiagnostics = diagnostics)),
+                overlays = state.overlays.copy(radioNotice = diagnostics),
+            ) }
             val update = queue.appendSonicContinuationTracks(tracks)
             if (!update.tracksChanged) return@launch
             effects.applyQueue(update.queue, clearPreparedNext = true)
@@ -584,8 +621,31 @@ class NaviampCorePlaybackController(
         }
     }
 
+    private fun publishStreamMetadata(metadata: PlaybackStreamMetadata) {
+        presenter.updateStreamMetadata(metadata)
+        presenter.publish(display)
+        playback.state.value.currentStation?.let { station ->
+            scope.launch {
+                sidecars.loadInternetRadioArtwork(station, metadata)
+                presenter.publish(display)
+            }
+        }
+    }
+
     private suspend fun loadTrackSidecars(track: app.naviamp.domain.Track) {
+        // Loading sidecars starts the track from empty sidecars, stream metadata included. The engine only
+        // publishes metadata when it changes, and a live stream usually reports its first title before this
+        // asynchronous load starts, so restore what the engine already published for this same track.
+        // The cache is consumed by this load: it bridges one sidecar load only, never a later playback
+        // of the same track, so returning to a station cannot resurface its previous session's title.
+        val cachedMetadata = if (streamMetadataTrackId == track.id) streamMetadata else null
+        streamMetadata = PlaybackStreamMetadata()
+        streamMetadataTrackId = null
         sidecars.loadForTrack(track)
+        // A native/file sidecar operation can finish after cancellation. Returning to the same
+        // track does not make that earlier playback's cached title current again.
+        currentCoroutineContext().ensureActive()
+        if (cachedMetadata != null && streamMetadataTrackId == null) publishStreamMetadata(cachedMetadata)
         val lyricsNeeded = display.lyricsVisible ||
             stateStore.state.value.shell.shellChrome.selectedVisualizer == NaviampVisualizer.LyricMirrorTunnel
         if (lyricsNeeded && playback.state.value.currentTrack?.id == track.id) {
@@ -704,7 +764,7 @@ class NaviampCorePlaybackController(
             return
         }
         val name = requestedName?.trim().orEmpty()
-        val tracks = playback.state.value.queue.tracks
+        val tracks = playback.state.value.queue.tracks.filterNot { it.id.isDiscoveryPreview() }
         when {
             name.isEmpty() -> publishPlaylistStatus("Playlist name cannot be blank.")
             tracks.isEmpty() -> publishPlaylistStatus("The queue is empty.")
@@ -787,6 +847,11 @@ class NaviampCorePlaybackController(
 
     private fun PlaybackQueueSelectionUpdate.applyToLivePlayback() {
         if (!changed) return
+        // The previous track's sidecar load (waveform/audio download) must not outlive the skip:
+        // a slow stream may not reach Playing before the next skip, so nothing else cancels it.
+        sidecarLoadJob?.cancel()
+        sidecarLoadJob = null
+        sidecarTrackId = null
         playback.updateCurrentTrack(queue.current)
     }
 

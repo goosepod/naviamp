@@ -17,14 +17,67 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 class NaviampCoreSettingsValueStoreTest {
+    @Test fun artistSectionLayoutsPersistIndependentlyAndOlderSettingsUseLists() {
+        val values = MemorySettingsValues()
+        val catalog = naviampCoreSettingsValueCatalog(values)
+        for (playlists in app.naviamp.domain.settings.AlbumCollectionLayout.entries) {
+            for (appearances in app.naviamp.domain.settings.AlbumCollectionLayout.entries) {
+                val settings = InterfaceSettings(artistPlaylistLayout = playlists, artistAppearanceAlbumLayout = appearances)
+                catalog.storedSettings.saveInterface(settings)
+                assertEquals(settings, naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface())
+            }
+        }
+        values.entries[KeyInterface] = "{}"
+        val older = catalog.storedSettings.loadInterface()
+        assertEquals(app.naviamp.domain.settings.AlbumCollectionLayout.List, older.artistPlaylistLayout)
+        assertEquals(app.naviamp.domain.settings.AlbumCollectionLayout.List, older.artistAppearanceAlbumLayout)
+    }
+    @Test fun artistPlaylistVisibilityPersistsAndOlderSettingsDefaultOn() {
+        val values = MemorySettingsValues()
+        val catalog = naviampCoreSettingsValueCatalog(values)
+        assertEquals(true, catalog.storedSettings.loadInterface().showArtistPlaylists)
+        catalog.storedSettings.saveInterface(InterfaceSettings(showArtistPlaylists = false))
+        assertEquals(false, naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface().showArtistPlaylists)
+    }
+
+    @Test fun artistTopTracksPersistAndOlderValuesUseDefaults() {
+        val values = MemorySettingsValues()
+        val catalog = naviampCoreSettingsValueCatalog(values)
+        assertEquals(10, catalog.storedSettings.loadInterface().artistTopTracksLimit)
+        catalog.storedSettings.saveInterface(InterfaceSettings(showArtistTopTracks = false, artistTopTracksLimit = 50))
+        val restored = naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface()
+        assertFalse(restored.showArtistTopTracks)
+        assertEquals(50, restored.artistTopTracksLimit)
+        values.entries[KeyInterface] = """{"artistTopTracksLimit":18}"""
+        assertEquals(20, catalog.storedSettings.loadInterface().artistTopTracksLimit)
+        values.entries[KeyInterface] = "{}"
+        assertEquals(true, catalog.storedSettings.loadInterface().showArtistTopTracks)
+        assertEquals(10, catalog.storedSettings.loadInterface().artistTopTracksLimit)
+    }
     @Test
-    fun olderSonicPreferenceDefaultsToAutomaticAndExplicitChoiceRoundTrips() {
+    fun independentRadioAndAutoplaySizesPersistWithDefaultsAndNormalization() {
+        val values = MemorySettingsValues()
+        val catalog = naviampCoreSettingsValueCatalog(values)
+        assertEquals(10, catalog.storedSettings.loadPlayback().radioMinimumTracks)
+        assertEquals(10, catalog.storedSettings.loadPlayback().sonicAutoplayMinimumTracks)
+        catalog.savePlayback(PlaybackSettings(radioMinimumTracks = 20, sonicAutoplayMinimumTracks = 70))
+        val restored = naviampCoreSettingsValueCatalog(values).storedSettings.loadPlayback()
+        assertEquals(20, restored.radioMinimumTracks)
+        assertEquals(70, restored.sonicAutoplayMinimumTracks)
+        values.entries[KeyPlayback] = """{"radioMinimumTracks":-1,"sonicAutoplayMinimumTracks":999}"""
+        val normalized = naviampCoreSettingsValueCatalog(values).storedSettings.loadPlayback()
+        assertEquals(10, normalized.radioMinimumTracks)
+        assertEquals(100, normalized.sonicAutoplayMinimumTracks)
+    }
+
+    @Test
+    fun olderSonicPreferenceDefaultsToInstantMixAndExplicitChoiceRoundTrips() {
         val values = MemorySettingsValues().apply {
             entries[KeyPlayback] = """{"sonicSimilarityEnabled":false}"""
         }
         val catalog = naviampCoreSettingsValueCatalog(values)
 
-        assertEquals(true, catalog.storedSettings.loadPlayback().effectiveSonicSimilarityEnabled())
+        assertEquals(false, catalog.storedSettings.loadPlayback().effectiveSonicSimilarityEnabled())
 
         catalog.savePlayback(
             PlaybackSettings(
@@ -58,11 +111,19 @@ class NaviampCoreSettingsValueStoreTest {
         settings.saveInterface(InterfaceSettings(
             albumBlurRadiusDp = 999,
             keepScreenAwake = true,
-            nowPlaying = NowPlayingDisplaySettings(splitPaneBackgroundOpacityPercent = 42),
+            squareAlbumArtwork = true,
+            nowPlaying = NowPlayingDisplaySettings(
+                splitPaneBackgroundOpacityPercent = 42,
+                keepTelevisionControlsVisible = true,
+                fillArtworkArea = true,
+            ),
         ))
         assertEquals(48, settings.loadInterface().albumBlurRadiusDp)
         assertEquals(true, naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface().keepScreenAwake)
+        assertEquals(true, naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface().squareAlbumArtwork)
         assertEquals(42, settings.loadInterface().nowPlaying.splitPaneBackgroundOpacityPercent)
+        assertEquals(true, naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface().nowPlaying.keepTelevisionControlsVisible)
+        assertEquals(true, naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface().nowPlaying.fillArtworkArea)
         catalog.savePlayback(PlaybackSettings(crossfadeDurationSeconds = 999))
         assertEquals(999, settings.loadPlayback().crossfadeDurationSeconds)
 

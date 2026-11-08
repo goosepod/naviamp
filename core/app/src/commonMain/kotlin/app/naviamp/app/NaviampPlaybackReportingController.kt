@@ -1,5 +1,7 @@
 package app.naviamp.app
 
+import app.naviamp.domain.provider.isDiscoveryPreview
+
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.playback.DefaultNowPlayingHeartbeatIntervalMillis
 import app.naviamp.domain.playback.PlaybackProgress
@@ -48,6 +50,7 @@ suspend fun runNaviampNowPlayingHeartbeat(
     report: suspend (TrackId) -> Unit,
     waitForNext: suspend () -> Unit = { delay(DefaultNowPlayingHeartbeatIntervalMillis) },
 ) {
+    if (request.trackId.isDiscoveryPreview()) return
     if (
         !shouldReportNowPlaying(
             supportsPlayReporting = request.supportsPlayReporting,
@@ -79,7 +82,7 @@ class NaviampPlaybackReportingController(
 
     fun nowPlayingReport(request: NaviampNowPlayingReportRequest): NaviampNowPlayingReport? =
         if (
-            canReportPlaybackTrack(
+            !request.trackId.isDiscoveryPreview() && canReportPlaybackTrack(
                 supportsPlayReporting = request.supportsPlayReporting,
                 isInternetRadioTrack = request.isInternetRadioTrack,
             )
@@ -90,6 +93,7 @@ class NaviampPlaybackReportingController(
         }
 
     fun stateReport(request: NaviampPlaybackStateReportRequest): NaviampPlaybackStateReport? {
+        if (request.trackId.isDiscoveryPreview()) return null
         val reportState = request.playbackState.toPlaybackReportState() ?: return null
         if (
             !canReportPlaybackTrack(

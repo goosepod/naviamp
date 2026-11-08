@@ -425,7 +425,7 @@ class SmartPlaylistDraftTest {
         )
         val options = newFields.map { field -> SmartPlaylistFieldCatalog.fields.first { it.field == field } }
         assertEquals(listOf(SmartPlaylistValueType.Date, SmartPlaylistValueType.Date), options.take(2).map { it.valueType })
-        assertEquals(List(3) { SmartPlaylistValueType.Integer }, options.drop(2).map { it.valueType })
+        assertEquals(listOf(SmartPlaylistValueType.Decimal, SmartPlaylistValueType.Integer, SmartPlaylistValueType.Integer), options.drop(2).map { it.valueType })
         assertEquals(true, options.all { it.sortable })
 
         val original = SmartPlaylistDefinition(

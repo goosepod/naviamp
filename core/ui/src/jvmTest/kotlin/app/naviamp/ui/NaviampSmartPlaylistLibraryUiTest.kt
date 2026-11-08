@@ -6,7 +6,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.runtime.mutableStateOf
+import app.naviamp.domain.smartplaylist.*
 import androidx.compose.ui.test.runComposeUiTest
 import app.naviamp.domain.smartplaylist.SmartPlaylistConditionDraft
 import app.naviamp.domain.smartplaylist.SmartPlaylistDraft
@@ -19,6 +23,30 @@ import kotlin.test.assertEquals
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampSmartPlaylistLibraryUiTest {
+    @Test fun lateLibraryNamesPreserveEditsAndShowNamesForLibraryConditions() = runComposeUiTest {
+        val libraries = mutableStateOf(emptyList<ConnectionFormMusicFolder>())
+        val selected = mutableStateOf(emptyList<String>())
+        var saved: SmartPlaylistDefinition? = null
+        val definition = SmartPlaylistDefinition("Original name", libraryIds = listOf("1"), rules = listOf(
+            SmartPlaylistCondition(SmartPlaylistOperator.Is, SmartPlaylistFields.LibraryId, SmartPlaylistValue.Number(1))))
+        val draft = SmartPlaylistDraft.fromDefinition(definition)
+        setContent { SmartPlaylistBuilderDialog(NaviampColors(), draft,
+            availableLibraries = libraries.value, selectedConnectionLibraryIds = selected.value,
+            onDismissRequest = {}, onSave = { saved = it }) }
+        onNodeWithText("Original name").performTextReplacement("Keep my edit")
+        runOnIdle {
+            libraries.value = listOf(ConnectionFormMusicFolder("1", "Music Library"), ConnectionFormMusicFolder("2", "Classical"))
+            selected.value = listOf("1", "2")
+        }
+        onNodeWithText("Keep my edit").assertExists()
+        onNodeWithText("Music Library").performScrollTo().assertExists()
+        onNodeWithTag(SmartPlaylistSaveTestTag).performClick()
+        waitUntil(timeoutMillis = 5_000) { saved != null }
+        assertEquals("Keep my edit", saved?.name)
+        assertEquals(definition.rules, saved?.rules)
+        assertEquals(listOf("1"), saved?.libraryIds)
+    }
+
     @Test
     fun singleSelectedLibraryKeepsLibrarySelectorHidden() = runComposeUiTest {
         setContent {
@@ -46,6 +74,7 @@ class NaviampSmartPlaylistLibraryUiTest {
             )
         }
 
+        onNodeWithTag("smart-playlist-options-toggle").performScrollTo().performClick()
         onNodeWithText("Libraries").assertExists()
         onNodeWithText("Ambient").assertExists()
         onNodeWithText("Rock").assertExists()
@@ -103,6 +132,7 @@ class NaviampSmartPlaylistLibraryUiTest {
         }
 
         onNodeWithText("Album Date Added").assertExists()
+        onNodeWithText("Options").performScrollTo().performClick()
         onNodeWithText("Refresh delay").assertExists()
         onNodeWithText("Use a valid duration such as 12h, 1d, or 1w.").assertExists()
     }

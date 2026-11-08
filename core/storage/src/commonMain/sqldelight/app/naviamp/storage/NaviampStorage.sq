@@ -2062,3 +2062,31 @@ DELETE FROM album_catalog_snapshot;
 
 clearAlbumCatalogSnapshotsForSource:
 DELETE FROM album_catalog_snapshot WHERE source_id = ?;
+
+selectLibraryTrackIdsForSync:
+SELECT remote_track_id FROM library_track WHERE source_id = ?;
+
+deleteLibraryTrackForSync:
+DELETE FROM library_track WHERE source_id = ? AND remote_track_id = ?;
+
+CREATE TABLE discovery_acquisition (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  account_key TEXT NOT NULL,
+  request_key TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  created_at_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY (source_id, account_key, request_key)
+);
+
+selectDiscoveryAcquisitions:
+SELECT payload FROM discovery_acquisition
+WHERE source_id = ? AND account_key = ?
+ORDER BY created_at_epoch_millis DESC LIMIT 200;
+
+selectDiscoveryAcquisition:
+SELECT payload FROM discovery_acquisition
+WHERE source_id = ? AND account_key = ? AND request_key = ?;
+
+upsertDiscoveryAcquisition:
+INSERT OR REPLACE INTO discovery_acquisition(source_id, account_key, request_key, payload, created_at_epoch_millis)
+VALUES (?, ?, ?, ?, ?);

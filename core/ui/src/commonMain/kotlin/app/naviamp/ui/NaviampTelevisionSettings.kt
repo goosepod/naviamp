@@ -51,6 +51,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -371,6 +373,7 @@ private fun TelevisionSettingsCategoryPage(
             uiState,
             colors,
             actions.valueActions,
+            actions.maintenanceActions.onTestSimilarity,
             firstFocusRequester,
             returnFocusRequester,
             returnChoice,
@@ -430,6 +433,7 @@ private fun TelevisionControllersSettings(
             title = { Text(stringResource(Res.string.tv_name_this_device)) },
             text = {
                 OutlinedTextField(
+                    colors = naviampOutlinedTextFieldColors(colors),
                     value = deviceName,
                     onValueChange = { if (it.length <= 64) deviceName = it },
                     singleLine = true,
@@ -766,9 +770,9 @@ private fun TelevisionSourcesSettings(
         items(saved, key = { it.id }) { source ->
             TelevisionSettingsRow(
                 title = source.displayName,
-                subtitle = listOf(source.providerId, source.username).filter(String::isNotBlank).joinToString(" • "),
+                subtitle = listOf(localizedProviderName(source.providerId), source.username).filter(String::isNotBlank).joinToString(" • "),
                 value = if (source.current) stringResource(Res.string.common_current) else source.selectedLibrarySummary,
-                icon = NaviampIcons.Library,
+                serviceProviderId = source.providerId,
                 selected = source.current,
                 colors = colors,
                 onClick = { if (!source.current) actions.onConnectSavedConnection(source) },
@@ -815,6 +819,7 @@ private fun TelevisionPlaybackSettings(
     uiState: NaviampAppShellUiState,
     colors: NaviampColors,
     actions: NaviampSettingsValueActions,
+    onTestSimilarity: () -> Unit,
     firstFocusRequester: FocusRequester,
     returnFocusRequester: FocusRequester,
     returnChoice: TelevisionSettingsChoicePage?,
@@ -823,6 +828,15 @@ private fun TelevisionPlaybackSettings(
     val capability = uiState.playback
     val settings = capability.settings
     TelevisionSettingsList {
+        item(key = "radio-settings") {
+            Column {
+                SettingsSectionTitle(stringResource(Res.string.settings_experience_related_tracks_title), colors)
+                RadioSettingsSection(colors, settings, capability.sonicSimilarityAvailable,
+                    capability.similarityTest, capability.radioDiagnostics,
+                    onTestSimilarity.takeIf { capability.similarityDiagnosticsAvailable }, actions.onPlaybackSettingsChanged,
+                    verticalFocusNavigation = true)
+            }
+        }
         if (capability.replayGainAvailable) {
             item(key = "replay-gain") {
                 TelevisionSettingsRow(
@@ -1074,6 +1088,14 @@ private fun TelevisionDisplaySettings(
                 } else Modifier,
             )
         }
+        item(key = "square-album-artwork") {
+            TelevisionSettingsToggleRow(
+                stringResource(Res.string.settings_square_album_artwork),
+                stringResource(Res.string.settings_square_album_artwork_description),
+                settings.squareAlbumArtwork, colors,
+                { actions.onInterfaceSettingsChanged(settings.copy(squareAlbumArtwork = !settings.squareAlbumArtwork)) },
+            )
+        }
         item(key = "album-release-grouping") {
             TelevisionSettingsToggleRow(
                 stringResource(Res.string.tv_group_albums_by_release_type),
@@ -1155,6 +1177,23 @@ private fun TelevisionDisplaySettings(
                 },
             )
         }
+        item(key = "keep-controls-visible") {
+            TelevisionSettingsToggleRow(
+                stringResource(Res.string.tv_keep_now_playing_controls_visible),
+                stringResource(Res.string.tv_keep_now_playing_controls_visible_description),
+                nowPlaying.keepTelevisionControlsVisible,
+                colors,
+                {
+                    actions.onInterfaceSettingsChanged(
+                        settings.copy(
+                            nowPlaying = nowPlaying.copy(
+                                keepTelevisionControlsVisible = !nowPlaying.keepTelevisionControlsVisible,
+                            ),
+                        ),
+                    )
+                },
+            )
+        }
 
     }
 }
@@ -1206,7 +1245,7 @@ private fun TelevisionDiagnosticsSettings(
 }
 
 @Composable
-private fun TelevisionAboutSettings(
+internal fun TelevisionAboutSettings(
     uiState: NaviampAppShellUiState,
     colors: NaviampColors,
     firstFocusRequester: FocusRequester,
@@ -1228,6 +1267,21 @@ private fun TelevisionAboutSettings(
             item(key = "build") { TelevisionSettingsInfo(stringResource(Res.string.tv_build), about.buildNumber, colors) }
         }
         item(key = "libraries") { TelevisionSettingsInfo(stringResource(Res.string.tv_open_source_libraries), about.libraries.size.toString(), colors) }
+        item(key = "changelog-heading") {
+            SettingsSectionTitle(stringResource(Res.string.settings_about_latest_changes_title), colors)
+        }
+        if (about.changelog.isEmpty()) {
+            item(key = "changelog-empty") {
+                TelevisionSettingsRow(stringResource(Res.string.settings_about_empty_changelog), colors = colors, onClick = {})
+            }
+        }
+        about.changelog.forEachIndexed { sectionIndex, section ->
+            item(key = "changelog-section:$sectionIndex") { SettingsSectionTitle(section.title, colors) }
+            itemsIndexed(section.entries, key = { index, _ -> "changelog-entry:$sectionIndex:$index" }) { _, entry ->
+                // Each complete entry is focusable so D-pad movement brings it into view.
+                TelevisionSettingsRow(entry, colors = colors, onClick = {}, titleMaxLines = Int.MAX_VALUE)
+            }
+        }
     }
 }
 
@@ -1771,6 +1825,7 @@ private fun TelevisionSettingsRow(
     subtitle: String = "",
     value: String? = null,
     icon: ImageVector? = null,
+    serviceProviderId: String? = null,
     disclosure: Boolean = false,
     selected: Boolean = false,
     enabled: Boolean = true,
@@ -1778,7 +1833,9 @@ private fun TelevisionSettingsRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     subtitleMaxLines: Int = 2,
+    titleMaxLines: Int = 2,
 ) {
+    val focusManager = LocalFocusManager.current
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(12.dp)
     Button(
@@ -1794,6 +1851,15 @@ private fun TelevisionSettingsRow(
         shape = shape,
         modifier = modifier
             .fillMaxWidth()
+            .onPreviewKeyEvent { event ->
+                val direction = when (event.key) {
+                    Key.DirectionUp -> FocusDirection.Up
+                    Key.DirectionDown -> FocusDirection.Down
+                    else -> return@onPreviewKeyEvent false
+                }
+                if (event.type == KeyEventType.KeyDown) focusManager.moveFocus(direction)
+                true
+            }
             .onFocusChanged { focused = it.isFocused }
             .border(
                 width = if (focused) TelevisionSettingsFocusedBorderWidth else 0.dp,
@@ -1801,12 +1867,15 @@ private fun TelevisionSettingsRow(
                 shape = shape,
             ),
     ) {
-        icon?.let {
+        if (serviceProviderId != null) {
+            NaviampServiceIcon(serviceProviderId, colors.primaryText, size = 25.dp)
+            Spacer(Modifier.size(13.dp))
+        } else icon?.let {
             Icon(it, contentDescription = null, modifier = Modifier.size(25.dp))
             Spacer(Modifier.size(13.dp))
         }
         Column(verticalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.weight(1f)) {
-            Text(title, fontSize = 18.sp, lineHeight = 23.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(title, fontSize = 18.sp, lineHeight = 23.sp, fontWeight = FontWeight.Bold, maxLines = titleMaxLines, overflow = TextOverflow.Ellipsis)
             if (subtitle.isNotBlank()) {
                 Text(
                     subtitle,

@@ -5,7 +5,12 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -25,9 +30,14 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
@@ -69,9 +79,44 @@ internal fun naviampMenuPosition(anchor: IntRect, window: IntSize, content: IntS
 @Composable
 private fun NaviampViewportPopup(onDismissRequest: () -> Unit, properties: PopupProperties,
     scrim: Color = Color.Transparent, content: @Composable BoxScope.() -> Unit) {
-    Popup(popupPositionProvider = WindowOrigin, onDismissRequest = onDismissRequest,
-        properties = properties) {
-        Box(Modifier.fillMaxSize().clipToBounds().background(scrim), content = content)
+    val nativeSurface = LocalNaviampOwnedDialogSurface.current
+    val viewport = androidx.compose.ui.platform.LocalWindowInfo.current.containerSize
+    val density = LocalDensity.current
+    val size = with(density) { DpSize(viewport.width.toDp(), viewport.height.toDp()) }
+    val body: @Composable () -> Unit = {
+        NaviampOwnedWindowFocusScope {
+            val initialFocus = remember { FocusRequester() }
+            var containsFocus by remember { mutableStateOf(false) }
+            val windowFocused = LocalWindowInfo.current.isWindowFocused
+            LaunchedEffect(windowFocused, properties.focusable) {
+                // A native owned surface does not provide Popup's initial focus. Give Escape a
+                // target immediately, without taking focus from a child editor on reactivation.
+                if (windowFocused && properties.focusable) {
+                    // Its composition can precede native attachment. Wait for this surface's
+                    // first frame before asking its focus owner to accept keyboard input.
+                    withFrameNanos { }
+                    if (!containsFocus) initialFocus.requestFocus()
+                }
+            }
+            Box(Modifier.fillMaxSize().clipToBounds().onKeyEvent { event ->
+                if (properties.dismissOnBackPress && event.type == KeyEventType.KeyDown &&
+                    (event.key == Key.Escape || event.key == Key.Back)) {
+                    onDismissRequest()
+                    true
+                } else false
+            }.focusRequester(initialFocus).onFocusChanged { containsFocus = it.hasFocus }
+                .focusable(enabled = properties.focusable).drawBehind {
+                // Keep the native surface's recorded extent fixed from its first frame,
+                // including before the dialog entrance and floating labels have settled.
+                drawRect(Color.Transparent, blendMode = BlendMode.Src)
+            }.background(scrim), content = content)
+        }
+    }
+    if (nativeSurface == null) {
+        Popup(popupPositionProvider = WindowOrigin, onDismissRequest = onDismissRequest,
+            properties = properties, content = body)
+    } else {
+        nativeSurface.Render(size, properties, { if (properties.dismissOnBackPress) onDismissRequest() }, body)
     }
 }
 
@@ -117,6 +162,7 @@ internal fun NaviampWindowDropdownMenu(expanded: Boolean, onDismissRequest: () -
         val focus = LocalFocusManager.current
         SideEffect { moveFocus = focus::moveFocus }
         NaviampPopupPresence()
+        NaviampMenuActivationEffect(onDismissRequest, properties.dismissOnBackPress)
         var menuBounds by remember { mutableStateOf(Rect.Zero) }
         Layout(content = {
             Box(Modifier.padding(32.dp)) {
@@ -126,7 +172,7 @@ internal fun NaviampWindowDropdownMenu(expanded: Boolean, onDismissRequest: () -
                     Column(modifier.padding(vertical = 8.dp).width(IntrinsicSize.Max).verticalScroll(scroll), content = content)
                 }
             }
-        }, modifier = menuKeys.fillMaxSize().clipToBounds().drawBehind {
+        }, modifier = menuKeys.fillMaxSize().naviampMouseBack { if (properties.dismissOnBackPress) onDismissRequest() }.clipToBounds().drawBehind {
             // Record the complete fixed viewport before transformed content. Native popup geometry
             // must not resize and translate a cached graphics layer after its first picture.
             drawRect(Color.Transparent, blendMode = BlendMode.Src)
@@ -147,23 +193,44 @@ internal fun NaviampWindowDropdownMenu(expanded: Boolean, onDismissRequest: () -
 @Composable
 internal fun NaviampDialog(onDismissRequest: () -> Unit, properties: DialogProperties = DialogProperties(),
     content: @Composable () -> Unit) {
+    val back = { if (properties.dismissOnBackPress) onDismissRequest() }
+    val dispatcher = LocalNaviampSystemBackDispatcher.current
+    val dialogContent: @Composable () -> Unit = {
+        NaviampSystemBackHandler(enabled = true, onBack = back)
+        Box(Modifier.naviampMouseBack { dispatcher?.currentHandler?.invoke() ?: back() }, propagateMinConstraints = true) { content() }
+    }
     if (!LocalNaviampOwnedPopupWindows.current) {
-        Dialog(onDismissRequest, properties, content)
+        Dialog(onDismissRequest, properties, dialogContent)
         return
     }
-    val entered = remember { MutableTransitionState(false).apply { targetState = true } }
-    val transition = updateTransition(entered, label = "Naviamp dialog")
-    val alpha by transition.animateFloat(transitionSpec = { tween(200) }, label = "opacity") { if (it) 1f else .2f }
-    val scale by transition.animateFloat(transitionSpec = { tween(200) }, label = "scale") { if (it) 1f else .95f }
     NaviampViewportPopup(onDismissRequest, PopupProperties(focusable = true,
-        dismissOnBackPress = properties.dismissOnBackPress, dismissOnClickOutside = false),
-        scrim = Color.Black.copy(alpha = .6f * alpha)) {
-        Box(Modifier.fillMaxSize().pointerInput(onDismissRequest, properties.dismissOnClickOutside) {
-            if (properties.dismissOnClickOutside) detectTapGestures { onDismissRequest() }
+        dismissOnBackPress = properties.dismissOnBackPress, dismissOnClickOutside = false)) {
+        // Animate on the popup's frame clock, rather than the cached owner window's clock.
+        val entered = remember { MutableTransitionState(false).apply { targetState = true } }
+        val transition = updateTransition(entered, label = "Naviamp dialog")
+        val alpha by transition.animateFloat(transitionSpec = { tween(200) }, label = "opacity") { if (it) 1f else .2f }
+        val scale by transition.animateFloat(transitionSpec = { tween(200) }, label = "scale") { if (it) 1f else .95f }
+        var dialogBounds by remember { mutableStateOf(Rect.Zero) }
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .6f * alpha))
+            .pointerInput(onDismissRequest, properties.dismissOnClickOutside) {
+            if (properties.dismissOnClickOutside) awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                // Content clicks belong to child controls, including editable menu anchors.
+                // An unconditional tap detector here consumes their opening gesture.
+                if (!dialogBounds.contains(down.position)) {
+                    down.consume()
+                    val up = waitForUpOrCancellation(pass = PointerEventPass.Initial)
+                    if (up != null) {
+                        up.consume()
+                        onDismissRequest()
+                    }
+                }
+            }
         }.padding(24.dp), contentAlignment = Alignment.Center) {
             Box((if (properties.usePlatformDefaultWidth) Modifier.widthIn(max = 560.dp) else Modifier)
+                .onGloballyPositioned { dialogBounds = Rect(it.positionInWindow(), it.size.toSize()) }
                 .graphicsLayer { this.alpha = alpha; scaleX = scale; scaleY = scale }
-                .semantics { dialog() }, propagateMinConstraints = true) { content() }
+                .semantics { dialog() }, propagateMinConstraints = true) { dialogContent() }
         }
     }
 }
@@ -181,7 +248,10 @@ internal fun NaviampAlertDialog(onDismissRequest: () -> Unit, confirmButton: @Co
     tonalElevation: Dp = AlertDialogDefaults.TonalElevation,
     properties: DialogProperties = DialogProperties()) {
     if (!LocalNaviampOwnedPopupWindows.current) {
-        AlertDialog(onDismissRequest, confirmButton, modifier, dismissButton, icon, title, text, shape,
+        val back = { if (properties.dismissOnBackPress) onDismissRequest() }
+        val dispatcher = LocalNaviampSystemBackDispatcher.current
+        NaviampSystemBackHandler(enabled = true, onBack = back)
+        AlertDialog(onDismissRequest, confirmButton, modifier.naviampMouseBack { dispatcher?.currentHandler?.invoke() ?: back() }, dismissButton, icon, title, text, shape,
             containerColor, iconContentColor, titleContentColor, textContentColor, tonalElevation, properties)
         return
     }

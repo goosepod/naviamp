@@ -26,6 +26,21 @@ import kotlin.test.assertTrue
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCoreExternalPlaybackBridgeTest {
     @Test
+    fun externalToggleUsesCurrentCoreStateWhenTheNativePublicationIsStale() {
+        val commands = mutableListOf<NaviampCoreCommand>()
+        val playing = NowPlayingUi(id = "track", title = "Track", subtitle = "Artist", stateLabel = "Playing", isPlaying = true, canPlayPause = true)
+        val state = MutableStateFlow(NaviampCoreState(shell = NaviampAppShellUiState(nowPlaying = playing)))
+        val control = NaviampCoreExternalPlaybackBridge(state, commands::add)
+        assertEquals(NaviampExternalPlaybackState.Playing, control.snapshot().state)
+        state.value = state.value.copy(shell = state.value.shell.copy(nowPlaying = playing.copy(stateLabel = "Paused", isPlaying = false, isPaused = true)))
+        control.playPause()
+        assertEquals(NowPlayingPlaybackAction.Resume, assertIs<NaviampCoreCommand.NowPlaying.Playback>(commands.single()).request.action)
+        commands.clear()
+        state.value = state.value.copy(shell = state.value.shell.copy(nowPlaying = playing))
+        control.playPause()
+        assertEquals(NowPlayingPlaybackAction.Pause, assertIs<NaviampCoreCommand.NowPlaying.Playback>(commands.single()).request.action)
+    }
+    @Test
     fun syntheticArtworkIsKeptForInAppRenderingAndExcludedFromExternalUriConsumers() {
         val item = NaviampExternalMediaItem("radio", "Station", "", artworkUrl = "naviamp-radio-tile://tile?label=Test")
         assertEquals("naviamp-radio-tile://tile?label=Test", item.artworkUrl)

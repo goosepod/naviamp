@@ -115,11 +115,28 @@ internal fun TelevisionHome(
     colors: NaviampColors,
     actions: NaviampHomeActions,
     mediaActions: NaviampMediaActions,
+    discoveryPlayback: DiscoverySamplePlaybackUi,
     entryFocusGeneration: Int? = null,
     onEntryFocusHandled: (Int) -> Unit = {},
 ) {
+    home.providerDiscovery?.takeIf { it.requestsOpen }?.let {
+        NaviampDiscoveryRequestsUi(it, colors, actions, television = true,
+            entryFocusGeneration = entryFocusGeneration, onEntryFocusHandled = onEntryFocusHandled)
+        return
+    }
+    home.providerDiscovery?.takeIf { it.artistPage && it.artistDetail != null }?.let {
+        NaviampDiscoveryArtistPage(it, colors, actions, discoveryPlayback, television = true,
+            entryFocusGeneration = entryFocusGeneration, onEntryFocusHandled = onEntryFocusHandled)
+        return
+    }
+    home.providerDiscovery?.takeIf { it.browser != null }?.let {
+        NaviampDiscoveryBrowserUi(it, colors, actions, discoveryPlayback, television = true,
+            entryFocusGeneration = entryFocusGeneration, onEntryFocusHandled = onEntryFocusHandled)
+        return
+    }
     val sections = televisionHomeSections(home.content.collectionSections)
     val listState = rememberLazyListState()
+    val discoveryScope = rememberCoroutineScope()
     val density = LocalDensity.current
     val contextInsetPx = with(density) { TelevisionHomeFocusedSectionTopInset.roundToPx() }
     val sectionItemKeys = sections.map { section ->
@@ -202,6 +219,20 @@ internal fun TelevisionHome(
                     onSelected = { item -> dispatchHomeCollectionItem(item, actions, mediaActions) },
                     onViewAll = { actions.onCollectionSelected(section.id) },
                 )
+            }
+            home.providerDiscovery?.let { discovery ->
+                item(key = "television-provider-discovery") {
+                    Box(Modifier.onFocusChanged { focus ->
+                        if (focus.hasFocus) discoveryScope.launch {
+                            listState.scrollToItem(sections.size.coerceAtLeast(1))
+                        }
+                    }) {
+                        NaviampProviderDiscoveryContent(discovery, colors, actions.onDiscoveryArtistSelected,
+                            actions.onDiscoveryArtistDetails, actions.onDiscoveryArtistDismiss,
+                            actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist, actions.onDiscoveryAction, discoveryPlayback,
+                            onRequests = actions.onDiscoveryRequests, onBrowse = actions.onDiscoveryBrowse)
+                    }
+                }
             }
         }
     }
@@ -327,11 +358,7 @@ private fun TelevisionHomeCard(
         onClick = onClick,
         modifier = modifier,
     ) { focused ->
-        val artworkShape = if (item.mediaKind == SharedMediaItemKind.Artist) {
-            RoundedCornerShape(TelevisionHomeCardWidth / 2)
-        } else {
-            RoundedCornerShape(7.dp)
-        }
+        val artworkShape = RoundedCornerShape(resolvedMediaArtworkCornerRadius(item.mediaKind, TelevisionHomeCardWidth, 7.dp))
         HomeCollectionArtwork(
             item,
             colors,
@@ -755,7 +782,7 @@ private fun TelevisionInternetRadioRow(
             .background(if (focused) colors.accent.copy(alpha = 0.34f) else Color.Black.copy(alpha = 0.22f))
             .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
-        NaviampCoverArt(station.item.coverArtUrl, colors, 58.dp, 10.dp)
+        NaviampCoverArt(station.item.coverArtUrl, colors, 58.dp, 10.dp, mediaKind = SharedMediaItemKind.RadioStation)
         Column(verticalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.weight(1f)) {
             Text(
                 station.item.title,
@@ -840,6 +867,7 @@ internal fun TelevisionPlaylists(
                         title = playlist.title,
                         subtitle = playlist.subtitle,
                         coverArtUrl = playlist.coverArtUrl ?: playlist.coverArtUrls.firstOrNull(),
+                        mediaKind = SharedMediaItemKind.Playlist,
                         action = {
                             mediaActions.onMediaItemAction(
                                 playlist.playlistActionRequest(NaviampPlaylistMediaCommand.Select),
@@ -863,14 +891,10 @@ internal data class TelevisionMediaGridItem(
     val title: String,
     val subtitle: String,
     val coverArtUrl: String?,
-    val artworkShape: TelevisionArtworkShape = TelevisionArtworkShape.RoundedSquare,
+    val mediaKind: SharedMediaItemKind,
     val action: () -> Unit,
 )
 
-internal enum class TelevisionArtworkShape {
-    RoundedSquare,
-    Circle,
-}
 
 @Composable
 internal fun TelevisionSearch(
@@ -936,7 +960,7 @@ internal fun TelevisionSearch(
                     title = artist.title,
                     subtitle = artist.subtitle,
                     coverArtUrl = artist.coverArtUrl,
-                    artworkShape = TelevisionArtworkShape.Circle,
+                    mediaKind = SharedMediaItemKind.Artist,
                     action = {
                         mediaActions.onMediaItemAction(artist.artistActionRequest(NaviampArtistMediaCommand.Select))
                     },
@@ -945,14 +969,14 @@ internal fun TelevisionSearch(
         }
         results.albums.forEach { album ->
             add(
-                TelevisionMediaGridItem("album:${album.id}", album.title, album.subtitle, album.coverArtUrl) {
+                TelevisionMediaGridItem("album:${album.id}", album.title, album.subtitle, album.coverArtUrl, SharedMediaItemKind.Album) {
                     mediaActions.onMediaItemAction(album.albumActionRequest(NaviampArtistAlbumCommand.Select))
                 },
             )
         }
         results.tracks.forEach { track ->
             add(
-                TelevisionMediaGridItem("track:${track.id}", track.title, track.subtitle, track.coverArtUrl) {
+                TelevisionMediaGridItem("track:${track.id}", track.title, track.subtitle, track.coverArtUrl, SharedMediaItemKind.Track) {
                     mediaActions.onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Select))
                 },
             )
@@ -962,6 +986,7 @@ internal fun TelevisionSearch(
         if (searchHeaderVisible) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
+                    colors = naviampOutlinedTextFieldColors(colors),
                     value = screen.query,
                     onValueChange = actions.onQueryChanged,
                     label = { Text(stringResource(Res.string.tv_artists_albums_or_tracks)) },
@@ -1099,7 +1124,7 @@ internal fun TelevisionMediaGrid(
                     title = item.title,
                     subtitle = item.subtitle,
                     coverArtUrl = item.coverArtUrl,
-                    artworkShape = item.artworkShape,
+                    mediaKind = item.mediaKind,
                     colors = colors,
                     onFocused = {
                         focusedRowStart = televisionGridRowStart(index, columnCount)
@@ -1175,16 +1200,13 @@ private fun TelevisionMediaGridCard(
     title: String,
     subtitle: String,
     coverArtUrl: String?,
-    artworkShape: TelevisionArtworkShape,
+    mediaKind: SharedMediaItemKind,
     colors: NaviampColors,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onFocused: () -> Unit = {},
 ) {
-    val cornerRadius = when (artworkShape) {
-        TelevisionArtworkShape.RoundedSquare -> 12.dp
-        TelevisionArtworkShape.Circle -> TelevisionGridArtworkSize / 2
-    }
+    val cornerRadius = resolvedMediaArtworkCornerRadius(mediaKind, TelevisionGridArtworkSize, 12.dp)
     val shape = RoundedCornerShape(cornerRadius)
     TelevisionFocusableCard(
         colors = colors,
@@ -1199,6 +1221,7 @@ private fun TelevisionMediaGridCard(
             TelevisionGridArtworkSize,
             cornerRadius,
             Modifier.televisionMediaArtworkFocusEffect(focused, colors, shape),
+            mediaKind = mediaKind,
         )
         TelevisionCardLabels(title, subtitle, colors)
     }
@@ -1401,8 +1424,8 @@ internal fun TelevisionNowPlaying(
     var controlsVisible by remember(interactive) { mutableStateOf(interactive) }
     var interactionSequence by remember { mutableIntStateOf(0) }
     var consumedWakeKey by remember { mutableStateOf<Key?>(null) }
-    LaunchedEffect(controlsVisible, interactionSequence, interactive, queueOpen) {
-        if (interactive && controlsVisible && !queueOpen) {
+    LaunchedEffect(controlsVisible, interactionSequence, interactive, queueOpen, displaySettings.keepTelevisionControlsVisible) {
+        if (interactive && controlsVisible && !queueOpen && !displaySettings.keepTelevisionControlsVisible) {
             delay(TelevisionNowPlayingControlsTimeoutMillis)
             controlsVisible = false
         }
@@ -1482,6 +1505,7 @@ internal fun TelevisionNowPlaying(
                     listeningCoverArtSize,
                     listeningCoverArtRadius,
                     decodeSize = 310.dp,
+                    mediaKind = if (nowPlaying.isLive) SharedMediaItemKind.RadioStation else SharedMediaItemKind.Track,
                 )
                 if (queueOpen) {
                     TelevisionNowPlayingQueue(
@@ -1619,14 +1643,16 @@ internal fun TelevisionNowPlaying(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.align(Alignment.Center),
                     ) {
-                        TelevisionIconButton(
-                            nowPlaying.hasPrevious,
-                            NaviampTransportIcons.Previous,
-                            stringResource(Res.string.transport_previous),
-                            colors,
-                            whiteHighlight = true,
-                        ) {
-                            actions.playback(NowPlayingPlaybackAction.Previous)
+                        if (!nowPlaying.isLive) {
+                            TelevisionIconButton(
+                                nowPlaying.hasPrevious,
+                                NaviampTransportIcons.Previous,
+                                stringResource(Res.string.transport_previous),
+                                colors,
+                                whiteHighlight = true,
+                            ) {
+                                actions.playback(NowPlayingPlaybackAction.Previous)
+                            }
                         }
                         TelevisionIconButton(
                             enabled = nowPlaying.canPlayPause,
@@ -1646,14 +1672,16 @@ internal fun TelevisionNowPlaying(
                                 },
                             )
                         }
-                        TelevisionIconButton(
-                            nowPlaying.hasNext,
-                            NaviampTransportIcons.Next,
-                            stringResource(Res.string.transport_next),
-                            colors,
-                            whiteHighlight = true,
-                        ) {
-                            actions.playback(NowPlayingPlaybackAction.Next)
+                        if (!nowPlaying.isLive) {
+                            TelevisionIconButton(
+                                nowPlaying.hasNext,
+                                NaviampTransportIcons.Next,
+                                stringResource(Res.string.transport_next),
+                                colors,
+                                whiteHighlight = true,
+                            ) {
+                                actions.playback(NowPlayingPlaybackAction.Next)
+                            }
                         }
                     }
                     Row(
@@ -1661,21 +1689,23 @@ internal fun TelevisionNowPlaying(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.align(Alignment.CenterEnd),
                     ) {
-                        TelevisionIconButton(
-                            nowPlaying.lyricsAvailable,
-                            NaviampTransportIcons.Lyrics,
-                            stringResource(Res.string.settings_lyrics_title),
-                            colors,
-                            size = TelevisionNowPlayingSecondaryButtonSize,
-                            iconSize = TelevisionNowPlayingSecondaryIconSize,
-                            selected = nowPlaying.lyricsVisible && !queueOpen,
-                            whiteHighlight = true,
-                        ) {
-                            if (queueOpen) {
-                                queueOpen = false
-                                if (!nowPlaying.lyricsVisible) actions.display(NowPlayingDisplayAction.ToggleLyrics)
-                            } else {
-                                actions.display(NowPlayingDisplayAction.ToggleLyrics)
+                        if (!nowPlaying.isLive) {
+                            TelevisionIconButton(
+                                nowPlaying.lyricsAvailable,
+                                NaviampTransportIcons.Lyrics,
+                                stringResource(Res.string.settings_lyrics_title),
+                                colors,
+                                size = TelevisionNowPlayingSecondaryButtonSize,
+                                iconSize = TelevisionNowPlayingSecondaryIconSize,
+                                selected = nowPlaying.lyricsVisible && !queueOpen,
+                                whiteHighlight = true,
+                            ) {
+                                if (queueOpen) {
+                                    queueOpen = false
+                                    if (!nowPlaying.lyricsVisible) actions.display(NowPlayingDisplayAction.ToggleLyrics)
+                                } else {
+                                    actions.display(NowPlayingDisplayAction.ToggleLyrics)
+                                }
                             }
                         }
                         TelevisionIconButton(
@@ -1693,44 +1723,50 @@ internal fun TelevisionNowPlaying(
                             queueActionItem = null
                             queueReorder = null
                         }
-                        TelevisionIconButton(
-                            nowPlaying.canFavorite,
-                            if (nowPlaying.favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart,
-                            stringResource(Res.string.tv_favorite),
-                            colors,
-                            size = TelevisionNowPlayingSecondaryButtonSize,
-                            iconSize = TelevisionNowPlayingSecondaryIconSize,
-                            selected = nowPlaying.favoriteActive,
-                            whiteHighlight = true,
-                            selectedKeepsDarkBackground = true,
-                            iconTint = Color(0xFFFF4D5A).takeIf { nowPlaying.favoriteActive },
-                        ) {
-                            actions.currentTrack(NowPlayingCurrentTrackAction.ToggleFavorite)
+                        if (!nowPlaying.isLive) {
+                            TelevisionIconButton(
+                                nowPlaying.canFavorite,
+                                if (nowPlaying.favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart,
+                                stringResource(Res.string.tv_favorite),
+                                colors,
+                                size = TelevisionNowPlayingSecondaryButtonSize,
+                                iconSize = TelevisionNowPlayingSecondaryIconSize,
+                                selected = nowPlaying.favoriteActive,
+                                whiteHighlight = true,
+                                selectedKeepsDarkBackground = true,
+                                iconTint = Color(0xFFFF4D5A).takeIf { nowPlaying.favoriteActive },
+                            ) {
+                                actions.currentTrack(NowPlayingCurrentTrackAction.ToggleFavorite)
+                            }
                         }
-                        TelevisionIconButton(
-                            enabled = nowPlaying.canRepeat,
-                            icon = NaviampTransportIcons.Repeat,
-                            description = televisionRepeatModeDescription(nowPlaying.repeatMode),
-                            colors = colors,
-                            size = TelevisionNowPlayingSecondaryButtonSize,
-                            iconSize = TelevisionNowPlayingSecondaryIconSize,
-                            selected = nowPlaying.repeatMode != NaviampRepeatMode.Off,
-                            centerText = naviampRepeatIconCenterText(nowPlaying.repeatMode),
-                            whiteHighlight = true,
-                        ) {
-                            actions.playback(NowPlayingPlaybackAction.CycleRepeatMode)
+                        if (!nowPlaying.isLive) {
+                            TelevisionIconButton(
+                                enabled = nowPlaying.canRepeat,
+                                icon = NaviampTransportIcons.Repeat,
+                                description = televisionRepeatModeDescription(nowPlaying.repeatMode),
+                                colors = colors,
+                                size = TelevisionNowPlayingSecondaryButtonSize,
+                                iconSize = TelevisionNowPlayingSecondaryIconSize,
+                                selected = nowPlaying.repeatMode != NaviampRepeatMode.Off,
+                                centerText = naviampRepeatIconCenterText(nowPlaying.repeatMode),
+                                whiteHighlight = true,
+                            ) {
+                                actions.playback(NowPlayingPlaybackAction.CycleRepeatMode)
+                            }
                         }
-                        TelevisionIconButton(
-                            nowPlaying.shuffleEnabled,
-                            NaviampTransportIcons.Shuffle,
-                            stringResource(Res.string.transport_shuffle),
-                            colors,
-                            size = TelevisionNowPlayingSecondaryButtonSize,
-                            iconSize = TelevisionNowPlayingSecondaryIconSize,
-                            selected = nowPlaying.shuffleActive,
-                            whiteHighlight = true,
-                        ) {
-                            actions.playback(NowPlayingPlaybackAction.ToggleShuffle)
+                        if (!nowPlaying.isLive) {
+                            TelevisionIconButton(
+                                nowPlaying.shuffleEnabled,
+                                NaviampTransportIcons.Shuffle,
+                                stringResource(Res.string.transport_shuffle),
+                                colors,
+                                size = TelevisionNowPlayingSecondaryButtonSize,
+                                iconSize = TelevisionNowPlayingSecondaryIconSize,
+                                selected = nowPlaying.shuffleActive,
+                                whiteHighlight = true,
+                            ) {
+                                actions.playback(NowPlayingPlaybackAction.ToggleShuffle)
+                            }
                         }
                         TelevisionIconButton(
                             true,
@@ -1798,6 +1834,7 @@ private fun TelevisionNowPlayingQueue(
             meta = nowPlaying.albumLine.ifBlank { nowPlaying.albumTitle },
             coverArtUrl = nowPlaying.coverArtUrl,
             artistCredits = nowPlaying.artistCredits,
+            mediaKind = if (nowPlaying.isLive) SharedMediaItemKind.RadioStation else SharedMediaItemKind.Track,
         )
     }
     LaunchedEffect(Unit) {
@@ -1985,7 +2022,7 @@ private fun TelevisionQueueRow(
             )
             .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
-        NaviampCoverArt(item.coverArtUrl, colors, 48.dp, 7.dp)
+        NaviampCoverArt(item.coverArtUrl, colors, 48.dp, 7.dp, mediaKind = item.mediaKind)
         Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
             Text(
                 item.title,
@@ -2067,7 +2104,7 @@ internal fun TelevisionMiniPlayer(
             .background(Color.Black.copy(alpha = 0.34f), shape)
             .padding(horizontal = 12.dp, vertical = 5.dp),
     ) {
-        NaviampCoverArt(nowPlaying.coverArtUrl, colors, 36.dp, 6.dp)
+        NaviampCoverArt(nowPlaying.coverArtUrl, colors, 36.dp, 6.dp, mediaKind = if (nowPlaying.isLive) SharedMediaItemKind.RadioStation else SharedMediaItemKind.Track)
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 nowPlaying.title,

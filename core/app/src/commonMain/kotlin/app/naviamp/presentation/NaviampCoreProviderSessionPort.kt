@@ -57,6 +57,9 @@ interface NaviampCoreProviderSessionPort {
 
     fun initialInventory(): NaviampCoreConnectionInventory = NaviampCoreConnectionInventory()
 
+    /** Publishes repository changes made outside connection commands, such as settings import. */
+    fun replaceSavedConnections(connections: List<NaviampCoreSavedConnectionRecord>) = Unit
+
     suspend fun connect(
         request: NaviampCoreConnectionRequest,
         plan: NaviampConnectionAttemptPlan,

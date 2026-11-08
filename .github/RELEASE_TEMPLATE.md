@@ -37,6 +37,11 @@ Write this for someone deciding whether to update, not as an internal developmen
 - [See every change since X.Y.W](https://github.com/goosepod/naviamp/compare/vX.Y.W...vX.Y.Z)
 - [View the release milestone](https://github.com/goosepod/naviamp/milestone/NUMBER?closed=1)
 
+## Thanks
+
+- Thanks to [@CONTRIBUTOR](https://github.com/CONTRIBUTOR) for describing their contribution.
+- Welcome first-time contributor [@NEW_CONTRIBUTOR](https://github.com/NEW_CONTRIBUTOR), who contributed to this release.
+
 <!--
 Release-author guidance:
 
@@ -59,7 +64,18 @@ Release-author guidance:
 - Use ordinary sentence case for headings and prose.
 - Link user-facing bullets to their GitHub issue and pull request. Link a specific commit only when
   that exact commit is materially useful; the pull request already provides the normal commit trail.
-- Use absolute GitHub URLs so links work both on GitHub and when the body is forwarded to Discord.
+- Use absolute GitHub URLs so links work outside the repository and in copied release notes.
+- Credit community contributors on each relevant change (for example, “Reported by @REPORTER;
+  fixed by @AUTHOR”), linking their public profiles and accurately identifying their roles.
+- Deduplicate contributors in Thanks and include non-code contributions. Verify first-time status
+  using prior release acknowledgments and repository history, including reports and testing.
+  First-time means a contributor's first release acknowledgment for contributing to Naviamp.
+  Honor anonymous attribution requests. Remove Thanks if there are no community contributors.
+- Carry the same Thanks credits into the About-page release changelog and Discord/Discussion
+  announcements, even when those channels use a shorter description of the release.
+- About-page changelogs, Discord posts, and similar announcements retain plain bulleted change
+  lists without issue, PR, or commit references or per-change credits. Only add Thanks to those
+  formats. Prepare this plain-list version for Discord instead of forwarding this detailed body.
 - Put internal refactors under Improvements only when users experience a meaningful result. Omit
   purely internal work from the public notes unless it affects compatibility, security, packaging,
   or future maintenance in a way users should understand.

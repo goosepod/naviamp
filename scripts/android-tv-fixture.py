@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
-"""Loopback-only, credential-free Subsonic/audio fixture for disposable TV emulators.
+"""Credential-free Subsonic/audio fixture for disposable TV acceptance profiles.
 
 Use adb reverse tcp:18080 tcp:18080. Never forwards traffic to another server.
+Loopback is the default; an explicit private IPv4 bind supports physical Wi-Fi recovery tests.
 GET /_test/off and /_test/on simulate transport loss/recovery; /_test/status is telemetry.
 """
 import argparse
+from pathlib import Path
+import ipaddress
 import json
 import math
+import re
 import socket
 import struct
 import threading
@@ -15,6 +19,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
 parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--bind-address', default='127.0.0.1', help='Loopback or an explicitly selected private LAN IPv4 address')
+parser.add_argument('--port', type=int, default=18080, help='HTTP port; 0 selects an available test port')
+parser.add_argument('--artwork', action='store_true', help='Serve deterministic opaque covers for visible player acceptance')
+parser.add_argument('--silent', action='store_true', help='Serve silent PCM for unattended native playback tests')
+parser.add_argument('--sonic', action='store_true', help='Advertise deterministic Sonic matches for queue-end acceptance')
 parser.add_argument('--burst-seconds', type=float, default=125)
 parser.add_argument('--track-seconds', type=int, default=600)
 parser.add_argument('--tracks', type=int, default=1)
@@ -26,6 +35,15 @@ parser.add_argument('--long-metadata', action='store_true', help='Overflow all p
 parser.add_argument('--mixed-metadata', action='store_true', help='Provide one short track and long metadata on remaining tracks for animation isolation')
 parser.add_argument('--accounts', action='store_true', help='Return distinct catalogs for each fixture username')
 args = parser.parse_args()
+if not 0 <= args.port <= 65535:
+    parser.error('port must be 0..65535')
+try:
+    bind_address = ipaddress.IPv4Address(args.bind_address)
+    private_lans = ('10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16')
+    if not (bind_address.is_loopback or any(bind_address in ipaddress.IPv4Network(net) for net in private_lans)):
+        raise ValueError('only loopback or private LAN addresses are allowed')
+except ValueError as error:
+    parser.error(str(error))
 if args.mixed_metadata and (args.long_metadata or args.tracks < 2):
     parser.error('mixed metadata requires at least two tracks and cannot be combined with long metadata')
 if not (0 <= args.burst_seconds <= 600 and 30 <= args.track_seconds <= 600 and 1 <= args.tracks <= 240 and 1 <= args.albums <= args.tracks and args.tracks % args.albums == 0):
@@ -55,7 +73,13 @@ if args.long_metadata or args.mixed_metadata:
     for i, album in enumerate(ALBUMS):
         track = TRACKS[i * PER_ALBUM]
         album.update(name=track['album'], artist=track['artist'])
-PCM = b"".join(struct.pack("<h", int(1200 * math.sin(2 * math.pi * 440 * i / RATE))) for i in range(RATE))
+COVERS = tuple((Path(__file__).parent / 'animation-probe' / 'fixtures' / f'artwork-{i}.png').read_bytes()
+               for i in range(2)) if args.artwork else ()
+if args.artwork:
+    for i, item in enumerate(TRACKS): item['coverArt'] = f'fixture-cover-{i % 2}'
+    for i, item in enumerate(ALBUMS): item['coverArt'] = f'fixture-cover-{i % 2}'
+
+PCM = bytes(RATE * 2) if args.silent else b"".join(struct.pack("<h", int(1200 * math.sin(2 * math.pi * 440 * i / RATE))) for i in range(RATE))
 DATA = struct.pack('<4sI4s4sIHHIIHH4sI', b'RIFF', 36+len(PCM)*args.track_seconds, b'WAVE', b'fmt ',16,1,1,RATE,RATE*2,2,16,b'data',len(PCM)*args.track_seconds) + PCM*args.track_seconds
 lock = threading.Lock()
 offline = False
@@ -65,17 +89,28 @@ reports = []
 bytes_sent = 0
 max_active_streams = 0
 rejected_accounts = set()
+stream_requests = []
+failure_range = None
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_): pass
     def do_CONNECT(self): self.send_error(403, "Fixture never proxies traffic")
     def do_GET(self):
-        global offline, bytes_sent
+        global offline, bytes_sent, failure_range
         parsed = urlsplit(self.path)
-        if parsed.hostname and parsed.hostname not in ('127.0.0.1', 'localhost'):
+        if parsed.hostname and parsed.hostname not in ('127.0.0.1', 'localhost', str(bind_address)):
             self.send_error(403); return
         path = parsed.path
         if path.startswith('/_test/'):
+            parameters = parse_qs(parsed.query)
+            if path.endswith('/fail-range'):
+                try:
+                    minimum = int(parameters['minimum'][0])
+                    track_id = parameters['id'][0]
+                    if not (0 <= minimum < len(DATA)) or track_id not in [track['id'] for track in TRACKS]:
+                        raise ValueError()
+                except (KeyError, ValueError, IndexError):
+                    self.send_error(400, 'A valid fixture track and minimum byte are required'); return
             with lock:
                 account = parse_qs(parsed.query).get('user', [''])[0]
                 if args.accounts and path.endswith('/reject'): rejected_accounts.add(account)
@@ -85,20 +120,46 @@ class Handler(BaseHTTPRequestHandler):
                     for stream in list(streams):
                         try: stream.shutdown(socket.SHUT_RDWR)
                         except OSError: pass
-                elif path.endswith('/on'): offline = False
-                payload = dict(config=dict(tracks=args.tracks, albums=args.albums, trackSeconds=args.track_seconds, burstSeconds=args.burst_seconds, sampleRate=RATE), maxActiveStreams=max_active_streams, offline=offline, activeStreams=len(streams), requests=dict(counts), reports=list(reports), bytesSent=bytes_sent)
+                elif path.endswith('/on'):
+                    offline = False
+                    failure_range = None
+                elif path.endswith('/fail-range'):
+                    failure_range = dict(id=track_id, minimum=minimum)
+                payload = dict(config=dict(tracks=args.tracks, albums=args.albums, trackSeconds=args.track_seconds, burstSeconds=args.burst_seconds, sampleRate=RATE, bindAddress=str(bind_address), silent=args.silent), maxActiveStreams=max_active_streams, offline=offline, activeStreams=len(streams), requests=dict(counts), reports=list(reports), bytesSent=bytes_sent, streamRequests=list(stream_requests), armedRangeFailure=failure_range)
             return self.json(payload)
         action = path.rsplit('/',1)[-1].removesuffix('.view')
+        query = parse_qs(parsed.query)
         with lock:
             counts[action] = counts.get(action, 0)+1
+            requested_range = re.fullmatch(r'bytes=(\d+)-(\d*)', self.headers.get('Range', ''))
+            triggered = bool(action == 'stream' and failure_range and query.get('id') == [failure_range['id']] and
+                requested_range and int(requested_range[1]) >= failure_range['minimum'])
+            if triggered:
+                offline = True
+                failure_range = None
+                for stream in list(streams):
+                    try: stream.shutdown(socket.SHUT_RDWR)
+                    except OSError: pass
             unavailable = offline
+            if action == 'stream':
+                # Allowlist seek diagnostics; never record authentication query parameters.
+                stream_requests.append(dict(at=time.time(), offline=unavailable, triggeredFault=triggered, range=self.headers.get('Range'),
+                    query={key: query[key] for key in ('id', 'format', 'maxBitRate', 'timeOffset') if key in query}))
+                del stream_requests[:-200]
         if unavailable: self.send_error(503); return
-        query = parse_qs(parsed.query)
         account = query.get('u', ['fixture'])[0]
         if args.accounts and account in rejected_accounts:
             return self.json({'subsonic-response': dict(status='failed', version='1.16.1', error=dict(code=40, message='Fixture session expired'))})
         if args.accounts and 'id' in query:
             query['id'] = [value.removeprefix(account + ':') for value in query['id']]
+        if action == 'getCoverArt' and args.artwork:
+            image = COVERS[1 if query.get('id', [''])[0].endswith('1') else 0]
+            self.send_response(200)
+            self.send_header('Content-Type', 'image/png')
+            self.send_header('Content-Length', str(len(image)))
+            self.end_headers()
+            self.wfile.write(image)
+            return
         if action == 'stream': return self.audio()
         if action == 'live': return self.audio(live=True)
         if action == 'scrobble':
@@ -116,10 +177,12 @@ class Handler(BaseHTTPRequestHandler):
             'getSong': {'song': next((track for track in TRACKS if track['id'] == query.get('id', [''])[0]), TRACKS[0])},
             'search3': {'searchResult3': {'song':TRACKS, 'album':ALBUMS, 'artist':[]}},
             'getRandomSongs': {'randomSongs': {'song':TRACKS}},
+            'getSimilarSongs': {'similarSongs': {'song': [track for track in TRACKS if track['id'] != query.get('id', [''])[0]][:max(0, int(query.get('count', ['50'])[0]))]}},
+            'getSimilarSongs2': {'similarSongs2': {'song': TRACKS[:max(0, int(query.get('count', ['50'])[0]))]}},
             'getStarred2': {'starred2': {'song':[], 'album':[], 'artist':[]}},
             'getPlaylists': {'playlists': {'playlist':[]}},
             'getGenres': {'genres': {'genre':[]}},
-            'getInternetRadioStations': {'internetRadioStations': {'internetRadioStation':[dict(id='fixture-radio', name='TV live fixture', streamUrl='http://127.0.0.1:18080/live')]}},
+            'getInternetRadioStations': {'internetRadioStations': {'internetRadioStation':[dict(id='fixture-radio', name='TV live fixture', streamUrl=f'http://{bind_address}:{args.port}/live')]}},
             'getOpenSubsonicExtensions': {'openSubsonicExtensions':[]},
         }
         if action == 'getAlbumList2' and int(query.get('offset', ['0'])[0]) > 0:
@@ -129,6 +192,15 @@ class Handler(BaseHTTPRequestHandler):
                 if int(query.get(kind + 'Offset', ['0'])[0]) > 0 or query.get(kind + 'Count') == ['0']:
                     responses[action]['searchResult3'][kind] = []
         response.update(responses.get(action, {}))
+        if args.sonic:
+            if action == 'getOpenSubsonicExtensions':
+                response['openSubsonicExtensions'] = [dict(name='sonicSimilarity', versions=[1])]
+            elif action == 'getSonicSimilarTracks':
+                seed = next((i for i, track in enumerate(TRACKS) if track['id'] == query.get('id', [''])[0]), 0)
+                candidates = TRACKS[seed + 1:] + TRACKS[:seed]
+                count = max(0, int(query.get('count', ['50'])[0]))
+                response['sonicMatch'] = [dict(entry=track, similarity=1.0 - i * .001)
+                                          for i, track in enumerate(candidates[:count])]
         if args.accounts:
             playlist = dict(id='account-playlist', name=account + ' playlist', songCount=1, owner=account, public=False)
             if action == 'getPlaylists': response['playlists'] = dict(playlist=[playlist])
@@ -152,16 +224,25 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Length',str(len(data))); self.end_headers(); self.wfile.write(data)
     def audio(self, live=False):
         global bytes_sent, max_active_streams
-        start = 0
+        start, end = 0, len(DATA) - 1
         unknown = live or args.unknown_length
-        if not unknown and self.headers.get('Range','').startswith('bytes='):
-            start = int(self.headers['Range'][6:].split('-')[0] or 0)
-        if start >= len(DATA): self.send_error(416); return
-        self.send_response(206 if start else 200)
+        range_header = None if unknown else self.headers.get('Range')
+        if range_header is not None:
+            match = re.fullmatch(r'bytes=(\d+)-(\d*)', range_header)
+            if match:
+                start = int(match[1])
+                end = min(int(match[2]), end) if match[2] else end
+            if not match or start > end or start >= len(DATA):
+                self.send_response(416)
+                self.send_header('Content-Range', f'bytes */{len(DATA)}')
+                self.send_header('Content-Length', '0')
+                self.end_headers()
+                return
+        self.send_response(206 if range_header is not None else 200)
         self.send_header('Content-Type','audio/wav')
         if not unknown: self.send_header('Accept-Ranges','bytes')
-        if start: self.send_header('Content-Range',f'bytes {start}-{len(DATA)-1}/{len(DATA)}')
-        if not unknown: self.send_header('Content-Length',str(len(DATA)-start))
+        if range_header is not None: self.send_header('Content-Range',f'bytes {start}-{end}/{len(DATA)}')
+        if not unknown: self.send_header('Content-Length',str(end-start+1))
         self.end_headers()
         with lock:
             streams.add(self.connection)
@@ -178,13 +259,17 @@ class Handler(BaseHTTPRequestHandler):
                     with lock: bytes_sent += len(PCM)
                     time.sleep(1)
             chunk_size = 8192 if RATE == 16000 else RATE // 2
-            for offset in range(start,len(DATA),chunk_size):
-                self.wfile.write(DATA[offset:offset+chunk_size]); self.wfile.flush()
-                with lock: bytes_sent += len(DATA[offset:offset+chunk_size])
+            for offset in range(start,end+1,chunk_size):
+                chunk = DATA[offset:min(offset+chunk_size,end+1)]
+                self.wfile.write(chunk); self.wfile.flush()
+                with lock: bytes_sent += len(chunk)
                 if offset - start >= args.burst_seconds * RATE * 2: time.sleep(0.25)
         except (OSError, ConnectionError): pass
         finally:
             with lock: streams.discard(self.connection)
 
 if __name__ == '__main__':
-    ThreadingHTTPServer(('127.0.0.1',18080),Handler).serve_forever()
+    server = ThreadingHTTPServer((str(bind_address), args.port), Handler)
+    args.port = server.server_port
+    print(f'Fixture ready at http://{bind_address}:{args.port}', flush=True)
+    server.serve_forever()

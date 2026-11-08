@@ -126,7 +126,7 @@ private fun fixture(profiles: Map<PlaybackProfileTarget, PlaybackProfile> = empt
         queue = NaviampPlaybackQueueCoordinator(live),
         effects = effects,
         publishNowPlaying = {},
-        openNowPlaying = {},
+        openNowPlaying = { effects.playerOpenCount++ },
         activeSourceId = { "source-1" },
         profiles = MapPlaybackProfileRepository(profiles),
     )
@@ -147,9 +147,12 @@ private class QueuePlaybackEffects : NaviampCorePlaybackEffectPort {
     override val capabilities = NaviampCorePlaybackCapabilities()
     override val playbackSource = PlaybackSource.ProviderStream
     var appliedQueue: PlaybackQueue? = null
+    var playerOpenCount = 0
+    var pauses = 0
+    var resumes = 0
 
-    override fun pause() = Unit
-    override fun resume() = Unit
+    override fun pause() { pauses++ }
+    override fun resume() { resumes++ }
     override fun startOrRestore() = true
     override fun seek(positionSeconds: Double) = Unit
     override fun replayCurrent(positionSeconds: Double) = Unit

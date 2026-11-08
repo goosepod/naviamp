@@ -15,6 +15,32 @@ import kotlin.test.assertTrue
 
 class DesktopBassJniBindingIntegrationTest {
     @Test
+    fun randomAccessCallbacksCloseAfterFailedCreationAndRecoverForValidAudio() {
+        val binding = requireBinding()
+        fun callbacks(bytes: ByteArray) = app.naviamp.domain.playback.BassFileCallbacks(
+            object : app.naviamp.domain.playback.PlaybackRandomAccessSource {
+                override val lengthBytes = bytes.size.toLong()
+                override suspend fun read(offset: Long, count: Int) =
+                    bytes.copyOfRange(offset.toInt(), minOf(bytes.size.toLong(), offset + count).toInt())
+            },
+        )
+        try {
+            assertTrue(binding.initForIntegrationTest())
+            val invalid = callbacks(ByteArray(64))
+            assertEquals(0, binding.createRandomAccessStream(invalid, true))
+            assertTrue(!invalid.seek(0), "Failed native creation must close its callback cursor")
+            val valid = callbacks(silentWavBytes())
+            val stream = binding.createRandomAccessStream(valid, true)
+            assertTrue(stream != 0, "Valid media must still open after failed native creation: ${binding.lastErrorCode}")
+            try {
+                assertTrue(binding.seek(stream, 0.5))
+                assertTrue(binding.readFloatData(stream, FloatArray(256)) > 0)
+            } finally { assertTrue(binding.freeStream(stream)) }
+            assertTrue(!valid.seek(0), "Native stream release must close its callback cursor")
+        } finally { binding.free() }
+    }
+
+    @Test
     fun loadsBundledJniBinding() {
         val binding = requireBinding()
 

@@ -12,6 +12,23 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class StorageMediaSourceStoreTest {
+    @Test fun aurralReclassificationRetainsProtectedCredentialsAndCachedMediaAcrossStoreRecreation() {
+        withDatabase { database ->
+            val store = StorageMediaSourceStore(database.naviampStorageQueries, nowMillis = { 42L },
+                credentialProtector = ReversingCredentialProtector)
+            val original = store.upsertProviderMediaSource(providerConnection(), "subsonic:music", "subsonic")
+            database.naviampStorageQueries.insertTestCachedAudio(original.id, "track-1", "/known/track-1.flac")
+            store.upsertProviderMediaSource(providerConnection().copy(nativeToken = null, password = null),
+                "aurral:music", "aurral", preferredSourceId = original.id)
+            val reopened = StorageMediaSourceStore(database.naviampStorageQueries, nowMillis = { 43L },
+                credentialProtector = ReversingCredentialProtector)
+            val saved = reopened.mediaSource(original.id)!!
+            assertEquals("aurral", saved.providerId)
+            assertEquals(providerConnection().password, saved.password)
+            assertEquals("/known/track-1.flac", database.naviampStorageQueries.selectCachedAudioForSource(original.id).executeAsOne().file_path)
+            assertEquals(1, reopened.mediaSources().size)
+        }
+    }
     @Test
     fun apiKeyModeProtectsTheKeyAndDropsAnObsoletePassword() {
         withDatabase { database ->

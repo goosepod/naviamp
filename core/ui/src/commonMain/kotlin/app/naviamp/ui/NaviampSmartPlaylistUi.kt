@@ -1,6 +1,5 @@
 package app.naviamp.ui
 
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,14 +7,33 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.LinearProgressIndicator
+import app.naviamp.domain.library.LibrarySyncProgress
+import app.naviamp.domain.library.LibrarySyncProgressPhase
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.key
+import app.naviamp.domain.smartplaylist.moveCondition
+import app.naviamp.domain.smartplaylist.moveGroup
+import app.naviamp.domain.smartplaylist.moveSort
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -30,11 +48,16 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.platform.testTag
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.naviamp.domain.smartplaylist.SmartPlaylistReference
+import app.naviamp.domain.smartplaylist.smartPlaylistReferenceMatches
+import app.naviamp.domain.smartplaylist.referencesPlaylist
+import app.naviamp.domain.smartplaylist.selectOperator
 import app.naviamp.domain.smartplaylist.SmartPlaylistConditionDraft
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
+import app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult
+import app.naviamp.domain.smartplaylist.inspectSmartPlaylistJson
 import app.naviamp.domain.smartplaylist.SmartPlaylistDraft
 import app.naviamp.domain.smartplaylist.SmartPlaylistFieldCatalog
 import app.naviamp.domain.smartplaylist.SmartPlaylistFieldOption
@@ -53,14 +76,27 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistValueType
 import app.naviamp.domain.smartplaylist.displayLabel
 import app.naviamp.domain.smartplaylist.smartPlaylistGenreSuggestions
 import app.naviamp.domain.smartplaylist.updated
+import app.naviamp.domain.smartplaylist.usesCalendarDate
 import app.naviamp.domain.smartplaylist.valueLabel
+import app.naviamp.domain.smartplaylist.validate
+import app.naviamp.domain.smartplaylist.SmartPlaylistValidationIssue
+import app.naviamp.domain.smartplaylist.SmartPlaylistIssueCode
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.ui.generated.resources.Res
 import app.naviamp.ui.generated.resources.*
 import androidx.compose.ui.window.PopupProperties
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import org.jetbrains.compose.resources.stringResource
+
+private val LocalSmartPlaylistLibraries = androidx.compose.runtime.staticCompositionLocalOf<List<ConnectionFormMusicFolder>> { emptyList() }
 
 @Composable
 fun SmartPlaylistBuilderDialog(
@@ -71,14 +107,18 @@ fun SmartPlaylistBuilderDialog(
     availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
     selectedConnectionLibraryIds: List<String> = emptyList(),
     genreCatalog: List<SmartPlaylistGenreOption> = emptyList(),
+    currentPlaylistId: String? = null,
+    onReferences: suspend () -> List<SmartPlaylistReference> = { emptyList() },
     onPreview: suspend (SmartPlaylistDefinition) -> SmartPlaylistPreview = {
         SmartPlaylistPreview(message = "Preview is not available for this connection.")
     },
+    onSyncLibrary: NaviampSmartPlaylistSync? = null,
     onDismissRequest: () -> Unit,
     onSave: suspend (SmartPlaylistDefinition) -> Unit,
     onSaveWithPassword: (suspend (SmartPlaylistDefinition, String) -> Unit)? = null,
+    scrollState: androidx.compose.foundation.ScrollState = rememberScrollState(),
 ) {
-    var draft by remember(initialDraft, selectedConnectionLibraryIds) {
+    var draft by remember(initialDraft) {
         mutableStateOf(
             if (initialDraft.selectedLibraryIds == null && selectedConnectionLibraryIds.size > 1) {
                 initialDraft.copy(selectedLibraryIds = selectedConnectionLibraryIds)
@@ -87,9 +127,18 @@ fun SmartPlaylistBuilderDialog(
             },
         )
     }
+    LaunchedEffect(selectedConnectionLibraryIds) {
+        if (draft.selectedLibraryIds == null && selectedConnectionLibraryIds.size > 1) {
+            draft = draft.copy(selectedLibraryIds = selectedConnectionLibraryIds)
+        }
+    }
+    var inspection by remember { mutableStateOf<SmartPlaylistEditingResult?>(null) }
+    val unsupportedImportMessage = stringResource(Res.string.smart_playlist_unsupported_import)
     var importJson by remember { mutableStateOf("") }
     var importMessage by remember { mutableStateOf<String?>(null) }
     var importOpen by remember { mutableStateOf(false) }
+    var optionsOpen by remember { mutableStateOf(false) }
+    var advancedOpen by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var saveMessage by remember { mutableStateOf<String?>(null) }
     var passwordPromptOpen by remember { mutableStateOf(false) }
@@ -99,36 +148,75 @@ fun SmartPlaylistBuilderDialog(
     var pendingPasswordDefinition by remember { mutableStateOf<SmartPlaylistDefinition?>(null) }
     var livePreview by remember { mutableStateOf<SmartPlaylistPreview?>(null) }
     var previewLoading by remember { mutableStateOf(false) }
+    var librarySyncing by remember { mutableStateOf(false) }
+    var librarySyncProgress by remember { mutableStateOf<LibrarySyncProgress?>(null) }
+    var librarySyncJob by remember { mutableStateOf<Job?>(null) }
+    var librarySyncStopped by remember { mutableStateOf(false) }
+    var librarySyncFailed by remember { mutableStateOf(false) }
+    var librarySyncCompleted by remember { mutableStateOf(false) }
+    var previewRevision by remember { mutableStateOf(0) }
     val coroutineScope = rememberCoroutineScope()
-    val definition = remember(draft) {
-        runCatching { draft.toDefinition() }
+    var references by remember { mutableStateOf<List<SmartPlaylistReference>>(emptyList()) }
+    var referencesLoading by remember { mutableStateOf(true) }
+    var referencesFailed by remember { mutableStateOf(false) }
+    var referencesRevision by remember { mutableStateOf(0) }
+    LaunchedEffect(onReferences, referencesRevision) {
+        referencesLoading = true
+        referencesFailed = false
+        try {
+            val loaded = onReferences()
+            currentCoroutineContext().ensureActive()
+            references = loaded
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            referencesFailed = true
+        } finally {
+            referencesLoading = false
+        }
     }
-    val jsonPreview = definition.getOrNull()?.toNspJson() ?: definition.exceptionOrNull()?.message.orEmpty()
+    val selfReferenceMessage = stringResource(Res.string.smart_playlist_reference_self)
+    val definition = remember(draft, currentPlaylistId, selfReferenceMessage) {
+        runCatching {
+            draft.toDefinition().also {
+                require(currentPlaylistId == null || !it.referencesPlaylist(currentPlaylistId)) { selfReferenceMessage }
+            }
+        }
+    }
+    val validationIssues = remember(draft) { draft.validate() }
+    val validationMessage = stringResource(Res.string.smart_playlist_validation_fix)
+    val jsonPreview = definition.getOrNull()?.toNspJson() ?: validationMessage
 
-    LaunchedEffect(definition.getOrNull()) {
+    LaunchedEffect(draft, librarySyncing, previewRevision) {
         livePreview = null
         previewLoading = false
+        if (librarySyncing) return@LaunchedEffect
         val definitionToPreview = definition.getOrNull() ?: return@LaunchedEffect
         delay(SmartPlaylistPreviewDebounceMillis)
         previewLoading = true
-        livePreview = runCatching { onPreview(definitionToPreview) }
+        val result = runCatching { onPreview(definitionToPreview) }
             .getOrElse { error ->
+                if (error is CancellationException) throw error
                 SmartPlaylistPreview(message = error.message ?: "Could not preview this smart playlist.")
             }
+        currentCoroutineContext().ensureActive()
+        livePreview = result
         previewLoading = false
     }
 
     NaviampPopupPresence()
 
     NaviampAlertDialog(
-        onDismissRequest = onDismissRequest,
+        onDismissRequest = { librarySyncJob?.cancel(); onDismissRequest() },
         title = { Text(title) },
         text = {
+            androidx.compose.runtime.CompositionLocalProvider(LocalSmartPlaylistLibraries provides availableLibraries) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 560.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(scrollState)
+                    .testTag("smart-playlist-editor-scroll"),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 SmartPlaylistSection(
@@ -174,79 +262,191 @@ fun SmartPlaylistBuilderDialog(
                         }
                     }
                 }
-                SmartPlaylistSection(
-                    title = "Import",
-                    colors = colors,
-                ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = { importOpen = !importOpen }) {
-                            Text(if (importOpen) "Hide import" else "Import JSON", color = colors.accent)
-                        }
-                        importMessage?.let { message ->
-                            Text(message, color = colors.secondaryText, fontSize = 12.sp, modifier = Modifier.weight(1f))
-                        }
-                    }
-                    if (importOpen) {
-                        OutlinedTextField(
-                            value = importJson,
-                            onValueChange = {
-                                importJson = it
-                                importMessage = null
-                            },
-                            label = { Text("Paste .nsp or Navidrome smart playlist JSON", color = colors.secondaryText) },
-                            minLines = 4,
-                            maxLines = 8,
-                            textStyle = TextStyle(fontSize = 12.sp),
-                            modifier = Modifier.fillMaxWidth().naviampTextInputFocus(),
-                        )
-                        TextButton(
-                            enabled = importJson.isNotBlank(),
-                            onClick = {
-                                runCatching {
-                                    SmartPlaylistDefinition.fromNspJson(importJson)
-                                }.onSuccess { imported ->
-                                    draft = SmartPlaylistDraft.fromDefinition(imported)
-                                    importMessage = "Imported ${imported.name}."
-                                    importOpen = false
-                                }.onFailure { error ->
-                                    importMessage = error.message ?: "Could not import smart playlist JSON."
-                                }
-                            },
-                        ) {
-                            Text("Validate and load", color = colors.accent)
-                        }
-                    }
-                }
                 SmartPlaylistCustomControls(
                     colors = colors,
                     draft = draft,
-                    availableLibraries = availableLibraries,
-                    selectedConnectionLibraryIds = selectedConnectionLibraryIds,
                     genreCatalog = genreCatalog,
+                    validationIssues = validationIssues,
+                    references = references,
+                    referencesLoading = referencesLoading,
+                    referencesFailed = referencesFailed,
+                    currentPlaylistId = currentPlaylistId,
+                    onReferencesRetry = { referencesRevision++ },
                     onDraftChange = { draft = it },
                 )
+                TextButton(modifier = Modifier.testTag("smart-playlist-options-toggle"), onClick = { optionsOpen = !optionsOpen }) {
+                    Text(stringResource(Res.string.smart_playlist_options))
+                }
+                if (optionsOpen) SmartPlaylistOptionsControls(colors, draft, availableLibraries, selectedConnectionLibraryIds) { draft = it }
+                if (availableLibraries.isEmpty() && definition.getOrNull()?.libraryIds?.isNotEmpty() == true) {
+                    Text(stringResource(if (referencesLoading) Res.string.library_sources_loading else Res.string.library_sources_load_failed),
+                        color = colors.secondaryText, fontSize = 12.sp)
+                    if (!referencesLoading) TextButton(onClick = { referencesRevision++ }) {
+                        Text(stringResource(Res.string.library_sources_retry))
+                    }
+                }
+                definition.getOrNull()?.let { SmartPlaylistSummarySection(it, colors, references, availableLibraries) }
+                validationIssues.filter {
+                    it.location.conditionId == null && it.location.groupId == null &&
+                        (it.code != SmartPlaylistIssueCode.InvalidRefreshDelay || !optionsOpen)
+                }.forEach {
+                    Text(smartPlaylistIssueMessage(it), color = colors.favorite, fontSize = 12.sp)
+                }
+                if (definition.exceptionOrNull()?.message == selfReferenceMessage) {
+                    Text(selfReferenceMessage, color = colors.favorite,
+                        modifier = Modifier.semantics { error(selfReferenceMessage); liveRegion = LiveRegionMode.Polite })
+                }
                 saveMessage?.let { message ->
                     Text(message, color = colors.secondaryText, fontSize = 12.sp)
                 }
+                if (onSyncLibrary != null) {
+                    if (!librarySyncCompleted && !librarySyncing && livePreview?.indexedTrackCount == 0) {
+                        Text(stringResource(Res.string.smart_playlist_sync_description), color = colors.secondaryText,
+                            fontSize = 12.sp, modifier = Modifier.testTag("smart-playlist-sync-hint"))
+                    }
+                    TextButton(
+                        modifier = Modifier.testTag("smart-playlist-sync-library"),
+                        enabled = !librarySyncing,
+                        onClick = {
+                            if (!librarySyncing) {
+                                librarySyncing = true
+                                librarySyncFailed = false
+                                librarySyncStopped = false
+                                librarySyncProgress = null
+                                librarySyncJob = coroutineScope.launch {
+                                    try {
+                                        val editorContext = currentCoroutineContext()
+                                        onSyncLibrary { progress ->
+                                            withContext(editorContext) { librarySyncProgress = progress }
+                                        }
+                                        currentCoroutineContext().ensureActive()
+                                        librarySyncCompleted = true
+                                        previewRevision++
+                                    } catch (error: CancellationException) {
+                                        throw error
+                                    } catch (error: Exception) {
+                                        librarySyncFailed = true
+                                    } finally {
+                                        librarySyncing = false
+                                    }
+                                }
+                            }
+                        },
+                    ) {
+                        Text(stringResource(if (librarySyncing) Res.string.smart_playlist_sync_running else Res.string.smart_playlist_sync_library))
+                    }
+                    if (librarySyncing) {
+                        val progress = librarySyncProgress
+                        val count = progress?.trackCount ?: 0
+                        val total = progress?.total?.takeIf { it > 0 }
+                        val label = when {
+                            progress?.phase == LibrarySyncProgressPhase.LoadingAlbums ->
+                                stringResource(Res.string.smart_playlist_sync_albums, progress.albumCount)
+                            total != null -> stringResource(Res.string.smart_playlist_sync_tracks_total, count, total)
+                            else -> stringResource(Res.string.smart_playlist_sync_tracks, count)
+                        }
+                        Column(Modifier.fillMaxWidth().testTag("smart-playlist-sync-progress")
+                            .semantics { liveRegion = LiveRegionMode.Polite }) {
+                            Text(label, color = colors.secondaryText, fontSize = 12.sp)
+                            if (total != null) {
+                                LinearProgressIndicator(progress = { (count.toFloat() / total).coerceIn(0f, 1f) },
+                                    modifier = Modifier.fillMaxWidth(), color = colors.accent,
+                                    trackColor = colors.mutedText.copy(alpha = 0.25f))
+                            }
+                            TextButton(onClick = {
+                                librarySyncStopped = true
+                                librarySyncJob?.cancel()
+                            }, modifier = Modifier.testTag("smart-playlist-stop-sync")) {
+                                Text(stringResource(Res.string.smart_playlist_sync_stop))
+                            }
+                        }
+                    }
+                    if (librarySyncStopped && !librarySyncing) {
+                        Text(stringResource(Res.string.smart_playlist_sync_stopped), color = colors.secondaryText, fontSize = 12.sp)
+                    }
+                    if (librarySyncFailed) {
+                        Text(
+                            stringResource(Res.string.smart_playlist_sync_failed),
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                            color = colors.favorite, fontSize = 12.sp,
+                        )
+                    }
+                }
                 SmartPlaylistPreviewSection(
                     colors = colors,
-                    preview = livePreview,
-                    loading = previewLoading,
+                    preview = livePreview.takeIf { definition.isSuccess },
+                    loading = previewLoading || librarySyncing,
+                    invalid = definition.isFailure,
                 )
-                SmartPlaylistSection(
-                    title = "Generated JSON",
-                    colors = colors,
-                ) {
-                    OutlinedTextField(
-                        value = jsonPreview,
-                        onValueChange = {},
-                        readOnly = true,
-                        minLines = 6,
-                        maxLines = 10,
-                        textStyle = TextStyle(fontSize = 12.sp),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                TextButton(modifier = Modifier.testTag("smart-playlist-advanced-toggle"), onClick = { advancedOpen = !advancedOpen }) {
+                    Text(stringResource(Res.string.smart_playlist_advanced))
                 }
+                if (advancedOpen) {
+                    SmartPlaylistSection(
+                        title = "Import",
+                        colors = colors,
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick = { importOpen = !importOpen }) {
+                                Text(if (importOpen) "Hide import" else "Import JSON", color = colors.accent)
+                            }
+                            importMessage?.let { message ->
+                                Text(message, color = colors.secondaryText, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                            }
+                        }
+                        if (importOpen) {
+                            SmartPlaylistOutlinedTextField(
+                                colors = colors,
+                                value = importJson,
+                                onValueChange = {
+                                    importJson = it
+                                    importMessage = null
+                                },
+                                label = "Paste .nsp or Navidrome smart playlist JSON",
+                                minLines = 4,
+                                maxLines = 8,
+                                textStyle = TextStyle(fontSize = 12.sp),
+                                modifier = Modifier.fillMaxWidth().naviampTextInputFocus(),
+                            )
+                            TextButton(
+                                enabled = importJson.isNotBlank(),
+                                onClick = {
+                                    runCatching {
+                                        inspectSmartPlaylistJson(importJson)
+                                    }.onSuccess { imported ->
+                                        if (imported !is SmartPlaylistEditingResult.Editable) {
+                                            inspection = imported
+                                            return@onSuccess
+                                        }
+                                        draft = SmartPlaylistDraft.fromDefinition(imported.definition)
+                                        importMessage = "Imported ${imported.definition.name}."
+                                        importOpen = false
+                                    }.onFailure {
+                                        importMessage = unsupportedImportMessage
+                                    }
+                                },
+                            ) {
+                                Text("Validate and load", color = colors.accent)
+                            }
+                        }
+                    }
+                    SmartPlaylistSection(
+                        title = "Generated JSON",
+                        colors = colors,
+                    ) {
+                        SmartPlaylistOutlinedTextField(
+                            colors = colors,
+                            value = jsonPreview,
+                            onValueChange = {},
+                            readOnly = true,
+                            minLines = 6,
+                            maxLines = 10,
+                            textStyle = TextStyle(fontSize = 12.sp),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            }
             }
         },
         confirmButton = {
@@ -291,6 +491,9 @@ fun SmartPlaylistBuilderDialog(
         titleContentColor = colors.primaryText,
         textContentColor = colors.secondaryText,
     )
+    inspection?.let { editing ->
+        SmartPlaylistInspectionDialog(editing, colors) { inspection = null }
+    }
     if (passwordPromptOpen) {
         val pendingDefinition = pendingPasswordDefinition
         NaviampPopupPresence()
@@ -311,14 +514,15 @@ fun SmartPlaylistBuilderDialog(
                         color = colors.secondaryText,
                         fontSize = 12.sp,
                     )
-                    OutlinedTextField(
+                    SmartPlaylistOutlinedTextField(
+                        colors = colors,
                         modifier = Modifier.fillMaxWidth().testTag(SmartPlaylistPasswordFieldTestTag).naviampTextInputFocus(),
                         value = password,
                         onValueChange = {
                             password = it
                             passwordError = null
                         },
-                        label = { Text("Password", color = colors.secondaryText) },
+                        label = "Password",
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         textStyle = TextStyle(fontSize = 13.sp),
@@ -391,9 +595,11 @@ internal fun SmartPlaylistLoadPasswordDialog(
     playlist: SharedMediaItemUi,
     colors: NaviampColors,
     onDismissRequest: () -> Unit,
-    onLoadWithPassword: suspend (SharedMediaItemUi, String) -> SmartPlaylistDefinition,
+    onInspectWithPassword: suspend (SharedMediaItemUi, String) -> SmartPlaylistEditingResult,
+    onReadOnly: (SmartPlaylistEditingResult) -> Unit,
     onLoaded: (SmartPlaylistDefinition) -> Unit,
 ) {
+    val unsupportedImportMessage = stringResource(Res.string.smart_playlist_unsupported_import)
     var password by remember(playlist.id) { mutableStateOf("") }
     var loading by remember(playlist.id) { mutableStateOf(false) }
     var errorMessage by remember(playlist.id) { mutableStateOf<String?>(null) }
@@ -411,14 +617,15 @@ internal fun SmartPlaylistLoadPasswordDialog(
                     color = colors.secondaryText,
                     fontSize = 12.sp,
                 )
-                OutlinedTextField(
+                SmartPlaylistOutlinedTextField(
+                    colors = colors,
                     modifier = Modifier.fillMaxWidth().testTag(SmartPlaylistLoadPasswordFieldTestTag).naviampTextInputFocus(),
                     value = password,
                     onValueChange = {
                         password = it
                         errorMessage = null
                     },
-                    label = { Text("Password", color = colors.secondaryText) },
+                    label = "Password",
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     textStyle = TextStyle(fontSize = 13.sp),
@@ -437,14 +644,16 @@ internal fun SmartPlaylistLoadPasswordDialog(
                     loading = true
                     errorMessage = null
                     coroutineScope.launch {
-                        runCatching { onLoadWithPassword(playlist, passwordToUse) }
-                            .onSuccess { definition ->
+                        runCatching { onInspectWithPassword(playlist, passwordToUse) }
+                            .onSuccess { editing ->
                                 loading = false
-                                onLoaded(definition)
+                                if (editing is SmartPlaylistEditingResult.Editable) onLoaded(editing.definition)
+                                else onReadOnly(editing)
                             }
                             .onFailure { error ->
                                 loading = false
-                                errorMessage = error.message ?: "Could not authenticate with Navidrome."
+                                errorMessage = if (error is IllegalArgumentException) unsupportedImportMessage
+                                    else error.message ?: "Could not authenticate with Navidrome."
                             }
                     }
                 },
@@ -464,19 +673,255 @@ internal fun SmartPlaylistLoadPasswordDialog(
 }
 
 @Composable
-private fun SmartPlaylistCustomControls(
+internal fun SmartPlaylistCustomControls(
+    colors: NaviampColors,
+    draft: SmartPlaylistDraft,
+    genreCatalog: List<SmartPlaylistGenreOption>,
+    validationIssues: List<SmartPlaylistValidationIssue>,
+    references: List<SmartPlaylistReference>,
+    referencesLoading: Boolean,
+    referencesFailed: Boolean,
+    currentPlaylistId: String?,
+    onReferencesRetry: () -> Unit,
+
+    onDraftChange: (SmartPlaylistDraft) -> Unit,
+) {
+    SmartPlaylistSection(title = "Filters", colors = colors) {
+        SmartPlaylistDropdown(
+            label = "Match",
+            value = when (draft.match) {
+                SmartPlaylistMatch.All -> "All rules"
+                SmartPlaylistMatch.Any -> "Any rule"
+            },
+            colors = colors,
+            options = listOf("All rules" to SmartPlaylistMatch.All, "Any rule" to SmartPlaylistMatch.Any),
+            onSelected = { onDraftChange(draft.copy(match = it)) },
+        )
+        draft.conditions.forEachIndexed { index, condition ->
+            key(condition.id) {
+                SmartPlaylistRuleControls(
+                    title = "Filter ${index + 1}",
+                    movement = {
+                        SmartPlaylistMovementControls("smart-playlist-rule-${condition.id}", index, draft.conditions.size, colors) {
+                            onDraftChange(draft.moveCondition(condition.id, it))
+                        }
+                    },
+                    colors = colors,
+                    condition = condition,
+                    genreCatalog = genreCatalog,
+                    references = references,
+                    referencesLoading = referencesLoading,
+                    referencesFailed = referencesFailed,
+                    currentPlaylistId = currentPlaylistId,
+                    onReferencesRetry = onReferencesRetry,
+                    issues = validationIssues.filter { it.location.conditionId == condition.id },
+                    onConditionChange = { updatedCondition ->
+                        onDraftChange(draft.copy(conditions = draft.conditions.updated(index, updatedCondition.copy(isStarter = false))))
+                    },
+                    onRemove = if (draft.conditions.size > 1 || draft.groups.isNotEmpty()) {
+                        { onDraftChange(draft.copy(conditions = draft.conditions.filterIndexed { i, _ -> i != index })) }
+                    } else {
+                        null
+                    },
+                )
+            }
+        }
+        TextButton(
+            onClick = { onDraftChange(draft.copy(conditions = draft.conditions + SmartPlaylistConditionDraft())) },
+        ) {
+            Text("Add filter", color = colors.accent)
+        }
+    }
+
+    SmartPlaylistSection(title = "Groups", colors = colors) {
+        draft.groups.forEachIndexed { groupIndex, group ->
+            key(group.id) {
+                SmartPlaylistNestedSection(
+                    title = "Group ${groupIndex + 1}",
+                    colors = colors,
+                    trailing = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            SmartPlaylistMovementControls("smart-playlist-group-${group.id}", groupIndex, draft.groups.size, colors) {
+                                onDraftChange(draft.moveGroup(group.id, it))
+                            }
+                            TextButton(
+                                onClick = { onDraftChange(draft.copy(groups = draft.groups.filterIndexed { i, _ -> i != groupIndex })) },
+                            ) {
+                                Text("Remove", color = colors.secondaryText, fontSize = 12.sp)
+                            }
+                        }
+                    },
+                ) {
+                    validationIssues.filter { it.location.groupId == group.id && it.location.conditionId == null }.forEach {
+                        Text(smartPlaylistIssueMessage(it), color = colors.favorite, fontSize = 12.sp)
+                    }
+                    SmartPlaylistDropdown(
+                        label = "Match",
+                        value = when (group.match) {
+                            SmartPlaylistMatch.All -> "All group rules"
+                            SmartPlaylistMatch.Any -> "Any group rule"
+                        },
+                        colors = colors,
+                        options = listOf("All group rules" to SmartPlaylistMatch.All, "Any group rule" to SmartPlaylistMatch.Any),
+                        onSelected = { match ->
+                            onDraftChange(draft.copy(groups = draft.groups.updated(groupIndex, group.copy(match = match))))
+                        },
+                    )
+                    group.conditions.forEachIndexed { conditionIndex, condition ->
+                        key(condition.id) {
+                            SmartPlaylistRuleControls(
+                                title = "Filter ${conditionIndex + 1}",
+                                movement = {
+                                    SmartPlaylistMovementControls("smart-playlist-rule-${condition.id}", conditionIndex, group.conditions.size, colors) {
+                                        onDraftChange(draft.moveCondition(condition.id, it, group.id))
+                                    }
+                                },
+                                colors = colors,
+                                condition = condition,
+                                genreCatalog = genreCatalog,
+                        references = references,
+                        referencesLoading = referencesLoading,
+                        referencesFailed = referencesFailed,
+                        currentPlaylistId = currentPlaylistId,
+                        onReferencesRetry = onReferencesRetry,
+                                issues = validationIssues.filter { it.location.conditionId == condition.id },
+                                onConditionChange = { updatedCondition ->
+                                    onDraftChange(
+                                        draft.copy(
+                                            groups = draft.groups.updated(
+                                                groupIndex,
+                                                group.copy(conditions = group.conditions.updated(conditionIndex, updatedCondition.copy(isStarter = false))),
+                                            ),
+                                        ),
+                                    )
+                                },
+                                onRemove = if (group.conditions.size > 1) {
+                                    {
+                                        onDraftChange(
+                                            draft.copy(
+                                                groups = draft.groups.updated(
+                                                    groupIndex,
+                                                    group.copy(conditions = group.conditions.filterIndexed { i, _ -> i != conditionIndex }),
+                                                ),
+                                            ),
+                                        )
+                                    }
+                                } else {
+                                    null
+                                },
+                            )
+                        }
+                    }
+                    TextButton(
+                        onClick = {
+                            onDraftChange(
+                                draft.copy(
+                                    groups = draft.groups.updated(
+                                        groupIndex,
+                                        group.copy(conditions = group.conditions + SmartPlaylistConditionDraft()),
+                                    ),
+                                ),
+                            )
+                        },
+                    ) {
+                        Text("Add group filter", color = colors.accent)
+                    }
+                }
+            }
+        }
+        TextButton(
+            onClick = { onDraftChange(draft.copy(groups = draft.groups + SmartPlaylistGroupDraft())) },
+        ) {
+            Text("Add group", color = colors.accent)
+        }
+    }
+
+    SmartPlaylistSection(title = "Sort and Limit", colors = colors) {
+        draft.sort.forEachIndexed { index, sort ->
+            key(sort.id) {
+                SmartPlaylistNestedSection(
+                    title = "Sort ${index + 1}",
+                    colors = colors,
+                    trailing = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            SmartPlaylistMovementControls("smart-playlist-sort-${sort.id}", index, draft.sort.size, colors) {
+                                onDraftChange(draft.moveSort(sort.id, it))
+                            }
+                            TextButton(
+                                onClick = { onDraftChange(draft.copy(sort = draft.sort.filterIndexed { i, _ -> i != index })) },
+                            ) {
+                                Text("Remove", color = colors.secondaryText, fontSize = 12.sp)
+                            }
+                        }
+                    },
+                ) {
+                    SmartPlaylistDropdown(
+                        label = "Field",
+                        value = smartPlaylistFieldLabel(sort.field),
+                        colors = colors,
+                        options = SmartPlaylistFieldCatalog.sortableFields
+                            .smartPlaylistMenuOrder(CommonSmartPlaylistSortFields)
+                            .map { smartPlaylistFieldLabel(it) to it },
+                        onSelected = { field ->
+                            onDraftChange(draft.copy(sort = draft.sort.updated(index, sort.copy(field = field))))
+                        },
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = sort.descending,
+                            onCheckedChange = { checked ->
+                                onDraftChange(draft.copy(sort = draft.sort.updated(index, sort.copy(descending = checked))))
+                            },
+                        )
+                        Text("Descending", color = colors.secondaryText, fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+        TextButton(
+            onClick = { onDraftChange(draft.copy(sort = draft.sort + SmartPlaylistSortDraft())) },
+        ) {
+            Text("Add sort", color = colors.accent)
+        }
+        SmartPlaylistDropdown(
+            label = "Limit",
+            value = when (draft.limitMode) {
+                SmartPlaylistLimitMode.Unlimited -> stringResource(Res.string.smart_playlist_limit_unlimited)
+                SmartPlaylistLimitMode.TrackCount -> stringResource(Res.string.smart_playlist_limit_tracks)
+                SmartPlaylistLimitMode.Percent -> stringResource(Res.string.smart_playlist_limit_percent)
+            },
+            colors = colors,
+            options = listOf(
+                stringResource(Res.string.smart_playlist_limit_unlimited) to SmartPlaylistLimitMode.Unlimited,
+                stringResource(Res.string.smart_playlist_limit_tracks) to SmartPlaylistLimitMode.TrackCount,
+                stringResource(Res.string.smart_playlist_limit_percent) to SmartPlaylistLimitMode.Percent,
+            ),
+            onSelected = { onDraftChange(draft.copy(limitMode = it)) },
+        )
+        if (draft.limitMode != SmartPlaylistLimitMode.Unlimited) SmartPlaylistTextField(
+            value = draft.limit.toString(),
+            onValueChange = { onDraftChange(draft.copy(limit = it.toIntOrNull() ?: draft.limit)) },
+            label = if (draft.limitMode == SmartPlaylistLimitMode.Percent) "Limit percent" else "Track limit",
+            colors = colors,
+        )
+
+    }
+}
+
+
+@Composable
+private fun SmartPlaylistOptionsControls(
     colors: NaviampColors,
     draft: SmartPlaylistDraft,
     availableLibraries: List<ConnectionFormMusicFolder>,
     selectedConnectionLibraryIds: List<String>,
-    genreCatalog: List<SmartPlaylistGenreOption>,
     onDraftChange: (SmartPlaylistDraft) -> Unit,
 ) {
     if (selectedConnectionLibraryIds.size > 1) {
         val selectedIds = draft.selectedLibraryIds.orEmpty().toSet()
         val libraries = selectedConnectionLibraryIds.map { id ->
             availableLibraries.firstOrNull { library -> library.id == id }
-                ?: ConnectionFormMusicFolder(id = id, name = id)
+                ?: ConnectionFormMusicFolder(id = id, name = smartPlaylistLibraryName(id, availableLibraries))
         }
         SmartPlaylistSection(title = "Libraries", colors = colors) {
             Text(
@@ -508,180 +953,7 @@ private fun SmartPlaylistCustomControls(
             }
         }
     }
-    SmartPlaylistSection(title = "Filters", colors = colors) {
-        SmartPlaylistDropdown(
-            label = "Match",
-            value = when (draft.match) {
-                SmartPlaylistMatch.All -> "All rules"
-                SmartPlaylistMatch.Any -> "Any rule"
-            },
-            colors = colors,
-            options = listOf("All rules" to SmartPlaylistMatch.All, "Any rule" to SmartPlaylistMatch.Any),
-            onSelected = { onDraftChange(draft.copy(match = it)) },
-        )
-        draft.conditions.forEachIndexed { index, condition ->
-            SmartPlaylistRuleControls(
-                title = "Filter ${index + 1}",
-                colors = colors,
-                condition = condition,
-                genreCatalog = genreCatalog,
-                onConditionChange = { updatedCondition ->
-                    onDraftChange(draft.copy(conditions = draft.conditions.updated(index, updatedCondition)))
-                },
-                onRemove = if (draft.conditions.size > 1) {
-                    { onDraftChange(draft.copy(conditions = draft.conditions.filterIndexed { i, _ -> i != index })) }
-                } else {
-                    null
-                },
-            )
-        }
-        TextButton(
-            onClick = { onDraftChange(draft.copy(conditions = draft.conditions + SmartPlaylistConditionDraft())) },
-        ) {
-            Text("Add filter", color = colors.accent)
-        }
-    }
-
-    SmartPlaylistSection(title = "Groups", colors = colors) {
-        draft.groups.forEachIndexed { groupIndex, group ->
-            SmartPlaylistNestedSection(
-                title = "Group ${groupIndex + 1}",
-                colors = colors,
-                trailing = {
-                    TextButton(
-                        onClick = { onDraftChange(draft.copy(groups = draft.groups.filterIndexed { i, _ -> i != groupIndex })) },
-                    ) {
-                        Text("Remove", color = colors.secondaryText, fontSize = 12.sp)
-                    }
-                },
-            ) {
-                SmartPlaylistDropdown(
-                    label = "Match",
-                    value = when (group.match) {
-                        SmartPlaylistMatch.All -> "All group rules"
-                        SmartPlaylistMatch.Any -> "Any group rule"
-                    },
-                    colors = colors,
-                    options = listOf("All group rules" to SmartPlaylistMatch.All, "Any group rule" to SmartPlaylistMatch.Any),
-                    onSelected = { match ->
-                        onDraftChange(draft.copy(groups = draft.groups.updated(groupIndex, group.copy(match = match))))
-                    },
-                )
-                group.conditions.forEachIndexed { conditionIndex, condition ->
-                    SmartPlaylistRuleControls(
-                        title = "Filter ${conditionIndex + 1}",
-                        colors = colors,
-                        condition = condition,
-                        genreCatalog = genreCatalog,
-                        onConditionChange = { updatedCondition ->
-                            onDraftChange(
-                                draft.copy(
-                                    groups = draft.groups.updated(
-                                        groupIndex,
-                                        group.copy(conditions = group.conditions.updated(conditionIndex, updatedCondition)),
-                                    ),
-                                ),
-                            )
-                        },
-                        onRemove = if (group.conditions.size > 1) {
-                            {
-                                onDraftChange(
-                                    draft.copy(
-                                        groups = draft.groups.updated(
-                                            groupIndex,
-                                            group.copy(conditions = group.conditions.filterIndexed { i, _ -> i != conditionIndex }),
-                                        ),
-                                    ),
-                                )
-                            }
-                        } else {
-                            null
-                        },
-                    )
-                }
-                TextButton(
-                    onClick = {
-                        onDraftChange(
-                            draft.copy(
-                                groups = draft.groups.updated(
-                                    groupIndex,
-                                    group.copy(conditions = group.conditions + SmartPlaylistConditionDraft()),
-                                ),
-                            ),
-                        )
-                    },
-                ) {
-                    Text("Add group filter", color = colors.accent)
-                }
-            }
-        }
-        TextButton(
-            onClick = { onDraftChange(draft.copy(groups = draft.groups + SmartPlaylistGroupDraft())) },
-        ) {
-            Text("Add group", color = colors.accent)
-        }
-    }
-
-    SmartPlaylistSection(title = "Sort and Limit", colors = colors) {
-        draft.sort.forEachIndexed { index, sort ->
-            SmartPlaylistNestedSection(
-                title = "Sort ${index + 1}",
-                colors = colors,
-                trailing = if (draft.sort.size > 1) {
-                    {
-                        TextButton(
-                            onClick = { onDraftChange(draft.copy(sort = draft.sort.filterIndexed { i, _ -> i != index })) },
-                        ) {
-                            Text("Remove", color = colors.secondaryText, fontSize = 12.sp)
-                        }
-                    }
-                } else {
-                    null
-                },
-            ) {
-                SmartPlaylistDropdown(
-                    label = "Field",
-                    value = smartPlaylistFieldLabel(sort.field),
-                    colors = colors,
-                    options = SmartPlaylistFieldCatalog.sortableFields
-                        .smartPlaylistMenuOrder(CommonSmartPlaylistSortFields)
-                        .map { smartPlaylistFieldLabel(it) to it },
-                    onSelected = { field ->
-                        onDraftChange(draft.copy(sort = draft.sort.updated(index, sort.copy(field = field))))
-                    },
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(
-                        checked = sort.descending,
-                        onCheckedChange = { checked ->
-                            onDraftChange(draft.copy(sort = draft.sort.updated(index, sort.copy(descending = checked))))
-                        },
-                    )
-                    Text("Descending", color = colors.secondaryText, fontSize = 12.sp)
-                }
-            }
-        }
-        TextButton(
-            onClick = { onDraftChange(draft.copy(sort = draft.sort + SmartPlaylistSortDraft())) },
-        ) {
-            Text("Add sort", color = colors.accent)
-        }
-        SmartPlaylistDropdown(
-            label = "Limit",
-            value = when (draft.limitMode) {
-                SmartPlaylistLimitMode.TrackCount -> "Track count"
-                SmartPlaylistLimitMode.Percent -> "Percent"
-            },
-            colors = colors,
-            options = listOf("Track count" to SmartPlaylistLimitMode.TrackCount, "Percent" to SmartPlaylistLimitMode.Percent),
-            onSelected = { onDraftChange(draft.copy(limitMode = it)) },
-        )
-        SmartPlaylistTextField(
-            value = draft.limit.toString(),
-            onValueChange = { onDraftChange(draft.copy(limit = it.toIntOrNull() ?: draft.limit)) },
-            label = if (draft.limitMode == SmartPlaylistLimitMode.Percent) "Limit percent" else "Track limit",
-            colors = colors,
-        )
+    SmartPlaylistSection(title = stringResource(Res.string.smart_playlist_options), colors = colors) {
         SmartPlaylistTextField(
             value = draft.refreshDelay,
             onValueChange = { onDraftChange(draft.copy(refreshDelay = it)) },
@@ -717,16 +989,25 @@ private fun SmartPlaylistRuleControls(
     colors: NaviampColors,
     condition: SmartPlaylistConditionDraft,
     genreCatalog: List<SmartPlaylistGenreOption>,
+    issues: List<SmartPlaylistValidationIssue>,
+    references: List<SmartPlaylistReference>,
+    referencesLoading: Boolean,
+    referencesFailed: Boolean,
+    currentPlaylistId: String?,
+    onReferencesRetry: () -> Unit,
+
     onConditionChange: (SmartPlaylistConditionDraft) -> Unit,
     onRemove: (() -> Unit)?,
+    movement: @Composable () -> Unit,
 ) {
     SmartPlaylistNestedSection(
         title = title,
         colors = colors,
-        trailing = onRemove?.let { remove ->
-            {
-                TextButton(onClick = remove) {
-                    Text("Remove", color = colors.secondaryText, fontSize = 12.sp)
+        trailing = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                movement()
+                onRemove?.let { remove ->
+                    TextButton(onClick = remove) { Text("Remove", color = colors.secondaryText, fontSize = 12.sp) }
                 }
             }
         },
@@ -757,7 +1038,7 @@ private fun SmartPlaylistRuleControls(
             options = condition.field.operators.map { it.displayLabel() to it },
             onSelected = { operator ->
                 onConditionChange(
-                    condition.copy(operator = operator, value = "", secondValue = "", genreSelection = null),
+                    condition.selectOperator(operator),
                 )
             },
         )
@@ -765,68 +1046,122 @@ private fun SmartPlaylistRuleControls(
             colors = colors,
             condition = condition,
             genreCatalog = genreCatalog,
+            references = references,
+            referencesLoading = referencesLoading,
+            referencesFailed = referencesFailed,
+            currentPlaylistId = currentPlaylistId,
+            onReferencesRetry = onReferencesRetry,
             onConditionChange = onConditionChange,
         )
         if (condition.operator == SmartPlaylistOperator.InTheRange) {
-            SmartPlaylistTextField(
+            SmartPlaylistOperandField(
+                calendarDate = condition.usesCalendarDate(),
                 value = condition.secondValue,
                 onValueChange = { value -> onConditionChange(condition.copy(secondValue = value)) },
-                label = "End value",
+                label = stringResource(Res.string.smart_playlist_end_value),
                 colors = colors,
+            )
+        }
+        issues.forEach { issue ->
+            val message = smartPlaylistIssueMessage(issue)
+            Text(
+                message, color = colors.favorite, fontSize = 12.sp,
+                modifier = Modifier.testTag("smart-playlist-rule-error-${condition.id}")
+                    .semantics { error(message); liveRegion = LiveRegionMode.Polite },
             )
         }
     }
 }
 
 @Composable
+private fun smartPlaylistIssueMessage(issue: SmartPlaylistValidationIssue): String = stringResource(
+    when (issue.code) {
+        SmartPlaylistIssueCode.RequiredValue, SmartPlaylistIssueCode.RequiredName -> Res.string.smart_playlist_validation_required
+        SmartPlaylistIssueCode.InvalidNumber -> Res.string.smart_playlist_validation_number
+        SmartPlaylistIssueCode.InvalidDate -> Res.string.smart_playlist_validation_date
+        SmartPlaylistIssueCode.InvalidDays -> Res.string.smart_playlist_validation_days
+        SmartPlaylistIssueCode.ReversedRange -> Res.string.smart_playlist_validation_range
+        SmartPlaylistIssueCode.OutOfBounds -> Res.string.smart_playlist_validation_bounds
+        SmartPlaylistIssueCode.InvalidBoolean, SmartPlaylistIssueCode.InvalidChoice -> Res.string.smart_playlist_validation_choice
+        SmartPlaylistIssueCode.UnsupportedOperator, SmartPlaylistIssueCode.InvalidSort -> Res.string.smart_playlist_validation_operation
+        SmartPlaylistIssueCode.EmptyGroup, SmartPlaylistIssueCode.NoRules -> Res.string.smart_playlist_validation_rules
+        SmartPlaylistIssueCode.InvalidLimit -> Res.string.smart_playlist_validation_limit
+        SmartPlaylistIssueCode.InvalidRefreshDelay -> Res.string.smart_playlist_refresh_delay_invalid
+    },
+)
+
+@Composable
 private fun SmartPlaylistPreviewSection(
     colors: NaviampColors,
     preview: SmartPlaylistPreview?,
     loading: Boolean,
+    invalid: Boolean,
 ) {
     SmartPlaylistSection(title = "Preview", colors = colors) {
         Column(
             modifier = Modifier.fillMaxWidth().testTag(SmartPlaylistPreviewTestTag),
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
+            preview?.indexedTrackCount?.let { count ->
+                Text(stringResource(Res.string.smart_playlist_preview_coverage, count), color = colors.secondaryText, fontSize = 12.sp)
+            }
             when {
-                loading -> Text("Checking synced library…", color = colors.secondaryText, fontSize = 12.sp)
-                preview == null -> Text("Waiting for a complete filter…", color = colors.secondaryText, fontSize = 12.sp)
+                invalid -> Text(stringResource(Res.string.smart_playlist_validation_fix), color = colors.favorite, fontSize = 12.sp)
+                loading || preview == null -> Text(stringResource(Res.string.smart_playlist_preview_waiting), color = colors.secondaryText, fontSize = 12.sp)
                 preview.available -> {
                     val matching = preview.matchingTrackCount ?: 0
                     val result = preview.resultTrackCount ?: matching
                     Text(
-                        buildString {
-                            append(if (matching == 1) "1 matching track" else "$matching matching tracks")
-                            if (result != matching) append(" · $result after limit")
-                        },
+                        stringResource(Res.string.smart_playlist_preview_count, matching, result),
                         color = colors.primaryText,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 12.sp,
                     )
-                    preview.exampleTracks.forEach { track ->
-                        Text(
-                            "${track.title} — ${track.artistName}",
-                            color = colors.secondaryText,
-                            fontSize = 11.sp,
-                        )
+                    Text(stringResource(Res.string.smart_playlist_preview_samples), color = colors.secondaryText, fontSize = 12.sp)
+                    if (preview.exampleTracks.isEmpty()) {
+                        Text(stringResource(Res.string.smart_playlist_preview_empty), color = colors.secondaryText, fontSize = 12.sp)
+                    }
+                    if (preview.exampleTracks.isNotEmpty()) {
+                        LazyColumn(Modifier.fillMaxWidth().heightIn(max = 220.dp)
+                            .testTag("smart-playlist-examples"),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(preview.exampleTracks) { track ->
+                                Text(stringResource(Res.string.smart_playlist_preview_track,
+                                    track.title, track.artistName, track.albumTitle.orEmpty()),
+                                    modifier = Modifier.fillMaxWidth().testTag("smart-playlist-example-${track.id.value}"),
+                                    color = colors.primaryText, fontSize = 13.sp,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
                     }
                 }
+                preview.indexedTrackCount == 0 && preview.unsupportedFields.isEmpty() ->
+                    Text(stringResource(Res.string.smart_playlist_preview_no_index), color = colors.secondaryText, fontSize = 12.sp)
                 preview.message != null -> preview.message?.let { message ->
                     Text(message, color = colors.secondaryText, fontSize = 12.sp)
                 }
-                else -> Text(
-                    "Preview unavailable for locally unindexed fields: ${preview.unsupportedFields.joinToString()}.",
-                    color = colors.secondaryText,
-                    fontSize = 12.sp,
-                )
+                else -> {
+                    if (SmartPlaylistFields.LibraryId in preview.unsupportedFields) {
+                        Text(stringResource(Res.string.smart_playlist_preview_library_metadata),
+                            color = colors.secondaryText, fontSize = 12.sp)
+                    }
+                    val otherFields = preview.unsupportedFields.filter { it != SmartPlaylistFields.LibraryId }
+                    if (otherFields.isNotEmpty()) {
+                        val labels = otherFields.map { field ->
+                            SmartPlaylistFieldCatalog.fields.firstOrNull { it.field == field }
+                                ?.let { smartPlaylistFieldLabel(it) } ?: field
+                        }
+                        Text(stringResource(Res.string.smart_playlist_preview_unsupported, labels.joinToString()),
+                            color = colors.secondaryText, fontSize = 12.sp)
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun SmartPlaylistSection(
+internal fun SmartPlaylistSection(
     title: String,
     colors: NaviampColors,
     content: @Composable ColumnScope.() -> Unit,
@@ -834,7 +1169,7 @@ private fun SmartPlaylistSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, colors.border.copy(alpha = 0.75f), RoundedCornerShape(8.dp))
+            .smartPlaylistSectionOutline(colors.border.copy(alpha = 0.75f), 8.dp)
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -844,7 +1179,7 @@ private fun SmartPlaylistSection(
 }
 
 @Composable
-private fun SmartPlaylistNestedSection(
+internal fun SmartPlaylistNestedSection(
     title: String,
     colors: NaviampColors,
     trailing: (@Composable () -> Unit)? = null,
@@ -853,7 +1188,7 @@ private fun SmartPlaylistNestedSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, colors.border.copy(alpha = 0.42f), RoundedCornerShape(6.dp))
+            .smartPlaylistSectionOutline(colors.border.copy(alpha = 0.42f), 6.dp)
             .padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -862,7 +1197,7 @@ private fun SmartPlaylistNestedSection(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(title, color = colors.primaryText, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Text(title, color = colors.primaryText, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.weight(1f))
             trailing?.invoke()
         }
         content()
@@ -874,8 +1209,18 @@ private fun SmartPlaylistConditionValueControls(
     colors: NaviampColors,
     condition: SmartPlaylistConditionDraft,
     genreCatalog: List<SmartPlaylistGenreOption>,
+    references: List<SmartPlaylistReference>,
+    referencesLoading: Boolean,
+    referencesFailed: Boolean,
+    currentPlaylistId: String?,
+    onReferencesRetry: () -> Unit,
     onConditionChange: (SmartPlaylistConditionDraft) -> Unit,
 ) {
+    if (condition.field.valueType == SmartPlaylistValueType.PlaylistId) {
+        SmartPlaylistReferencePicker(condition.value, references, referencesLoading, referencesFailed,
+            currentPlaylistId, onReferencesRetry, colors) { id -> onConditionChange(condition.copy(value = id)) }
+        return
+    }
     if (condition.field.valueType == SmartPlaylistValueType.Boolean ||
         condition.operator == SmartPlaylistOperator.IsMissing ||
         condition.operator == SmartPlaylistOperator.IsPresent
@@ -891,6 +1236,15 @@ private fun SmartPlaylistConditionValueControls(
             options = listOf("True" to "true", "False" to "false"),
             onSelected = { value -> onConditionChange(condition.copy(value = value)) },
         )
+        return
+    }
+
+    val libraries = LocalSmartPlaylistLibraries.current
+    if (condition.field.field == SmartPlaylistFields.LibraryId && libraries.isNotEmpty()) {
+        SmartPlaylistDropdown(label = condition.valueLabel(),
+            value = smartPlaylistLibraryName(condition.value, libraries), colors = colors,
+            options = libraries.map { it.name to it.id },
+            onSelected = { id -> onConditionChange(condition.copy(value = id)) })
         return
     }
 
@@ -928,11 +1282,14 @@ private fun SmartPlaylistConditionValueControls(
             )
         }
     } else {
-        SmartPlaylistTextField(
+        SmartPlaylistOperandField(
+            calendarDate = condition.usesCalendarDate(),
             value = condition.value,
             onValueChange = { value -> onConditionChange(condition.copy(value = value)) },
             label = condition.valueLabel(),
             colors = colors,
+            relativeDays = condition.operator == SmartPlaylistOperator.InTheLast ||
+                condition.operator == SmartPlaylistOperator.NotInTheLast,
         )
     }
 }
@@ -949,13 +1306,14 @@ private fun SmartPlaylistGenreTypeahead(
     var expanded by remember { mutableStateOf(false) }
     val suggestions = smartPlaylistGenreSuggestions(value, genres)
     Box(modifier = Modifier.fillMaxWidth()) {
-        OutlinedTextField(
+        SmartPlaylistOutlinedTextField(
+            colors = colors,
             value = value,
             onValueChange = {
                 onValueChange(it)
                 expanded = it.isNotBlank()
             },
-            label = { Text(label, color = colors.secondaryText) },
+            label = label,
             singleLine = true,
             textStyle = TextStyle(fontSize = 13.sp),
             modifier = Modifier
@@ -1012,18 +1370,20 @@ private fun SmartPlaylistTextField(
     label: String,
     colors: NaviampColors,
 ) {
-    OutlinedTextField(
+    SmartPlaylistOutlinedTextField(
+        colors = colors,
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label, color = colors.secondaryText) },
+        label = label,
         singleLine = true,
         textStyle = TextStyle(fontSize = 13.sp),
         modifier = Modifier.fillMaxWidth().naviampTextInputFocus(),
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun <T> SmartPlaylistDropdown(
+internal fun <T> SmartPlaylistDropdown(
     label: String,
     value: String,
     colors: NaviampColors,
@@ -1035,23 +1395,39 @@ private fun <T> SmartPlaylistDropdown(
     val normalizedQuery = query.trim().takeUnless { it.equals(value, ignoreCase = true) }.orEmpty()
     val visibleOptions = options
         .filter { (optionLabel, _) -> normalizedQuery.isBlank() || optionLabel.contains(normalizedQuery, ignoreCase = true) }
-    Box(modifier = Modifier.fillMaxWidth()) {
-        OutlinedTextField(
+    // Keep the anchor gesture alive across focus/preview recompositions during a held press.
+    val changeExpanded = remember(value) {
+        { requested: Boolean ->
+            expanded = requested
+            if (!requested) query = value
+        }
+    }
+    // Open on completed anchor activation, rather than text-input focus during mouse press.
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = changeExpanded,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        SmartPlaylistOutlinedTextField(
+            colors = colors,
             value = if (expanded) query else value,
             onValueChange = {
                 query = it
                 expanded = true
             },
-            label = { Text(label, color = colors.secondaryText) },
+            label = label,
             singleLine = true,
             textStyle = TextStyle(fontSize = 13.sp),
             modifier = Modifier
                 .fillMaxWidth()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable)
                 .naviampTextInputFocus()
-                .onFocusChanged { focusState ->
-                    if (focusState.isFocused) {
-                        expanded = true
-                    }
+                .onPreviewKeyEvent { event ->
+                    if (expanded && event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
+                        expanded = false
+                        query = value
+                        true
+                    } else false
                 },
         )
         NaviampDropdownMenu(
@@ -1124,7 +1500,7 @@ private fun List<SmartPlaylistFieldOption>.smartPlaylistMenuOrder(commonFields: 
     )
 
 @Composable
-private fun smartPlaylistFieldLabel(option: SmartPlaylistFieldOption): String = when (option.field) {
+internal fun smartPlaylistFieldLabel(option: SmartPlaylistFieldOption): String = when (option.field) {
     SmartPlaylistFields.AlbumDateAdded -> stringResource(Res.string.smart_playlist_field_album_date_added)
     SmartPlaylistFields.AlbumDateModified -> stringResource(Res.string.smart_playlist_field_album_date_modified)
     SmartPlaylistFields.AlbumDuration -> stringResource(Res.string.smart_playlist_field_album_duration)

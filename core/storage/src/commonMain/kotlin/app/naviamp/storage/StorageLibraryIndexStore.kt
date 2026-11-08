@@ -108,6 +108,14 @@ class StorageLibraryIndexStore(
         }
     }
 
+    override fun pruneLibraryTracks(sourceId: String, retainedIds: Set<TrackId>) {
+        val retained = retainedIds.mapTo(hashSetOf()) { it.value }
+        queries.transaction {
+            queries.selectLibraryTrackIdsForSync(sourceId).executeAsList()
+                .filterNot { it in retained }.forEach { queries.deleteLibraryTrackForSync(sourceId, it) }
+        }
+    }
+
     override fun upsertLibraryTracks(sourceId: String, tracks: List<Track>) {
         val now = nowMillis()
         queries.transaction {

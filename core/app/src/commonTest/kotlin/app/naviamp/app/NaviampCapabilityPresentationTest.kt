@@ -8,6 +8,11 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NaviampCapabilityPresentationTest {
+    @Test fun allHostsExposeTheSharedCertificateConfiguration() {
+        val presentation = NaviampCapabilityPresentation(PlatformCapabilities())
+        assertTrue(presentation.customServerCertificates.visible)
+        assertTrue(presentation.clientCertificates.enabled)
+    }
     @Test
     fun unavailableFeaturesAreHiddenAndDisabled() {
         val feature = NaviampCapabilityPresentation(PlatformCapabilities()).downloads

@@ -102,19 +102,27 @@ class ArtistPopularTracksService(
     private val client: ArtistPopularTracksClient,
     private val nowMillis: () -> Long = { currentTimeMillis() },
 ) {
+    private val requestedLimits = mutableMapOf<SessionPopularTracksKey, Int>()
+
     suspend fun popularTracks(
         sourceId: String,
         artist: Artist,
         limit: Int = 10,
         forceRefresh: Boolean = false,
+        ensureRequestedLimit: Boolean = false,
     ): List<ArtistPopularTrackMatch> {
         val source = client.source
         val cached = repository.artistPopularTracks(sourceId, artist.id, source)
-        if (!forceRefresh && cached.isNotEmpty()) return cached.take(limit)
+        val key = SessionPopularTracksKey(sourceId, artist.id, source)
+        if (!forceRefresh && cached.isNotEmpty() && (!ensureRequestedLimit ||
+                cached.size >= limit || (requestedLimits[key] ?: 0) >= limit)) return cached.take(limit)
 
         val result = client.popularTracks(artist, limit)
         val candidates = result.candidates
-        if (candidates.isEmpty()) return cached.take(limit)
+        if (candidates.isEmpty()) {
+            requestedLimits[key] = limit
+            return cached.take(limit)
+        }
 
         val matchedTracks = result.matchedTracksBySourceTrackId.ifEmpty {
             val libraryTracks = libraryTracksForArtist(artist, 5_000)
@@ -128,6 +136,7 @@ class ArtistPopularTracksService(
             matchedTracksBySourceTrackId = matchedTracks,
             fetchedAtEpochMillis = nowMillis(),
         )
+        requestedLimits[key] = limit
         return repository.artistPopularTracks(sourceId, artist.id, result.source).take(limit)
     }
 }

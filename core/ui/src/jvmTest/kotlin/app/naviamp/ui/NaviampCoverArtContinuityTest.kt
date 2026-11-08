@@ -21,14 +21,14 @@ class NaviampCoverArtContinuityTest {
             bytes
         }
         try {
-            setContent { NaviampCoverArt("https://art.invalid/cover", NaviampColors.Dark, size.value, 0.dp) }
-            waitUntil(timeoutMillis = 5_000) { onAllNodesWithContentDescription("Album art").fetchSemanticsNodes().isNotEmpty() }
+            setContent { NaviampCoverArt("https://art.invalid/cover", NaviampColors.Dark, size.value, 0.dp, mediaKind = SharedMediaItemKind.Album) }
+            waitUntil(timeoutMillis = 5_000) { onAllNodesWithTag("cover-art-image", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
             mainClock.advanceTimeBy(300)
             val before = onRoot().captureToImage().toPixelMap()[20, 20]
             runOnIdle { size.value = 160.dp }
             waitUntil(timeoutMillis = 5_000) { calls.get() > 1 }
             mainClock.advanceTimeBy(500)
-            onNodeWithContentDescription("Album art").assertExists()
+            onNodeWithTag("cover-art-image", useUnmergedTree = true).assertExists()
             val during = onRoot().captureToImage().toPixelMap()[20, 20]
             assertEquals(before, during)
         } finally {

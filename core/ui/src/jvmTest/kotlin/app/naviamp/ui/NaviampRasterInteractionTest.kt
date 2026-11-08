@@ -34,6 +34,61 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampRasterInteractionTest {
+    @Test fun cachedProgressStillMovesInTheSharedFallback() = runComposeUiTest {
+        mainClock.autoAdvance = false
+        val clock = kotlin.time.TestTimeSource()
+        val bitmap = androidx.compose.ui.graphics.ImageBitmap(100, 10)
+        androidx.compose.ui.graphics.Canvas(bitmap).drawRect(Rect(0f, 0f, 100f, 10f),
+            androidx.compose.ui.graphics.Paint().apply { color = Color.White })
+        val layer = NaviampRasterLayer(bitmap, reveal = .2f, revealMotion = progressLayerMotion(.2f, 10.0), revealStarted = clock.markNow())
+        clock += kotlin.time.Duration.parse("1s")
+        setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f)) {
+                Box(Modifier.size(100.dp, 10.dp).background(Color.Black).testTag("fallback-progress")) {
+                    NaviampAnimatedRaster(listOf(layer), Modifier.size(100.dp, 10.dp))
+                }
+            }
+        }
+        mainClock.advanceTimeBy(100)
+        assertEquals(Color.White, onNodeWithTag("fallback-progress").captureToImage().toPixelMap()[25, 5])
+        assertEquals(Color.Black, onNodeWithTag("fallback-progress").captureToImage().toPixelMap()[35, 5])
+        mainClock.advanceTimeBy(1000)
+        assertEquals(Color.White, onNodeWithTag("fallback-progress").captureToImage().toPixelMap()[35, 5])
+        assertEquals(Color.Black, onNodeWithTag("fallback-progress").captureToImage().toPixelMap()[45, 5])
+    }
+
+    @Test fun progressRebindingKeepsTheCurrentTimelinePosition() = runComposeUiTest {
+        val clock = kotlin.time.TestTimeSource()
+        val started = clock.markNow()
+        val bitmap = androidx.compose.ui.graphics.ImageBitmap(20, 20)
+        val layer = NaviampRasterLayer(bitmap, reveal = .2f, revealMotion = progressLayerMotion(.2f, 300.0), revealStarted = started)
+        val first = RecordingPresenter()
+        val second = RecordingPresenter()
+        val presenter = mutableStateOf<NaviampRasterPresenter>(first)
+        setContent {
+            CompositionLocalProvider(LocalNaviampRasterPresenter provides presenter.value) {
+                NaviampAnimatedRaster(listOf(layer), Modifier.size(20.dp))
+            }
+        }
+        waitForIdle()
+        runOnIdle {
+            clock += kotlin.time.Duration.parse("30s")
+            presenter.value = second
+        }
+        waitForIdle()
+        runOnIdle {
+            val rebound = second.layers.single()
+            assertEquals(.3f, rebound.reveal, .00001f)
+            assertEquals(.4f, requireNotNull(rebound.revealMotion).valueAt(30_000), .00001f)
+            assertEquals(requireNotNull(layer.revealMotion).durationMillis - 30_000L, rebound.revealMotion.durationMillis)
+            assertNull(rebound.revealStarted)
+            clock += kotlin.time.Duration.parse("300s")
+            val finished = layer.forPresentation()
+            assertEquals(1f, finished.reveal)
+            assertNull(finished.revealMotion)
+        }
+    }
+
     @Test fun transportButtonExposesItsRoleAndSupportsKeyboardActivation() = runComposeUiTest {
         var activations = 0
         setContent {
@@ -467,12 +522,14 @@ class NaviampRasterInteractionTest {
         waitForIdle()
         val before = presenter.layers.map { it.image }
         val drawsBefore = parentDraws
+        val submissionsBefore = presenter.presentations
         runOnIdle { progress.floatValue = .204f }
         waitForIdle()
         runOnIdle {
             assertEquals(2, before.size)
             assertTrue(before.zip(presenter.layers).all { (image, layer) -> image === layer.image })
             assertEquals(drawsBefore, parentDraws, "Native progress submission repainted unrelated content")
+            assertEquals(submissionsBefore, presenter.presentations, "Routine playback telemetry restarted an equivalent native timeline")
         }
     }
 

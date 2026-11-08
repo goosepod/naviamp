@@ -30,6 +30,7 @@ import app.naviamp.domain.playback.PlaybackProfileTargetType
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
@@ -115,6 +116,157 @@ class NaviampCorePlaybackControllerTest {
         fixture.presenter.publish()
         assertEquals(null, fixture.store.state.value.shell.nowPlaying?.visualizerFrame)
         assertEquals(31.0, fixture.live.progress.value.positionSeconds)
+    }
+
+    @Test
+    fun finalPausedProgressSurvivesImmediateAndDelayedRestoreInsideTheSaveThrottle() = runTest {
+        for (terminationDelayMillis in listOf(0L, 2_000L)) {
+            var now = 10_000L
+            val fixture = playbackFixture(this, nowEpochMillis = { now })
+            val longQueue = fixture.live.state.value.queue.let { queue ->
+                queue.copy(tracks = queue.tracks.map { it.copy(durationSeconds = 600) })
+            }
+            fixture.live.replace(fixture.live.state.value.copy(
+                queue = longQueue, currentTrack = longQueue.current,
+                progress = PlaybackProgress(20.0, 600.0),
+            ))
+            fixture.controller.attachNativePlayback()
+            fixture.effects.observer!!.onProgressChanged(PlaybackProgress(280.297, 600.0))
+            fixture.effects.observer!!.onStateChanged(PlaybackState.Paused)
+            now += 100L
+            fixture.effects.observer!!.onProgressChanged(PlaybackProgress(282.7, 600.0))
+            assertEquals(282.7, fixture.sessionRepository.sessions["source"]!!.positionSeconds)
+
+            now += terminationDelayMillis
+            val restarted = playbackFixture(this, nowEpochMillis = { now })
+            restarted.sessionRepository.sessions["source"] = fixture.sessionRepository.sessions["source"]
+            restarted.controller.restoreSession("source")
+            assertEquals(282.7, restarted.effects.restoredStartPositionSeconds)
+            assertEquals(listOf("one", "two", "three", "four", "five"),
+                restarted.live.state.value.queue.tracks.map { it.id.value })
+            assertEquals("two", restarted.live.state.value.currentTrack?.id?.value)
+            assertEquals(0, restarted.effects.starts)
+        }
+    }
+
+    @Test
+    fun playingProgressRemainsThrottledAndUnchangedPausedProgressDoesNotWriteAgain() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer!!.onProgressChanged(PlaybackProgress(30.0, 180.0))
+        fixture.effects.observer!!.onProgressChanged(PlaybackProgress(31.0, 180.0))
+        assertEquals(30.0, fixture.sessionRepository.sessions["source"]!!.positionSeconds)
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Paused)
+        fixture.effects.observer!!.onProgressChanged(PlaybackProgress(31.5, 180.0))
+        val writes = fixture.sessionRepository.saveCount
+        repeat(5) {
+            fixture.effects.observer!!.onProgressChanged(PlaybackProgress(31.5, 180.0))
+        }
+        assertEquals(31.5, fixture.sessionRepository.sessions["source"]!!.positionSeconds)
+        assertEquals(writes, fixture.sessionRepository.saveCount)
+        fixture.effects.observer!!.onProgressChanged(PlaybackProgress.Unknown)
+        assertEquals(writes, fixture.sessionRepository.saveCount)
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        fixture.effects.observer!!.onProgressChanged(PlaybackProgress(32.0, 180.0))
+        assertEquals(31.5, fixture.sessionRepository.sessions["source"]!!.positionSeconds)
+    }
+
+    @Test
+    fun finalProgressBeforePauseAlsoPreservesTheCheckpoint() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer!!.onProgressChanged(PlaybackProgress(30.0, 180.0))
+        fixture.effects.observer!!.onProgressChanged(PlaybackProgress(31.5, 180.0))
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Paused)
+        assertEquals(31.5, fixture.sessionRepository.sessions["source"]!!.positionSeconds)
+    }
+
+    @Test fun explicitSeekPersistsInsideThePauseSaveThrottle() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Paused)
+        assertEquals(20.0, fixture.sessionRepository.sessions["source"]!!.positionSeconds)
+        fixture.controller.execute(NaviampCoreCommand.NowPlaying.Playback(
+            NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.Seek, seekSeconds = 60.0)))
+        assertEquals(60.0, fixture.sessionRepository.sessions["source"]!!.positionSeconds)
+        fixture.controller.restoreSession("source")
+        assertEquals(60.0, fixture.live.state.value.progress.positionSeconds)
+        assertEquals(PlaybackState.Idle, fixture.live.state.value.playbackState)
+    }
+
+    @Test
+    fun elevenTrackQueueContinuesThroughTheRealSharedAdapterDespiteLateCompletionCallbacks() = runTest {
+        for (sonic in listOf(true, false)) for (eligible in listOf(true, false)) {
+            val provider = PlaybackTestProvider()
+            val providers = NaviampCoreMediaProviderSource { provider }
+            val settings = PlaybackSettings(sonicAutoplayEnabled = true, sonicAutoplayMinimumTracks = 10,
+                sonicSimilarityEnabled = sonic, sonicSimilarityPreferenceConfigured = true)
+            val store = NaviampCoreStateStore().also { it.updateShell { shell -> shell.copy(
+                connectionSettings = shell.connectionSettings.copy(currentSourceId = "source"),
+                playback = shell.playback.copy(settings = settings)) } }
+            val tracks = (0..10).map { playbackTrack("seed-$it") }
+            val initialQueue = PlaybackQueue(tracks, 10)
+            val live = NaviampLivePlaybackController(NaviampLivePlaybackState(
+                queue = initialQueue, currentTrack = tracks.last(), playbackState = PlaybackState.Idle))
+            val coordinator = NaviampPlaybackQueueCoordinator(live)
+            var callback: ((PlaybackState) -> Unit)? = null
+            val starts = mutableListOf<String?>()
+            val engine = object : app.naviamp.domain.playback.PlaybackEngine by UnavailableNaviampPlaybackEngine {
+                override fun play(scope: kotlinx.coroutines.CoroutineScope, request: app.naviamp.domain.playback.PlaybackRequest,
+                    onStateChanged: (PlaybackState) -> Unit, onProgressChanged: (PlaybackProgress) -> Unit,
+                    onMetadataChanged: (app.naviamp.domain.playback.PlaybackStreamMetadata) -> Unit) {
+                    starts += request.mediaId
+                    callback = onStateChanged
+                    onStateChanged(PlaybackState.Playing)
+                }
+            }
+            val adapter = NaviampCorePlaybackEngineAdapter(this, engine, providers, settings = { settings })
+            val sidecars = PlaybackTestSidecars()
+            val presenter = NaviampCoreNowPlayingPresenter(store, providers, live, coordinator, adapter, sidecars)
+            val controller = NaviampCorePlaybackController(this, store, providers, live, coordinator, adapter,
+                NaviampCorePlaybackSettingsPort { value, _ -> value }, sidecars,
+                NaviampPlaybackSessionController(RecordingPlaybackSessionRepository()), presenter, nowEpochMillis = { 10_000L })
+            val gate = CompletableDeferred<Unit>()
+            val candidates = if (eligible) tracks.take(5) + List(15) { playbackTrack("new-${it % 10}") } else tracks
+            tracks.takeLast(3).forEach { seed ->
+                provider.sonicMatchesBySeed[seed.id.value] = candidates.map { SonicSimilarTrack(it, 0.9) }
+                provider.radioTracksBySeed[seed.id.value] = candidates
+            }
+            if (sonic) provider.beforeSonicRequest = { gate.await() }
+            else provider.beforeRadioRequest = { gate.await() }
+            controller.attachNativePlayback()
+            adapter.playQueueSelection(initialQueue, 10)
+            runCurrent()
+            val completedCallback = checkNotNull(callback)
+            completedCallback(PlaybackState.Finished)
+            runCurrent()
+            completedCallback(PlaybackState.Playing)
+            completedCallback(PlaybackState.Loading)
+            completedCallback(PlaybackState.Finished)
+            assertEquals(PlaybackState.Finished, live.state.value.playbackState)
+            gate.complete(Unit)
+            advanceUntilIdle()
+            assertEquals(if (eligible) 21 else 11, live.state.value.queue.tracks.size)
+            assertEquals(live.state.value.queue.tracks.size, live.state.value.queue.tracks.map { it.id }.distinct().size)
+            assertEquals(if (eligible) "new-0" else "seed-10", live.state.value.currentTrack?.id?.value)
+            assertEquals(if (eligible) PlaybackState.Playing else PlaybackState.Finished, live.state.value.playbackState)
+            assertEquals(if (eligible) 2 else 1, starts.size)
+            if (!eligible) assertEquals(app.naviamp.domain.radio.RadioBuildDiagnostics(
+                app.naviamp.domain.radio.RadioBuildOutcome.Empty, autoplay = true), store.state.value.overlays.radioNotice)
+            adapter.stop()
+        }
+    }
+
+    @Test fun mixedQueueMustNotSendPreviewIdentitiesToPlaylistCreation() = runTest {
+        val fixture = playbackFixture(this)
+        val preview = playbackTrack("discovery-preview:42")
+        val owned = playbackTrack("owned")
+        fixture.live.replace(fixture.live.state.value.copy(currentTrack = owned,
+            queue = PlaybackQueue(listOf(preview, owned), currentIndex = 1)))
+        fixture.controller.execute(NaviampCoreCommand.NowPlaying.Queue(
+            NowPlayingQueueActionRequest(NowPlayingQueueAction.SaveQueueAsPlaylist, playlistName = "Mixed")))
+        assertTrue(fixture.provider.created.none { it.contains("discovery-preview:") },
+            "Playlist writes must exclude preview identities even after a Library track becomes current: ${fixture.provider.created}")
     }
 
     @Test
@@ -439,6 +591,123 @@ class NaviampCorePlaybackControllerTest {
     }
 
     @Test
+    fun streamTitlePublishedBeforeTheSidecarLoadSurvivesIt() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        val metadata = PlaybackStreamMetadata(title = "Artist - Live title")
+
+        // A live stream reports Playing and then its first ICY title on the next poll, before the
+        // sidecar load launched by Playing runs and resets the track's sidecars.
+        fixture.effects.observer?.onStateChanged(PlaybackState.Playing)
+        fixture.effects.observer?.onMetadataChanged(metadata)
+        runCurrent()
+
+        assertEquals(listOf("two"), fixture.sidecars.loadedTracks)
+        assertEquals(metadata, fixture.sidecars.snapshot().streamMetadata)
+    }
+
+    @Test
+    fun streamTitleOfThePreviousTrackIsNotRestoredForTheNextTrack() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer?.onMetadataChanged(PlaybackStreamMetadata(title = "Previous title"))
+        val next = fixture.live.state.value.queue.copy(currentIndex = 2)
+        fixture.live.replace(fixture.live.state.value.copy(currentTrack = next.current, queue = next))
+
+        fixture.effects.observer?.onStateChanged(PlaybackState.Playing)
+        runCurrent()
+
+        assertEquals(listOf("three"), fixture.sidecars.loadedTracks)
+        assertEquals(PlaybackStreamMetadata(), fixture.sidecars.snapshot().streamMetadata)
+    }
+
+    @Test
+    fun returningToAnEarlierStationDoesNotRestoreItsPreviousTitle() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+
+        // Station A ("two") publishes its first title; its sidecar load consumes the cached restore.
+        fixture.effects.observer?.onStateChanged(PlaybackState.Playing)
+        fixture.effects.observer?.onMetadataChanged(PlaybackStreamMetadata(title = "A - first title"))
+        runCurrent()
+
+        // Switch to station B ("three") before it publishes any metadata, then back to A: A must start
+        // from empty sidecars instead of the title cached from its previous playback session.
+        fun switchTo(index: Int) {
+            val queue = fixture.live.state.value.queue.copy(currentIndex = index)
+            fixture.live.replace(fixture.live.state.value.copy(currentTrack = queue.current, queue = queue))
+            fixture.effects.observer?.onStateChanged(PlaybackState.Playing)
+            runCurrent()
+        }
+        switchTo(2)
+        switchTo(1)
+
+        assertEquals(listOf("two", "three", "two"), fixture.sidecars.loadedTracks)
+        assertEquals(PlaybackStreamMetadata(), fixture.sidecars.snapshot().streamMetadata)
+    }
+
+    @Test
+    fun rapidReturnDoesNotRestoreATitlePublishedAfterTheInitialSidecarLoad() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        runCurrent()
+        fixture.effects.observer!!.onMetadataChanged(PlaybackStreamMetadata(title = "A - later title"))
+        for (index in listOf(2, 1)) {
+            val queue = fixture.live.state.value.queue.copy(currentIndex = index)
+            fixture.live.replace(fixture.live.state.value.copy(currentTrack = queue.current, queue = queue))
+            fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        }
+        runCurrent()
+        assertEquals(listOf("two", "two"), fixture.sidecars.loadedTracks)
+        assertEquals(PlaybackStreamMetadata(), fixture.sidecars.snapshot().streamMetadata)
+    }
+
+    @Test
+    fun leavingAStationBeforeTheNextOnePlaysInvalidatesItsTitle() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        runCurrent()
+        fixture.effects.observer!!.onMetadataChanged(PlaybackStreamMetadata(title = "A - old title"))
+        for (index in listOf(2, 1)) {
+            val queue = fixture.live.state.value.queue.copy(currentIndex = index)
+            fixture.live.replace(fixture.live.state.value.copy(currentTrack = queue.current, queue = queue))
+        }
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        runCurrent()
+        assertEquals(PlaybackStreamMetadata(), fixture.sidecars.snapshot().streamMetadata)
+    }
+
+    @Test
+    fun cancelledOldSidecarLoadCannotOverwriteAFreshTitleAfterReturningToTheStation() = runTest {
+        val releaseOldLoad = CompletableDeferred<Unit>()
+        var first = true
+        val sidecars = PlaybackTestSidecars(beforeLoad = { track ->
+            if (track.id.value == "two" && first) {
+                first = false
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { releaseOldLoad.await() }
+            }
+        })
+        val fixture = playbackFixture(this, sidecars)
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer!!.onMetadataChanged(PlaybackStreamMetadata(title = "A - old title"))
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        runCurrent()
+        val fresh = PlaybackStreamMetadata(title = "A - fresh title")
+        for (index in listOf(2, 1)) {
+            val queue = fixture.live.state.value.queue.copy(currentIndex = index)
+            fixture.live.replace(fixture.live.state.value.copy(currentTrack = queue.current, queue = queue))
+            fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+            if (index == 1) fixture.effects.observer!!.onMetadataChanged(fresh)
+            runCurrent()
+        }
+        releaseOldLoad.complete(Unit)
+        runCurrent()
+        assertEquals(fresh, fixture.sidecars.snapshot().streamMetadata)
+    }
+
+    @Test
     fun restoredTrackIsPublishedBeforeItsSidecarsFinishLoading() = runTest {
         val sidecars = PlaybackTestSidecars(blockingTrackId = "long-track")
         val fixture = playbackFixture(this, sidecars)
@@ -492,6 +761,85 @@ class NaviampCorePlaybackControllerTest {
     }
 
     @Test
+    fun nativeQueueEndReportsSonicProblemsWithoutSubstitution() = runTest {
+        for ((mode, outcome) in listOf("empty" to app.naviamp.domain.radio.RadioBuildOutcome.Empty,
+            "failed" to app.naviamp.domain.radio.RadioBuildOutcome.Failed,
+            "timeout" to app.naviamp.domain.radio.RadioBuildOutcome.TimedOut)) {
+            val fixture = playbackFixture(this, supportsSonicSimilarity = true)
+            fixture.enableSonicAutoplay()
+            fixture.moveToQueueEnd()
+            val expectedQueue = fixture.live.state.value.queue
+            fixture.provider.beforeSonicRequest = {
+                when (mode) {
+                    "failed" -> error("Unavailable Sonic backend")
+                    "timeout" -> kotlinx.coroutines.delay(60_000)
+                }
+            }
+            fixture.provider.radioTracksBySeed["five"] = listOf(playbackTrack("regular"))
+            fixture.controller.attachNativePlayback()
+            fixture.effects.observer?.onStateChanged(PlaybackState.Finished)
+            advanceUntilIdle()
+            assertEquals(emptyList(), fixture.provider.radioRequests)
+            assertEquals(expectedQueue, fixture.live.state.value.queue)
+            assertEquals(emptyList(), fixture.effects.navigation)
+            assertEquals(app.naviamp.domain.radio.RadioBuildDiagnostics(outcome, autoplay = true),
+                fixture.store.state.value.overlays.radioNotice)
+        }
+    }
+
+    @Test
+    fun nativeQueueEndUsesInstantMixWithoutSonicSupportEvenWithASavedSonicPreference() = runTest {
+        for (savedSonic in listOf(false, true)) {
+            val fixture = playbackFixture(this, supportsSonicSimilarity = false)
+            fixture.store.updateShell { it.copy(playback = it.playback.copy(settings =
+                it.playback.settings.copy(sonicAutoplayEnabled = true, sonicSimilarityEnabled = savedSonic))) }
+            fixture.moveToQueueEnd()
+            fixture.provider.radioTracksBySeed["five"] = listOf(playbackTrack("regular"))
+            fixture.controller.attachNativePlayback()
+            fixture.effects.observer?.onStateChanged(PlaybackState.Finished)
+            advanceUntilIdle()
+            assertEquals("regular", fixture.live.state.value.currentTrack?.id?.value)
+            assertEquals(emptyList(), fixture.provider.sonicRequests)
+            assertEquals(null, fixture.store.state.value.overlays.radioNotice)
+        }
+    }
+
+    @Test
+    fun staleOrDisabledInstantMixAutoplayCannotAppendOrRestartPlayback() = runTest {
+        for (change in listOf("queue", "source", "setting", "count", "method")) {
+            val started = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+            val fixture = playbackFixture(this)
+            fixture.enableSonicAutoplay()
+            fixture.store.updateShell { it.copy(playback = it.playback.copy(settings = it.playback.settings.copy(sonicSimilarityEnabled = false))) }
+            fixture.moveToQueueEnd()
+            fixture.provider.beforeRadioRequest = { started.complete(Unit); release.await() }
+            fixture.provider.radioTracksBySeed["five"] = listOf(playbackTrack("stale"))
+            fixture.controller.attachNativePlayback()
+            fixture.effects.observer?.onStateChanged(PlaybackState.Finished)
+            started.await()
+            when (change) {
+                "queue" -> fixture.live.replace(fixture.live.state.value.copy(
+                    queue = PlaybackQueue(listOf(playbackTrack("replacement")), 0),
+                    currentTrack = playbackTrack("replacement"), playbackState = PlaybackState.Playing))
+                "source" -> fixture.store.updateShell { shell -> shell.copy(
+                    connectionSettings = shell.connectionSettings.copy(currentSourceId = "other")) }
+                "setting" -> fixture.store.updateShell { shell -> shell.copy(
+                    playback = shell.playback.copy(settings = shell.playback.settings.copy(sonicAutoplayEnabled = false))) }
+                "method" -> fixture.store.updateShell { it.copy(playback = it.playback.copy(settings = it.playback.settings.copy(sonicSimilarityEnabled = true))) }
+                "count" -> fixture.store.updateShell { shell -> shell.copy(
+                    playback = shell.playback.copy(settings = shell.playback.settings.copy(sonicAutoplayMinimumTracks = 20))) }
+            }
+            val expectedQueue = fixture.live.state.value.queue
+            release.complete(Unit)
+            advanceUntilIdle()
+            assertEquals(expectedQueue, fixture.live.state.value.queue)
+            assertEquals(emptyList(), fixture.effects.navigation)
+            assertEquals(emptyList(), fixture.effects.queues)
+        }
+    }
+
+    @Test
     fun nativeQueueEndAppendsSonicAutoplayTracksAndStartsTheFirstContinuation() = runTest {
         val fixture = playbackFixture(this, recreateProviderWrapper = true)
         fixture.enableSonicAutoplay()
@@ -506,6 +854,7 @@ class NaviampCorePlaybackControllerTest {
         advanceUntilIdle()
 
         assertEquals(listOf("five", "four", "three"), fixture.provider.sonicRequests)
+        assertEquals(emptyList(), fixture.provider.radioRequests)
         assertEquals(
             listOf("one", "two", "three", "four", "five", "sonic-one"),
             fixture.live.state.value.queue.tracks.map { it.id.value },
@@ -522,6 +871,26 @@ class NaviampCorePlaybackControllerTest {
     }
 
     @Test
+    fun nativeQueueEndRetainsShortSonicResultsWithoutTopUp() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.enableSonicAutoplay()
+        fixture.store.updateShell { shell -> shell.copy(playback = shell.playback.copy(settings =
+            shell.playback.settings.copy(radioMinimumTracks = 10, sonicAutoplayMinimumTracks = 30))) }
+        fixture.moveToQueueEnd()
+        fixture.provider.sonicMatchesBySeed["five"] = listOf(SonicSimilarTrack(playbackTrack("sonic"), 0.01))
+        fixture.provider.radioTracksBySeed["five"] = listOf(playbackTrack("five"), playbackTrack("sonic")) +
+            (1..50).map { playbackTrack("regular-$it") }
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer?.onStateChanged(PlaybackState.Finished)
+        advanceUntilIdle()
+        assertEquals(6, fixture.live.state.value.queue.tracks.size)
+        assertEquals("sonic", fixture.live.state.value.currentTrack?.id?.value)
+        assertEquals("sonic", fixture.live.state.value.queue.tracks.last().id.value)
+        assertEquals(emptyList(), fixture.provider.radioRequests)
+        assertEquals(6, fixture.live.state.value.queue.tracks.map { it.id }.distinct().size)
+    }
+
+    @Test
     fun nativeQueueEndDoesNotRequestSonicTracksWhenAutoplayIsDisabled() = runTest {
         val fixture = playbackFixture(this)
         fixture.moveToQueueEnd()
@@ -534,6 +903,7 @@ class NaviampCorePlaybackControllerTest {
         advanceUntilIdle()
 
         assertEquals(emptyList(), fixture.provider.sonicRequests)
+        assertEquals(emptyList(), fixture.provider.radioRequests)
         assertEquals("five", fixture.live.state.value.currentTrack?.id?.value)
         assertEquals(emptyList(), fixture.effects.navigation)
         assertEquals(emptyList(), fixture.effects.queues)
@@ -616,6 +986,21 @@ class NaviampCorePlaybackControllerTest {
 
         assertEquals(listOf(0L), fixture.provider.listenTimestamps)
         assertEquals(3, fixture.provider.stateReports.size)
+    }
+
+    @Test
+    fun rapidSkipCancelsPreviousSidecarsBeforeTheNextStreamStarts() = runTest {
+        val sidecars = PlaybackTestSidecars(blockingTrackId = "two")
+        val fixture = playbackFixture(this, sidecars)
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer?.onStateChanged(PlaybackState.Playing)
+        runCurrent()
+
+        // Slow (Octo) stream: the engine never reports Playing for "three" before the next skip.
+        fixture.controller.execute(playbackCommand(NowPlayingPlaybackAction.Next))
+        runCurrent()
+
+        assertEquals(listOf("two"), sidecars.cancelledTracks)
     }
 
     @Test
@@ -926,7 +1311,7 @@ private fun PlaybackFixture.enableSonicAutoplay() {
     store.updateShell { shell ->
         shell.copy(
             playback = shell.playback.copy(
-                settings = shell.playback.settings.copy(sonicAutoplayEnabled = true),
+                settings = shell.playback.settings.copy(sonicAutoplayEnabled = true, sonicSimilarityEnabled = true, sonicSimilarityPreferenceConfigured = true),
             ),
         )
     }
@@ -989,20 +1374,30 @@ private class PlaybackTestEffects : NaviampCorePlaybackEffectPort {
 
 private class RecordingPlaybackSessionRepository : PlaybackSessionRepository {
     val sessions = mutableMapOf<String?, PlaybackSessionSettings?>()
+    var saveCount = 0
     override fun loadPlaybackSession(sourceId: String?): PlaybackSessionSettings? = sessions[sourceId]
     override fun savePlaybackSession(session: PlaybackSessionSettings?, sourceId: String?) {
+        saveCount += 1
         sessions[sourceId] = session
     }
 }
 
 private class PlaybackTestSidecars(
     private val blockingTrackId: String? = null,
+    private val beforeLoad: suspend (Track) -> Unit = {},
 ) : NaviampCoreNowPlayingSidecarPort {
     val loadedTracks = mutableListOf<String>()
     val cancelledTracks = mutableListOf<String>()
-    override fun snapshot() = NaviampCoreNowPlayingSidecars()
+    private var streamMetadata = PlaybackStreamMetadata()
+    override fun snapshot() = NaviampCoreNowPlayingSidecars(streamMetadata = streamMetadata)
+    override fun updateStreamMetadata(metadata: PlaybackStreamMetadata) {
+        streamMetadata = metadata
+    }
     override suspend fun loadForTrack(track: Track) {
+        // Like the production sidecars, a track load starts from empty sidecars.
+        streamMetadata = PlaybackStreamMetadata()
         loadedTracks += track.id.value
+        beforeLoad(track)
         if (track.id.value == blockingTrackId) {
             try {
                 awaitCancellation()
@@ -1037,8 +1432,11 @@ private class PlaybackTestProvider(
     val listenTimestamps = mutableListOf<Long>()
     val sonicRequests = mutableListOf<String>()
     val sonicMatchesBySeed = mutableMapOf<String, List<SonicSimilarTrack>>()
+    val radioRequests = mutableListOf<String>()
+    val radioTracksBySeed = mutableMapOf<String, List<Track>>()
     val unavailableTrackIds = mutableSetOf<String>()
     var beforeSonicRequest: suspend () -> Unit = {}
+    var beforeRadioRequest: suspend () -> Unit = {}
     override suspend fun validateConnection() = ConnectionValidation(null, null)
     override suspend fun recentlyAddedAlbums(limit: Int) = emptyList<Album>()
     override suspend fun album(albumId: AlbumId): AlbumDetails = error("Not used")
@@ -1052,6 +1450,11 @@ private class PlaybackTestProvider(
         sonicRequests += trackId.value
         beforeSonicRequest()
         return sonicMatchesBySeed[trackId.value].orEmpty().take(count)
+    }
+    override suspend fun trackRadio(trackId: TrackId, count: Int): List<Track> {
+        radioRequests += trackId.value
+        beforeRadioRequest()
+        return radioTracksBySeed[trackId.value].orEmpty().take(count)
     }
     override suspend fun createPlaylist(name: String, trackIds: List<TrackId>): Playlist {
         created += "$name:${trackIds.joinToString(",") { it.value }}"

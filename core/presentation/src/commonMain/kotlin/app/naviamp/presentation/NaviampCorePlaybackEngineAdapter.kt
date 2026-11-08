@@ -1,6 +1,10 @@
 package app.naviamp.presentation
 
+import app.naviamp.domain.provider.isDiscoveryPreview
+
 import app.naviamp.domain.playback.withAudioStreamOffsetSupport
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
 import app.naviamp.domain.playback.DownloadFallbackAwarePlaybackEngine
@@ -71,8 +75,10 @@ import app.naviamp.domain.lyrics.LyricsTiming
 import app.naviamp.domain.waveform.AudioWaveformService
 import app.naviamp.ui.radioArtworkNeedsTrackLookup
 import app.naviamp.ui.radioTrackArtworkKey
+import app.naviamp.ui.radioTrackArtworkMatch
 import app.naviamp.ui.radioTrackArtworkQuery
 import kotlinx.coroutines.CancellationException
+import app.naviamp.app.NaviampPlaybackStreamRelay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -88,6 +94,7 @@ import kotlin.coroutines.CoroutineContext
  * Hosts create a native [PlaybackEngine]. Core owns provider URL resolution, queue navigation,
  * prepared-next behavior, callbacks, and settings application through this class.
  */
+@OptIn(ExperimentalAtomicApi::class)
 class NaviampCorePlaybackEngineAdapter(
     private val scope: CoroutineScope,
     private val engine: PlaybackEngine,
@@ -116,6 +123,10 @@ class NaviampCorePlaybackEngineAdapter(
     private val visualizerFrameIntervalMillis: Long = DefaultVisualizerFrameIntervalMillis,
     private val visualizerWorkContext: CoroutineContext = Dispatchers.Default,
 ) : NaviampCorePlaybackEffectPort, NaviampCoreInternetRadioPlaybackPort {
+    // Native polling can deliver Playing after an explicit pause. Preserve the user's intent
+    // independently of reported state, including when seeking restarts the native execution.
+    private val pauseRequested = AtomicBoolean(false)
+
     override val capabilities = NaviampCorePlaybackCapabilities(
         engineName = engine.name,
         supportsPause = engine.supportsPause,
@@ -147,9 +158,12 @@ class NaviampCorePlaybackEngineAdapter(
             updateVisualizerSampling()
         }
     private var resumePositionSeconds: Double? = null
+    // Restored metadata and interrupted preview preparation have no runnable native stream yet.
+    private var deferredStart = false
     private var visualizerFramesEnabled = false
     private var visualizerSamplingJob: Job? = null
     private val externalStreamUrls = mutableMapOf<TrackId, String>()
+    private var authenticatedStreams: NaviampPlaybackStreamRelay? = null
 
     override fun attach(observer: NaviampCorePlaybackObserver) {
         this.observer = observer
@@ -184,11 +198,32 @@ class NaviampCorePlaybackEngineAdapter(
         }
     }
 
+    override fun prepareForPreview() {
+        val nativeLoading = playbackState == PlaybackState.Loading
+        if (resolutionJob?.isActive != true && unstreamableRecoveryJob?.isActive != true && !nativeLoading) return
+        // Invalidate even non-cancellable URL resolution and recovery callbacks. Keep the logical
+        // queue/seek position so only a later explicit main Resume restarts the deferred track.
+        generation++
+        resolutionJob?.cancel()
+        resolutionJob = null
+        unstreamableRecoveryJob?.cancel()
+        unstreamableRecoveryJob = null
+        cancelAudioPrefetch()
+        clearAudioPrefetchCompletions()
+        deferredStart = true
+        pauseRequested.store(true)
+        if (nativeLoading) engine.stop() else engine.pause()
+        playbackState = PlaybackState.Paused
+        observer?.onStateChanged(playbackState)
+    }
+
     override fun pause() {
+        pauseRequested.store(true)
         engine.pause()
     }
     override fun resume() {
-        engine.resume()
+        pauseRequested.store(false)
+        if (deferredStart) startCurrent(resumePositionSeconds) else engine.resume()
     }
 
     override fun startOrRestore(): Boolean {
@@ -199,9 +234,11 @@ class NaviampCorePlaybackEngineAdapter(
     }
 
     override fun seek(positionSeconds: Double) {
+        if (seekBeforeDeferredStart(positionSeconds)) return
         if (engine is RestartOnSeekPlaybackEngine) {
-            val preservePausedState = playbackState == PlaybackState.Paused
+            val preservePausedState = pauseRequested.load() || playbackState == PlaybackState.Paused
             clearPreparedTransition()
+            authenticatedStreams?.clearCurrent()
             startCurrent(positionSeconds, pauseWhenStarted = preservePausedState)
         } else {
             engine.seek(positionSeconds)
@@ -209,7 +246,15 @@ class NaviampCorePlaybackEngineAdapter(
     }
 
     override fun replayCurrent(positionSeconds: Double) {
-        startCurrent(positionSeconds)
+        if (seekBeforeDeferredStart(positionSeconds)) return
+        startCurrent(positionSeconds, pauseWhenStarted = pauseRequested.load() || playbackState == PlaybackState.Paused)
+    }
+
+    private fun seekBeforeDeferredStart(positionSeconds: Double): Boolean {
+        if (!deferredStart) return false
+        resumePositionSeconds = positionSeconds
+        observer?.onProgressChanged(PlaybackProgress(positionSeconds, queue.current?.durationSeconds?.toDouble()))
+        return true
     }
 
     override fun setVolume(percent: Int) {
@@ -217,6 +262,8 @@ class NaviampCorePlaybackEngineAdapter(
     }
 
     override fun stop() {
+        deferredStart = false
+        pauseRequested.store(false)
         resumePositionSeconds = null
         generation += 1
         resolutionJob?.cancel()
@@ -227,6 +274,8 @@ class NaviampCorePlaybackEngineAdapter(
         clearAudioPrefetchCompletions()
         (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
         (engine as? DownloadFallbackAwarePlaybackEngine)?.setDownloadFallbackListener(null)
+        authenticatedStreams?.close()
+        authenticatedStreams = null
         engine.stop()
         playbackState = PlaybackState.Stopped
         publishPlaybackSource(PlaybackSource.Unknown, null)
@@ -242,6 +291,7 @@ class NaviampCorePlaybackEngineAdapter(
         clearAudioPrefetchCompletions()
         if (clearPreparedNext) {
             (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
+            authenticatedStreams?.clearPrepared()
             preparedForGeneration = -1L
         }
         if (
@@ -266,7 +316,10 @@ class NaviampCorePlaybackEngineAdapter(
         clearAudioPrefetchCompletions()
         this.queue = queue
         resumePositionSeconds = startPositionSeconds
+        deferredStart = true
+        pauseRequested.store(true)
         (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
+        authenticatedStreams?.clearPrepared()
         preparedForGeneration = -1L
     }
 
@@ -304,7 +357,7 @@ class NaviampCorePlaybackEngineAdapter(
         }
         if (!preservePreparedTransition) clearPreparedTransition()
         cancelAudioPrefetch()
-        startCurrent(startPositionSeconds = null)
+        startCurrent(startPositionSeconds = null, stopCurrentPlayback = !preservePreparedTransition)
     }
 
     override fun applyRepeatMode(mode: RepeatMode) {
@@ -326,6 +379,7 @@ class NaviampCorePlaybackEngineAdapter(
     }
 
     private fun schedulePreparedNextInvalidation() {
+        authenticatedStreams?.clearPrepared()
         val queueEngine = engine as? QueueAwarePlaybackEngine ?: return
         preparedForGeneration = -1L
         preparedNextBarrier.invalidate {
@@ -347,8 +401,11 @@ class NaviampCorePlaybackEngineAdapter(
         pauseWhenStarted: Boolean = false,
         recoveryLocalAudio: PlaybackLocalAudio? = null,
         recoveryQuality: StreamQuality? = null,
+        stopCurrentPlayback: Boolean = false,
     ) {
         val track = queue.current ?: return
+        deferredStart = false
+        pauseRequested.store(pauseWhenStarted)
         if (recoveryLocalAudio == null) {
             unstreamableRecoveryJob?.cancel()
             unstreamableRecoveryJob = null
@@ -357,6 +414,9 @@ class NaviampCorePlaybackEngineAdapter(
         val requestGeneration = ++generation
         val preparedNextInvalidation = preparedNextBarrier.currentInvalidation()
         resolutionJob?.cancel()
+        // Invalidate callbacks first, then stop before a dispatcher can start the next stream inline.
+        // Automatic advance retains the prepared transition and never takes this manual-skip path.
+        if (stopCurrentPlayback) engine.stop()
         resolutionJob = scope.launch {
             preparedNextInvalidation?.join()
             if (requestGeneration != generation) return@launch
@@ -396,14 +456,24 @@ class NaviampCorePlaybackEngineAdapter(
                     startPositionSeconds = startPositionSeconds,
                 ).withAudioStreamOffsetSupport(provider?.capabilities?.supportsAudioStreamOffset == true)
             }
+            var usesProviderTransport = false
+            var randomAccess: app.naviamp.domain.playback.PlaybackRandomAccessSource? = null
             val streamUrl = externalStreamUrl ?: runCatching {
                 requireNotNull(plannedAudioSource).playbackStreamUrl { target ->
-                    provider?.streamUrl(target.providerStreamRequest)
+                    provider?.let {
+                        usesProviderTransport = it.usesProviderPlaybackTransport(target.providerStreamRequest)
+                        playbackStreamUrl(it, target.providerStreamRequest, NaviampPlaybackStreamRelay.Slot.Current).also { url ->
+                            if (usesProviderTransport) randomAccess = authenticatedStreams?.randomAccessSource(url)
+                        }
+                    }
                         ?: throw IllegalStateException("Connect to the music server to stream this track.")
                 }
             }.getOrElse { failure ->
                 if (failure is kotlinx.coroutines.CancellationException) throw failure
                 if (requestGeneration == generation) {
+                    authenticatedStreams?.clearCurrent()
+                    authenticatedStreams?.clearPrepared()
+                    engine.stop()
                     playbackState = PlaybackState.Error(failure.message ?: "Could not resolve the audio stream.")
                     observer?.onStateChanged(playbackState)
                 }
@@ -411,6 +481,7 @@ class NaviampCorePlaybackEngineAdapter(
             }
             val audioSource = plannedAudioSource?.resolvedForPlaybackUrl(streamUrl)
             if (requestGeneration != generation) return@launch
+            if (!usesProviderTransport) authenticatedStreams?.clearCurrent()
             if (audioSource == null) {
                 publishPlaybackSource(PlaybackSource.ProviderStream, null)
             } else {
@@ -436,7 +507,7 @@ class NaviampCorePlaybackEngineAdapter(
                 supportsReplayGain = engine.supportsReplayGain,
                 engineStartPositionSeconds = requireNotNull(audioSource).target.engineStartPositionSeconds,
                 coverArtUrl = track.coverArtId?.let { provider?.coverArtUrl(it) },
-            ).request
+            ).request.copy(randomAccess = randomAccess)
             if (provider != null && recoveryQuality == null) {
                 startAudioPrefetch(provider, quality, requestGeneration)
             }
@@ -457,12 +528,17 @@ class NaviampCorePlaybackEngineAdapter(
                     }
                 },
             )
-            var pendingPause = pauseWhenStarted
+            val executionFinished = AtomicBoolean(false)
             engine.play(
                 scope = scope,
                 request = request,
                 onStateChanged = { state ->
-                    if (requestGeneration == generation) {
+                    if (requestGeneration == generation && !executionFinished.load()) {
+                        // End-sync and native polling share one execution. Once completion has
+                        // been delivered, a late Playing/Loading callback must not cancel Core's
+                        // pending Autoplay or cause the same queue item to finish twice.
+                        if (state == PlaybackState.Finished && !executionFinished.compareAndSet(false, true)) return@play
+                        if (state is PlaybackState.Error) authenticatedStreams?.clearCurrent()
                         if (
                             state is PlaybackState.Error &&
                             state.reason == PlaybackFailureReason.UnsupportedFormat &&
@@ -474,7 +550,7 @@ class NaviampCorePlaybackEngineAdapter(
                             observer?.onStateChanged(playbackState)
                             startCurrent(
                                 startPositionSeconds = startPositionSeconds,
-                                pauseWhenStarted = pauseWhenStarted,
+                                pauseWhenStarted = pauseRequested.load(),
                                 recoveryQuality = StreamQuality.Transcoded(AudioCodec.Mp3, 320),
                             )
                             return@play
@@ -483,6 +559,7 @@ class NaviampCorePlaybackEngineAdapter(
                             state is PlaybackState.Error &&
                             state.reason == PlaybackFailureReason.UnstreamableNetworkSource &&
                             recoveryLocalAudio == null &&
+                            !track.id.isDiscoveryPreview() &&
                             externalStreamUrl == null &&
                             audioSource?.source in setOf(
                                 PlaybackSource.ProviderStream,
@@ -506,7 +583,7 @@ class NaviampCorePlaybackEngineAdapter(
                                     if (cachedAudio != null) {
                                         startCurrent(
                                             startPositionSeconds = startPositionSeconds,
-                                            pauseWhenStarted = pauseWhenStarted,
+                                            pauseWhenStarted = pauseRequested.load(),
                                             recoveryLocalAudio = cachedAudio,
                                         )
                                     } else {
@@ -517,8 +594,7 @@ class NaviampCorePlaybackEngineAdapter(
                                 return@play
                             }
                         }
-                        if (pendingPause && state == PlaybackState.Playing) {
-                            pendingPause = false
+                        if (pauseRequested.load() && state == PlaybackState.Playing) {
                             engine.pause()
                             return@play
                         }
@@ -528,7 +604,7 @@ class NaviampCorePlaybackEngineAdapter(
                     }
                 },
                 onProgressChanged = { progress ->
-                    if (requestGeneration == generation && playbackState !is PlaybackState.Error) {
+                    if (requestGeneration == generation && !executionFinished.load() && playbackState !is PlaybackState.Error) {
                         val timelineProgress = progress.withProviderStartOffset(
                             providerStartPositionSeconds = audioSource
                                 ?.target
@@ -561,7 +637,7 @@ class NaviampCorePlaybackEngineAdapter(
                     }
                 },
                 onMetadataChanged = { metadata ->
-                    if (requestGeneration == generation) observer?.onMetadataChanged(metadata)
+                    if (requestGeneration == generation && !executionFinished.load()) observer?.onMetadataChanged(metadata)
                 },
             )
         }
@@ -690,8 +766,13 @@ class NaviampCorePlaybackEngineAdapter(
             downloadedTrackPlayback = playbackSettings.downloadedTrackPlayback,
             allowMismatchedCachedAudio = playbackSettings.allowMismatchedCachedAudioForNetwork(mobileData),
         )
+        var randomAccess: app.naviamp.domain.playback.PlaybackRandomAccessSource? = null
         val streamUrl = runCatching {
-            audioSource.playbackStreamUrl { target -> provider.streamUrl(target.providerStreamRequest) }
+            audioSource.playbackStreamUrl { target ->
+                playbackStreamUrl(provider, target.providerStreamRequest, NaviampPlaybackStreamRelay.Slot.PreparedNext).also { url ->
+                    if (provider.usesProviderPlaybackTransport(target.providerStreamRequest)) randomAccess = authenticatedStreams?.randomAccessSource(url)
+                }
+            }
         }.getOrNull() ?: return
         if (requestGeneration != generation) return
         (engine as? NetworkCertificateVerificationPlaybackEngine)
@@ -709,8 +790,26 @@ class NaviampCorePlaybackEngineAdapter(
             engineStartPositionSeconds = audioSource.target.engineStartPositionSeconds,
             coverArtUrl = next.coverArtId?.let(provider::coverArtUrl),
         )
-        queueEngine.prepareNext(work.request)
+        queueEngine.prepareNext(work.request.copy(randomAccess = randomAccess))
     }
+
+    private suspend fun playbackStreamUrl(
+        provider: app.naviamp.domain.provider.MediaProvider,
+        request: app.naviamp.domain.StreamRequest,
+        slot: NaviampPlaybackStreamRelay.Slot,
+    ): String {
+        if (!provider.usesProviderPlaybackTransport(request)) return provider.streamUrl(request)
+        val relay = authenticatedStreams ?: NaviampPlaybackStreamRelay(scope) { candidate ->
+            providerSource.current() === candidate
+        }.also { authenticatedStreams = it }
+        return relay.url(slot, provider, request)
+    }
+
+    private fun app.naviamp.domain.provider.MediaProvider.usesProviderPlaybackTransport(
+        request: app.naviamp.domain.StreamRequest,
+    ): Boolean = requiresAuthenticatedPlaybackTransport ||
+        (supportsPlaybackByteTransport && request.quality == StreamQuality.Original &&
+            !request.trackId.isDiscoveryPreview())
 
     private fun effectivePlaybackSettingsForTrack(index: Int): PlaybackSettings {
         val global = settings()
@@ -827,6 +926,7 @@ class NaviampCoreMutableNowPlayingSidecars : NaviampCoreNowPlayingSidecarPort {
         album: app.naviamp.domain.Album?,
         waveform: app.naviamp.domain.waveform.AudioWaveform?,
         audioTags: List<app.naviamp.domain.audio.AudioTag>?,
+        fileAudioInfo: app.naviamp.domain.AudioInfo? = null,
         relatedTracks: List<app.naviamp.domain.Track>,
         relatedTracksSource: RelatedTracksSource,
         relatedTracksStatus: NaviampCoreRelatedTracksStatus,
@@ -836,6 +936,7 @@ class NaviampCoreMutableNowPlayingSidecars : NaviampCoreNowPlayingSidecarPort {
             album = album,
             waveform = waveform,
             audioTags = audioTags,
+            fileAudioInfo = fileAudioInfo,
             relatedTracks = relatedTracks,
             relatedTracksSource = relatedTracksSource,
             relatedTracksStatus = relatedTracksStatus,
@@ -887,6 +988,7 @@ class NaviampCoreProviderNowPlayingSidecars(
         val generation = ++loadGeneration
         val previousAlbum = delegate.snapshot().album?.takeIf { it.id == track.albumId }
         delegate.loadForTrack(track)
+        if (track.id.isDiscoveryPreview()) return
         val provider = providerSource.current() ?: return
         val activeSourceId = sourceId() ?: provider.cacheNamespace
         val settings = playbackSettings()
@@ -914,25 +1016,23 @@ class NaviampCoreProviderNowPlayingSidecars(
                 loadCoreRelatedTracks(provider, track, settings.effectiveSonicSimilarityEnabled())
             }
             val waveformResult = waveform.await()
-            val audioTags = runCatching {
-                audioMetadataSidecarService?.let { service ->
-                    waveformResult?.localAudio
-                        ?.let { service.audioTags(it) }
-                        ?: service.audioTagsForTrack(
-                            sourceId = activeSourceId,
-                            track = track,
-                            quality = quality,
-                            audioCachingEnabled = audioCachingEnabled(),
-                        )
-                }
-            }.getOrNull()
-            LoadedTrackSidecars(album.await(), waveformResult?.waveform, audioTags, related.await())
+            val metadata = audioMetadataSidecarService?.metadataForTrack(
+                sourceId = activeSourceId,
+                provider = provider,
+                track = track,
+                quality = quality,
+                audioCachingEnabled = audioCachingEnabled(),
+                localAudio = waveformResult?.localAudio,
+            )
+            LoadedTrackSidecars(album.await(), waveformResult?.waveform, metadata?.tags,
+                related.await(), metadata?.audioInfo)
         }
         if (generation == loadGeneration) {
             delegate.updateTrackSidecars(
                 album = loaded.album,
                 waveform = loaded.waveform,
                 audioTags = loaded.audioTags,
+                fileAudioInfo = loaded.fileAudioInfo,
                 relatedTracks = loaded.related.tracks,
                 relatedTracksSource = loaded.related.source,
                 relatedTracksStatus = loaded.related.status,
@@ -945,6 +1045,7 @@ class NaviampCoreProviderNowPlayingSidecars(
         val generation = loadGeneration
         if (delegate.snapshot().trackId != track.id) return
         delegate.updateLyrics(null, null, null)
+        if (track.id.isDiscoveryPreview()) return
         val provider = providerSource.current()
         val service = lyricsSidecarService
         if (provider == null || service == null) {
@@ -1030,9 +1131,9 @@ class NaviampCoreProviderNowPlayingSidecars(
         val provider = providerSource.current() ?: return
         val query = radioTrackArtworkQuery(metadata.title) ?: return
         val artworkUrl = runCatching {
-            provider.search(query, limit = 5)
-                .tracks
-                .firstOrNull { it.coverArtId != null }
+            // The Subsonic default page size: the announced song is not always the first hit, and some
+            // servers only add songs from outside the library to a full-size search.
+            radioTrackArtworkMatch(provider.search(query, limit = 20).tracks, metadata.title)
                 ?.coverArtId
                 ?.let(provider::coverArtUrl)
         }.getOrNull()
@@ -1047,6 +1148,7 @@ private data class LoadedTrackSidecars(
     val waveform: app.naviamp.domain.waveform.AudioWaveform?,
     val audioTags: List<app.naviamp.domain.audio.AudioTag>?,
     val related: LoadedRelatedTracks,
+    val fileAudioInfo: app.naviamp.domain.AudioInfo? = null,
 )
 
 internal data class LoadedRelatedTracks(

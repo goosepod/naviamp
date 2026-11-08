@@ -381,6 +381,9 @@ interface LocalLibraryIndexRepository : ArtistPopularTracksRepository, FavoriteA
 
     fun upsertLibraryTracks(sourceId: String, tracks: List<Track>)
 
+    /** Only after complete successful enumeration; never prune on partial, failed or cancelled sync. */
+    fun pruneLibraryTracks(sourceId: String, retainedIds: Set<TrackId>) = Unit
+
     fun artistDiscographyAppearances(
         sourceId: String,
         artistId: ArtistId,

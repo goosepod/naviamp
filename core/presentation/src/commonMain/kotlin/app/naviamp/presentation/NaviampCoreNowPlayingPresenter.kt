@@ -1,5 +1,12 @@
 package app.naviamp.presentation
 
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.AtomicReference
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
+
+import app.naviamp.domain.audio.withMissingFileProperties
+import app.naviamp.domain.provider.isDiscoveryPreview
+
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.domain.InternetRadioStation
@@ -26,6 +33,7 @@ data class NaviampCoreNowPlayingDisplayState(
 )
 
 /** Maps the complete live playback graph into the one authoritative shared Now Playing state. */
+@OptIn(ExperimentalAtomicApi::class)
 class NaviampCoreNowPlayingPresenter(
     private val stateStore: NaviampCoreStateStore,
     private val providerSource: NaviampCoreMediaProviderSource,
@@ -39,6 +47,8 @@ class NaviampCoreNowPlayingPresenter(
     private val mutableVisualizerFrame = MutableStateFlow(sidecars.snapshot().visualizerFrame)
     /** Sampled by the renderer without invalidating the application presentation graph. */
     val visualizerFrame = mutableVisualizerFrame.asStateFlow()
+    private val publishing = AtomicBoolean(false)
+    private val pendingDisplay = AtomicReference<NaviampCoreNowPlayingDisplayState?>(null)
 
     fun updateStreamMetadata(metadata: PlaybackStreamMetadata) {
         sidecars.updateStreamMetadata(metadata)
@@ -50,88 +60,115 @@ class NaviampCoreNowPlayingPresenter(
     }
 
     fun publish(display: NaviampCoreNowPlayingDisplayState = NaviampCoreNowPlayingDisplayState()) {
-        val live = playback.state.value
-        val shell = stateStore.state.value.shell
-        val provider = providerSource.current()
-        val sidecar = sidecars.snapshot()
-        val track = live.currentTrack ?: live.queue.current
-        val lyricsSidecar = sidecar.lyricsForTrack(track?.id)
-        val isLive = sidecar.currentInternetRadioStationId != null || track?.isInternetRadioTrack() == true
-        val capabilities = nowPlayingTrackCapabilities(
-            isLiveStream = isLive,
-            playbackState = live.playbackState,
-            hasPlaybackTarget = track != null || live.currentStation != null,
-            supportsPause = effects.capabilities.supportsPause,
-            supportsSeek = effects.capabilities.supportsSeek,
-            supportsSoftwareVolume = effects.capabilities.supportsSoftwareVolume &&
-                shell.capabilities.softwareVolumeControl,
-            supportsTrackRadio = provider?.capabilities?.supportsTrackRadio == true,
-            supportsTrackFavorites = provider?.capabilities?.supportsTrackFavorites == true,
-            supportsTrackRatings = provider?.capabilities?.supportsTrackRatings == true,
-            canRepeatQueue = true,
-            canSaveQueueAsPlaylist = provider != null,
-        )
-        val playbackSettings = shell.playback.settings
-        val coverArtForTrack: (app.naviamp.domain.Track) -> String? = { item ->
-            item.coverArtId?.let { provider?.coverArtUrl(it) }
+        pendingDisplay.store(display)
+        do {
+            // One caller drains publication. A concurrent/reentrant callback replaces the pending
+            // display and returns; the owner maps current playback again before releasing ownership.
+            // This also covers Playing -> Loading -> identical Playing (no StateFlow value change).
+            if (!publishing.compareAndSet(false, true)) return
+            try {
+                while (true) {
+                    val next = pendingDisplay.exchange(null) ?: break
+                    publishSnapshot(next)
+                }
+            } finally {
+                publishing.store(false)
+            }
+            // Catch a request arriving between the last exchange and releasing the owner. If
+            // another caller acquired ownership first, the compare-and-set above simply returns.
+        } while (pendingDisplay.load() != null)
+    }
+
+    private fun publishSnapshot(display: NaviampCoreNowPlayingDisplayState) {
+        // Map inside the atomic update. If a native callback publishes newer playback while
+        // this mapping is in flight, retry from the current live state instead of restoring
+        // the stale Loading/Paused snapshot over its Playing state.
+        stateStore.updateShell { shell ->
+            val live = playback.state.value
+            val provider = providerSource.current()
+            val sidecar = sidecars.snapshot()
+            val track = sidecar.withFileProperties(live.currentTrack ?: live.queue.current)
+            val lyricsSidecar = sidecar.lyricsForTrack(track?.id)
+            val isLive = sidecar.currentInternetRadioStationId != null || track?.isInternetRadioTrack() == true
+            val capabilities = nowPlayingTrackCapabilities(
+                isLiveStream = isLive,
+                isPreview = track?.id?.isDiscoveryPreview() == true,
+                playbackState = live.playbackState,
+                hasPlaybackTarget = track != null || live.currentStation != null,
+                supportsPause = effects.capabilities.supportsPause,
+                supportsSeek = effects.capabilities.supportsSeek,
+                supportsSoftwareVolume = effects.capabilities.supportsSoftwareVolume &&
+                    shell.capabilities.softwareVolumeControl,
+                supportsTrackRadio = provider?.capabilities?.supportsTrackRadio == true,
+                supportsTrackFavorites = provider?.capabilities?.supportsTrackFavorites == true,
+                supportsTrackRatings = provider?.capabilities?.supportsTrackRatings == true,
+                canRepeatQueue = true,
+                canSaveQueueAsPlaylist = provider != null,
+            )
+            val playbackSettings = shell.playback.settings
+            val coverArtForTrack: (app.naviamp.domain.Track) -> String? = { item ->
+                item.coverArtId?.let { provider?.coverArtUrl(it) }
+            }
+            val album = sidecar.album?.takeIf { candidate -> candidate.id == track?.albumId }
+            val nowPlaying = NaviampNowPlayingContentInput(
+                stateLabel = live.playbackState.label(),
+                playbackEngineName = effects.capabilities.engineName,
+                capabilities = capabilities,
+                nowPlayingTrack = track,
+                nowPlayingWaveform = sidecar.waveformForTrack(
+                    trackId = track?.id,
+                    enabled = shell.cache.settings.waveformsEnabled,
+                ),
+                nowPlayingAudioTags = sidecar.audioTags,
+                nowPlayingLyrics = lyricsSidecar?.lyrics,
+                nowPlayingLyricsAvailableTiming = lyricsSidecar?.lyricsAvailableTiming,
+                nowPlayingLyricsStatus = lyricsSidecar?.lyricsStatus,
+                nowPlayingStreamMetadata = sidecar.streamMetadata,
+                lyricsVisible = display.lyricsVisible,
+                visualizerAvailable = effects.capabilities.supportsVisualizer,
+                visualizerVisible = display.visualizerVisible && effects.capabilities.supportsVisualizer,
+                coverArtUrl = track?.let(coverArtForTrack),
+                albumCoverArtUrl = album?.coverArtId?.let { provider?.coverArtUrl(it) },
+                albumReleaseYear = album?.releaseYear,
+                albumOriginalReleaseYear = album?.originalReleaseYear,
+                playbackQueue = live.queue,
+                internetRadioStations = (
+                    internetRadioStations() +
+                        sidecar.internetRadioStations +
+                        listOfNotNull(live.currentStation)
+                    )
+                    .distinctBy { it.id },
+                currentInternetRadioStationId = live.currentStation?.id,
+                radioTrackArtworkByKey = sidecar.radioTrackArtworkByKey,
+                relatedTracks = sidecar.relatedTracks,
+                relatedTracksSource = sidecar.relatedTracksSource,
+                relatedSimilarityByTrackId = sidecar.relatedSimilarityByTrackId,
+                coverArtUrlForTrack = coverArtForTrack,
+                hasPrevious = queue.canUsePreviousButton(playbackSettings.previousButtonBehavior),
+                hasNext = queue.canUseNextButton(),
+                shuffleActive = live.shuffledUpNextSnapshot != null,
+                repeatMode = live.repeatMode,
+                playbackState = live.playbackState,
+                playbackProgress = live.progress,
+                durationSeconds = track?.durationSeconds?.toDouble() ?: live.progress.durationSeconds,
+                volumePercent = playbackSettings.volumePercent,
+                sleepTimer = display.sleepTimer.toNaviampSleepTimerUi(display.sleepTimerNowEpochMillis),
+                streamQuality = effects.playbackQuality
+                    ?: playbackSettings.streamQualityForNetwork(network.isActiveNetworkMobileData()),
+                replayGainInspectorEnabled = playbackSettings.replayGainInspectorEnabled,
+                replayGainMode = playbackSettings.replayGainMode,
+                sonicSimilarityEnabled = playbackSettings.effectiveSonicSimilarityEnabled() &&
+                    provider?.capabilities?.supportsSonicSimilarity == true,
+                radioDjs = playbackSettings.radioDjs,
+                activeRadioDjId = playbackSettings.activeRadioDjId,
+                playlistChoices = shell.playlistChoices,
+                playlistActionStatus = display.playlistActionStatus,
+            ).toNowPlayingUi().copy(
+                canEditPlaylistMembership = provider != null && track?.id?.isDiscoveryPreview() != true,
+                queueManagementActionsOnly = track?.id?.isDiscoveryPreview() == true,
+            )
+            shell.copy(nowPlaying = nowPlaying)
         }
-        val album = sidecar.album?.takeIf { candidate -> candidate.id == track?.albumId }
-        val nowPlaying = NaviampNowPlayingContentInput(
-            stateLabel = live.playbackState.label(),
-            playbackEngineName = effects.capabilities.engineName,
-            capabilities = capabilities,
-            nowPlayingTrack = track,
-            nowPlayingWaveform = sidecar.waveformForTrack(
-                trackId = track?.id,
-                enabled = shell.cache.settings.waveformsEnabled,
-            ),
-            nowPlayingAudioTags = sidecar.audioTags,
-            nowPlayingLyrics = lyricsSidecar?.lyrics,
-            nowPlayingLyricsAvailableTiming = lyricsSidecar?.lyricsAvailableTiming,
-            nowPlayingLyricsStatus = lyricsSidecar?.lyricsStatus,
-            nowPlayingStreamMetadata = sidecar.streamMetadata,
-            lyricsVisible = display.lyricsVisible,
-            visualizerAvailable = effects.capabilities.supportsVisualizer,
-            visualizerVisible = display.visualizerVisible && effects.capabilities.supportsVisualizer,
-            coverArtUrl = track?.let(coverArtForTrack),
-            albumCoverArtUrl = album?.coverArtId?.let { provider?.coverArtUrl(it) },
-            albumReleaseYear = album?.releaseYear,
-            albumOriginalReleaseYear = album?.originalReleaseYear,
-            playbackQueue = live.queue,
-            internetRadioStations = (
-                internetRadioStations() +
-                    sidecar.internetRadioStations +
-                    listOfNotNull(live.currentStation)
-                )
-                .distinctBy { it.id },
-            currentInternetRadioStationId = live.currentStation?.id,
-            radioTrackArtworkByKey = sidecar.radioTrackArtworkByKey,
-            relatedTracks = sidecar.relatedTracks,
-            relatedTracksSource = sidecar.relatedTracksSource,
-            relatedSimilarityByTrackId = sidecar.relatedSimilarityByTrackId,
-            coverArtUrlForTrack = coverArtForTrack,
-            hasPrevious = queue.canUsePreviousButton(playbackSettings.previousButtonBehavior),
-            hasNext = queue.canUseNextButton(),
-            shuffleActive = live.shuffledUpNextSnapshot != null,
-            repeatMode = live.repeatMode,
-            playbackState = live.playbackState,
-            playbackProgress = live.progress,
-            durationSeconds = track?.durationSeconds?.toDouble() ?: live.progress.durationSeconds,
-            volumePercent = playbackSettings.volumePercent,
-            sleepTimer = display.sleepTimer.toNaviampSleepTimerUi(display.sleepTimerNowEpochMillis),
-            streamQuality = effects.playbackQuality
-                ?: playbackSettings.streamQualityForNetwork(network.isActiveNetworkMobileData()),
-            replayGainInspectorEnabled = playbackSettings.replayGainInspectorEnabled,
-            replayGainMode = playbackSettings.replayGainMode,
-            sonicSimilarityEnabled = playbackSettings.effectiveSonicSimilarityEnabled(),
-            radioDjs = playbackSettings.radioDjs,
-            activeRadioDjId = playbackSettings.activeRadioDjId,
-            playlistChoices = shell.playlistChoices,
-            playlistActionStatus = display.playlistActionStatus,
-        ).toNowPlayingUi().copy(
-            canEditPlaylistMembership = provider != null,
-        )
-        stateStore.updateShell { current -> current.copy(nowPlaying = nowPlaying) }
     }
 }
 
@@ -143,3 +180,9 @@ internal fun NaviampCoreNowPlayingSidecars.waveformForTrack(
 internal fun NaviampCoreNowPlayingSidecars.lyricsForTrack(
     trackId: app.naviamp.domain.TrackId?,
 ) = takeIf { this.trackId == trackId }
+
+internal fun NaviampCoreNowPlayingSidecars.withFileProperties(track: app.naviamp.domain.Track?): app.naviamp.domain.Track? =
+    track?.let { item ->
+        if (trackId == item.id) item.copy(audioInfo = item.audioInfo.withMissingFileProperties(fileAudioInfo))
+        else item
+    }

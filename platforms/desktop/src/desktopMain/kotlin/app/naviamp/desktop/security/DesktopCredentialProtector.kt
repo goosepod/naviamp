@@ -139,34 +139,36 @@ internal class WindowsDpapiValueStore(
                 "-NoProfile",
                 "-NonInteractive",
                 "-Command",
-                "Add-Type -AssemblyName System.Security;" +
-                    "\$keyPath=[Environment]::GetEnvironmentVariable('$WindowsCredentialPathEnvironment');" +
+                "\$ErrorActionPreference='Stop';Add-Type -AssemblyName System.Security;" +
                     "[Convert]::ToBase64String([Security.Cryptography.ProtectedData]::Unprotect(" +
-                    "[IO.File]::ReadAllBytes(\$keyPath),\$null," +
+                    "[Convert]::FromBase64String([Console]::In.ReadToEnd()),\$null," +
                     "[Security.Cryptography.DataProtectionScope]::CurrentUser))",
             ),
-            environment = mapOf(WindowsCredentialPathEnvironment to path.toString()),
+            input = Base64.getEncoder().encodeToString(Files.readAllBytes(path)),
         )
     }
 
     override fun write(value: String) {
-        Files.createDirectories(path.parent)
-        runCredentialCommand(
-            listOf(
-                "powershell.exe",
-                "-NoProfile",
-                "-NonInteractive",
-                "-Command",
-                "Add-Type -AssemblyName System.Security;" +
-                    "\$keyPath=[Environment]::GetEnvironmentVariable('$WindowsCredentialPathEnvironment');" +
-                    "\$plain=[Convert]::FromBase64String([Console]::In.ReadToEnd());" +
-                    "\$protected=[Security.Cryptography.ProtectedData]::Protect(" +
-                    "\$plain,\$null,[Security.Cryptography.DataProtectionScope]::CurrentUser);" +
-                    "[IO.File]::WriteAllBytes(\$keyPath,\$protected)",
+        val protected = requireNotNull(
+            runCredentialCommand(
+                listOf(
+                    "powershell.exe",
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-Command",
+                    "\$ErrorActionPreference='Stop';Add-Type -AssemblyName System.Security;" +
+                        "\$plain=[Convert]::FromBase64String([Console]::In.ReadToEnd());" +
+                        "\$protected=[Security.Cryptography.ProtectedData]::Protect(" +
+                        "\$plain,\$null,[Security.Cryptography.DataProtectionScope]::CurrentUser);" +
+                        "[Convert]::ToBase64String(\$protected)",
+                ),
+                input = value,
             ),
-            input = value,
-            environment = mapOf(WindowsCredentialPathEnvironment to path.toString()),
         )
+        // Keep file IO in this process: a DPAPI helper can have a different MSIX filesystem view.
+        val bytes = Base64.getDecoder().decode(protected)
+        Files.createDirectories(path.parent)
+        Files.write(path, bytes)
     }
 }
 
@@ -174,12 +176,9 @@ private fun runCredentialCommand(
     command: List<String>,
     input: String? = null,
     allowMissing: Boolean = false,
-    environment: Map<String, String> = emptyMap(),
 ): String? {
     val process = runCatching {
-        ProcessBuilder(command).apply {
-            environment().putAll(environment)
-        }.start()
+        ProcessBuilder(command).start()
     }.getOrElse { error ->
         throw IllegalStateException("Secure credential service is unavailable.", error)
     }
@@ -207,7 +206,6 @@ private fun defaultWindowsCredentialKeyPath(): Path {
 }
 
 private const val CredentialService = "app.naviamp.credentials.v1"
-private const val WindowsCredentialPathEnvironment = "NAVIAMP_CREDENTIAL_KEY_PATH"
 private val CredentialAccount = System.getProperty("user.name").orEmpty().ifBlank { "Naviamp" }
 private const val CredentialPrefix = "naviamp-desktop-secure-v1:"
 private const val CipherTransformation = "AES/GCM/NoPadding"

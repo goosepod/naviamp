@@ -53,6 +53,7 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface Connection : NaviampCoreCommand {
+        data class ChooseCertificate(val kind: NaviampConnectionCertificateKind) : Connection
         data class ChangeForm(val form: ConnectionFormState) : Connection
         data object Connect : Connection
         data object EditCurrent : Connection
@@ -79,6 +80,8 @@ sealed interface NaviampCoreCommand {
         data class ChangeDownloadLocation(val location: NaviampStorageLocationUi) : Settings
         data class ChangeAudioCacheLocation(val location: NaviampStorageLocationUi) : Settings
         data object OpenStats : Settings
+        data object TestSimilarity : Settings
+        data object DismissRadioNotice : Settings
         data object CloseStats : Settings
         data object ClearCache : Settings
         data object ClearLibrary : Settings
@@ -139,10 +142,12 @@ sealed interface NaviampCoreCommand {
         data object Refresh : Playlists
         data class ChangeSort(val sortMode: SharedPlaylistSortMode) : Playlists
         data class Detail(val request: NaviampPlaylistDetailActionRequest) : Playlists
-        data class UpdateTracks(val playlist: SharedMediaItemUi, val tracks: List<SharedTrackRowUi>) : Playlists
+        data class UpdateTracks(val playlist: SharedMediaItemUi, val tracks: List<SharedTrackRowUi>, val expectedTrackIds: List<String>? = null) : Playlists
     }
 
     sealed interface SmartPlaylist : NaviampCoreCommand {
+        data class SyncLibrary(val onProgress: suspend (app.naviamp.domain.library.LibrarySyncProgress) -> Unit) : SmartPlaylist
+        data object References : SmartPlaylist
         data class Preview(val definition: SmartPlaylistDefinition) : SmartPlaylist
         data class Save(val definition: SmartPlaylistDefinition, val password: String? = null) : SmartPlaylist
         data class Update(
@@ -150,6 +155,7 @@ sealed interface NaviampCoreCommand {
             val definition: SmartPlaylistDefinition,
             val password: String? = null,
         ) : SmartPlaylist
+        data class Inspect(val playlist: SharedMediaItemUi, val password: String? = null) : SmartPlaylist
         data class Load(val playlist: SharedMediaItemUi, val password: String? = null) : SmartPlaylist
     }
 
@@ -160,6 +166,7 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface Detail : NaviampCoreCommand {
+        data class RefreshArtistPlaylists(val artistId: String) : Detail
         data class Album(val request: NaviampAlbumDetailActionRequest) : Detail
         data class Artist(val request: NaviampArtistDetailActionRequest) : Detail
         data class ArtistAlbum(val request: NaviampArtistAlbumActionRequest) : Detail
@@ -174,7 +181,25 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface Home : NaviampCoreCommand {
+        data class Browse(val action: app.naviamp.domain.provider.DiscoveryBrowseAction) : Home
+        data object ShowDiscoveryRequests : Home
+        data object DismissDiscoveryRequests : Home
+        data object RefreshDiscoveryRequests : Home
+        data class OpenDiscoveryRequest(val sourceId: String?, val generation: Long, val id: String) : Home
+        data class OpenDiscoveryRequestsExternal(val sourceId: String?, val generation: Long) : Home
         data object Refresh : Home
+        data class OpenDiscoveryArtist(val id: String) : Home
+        data class SelectDiscoveryArtist(val id: String) : Home
+        data class BrowseDiscoveryArtist(val sourceId: String?, val artist: app.naviamp.domain.provider.ProviderDiscoveryArtist) : Home
+        data class SelectDiscoveryRelease(val id: String) : Home
+        data class OpenDiscoveryLibraryRelease(val sourceId: String?, val sourceGeneration: Long, val releaseId: String) : Home
+        data class DiscoveryReleaseAction(val sourceId: String?, val sourceGeneration: Long, val releaseId: String,
+            val action: app.naviamp.domain.provider.ProviderDiscoveryAction) : Home
+        data class DiscoveryViewport(val index: Int, val offset: Int, val section: app.naviamp.domain.media.AlbumReleaseSection?) : Home
+        data object DismissDiscoveryArtist : Home
+        data class DiscoveryAction(val id: String, val action: app.naviamp.domain.provider.ProviderDiscoveryAction) : Home
+        data class DiscoveryFeedback(val id: String, val action: app.naviamp.domain.provider.ProviderDiscoveryFeedbackAction) : Home
+        data class OpenDiscoveryLibraryArtist(val id: String) : Home
         data class SelectRecentRadio(val item: SharedMediaItemUi) : Home
         data class SelectInternetRadio(val item: SharedMediaItemUi) : Home
         data class SelectMixBuilder(val item: SharedMixBuilderUi) : Home
@@ -275,7 +300,11 @@ sealed interface NaviampCoreCommand {
 }
 
 sealed interface NaviampCoreCommandResult {
+    data class SmartPlaylistReferencesLoaded(
+        val references: List<app.naviamp.domain.smartplaylist.SmartPlaylistReference>,
+    ) : NaviampCoreCommandResult
     data object Completed : NaviampCoreCommandResult
+    data class SmartPlaylistInspected(val editing: app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult) : NaviampCoreCommandResult
     data class SmartPlaylistLoaded(val definition: SmartPlaylistDefinition) : NaviampCoreCommandResult
     data class SmartPlaylistPreviewed(
         val preview: app.naviamp.domain.smartplaylist.SmartPlaylistPreview,

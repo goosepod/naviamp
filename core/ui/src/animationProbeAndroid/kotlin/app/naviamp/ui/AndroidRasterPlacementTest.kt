@@ -3,6 +3,7 @@ package app.naviamp.ui
 import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Bundle
+import android.util.Log
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -27,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 /** Native-boundary fixture: arbitrary cached pixels at a non-zero shared window position. */
 class RasterPlacementActivity : ComponentActivity() {
@@ -83,6 +85,31 @@ class RasterPlacementActivity : ComponentActivity() {
 }
 
 class AndroidRasterPlacementTest {
+    /** Capture only after the original result; diagnostics must never extend readiness or retry it. */
+    private fun recordResult(activity: RasterPlacementActivity, name: String, failure: Throwable? = null) {
+        if (failure == null && InstrumentationRegistry.getArguments().getString("naviamp.raster.capture") != "true") return
+        runCatching {
+            val instrumentation = InstrumentationRegistry.getInstrumentation()
+            val directory = File(instrumentation.targetContext.getExternalFilesDir(null), "raster-diagnostics")
+            check(directory.mkdirs() || directory.isDirectory)
+            val decor = activity.window.decorView
+            File(directory, "$name.txt").writeText(
+                "result=${failure?.toString() ?: "passed"}\n" +
+                    "expectedBounds=${activity.expectedBounds}\n" +
+                    "windowFocus=${activity.hasWindowFocus()} destroyed=${activity.isDestroyed}\n" +
+                    "decorAttached=${decor.isAttachedToWindow} shown=${decor.isShown} size=${decor.width}x${decor.height}\n" +
+                    "shifted=${activity.shifted.value} shown=${activity.shown.value} moving=${activity.moving.value} " +
+                    "scrolling=${activity.scrolling.value} replacing=${activity.replacing.value} frame=${activity.frame.value}\n",
+            )
+            val screenshot = requireNotNull(instrumentation.uiAutomation.takeScreenshot())
+            try {
+                File(directory, "$name.png").outputStream().use {
+                    check(screenshot.compress(Bitmap.CompressFormat.PNG, 100, it))
+                }
+            } finally { screenshot.recycle() }
+        }.onFailure { Log.e("NaviampRasterDiagnostics", "Could not capture $name", it) }
+    }
+
     @Test fun scrollingAndImageReplacementStayAttachedWithoutBlankFrames() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val activity = instrumentation.startActivitySync(
@@ -134,6 +161,10 @@ class AndroidRasterPlacementTest {
                 positions += reference
             }
             assertTrue("Scrolling must actually move the content", positions.size > 10)
+            recordResult(activity, "scrolling-replacement")
+        } catch (failure: Throwable) {
+            recordResult(activity, "scrolling-replacement", failure)
+            throw failure
         } finally { instrumentation.runOnMainSync { activity.finish() } }
     }
 
@@ -198,6 +229,10 @@ class AndroidRasterPlacementTest {
             assertTrue("Motion must change pixels inside the intended region", changed > 100)
             first.recycle(); second.recycle()
             verifyPlacement()
+            recordResult(activity, "placement-lifecycle")
+        } catch (failure: Throwable) {
+            recordResult(activity, "placement-lifecycle", failure)
+            throw failure
         } finally { instrumentation.runOnMainSync { activity.finish() } }
     }
 }

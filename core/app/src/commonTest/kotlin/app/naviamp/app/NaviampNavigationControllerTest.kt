@@ -8,6 +8,36 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class NaviampNavigationControllerTest {
+    @Test fun playlistBackPreservesTheOpeningArtistAndItsNestedHistory() {
+        val controller = NaviampNavigationController(NaviampNavigationState(route = NaviampRoute.Library))
+        controller.recordArtistDetailOpened(artist("first"))
+        controller.navigate(NaviampRoute.ArtistDetail)
+        controller.recordArtistDetailOpened(artist("next"))
+        controller.recordPlaylistDetailOpened()
+        controller.navigate(NaviampRoute.PlaylistDetail)
+        controller.recordArtistDetailOpened(artist("playlist-track-artist"))
+        controller.navigate(NaviampRoute.ArtistDetail)
+        assertEquals(NaviampDetailBackCommand.Navigate(NaviampRoute.PlaylistDetail), controller.closeActiveDetail(NaviampDetailKind.Artist))
+        controller.navigate(NaviampRoute.PlaylistDetail)
+        assertEquals(NaviampDetailBackCommand.OpenArtist(artist("next")), controller.closePlaylistDetail(NaviampRoute.Playlists))
+        controller.navigate(NaviampRoute.ArtistDetail)
+        controller.recordArtistDetailOpened(artist("next"), pushCurrentArtist = false)
+        assertEquals(NaviampDetailBackCommand.OpenArtist(artist("first")), controller.closeActiveDetail(NaviampDetailKind.Artist))
+        assertEquals(NaviampDetailBackCommand.Navigate(NaviampRoute.Library), controller.closeActiveDetail(NaviampDetailKind.Artist))
+    }
+
+    @Test fun otherPlaylistOriginsAndClearedHistoryDoNotResurrectAnArtist() {
+        val controller = NaviampNavigationController()
+        controller.recordArtistDetailOpened(artist("first"))
+        controller.navigate(NaviampRoute.ArtistDetail)
+        controller.recordPlaylistDetailOpened()
+        controller.clearDetailHistory()
+        assertEquals(NaviampDetailBackCommand.Navigate(NaviampRoute.Playlists), controller.closePlaylistDetail(NaviampRoute.Playlists))
+        controller.recordArtistDetailOpened(artist("second"))
+        controller.navigate(NaviampRoute.Home)
+        controller.recordPlaylistDetailOpened()
+        assertEquals(NaviampDetailBackCommand.Navigate(NaviampRoute.Home), controller.closePlaylistDetail(NaviampRoute.Home))
+    }
     @Test
     fun routeAndLastContentRouteChangeIndependently() {
         val controller = NaviampNavigationController(

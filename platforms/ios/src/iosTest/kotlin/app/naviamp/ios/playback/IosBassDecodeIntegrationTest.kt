@@ -20,6 +20,32 @@ import kotlin.test.assertTrue
 
 class IosBassDecodeIntegrationTest {
     @Test
+    fun bundledBassDecodesAndSeeksThroughTheSharedFileCallbacks() {
+        val bytes = testWav()
+        val source = object : app.naviamp.domain.playback.PlaybackRandomAccessSource {
+            override val lengthBytes = bytes.size.toLong()
+            override suspend fun read(offset: Long, count: Int) =
+                bytes.copyOfRange(offset.toInt(), minOf(bytes.size.toLong(), offset + count).toInt())
+        }
+        val backend = IosBassAudioBackend()
+        assertTrue(BASS_Init(0, SampleRate.toUInt(), 0u, null, null) != 0)
+        try {
+            val invalid = object : app.naviamp.domain.playback.PlaybackRandomAccessSource {
+                override val lengthBytes = 64L
+                override suspend fun read(offset: Long, count: Int) = ByteArray(minOf(count.toLong(), lengthBytes - offset).toInt())
+            }
+            assertTrue(backend.createRandomAccessStream(invalid, true).isFailure)
+            val stream = backend.createRandomAccessStream(source, true).getOrThrow()
+            try {
+                backend.seek(stream, 0.5).getOrThrow()
+                val samples = FloatArray(256)
+                assertTrue(backend.readFloatData(stream, samples).getOrThrow() > 0)
+                assertTrue(samples.any { it != 0f })
+            } finally { backend.freeStream(stream).getOrThrow() }
+        } finally { backend.free() }
+    }
+
+    @Test
     fun bundledBassDecodesSeeksAndReadsAudio() {
         val path = "${NSTemporaryDirectory().trimEnd('/')}/naviamp-bass-${NSUUID.UUID().UUIDString}.wav"
         val bytes = testWav()

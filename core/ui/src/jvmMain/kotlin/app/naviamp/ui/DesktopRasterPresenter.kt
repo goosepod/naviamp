@@ -22,6 +22,7 @@ import javax.swing.JWindow
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.RRect
 import org.jetbrains.skiko.SkiaLayer
+import org.jetbrains.skiko.GraphicsApi
 import org.jetbrains.skiko.SkikoRenderDelegate
 
 /** Compose Desktop owns native popup windows; Core owns their geometry and overlay behavior. */
@@ -34,7 +35,9 @@ fun configureNaviampDesktopRasterLayers() {
 /** AWT publishes visibility/owned-window facts; shared UI owns motion and fallback behavior. */
 @Composable
 fun NaviampDesktopRasterHost(window: Window, windowState: WindowState, content: @Composable () -> Unit) {
+    val presentation = remember(window) { NaviampSurfacePresentation() }
     val presenter = remember(window) {
+        configureNaviampDesktopPopupRenderer(window)
         val forceSkia = System.getenv("NAVIAMP_RASTER_FORCE_SKIA") == "true"
         val mac = System.getProperty("os.name").contains("Mac")
         val windows = System.getProperty("os.name").startsWith("Windows")
@@ -49,10 +52,18 @@ fun NaviampDesktopRasterHost(window: Window, windowState: WindowState, content: 
     val visibility = remember(window) { MutableStateFlow(window.isShowing) }
     val visible by visibility.collectAsState()
     var overlay by remember(window) { mutableStateOf(false) }
+    SideEffect {
+        if (presentation.contentAttached(window.isShowing && !windowState.isMinimized)) {
+            requestNaviampDesktopSurfaceFrame(window)
+        }
+    }
     DisposableEffect(window) {
         fun update() {
             visibility.value = window.isShowing &&
                 ((window as? java.awt.Frame)?.extendedState?.and(java.awt.Frame.ICONIFIED) ?: 0) == 0
+            if (presentation.visibilityChanged(visibility.value && !windowState.isMinimized)) {
+                requestNaviampDesktopSurfaceFrame(window)
+            }
             fun hasOverlay(owner: Window): Boolean = owner.ownedWindows.any {
                 it.name != RasterOverlayWindowName && (it.isShowing || hasOverlay(it))
             }
@@ -77,10 +88,33 @@ fun NaviampDesktopRasterHost(window: Window, windowState: WindowState, content: 
         if (System.getProperty("os.name").contains("Mac") && NativeMetalVisualizerHost.libraryAvailable())
             DesktopGpuVisualizerPresenter(window) else null
     }
-    CompositionLocalProvider(LocalNaviampGpuVisualizerPresenter provides gpuPresenter) {
+    val dialogSurface = remember(window) { DesktopOwnedDialogSurface(window) }
+    CompositionLocalProvider(
+        LocalNaviampOwnedDialogSurface provides dialogSurface,
+        LocalNaviampGpuVisualizerPresenter provides gpuPresenter,
+    ) {
         NaviampRasterEnvironment(presenter, visible && !windowState.isMinimized, overlay,
             System.getProperty("compose.layers.type") == "WINDOW", visibility, content)
     }
+}
+
+/** AWT peer visibility and Skiko's native frame queue must be observed after the current commit. */
+private fun requestNaviampDesktopSurfaceFrame(window: Window) {
+    EventQueue.invokeLater {
+        if (window.isDisplayable && window.isShowing) findSkiaLayer(window)?.needRedraw()
+    }
+}
+
+/** Native Skiko/AWT boundary: the primary layer already captured its hardware renderer.
+ * Select the default for future transparent window constructors; never switch a live surface. */
+internal fun configureNaviampDesktopPopupRenderer(window: Window,
+    requestedApi: String? = System.getProperty("naviamp.desktop.popupRenderApi")) {
+    val requested = requestedApi?.trim()
+        ?.takeUnless { it.isEmpty() || it.equals("DEFAULT", ignoreCase = true) } ?: return
+    require(EventQueue.isDispatchThread()) { "Popup renderer initialization requires the AWT event thread" }
+    require(window.owner == null && window.isOpaque) { "Popup renderer initialization requires the primary AWT window" }
+    checkNotNull(findSkiaLayer(window)) { "Primary Skiko layer is unavailable" }
+    System.setProperty("skiko.renderApi", GraphicsApi.valueOf(requested).name)
 }
 
 /** Windows and Linux isolate animation in small transparent Skia hardware surfaces. */

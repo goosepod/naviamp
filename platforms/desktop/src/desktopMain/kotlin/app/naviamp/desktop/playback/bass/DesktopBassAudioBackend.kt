@@ -134,6 +134,10 @@ class DesktopBassAudioBackend(
         bass.createUrlStream(url)
             .toHandleResult("BASS_StreamCreateURL failed")
 
+    override fun createRandomAccessStream(source: app.naviamp.domain.playback.PlaybackRandomAccessSource, decode: Boolean): Result<BassStreamHandle> =
+        bass.createRandomAccessStream(app.naviamp.domain.playback.BassFileCallbacks(source), decode)
+            .toHandleResult("BASS_StreamCreateFile failed")
+
     override fun createFileDecodeStream(path: String): Result<BassStreamHandle> {
         bass.loadAvailablePlugins()
         return bass.createFileDecodeStream(path)

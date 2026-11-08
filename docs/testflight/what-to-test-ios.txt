@@ -1,0 +1,7 @@
+Naviamp 2.9.0 (57) — iPhone and iPad beta.
+
+Please test installing through TestFlight; connecting to your compatible music server; closing and reopening with a usable saved connection; browsing/searching, albums/playlists and artwork; audible playback, pause/resume, seeking, previous/next and queue advancement.
+
+Check Radio/Autoplay and downloads if available in this build; screen lock and background playback; supported audio interruptions; network loss and reconnect; and layout/accessibility on your iPhone or iPad. Feature availability depends on your server and account permissions.
+
+Music is not bundled. Use a test library/account where possible. Send feedback through TestFlight with version/build, device/OS, server type and steps to reproduce. Remove credentials, tokens and private server details from screenshots and reports.

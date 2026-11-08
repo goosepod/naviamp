@@ -20,6 +20,38 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampPopupSurfaceTest {
+    @Test fun nativeSurfaceReceivesViewportWhileCoreOwnsContentAndEscapeDismissal() = runComposeUiTest {
+        var rendered = false
+        var dismissed = false
+        val surface = object : NaviampOwnedDialogSurface {
+            @Composable override fun Render(size: androidx.compose.ui.unit.DpSize,
+                properties: androidx.compose.ui.window.PopupProperties, onCloseRequest: () -> Unit,
+                content: @Composable () -> Unit) {
+                assertTrue(size.width.value > 0 && size.height.value > 0)
+                assertTrue(properties.focusable)
+                rendered = true
+                content()
+            }
+        }
+        setContent {
+            CompositionLocalProvider(LocalNaviampOwnedPopupWindows provides true,
+                LocalNaviampOwnedDialogSurface provides surface) {
+                NaviampAlertDialog(onDismissRequest = { dismissed = true }, confirmButton = { Text("Confirm") },
+                    text = { SmartPlaylistDropdown("Library", "Music", NaviampColors(),
+                        listOf("Music" to "1", "Classical" to "2"), {}) })
+            }
+        }
+        assertTrue(rendered)
+        onNode(hasSetTextAction()).performClick()
+        onNodeWithText("Classical").assertExists()
+        onNode(hasSetTextAction()).performSemanticsAction(SemanticsActions.RequestFocus)
+            .performKeyInput { pressKey(Key.Escape) }
+        runOnIdle { assertFalse(dismissed) }
+        onNodeWithText("Classical").assertDoesNotExist()
+        onNode(hasSetTextAction()).performKeyInput { pressKey(Key.Escape) }
+        runOnIdle { assertTrue(dismissed) }
+    }
+
     @Test fun ownedMenuSupportsArrowFocusAndEscape() = runComposeUiTest {
         var open by mutableStateOf(true)
         setContent {
@@ -76,6 +108,56 @@ class NaviampPopupSurfaceTest {
         }
         onNodeWithContentDescription("More actions").performMouseInput { click() }
         onNodeWithText("Action 0").assertDoesNotExist()
+    }
+
+    @Test fun menuDismissesOnExternalActivationButDialogDraftSurvives() = runComposeUiTest {
+        val active = mutableStateOf(true)
+        var menuOpen by mutableStateOf(true)
+        var dialogOpen by mutableStateOf(false)
+        var draft by mutableStateOf("draft")
+        setContent {
+            CompositionLocalProvider(LocalNaviampOwnedPopupWindows provides true,
+                LocalNaviampWindowGroupActive provides active.value) {
+                Box(Modifier.size(700.dp, 500.dp)) {
+                    NaviampDropdownMenu(menuOpen, { menuOpen = false }) {
+                        NaviampDropdownMenuItem("Menu action", onClick = {})
+                    }
+                    if (dialogOpen) NaviampAlertDialog(
+                        onDismissRequest = { dialogOpen = false },
+                        confirmButton = { Text("Confirm") },
+                        text = { androidx.compose.material3.OutlinedTextField(draft, { draft = it }) },
+                    )
+                }
+            }
+        }
+        onNodeWithText("Menu action").assertExists()
+        runOnIdle { active.value = false }
+        onNodeWithText("Menu action").assertDoesNotExist()
+        runOnIdle { active.value = true; dialogOpen = true }
+        onNode(hasSetTextAction()).performTextReplacement("unsaved input")
+        runOnIdle { active.value = false }
+        assertTrue(dialogOpen)
+        runOnIdle { active.value = true }
+        onNodeWithText("unsaved input").assertExists()
+    }
+
+    @Test fun ownedDialogLeavesContentClicksAloneAndStillDismissesOutside() = runComposeUiTest {
+        var dismissed = false
+        setContent {
+            CompositionLocalProvider(LocalNaviampOwnedPopupWindows provides true) {
+                Box(Modifier.size(700.dp, 500.dp)) {
+                    NaviampAlertDialog(onDismissRequest = { dismissed = true },
+                        confirmButton = { Text("Confirm") },
+                        text = { Text("Dialog content") })
+                }
+            }
+        }
+        onNodeWithText("Dialog content").performMouseInput { click() }
+        runOnIdle { assertFalse(dismissed) }
+        onAllNodes(isRoot()).onLast().performMouseInput {
+            click(androidx.compose.ui.geometry.Offset(8f, 8f))
+        }
+        runOnIdle { assertTrue(dismissed) }
     }
 
     @Test fun dialogContentDoesNotTriggerOutsideDismissal() = runComposeUiTest {

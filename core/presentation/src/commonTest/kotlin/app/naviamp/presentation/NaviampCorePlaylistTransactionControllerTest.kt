@@ -38,6 +38,47 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NaviampCorePlaylistTransactionControllerTest {
+    @Test fun updatingAnImportedSelfReferenceIsRejectedBeforeProviderMutation() = runTest {
+        val fixture = fixture()
+        fixture.browse.refreshAfterConnection()
+        val definition = SmartPlaylistDefinition("Self", rules = listOf(
+            SmartPlaylistCondition(SmartPlaylistOperator.InPlaylist, "id", SmartPlaylistValue.Text("smart")),
+        ))
+        assertFailsWith<IllegalArgumentException> {
+            fixture.controller.execute(NaviampCoreCommand.SmartPlaylist.Update(playlistItem("smart", "Smart", true), definition))
+        }
+        assertTrue(fixture.provider.smartUpdates.isEmpty())
+    }
+    @Test fun membershipReferencesIncludeSmartPlaylistsWithoutTrackEditingPermission() = runTest {
+        val fixture = fixture()
+        val result = fixture.controller.execute(NaviampCoreCommand.SmartPlaylist.References)
+            as NaviampCoreCommandResult.SmartPlaylistReferencesLoaded
+        assertEquals(setOf("playlist-a", "playlist-b", "smart"), result.references.map { it.id }.toSet())
+        assertTrue(result.references.single { it.id == "smart" }.isSmart)
+        assertEquals(1, fixture.persistedSessions())
+        assertEquals("Music Library", fixture.store.state.value.shell.playlists.availableLibraries.single().name)
+        assertEquals("Music Library", fixture.store.state.value.shell.playlistDetail.availableLibraries.single().name)
+    }
+
+    @Test fun referenceLookupFailureIsRecoverableAndDoesNotMutatePlaylists() = runTest {
+        val fixture = fixture()
+        fixture.provider.playlistListFailure = IllegalStateException("lookup failed")
+        assertFailsWith<IllegalStateException> { fixture.controller.execute(NaviampCoreCommand.SmartPlaylist.References) }
+        fixture.provider.playlistListFailure = null
+        val result = fixture.controller.execute(NaviampCoreCommand.SmartPlaylist.References)
+            as NaviampCoreCommandResult.SmartPlaylistReferencesLoaded
+        assertEquals(3, result.references.size)
+        assertEquals(2, fixture.persistedSessions())
+        assertTrue(fixture.provider.smartUpdates.isEmpty())
+    }
+
+    @Test fun referencesFromASwitchedSourceAreDiscarded() = runTest {
+        val fixture = fixture()
+        fixture.provider.beforePlaylistList = { fixture.switchSource(null) }
+        assertFailsWith<kotlinx.coroutines.CancellationException> {
+            fixture.controller.execute(NaviampCoreCommand.SmartPlaylist.References)
+        }
+    }
     @Test
     fun playbackQueueAndDownloadReceiveResolvedDomainTransactions() = runTest {
         val fixture = fixture()
@@ -169,6 +210,58 @@ class NaviampCorePlaylistTransactionControllerTest {
     }
 
     @Test
+    fun smartPlaylistRejectsItemMutationEvenIfProviderMarksItEditable() = runTest {
+        val fixture = fixture()
+        fixture.browse.execute(NaviampCoreCommand.Playlists.Refresh)
+        assertFailsWith<UnsupportedOperationException> {
+            fixture.controller.execute(NaviampCoreCommand.Playlists.UpdateTracks(
+                playlistItem("smart", "Smart", smart = true), emptyList(),
+            ))
+        }
+        assertTrue(fixture.provider.replacementTrackIds.isEmpty())
+    }
+
+    @Test
+    fun successfulItemEditsReconcileDisplayedAndPlaybackOrder() = runTest {
+        val fixture = fixture()
+        fixture.browse.execute(NaviampCoreCommand.Playlists.Refresh)
+        val item = playlistItem("playlist-a", "Playlist A")
+        fixture.browse.execute(NaviampCoreCommand.Media.ItemAction(item.playlistActionRequest(NaviampPlaylistMediaCommand.Select)))
+        val requested = listOf("track-2", "track-1", "track-2")
+        fixture.controller.execute(NaviampCoreCommand.Playlists.UpdateTracks(
+            item, requested.map(::trackRow), expectedTrackIds = listOf("track-1", "track-2", "track-2"),
+        ))
+        assertEquals(requested, fixture.store.state.value.shell.playlistDetail.detail?.tracks?.map { it.id })
+    }
+
+    @Test
+    fun checkedSaveRejectsStaleServerOrderWithoutWriting() = runTest {
+        val fixture = fixture()
+        assertFailsWith<IllegalStateException> {
+            fixture.controller.execute(NaviampCoreCommand.Playlists.UpdateTracks(
+                playlistItem("playlist-a", "Playlist A"), listOf(trackRow("track-2")),
+                expectedTrackIds = listOf("track-2", "track-1", "track-2"),
+            ))
+        }
+        assertTrue(fixture.provider.replacementTrackIds.isEmpty())
+        assertEquals("test: reload playlist", fixture.store.state.value.shell.playlistDetail.status)
+    }
+
+    @Test
+    fun checkedSavePreservesDuplicateOccurrencesAndAllowsLostResponseRetry() = runTest {
+        val fixture = fixture()
+        val command = NaviampCoreCommand.Playlists.UpdateTracks(
+            playlistItem("playlist-a", "Playlist A"), listOf(trackRow("track-1"), trackRow("track-2")),
+            expectedTrackIds = listOf("track-1", "track-2", "track-2"),
+        )
+        fixture.provider.afterReplacement = { error("Response lost") }
+        assertFailsWith<IllegalStateException> { fixture.controller.execute(command) }
+        fixture.provider.afterReplacement = {}
+        fixture.controller.execute(command)
+        assertEquals(listOf("track-1", "track-2"), fixture.provider.playlistTracks("playlist-a").map { it.id.value })
+    }
+
+    @Test
     fun renameAndDeleteKeepCoreSelectionConsistent() = runTest {
         val fixture = fixture()
         fixture.browse.execute(NaviampCoreCommand.Playlists.Refresh)
@@ -205,6 +298,23 @@ class NaviampCorePlaylistTransactionControllerTest {
         assertEquals(listOf("smart:Smart Mix"), fixture.provider.smartUpdates)
         assertEquals(NaviampCoreCommandResult.SmartPlaylistLoaded(definition), result)
         assertNull(fixture.store.state.value.shell.playlists.status)
+    }
+
+    @Test
+    fun unsupportedInspectionDoesNotWriteOrRemoveListeningAndManagement() = runTest {
+        val fixture = fixture()
+        val item = playlistItem("smart", "Smart", smart = true)
+        val editing = app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult.ReadOnly("{nested rules}")
+        fixture.provider.inspection = editing
+        val result = fixture.controller.execute(NaviampCoreCommand.SmartPlaylist.Inspect(item, "secret"))
+        assertEquals(NaviampCoreCommandResult.SmartPlaylistInspected(editing), result)
+        assertEquals(1, fixture.persistedSessions())
+        assertTrue(fixture.provider.smartUpdates.isEmpty())
+        assertTrue(fixture.provider.smartCreates.isEmpty())
+        fixture.controller.execute(detail(item, NaviampPlaylistDetailCommand.Play(false)))
+        assertEquals(listOf("smart:false"), fixture.effects.plays)
+        fixture.controller.execute(detail(item, NaviampPlaylistDetailCommand.Delete))
+        assertEquals(listOf("smart"), fixture.provider.deleted)
     }
 
     @Test
@@ -280,6 +390,8 @@ class NaviampCorePlaylistTransactionControllerTest {
             downloads = effects,
             sessionPort = sessionPort,
             openNowPlaying = navigation::openNowPlaying,
+            staleDraftMessage = { "test: reload playlist" },
+            selfReferenceMessage = { "test: self reference" },
         )
         return TransactionFixture(
             store,
@@ -350,6 +462,7 @@ private class TransactionTestEffects :
 }
 
 private class TransactionTestProvider(override val cacheNamespace: String = "original") : MediaProvider {
+    override suspend fun libraries() = listOf(app.naviamp.domain.provider.MediaLibrary("1", "Music Library"))
     override val id = ProviderId("transactions")
     override val displayName = "Transactions"
     override val capabilities = ProviderCapabilities(
@@ -388,6 +501,8 @@ private class TransactionTestProvider(override val cacheNamespace: String = "ori
     val smartCreates = mutableListOf<String>()
     val smartUpdates = mutableListOf<String>()
     var staleSmartCreationList = false
+    var playlistListFailure: Throwable? = null
+    var beforePlaylistList: suspend () -> Unit = {}
 
     override suspend fun validateConnection() = ConnectionValidation(null, null)
     override suspend fun recentlyAddedAlbums(limit: Int) = emptyList<Album>()
@@ -396,10 +511,14 @@ private class TransactionTestProvider(override val cacheNamespace: String = "ori
     override suspend fun artists(limit: Int) = emptyList<Artist>()
     override suspend fun tracks(limit: Int) = emptyList<Track>()
     override suspend fun search(query: String, limit: Int) = MediaSearchResults()
-    override suspend fun playlists(limit: Int) = playlistItems.map { playlist ->
+    override suspend fun playlists(limit: Int): List<Playlist> {
+        beforePlaylistList()
+        playlistListFailure?.let { throw it }
+        return playlistItems.map { playlist ->
         if (staleSmartCreationList && playlist.id == "smart-created") {
             playlist.copy(trackCount = 12, isSmart = false, canEdit = false, canManage = false)
         } else playlist
+        }
     }
     override suspend fun playlistTracks(playlistId: String): List<Track> {
         beforeRead()
@@ -452,6 +571,8 @@ private class TransactionTestProvider(override val cacheNamespace: String = "ori
         smartUpdates += "$playlistId:${definition.name}"
     }
 
+    var inspection: app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult? = null
+    override suspend fun inspectSmartPlaylist(playlistId: String) = inspection ?: super.inspectSmartPlaylist(playlistId)
     override suspend fun smartPlaylistDefinition(playlistId: String) = smartDefinition
     override suspend fun streamUrl(request: StreamRequest) = "https://stream.example"
     override fun coverArtUrl(coverArtId: String) = "https://art.example/$coverArtId"

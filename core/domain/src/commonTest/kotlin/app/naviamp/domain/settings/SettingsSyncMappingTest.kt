@@ -1,4 +1,5 @@
 package app.naviamp.domain.settings
+import app.naviamp.domain.radio.withRadioSimilarityMethod
 
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
@@ -24,6 +25,109 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineScope
 
 class SettingsSyncMappingTest {
+    @Test fun artworkFillAndCornersAreIndependentPortablePreferences() {
+        for (square in listOf(false, true)) for (fill in listOf(false, true)) {
+            val settings = InterfaceSettings(squareAlbumArtwork = square,
+                nowPlaying = NowPlayingDisplaySettings(fillArtworkArea = fill, splitPaneBackgroundOpacityPercent = 999))
+            val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(interfaceSettings = settings), 1L, "test")
+            val applied = applySettingsSyncDocument(SettingsSyncJson.decode(SettingsSyncJson.encode(document)),
+                FakePlaybackEngine(false), RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
+            assertEquals(square, applied.interfaceSettings.squareAlbumArtwork)
+            assertEquals(fill, applied.interfaceSettings.nowPlaying.fillArtworkArea)
+            assertEquals(100, applied.interfaceSettings.nowPlaying.splitPaneBackgroundOpacityPercent)
+        }
+        assertFalse(SettingsSyncJson.decode("{}").preferences.interfaceSettings.nowPlaying.fillArtworkArea)
+    }
+    @Test fun squareAlbumArtworkAppliesThroughPortableExportImportAndDefaultsForOlderExports() {
+        for (square in listOf(false, true)) {
+            val settings = InterfaceSettings(squareAlbumArtwork = square)
+            val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(interfaceSettings = settings), 1L, "test")
+            val applied = applySettingsSyncDocument(SettingsSyncJson.decode(SettingsSyncJson.encode(document)),
+                FakePlaybackEngine(false), RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
+            assertEquals(settings, applied.interfaceSettings)
+        }
+        assertFalse(SettingsSyncJson.decode("{}").preferences.interfaceSettings.squareAlbumArtwork)
+    }
+    @Test fun aurralConnectionIdentityAndTlsPreferenceRoundTripWithoutSecrets() {
+        val source = savedSource().copy(providerId = app.naviamp.domain.provider.ProviderIdAurral,
+            password = "account-secret", nativeToken = "session-secret",
+            tlsSettings = app.naviamp.domain.source.ConnectionTlsSettings(insecureSkipTlsVerification = true))
+        val encoded = SettingsSyncJson.encode(buildSettingsSyncDocument(
+            SettingsSyncLocalSnapshot(serverProfiles = listOf(source)), 1L, "test"))
+        assertFalse(encoded.contains("account-secret"))
+        assertFalse(encoded.contains("session-secret"))
+        val restored = SettingsSyncJson.decode(encoded).serverProfiles.single().toConnectionFormState()
+        assertEquals(app.naviamp.domain.provider.ProviderIdAurral, restored.providerId)
+        assertTrue(restored.skipTlsVerification)
+        assertEquals(listOf("folder-one", "folder-two"), restored.selectedMusicFolderIds)
+    }
+    @Test fun independentArtistSectionLayoutsApplyThroughSettingsSync() {
+        for (playlists in AlbumCollectionLayout.entries) for (appearances in AlbumCollectionLayout.entries) {
+            val settings = InterfaceSettings(artistPlaylistLayout = playlists, artistAppearanceAlbumLayout = appearances)
+            val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(interfaceSettings = settings), 1L, "test")
+            val applied = applySettingsSyncDocument(SettingsSyncJson.decode(SettingsSyncJson.encode(document)),
+                FakePlaybackEngine(false), RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
+            assertEquals(settings, applied.interfaceSettings)
+        }
+    }
+    @Test fun artistPlaylistVisibilityIsAppliedFromPortableExportsAndOlderDefaults() {
+        for (enabled in listOf(false, true)) {
+            val exported = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(
+                interfaceSettings = InterfaceSettings(showArtistPlaylists = enabled)), 1L, "test")
+            val applied = applySettingsSyncDocument(SettingsSyncJson.decode(SettingsSyncJson.encode(exported)),
+                FakePlaybackEngine(false), RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
+            assertEquals(enabled, applied.interfaceSettings.showArtistPlaylists)
+        }
+        val older = applySettingsSyncDocument(SettingsSyncJson.decode("{}"), FakePlaybackEngine(false),
+            RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
+        assertTrue(older.interfaceSettings.showArtistPlaylists)
+    }
+
+    @Test fun artistTopTracksApplyThroughExportImportAndSync() {
+        for (visible in listOf(true, false)) for (limit in ArtistTopTracksLimits) {
+            val settings = InterfaceSettings(showArtistTopTracks = visible, artistTopTracksLimit = limit)
+            val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(interfaceSettings = settings), 1L, "test")
+            val applied = applySettingsSyncDocument(SettingsSyncJson.decode(SettingsSyncJson.encode(document)),
+                FakePlaybackEngine(false), RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
+            assertEquals(settings, applied.interfaceSettings)
+        }
+    }
+    @Test fun explicitRadioMethodsAndAutoplaySurvivePortableExportImportAndSync() {
+        for (method in app.naviamp.domain.radio.RadioSimilarityMethod.entries) {
+            val settings = PlaybackSettings().withRadioSimilarityMethod(method)
+                .copy(sonicAutoplayEnabled = true, radioMinimumTracks = 40, sonicAutoplayMinimumTracks = 70)
+            val exported = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(playback = settings), 1L, "test")
+            val restored = SettingsSyncJson.decode(SettingsSyncJson.encode(exported))
+            val applied = applySettingsSyncDocument(restored, FakePlaybackEngine(false),
+                RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository()).playbackSettings
+            assertEquals(settings.sonicSimilarityEnabled, applied.sonicSimilarityEnabled)
+            assertTrue(applied.sonicSimilarityPreferenceConfigured)
+            assertTrue(applied.sonicAutoplayEnabled)
+            assertEquals(40, applied.radioMinimumTracks)
+            assertEquals(70, applied.sonicAutoplayMinimumTracks)
+        }
+        assertFalse(SettingsSyncJson.decode("{}").preferences.playback.effectiveSonicSimilarityEnabled())
+        assertTrue(SettingsSyncJson.decode("""{"preferences":{"playback":{"sonicSimilarityEnabled":true}}}""")
+            .preferences.playback.effectiveSonicSimilarityEnabled())
+    }
+
+    @Test
+    fun independentRadioBatchSizesArePortableAndAppliedNormalized() {
+        val exported = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(
+            playback = PlaybackSettings(radioMinimumTracks = 30, sonicAutoplayMinimumTracks = 80)), 1L, "test")
+        val restored = SettingsSyncJson.decode(SettingsSyncJson.encode(exported))
+        val applied = applySettingsSyncDocument(restored, FakePlaybackEngine(false),
+            RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
+        assertEquals(30, applied.playbackSettings.radioMinimumTracks)
+        assertEquals(80, applied.playbackSettings.sonicAutoplayMinimumTracks)
+        val raw = restored.copy(preferences = restored.preferences.copy(playback =
+            PlaybackSettings(radioMinimumTracks = -1, sonicAutoplayMinimumTracks = 999)))
+        val normalized = applySettingsSyncDocument(raw, FakePlaybackEngine(false),
+            RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository()).playbackSettings
+        assertEquals(10, normalized.radioMinimumTracks)
+        assertEquals(100, normalized.sonicAutoplayMinimumTracks)
+    }
+
     @Test
     fun apiKeyProfileRoundTripsModeWithoutExportingTheKey() {
         val source = savedSource().copy(

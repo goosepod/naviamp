@@ -42,6 +42,9 @@ interface NaviampCorePlaybackEffectPort : NaviampPlaybackExecution {
     /** Enables FFT sampling for a visible consumer; suspension retains the last published sample. */
     fun setVisualizerFramesEnabled(enabled: Boolean) = Unit
 
+    /** Quiesce pending main loads before a separate preview can take audio output. */
+    fun prepareForPreview() = Unit
+
     fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean)
     fun restoreQueue(queue: PlaybackQueue, startPositionSeconds: Double?) {
         applyQueue(queue, clearPreparedNext = true)
@@ -67,6 +70,7 @@ data class NaviampCoreNowPlayingSidecars(
     val album: app.naviamp.domain.Album? = null,
     val waveform: AudioWaveform? = null,
     val audioTags: List<AudioTag>? = null,
+    val fileAudioInfo: app.naviamp.domain.AudioInfo? = null,
     val lyrics: Lyrics? = null,
     val lyricsAvailableTiming: LyricsTiming? = null,
     val lyricsStatus: String? = null,

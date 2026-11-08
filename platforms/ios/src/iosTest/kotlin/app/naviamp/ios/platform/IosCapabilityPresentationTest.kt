@@ -14,6 +14,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 class IosCapabilityPresentationTest {
+    @Test fun exposesCertificateConfigurationWithTheAppleTlsAndDocumentEffectsMounted() {
+        assertEquals(PlatformCapabilityStatus.Available, IosCapabilityPresentation.platform.status(PlatformCapability.ClientCertificates))
+        assertEquals(PlatformCapabilityStatus.Available, IosCapabilityPresentation.platform.status(PlatformCapability.CustomServerCertificates))
+    }
     @Test
     fun exposesDownloadsAfterTheNativeStorageEffectIsMounted() {
         assertTrue(IosCapabilityPresentation.shell(TestPlaybackEngine).downloads)
