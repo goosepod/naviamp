@@ -238,7 +238,20 @@ private fun AndroidNativeGlslVisualizerSurface(
                 surfaceHeight = size.height
             },
             factory = {
-                GLSurfaceView(context).apply {
+                object : GLSurfaceView(context) {
+                    override fun onAttachedToWindow() {
+                        super.onAttachedToWindow()
+                        // SurfaceView needs a root pre-draw to create its native surface even
+                        // when Compose has retained the surrounding player drawing. Request
+                        // one traversal on attachment, never a traversal per rendered frame.
+                        post {
+                            if (isAttachedToWindow) {
+                                rootView.requestLayout()
+                                rootView.invalidate()
+                            }
+                        }
+                    }
+                }.apply {
                     setEGLContextClientVersion(3)
                     preserveEGLContextOnPause = true
                     setRenderer(renderer)
