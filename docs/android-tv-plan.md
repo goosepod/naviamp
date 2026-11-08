@@ -1324,9 +1324,9 @@ The emulator and automated checks below do not close those physical-device findi
 
 ### 2026-09-09
 
-- Resumed `feature/android-tv` and merged the released v2.4.0 main baseline. The current integration,
-  validation, environment, and next-work status is recorded in
-  [`android-tv-status-2026-09-09.md`](android-tv-status-2026-09-09.md).
+- Resumed `feature/android-tv` and merged the released v2.4.0 main baseline. The
+  [September 9 integration checkpoint](https://github.com/goosepod/naviamp/blob/40d2bd5c203c1b522802583095128269014554aa/docs/android-tv-status-2026-09-09.md)
+  remains in Git history; use this plan's preview gates for current acceptance requirements.
 - Added the shared TV Artists/Albums/Songs presentation, per-view search and viewport retention,
   stable-identity focus restoration after details, A–Z/loading/empty states, paging, and song
   playback/queue/radio actions. Selector and toolbar D-pad paths are explicit, and page appends
