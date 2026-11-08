@@ -54,6 +54,14 @@ every execution independently. It does not reuse a native test result or retry a
 
 ## Validation
 
+The network Apple Silicon Mac compiles the isolated native binary, stages frameworks and prepares
+the fixture in 2m6s on source `09619fc436f6b64169b5e3acdd27e52c1232cc11`. Its first launcher
+control exits 111 during inventory, before any test starts; raw failure is retained under that
+Mac worktree's `build/ios-native-execution`. Kotlin's simulator command includes a literal `--`
+between the executable and native flags. The launcher now preserves that boundary, with a fake
+CoreSimulator regression requiring it. This setup failure is not native acceptance. The owned
+fixture and uniquely named simulator were released; the owner checkout/profile was untouched.
+
 Portable helper regression batch: 36/36 passed under WSL, zero failures/skips. Coverage includes
 protocol escaping, incomplete/duplicate/failed/ignored cases, manifest omissions, nonzero native
 exit despite success-shaped output, stale-directory rejection, real process-group timeout cleanup,

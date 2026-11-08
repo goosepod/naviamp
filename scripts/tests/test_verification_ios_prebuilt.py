@@ -74,6 +74,7 @@ class PrebuiltNativeExecutionTest(unittest.TestCase):
         executable.write_bytes(b'owned compiled native test placeholder')
         fake = root / 'simctl.py'
         fake.write_text('import sys\n'
+                        'assert sys.argv[-2] == "--", "CoreSimulator requires the native argument separator"\n'
                         f'listing={listing!r}\noutput={output!r}\n'
                         'print(listing if sys.argv[-1] == "--ktest_list_tests" else output, end="")\n'
                         f'sys.exit(0 if sys.argv[-1] == "--ktest_list_tests" else {native_exit})\n')
