@@ -89,10 +89,10 @@ private class AndroidRasterPresenter(private val activity: Activity) : NaviampRa
     }
 
     fun close() {
-        Choreographer.getInstance().removeFrameCallback(this)
-        frameSchedule.delivered()
         regions.toList().forEach(AndroidRasterRegion::close)
         regions.clear()
+        Choreographer.getInstance().removeFrameCallback(this)
+        frameSchedule.delivered()
         transaction.close()
     }
 }
@@ -286,13 +286,13 @@ private class AndroidRasterRegion(
         viewportCrop = null
     }
 
-    fun nextFrameDelay(nowMillis: Long): Long? {
-        if (!attached || !hostReady || layers.isEmpty()) return null
-        return if (needsUpdate) 0L else naviampRasterFrameDelay(layers.map { it.spec }, bounds.width, nowMillis - startedAt)
-    }
+    fun nextFrameDelay(nowMillis: Long): Long? = naviampRasterFrameDelay(
+        requestedLayers, bounds.width, nowMillis - startedAt,
+        available = attached && hostReady && layers.isNotEmpty(), needsUpdate = needsUpdate,
+    )
 
     fun appendUpdate(transaction: SurfaceControl.Transaction): Boolean {
-        if (!attached || needsUpdate) return false
+        if (!attached || !hostReady || layers.isEmpty()) return false
         val elapsed = SystemClock.uptimeMillis() - startedAt
         val changed = updateSurfaces(transaction, elapsed)
         needsUpdate = false
@@ -321,9 +321,8 @@ private class AndroidRasterRegion(
         layers.forEachIndexed { index, layer ->
                 if (!layer.control.isValid) return@forEachIndexed
                 val spec = layer.spec
-                val dx = spec.translation?.valueAt(elapsed) ?: 0f
                 if (Build.VERSION.SDK_INT >= 33 && spec.translation != null) {
-                    val placement = naviampRasterTranslation(bounds, clip, spec.origin, dx) ?: return@forEachIndexed
+                    val placement = naviampRasterTranslation(spec, bounds, clip, elapsed) ?: return@forEachIndexed
                     if (layer.translation == placement.position && !layer.bufferChanged && layer.ordered) return@forEachIndexed
                     if (layer.translation == null) {
                         transaction.setCrop(layer.control, null).setScale(layer.control, 1f, 1f)
@@ -341,13 +340,7 @@ private class AndroidRasterRegion(
                 }
                 val wasTranslated = layer.translation != null
                 layer.translation = null
-                val imageLeft = bounds.left + spec.origin.x + dx
-                val imageTop = bounds.top + spec.origin.y
-                val reveal = spec.revealMotion?.valueAt(elapsed) ?: spec.reveal
-                val crop = naviampRasterPixelCrop(
-                    Rect(imageLeft, imageTop, imageLeft + spec.image.width, imageTop + spec.image.height),
-                    bounds, clip, if (spec.translation == null) reveal else null, spec.clipFromStart,
-                )
+                val crop = naviampRasterPixelCrop(spec, bounds, clip, elapsed)
                 if (!layer.cropState.update(crop, force = layer.bufferChanged || !layer.ordered || wasTranslated)) return@forEachIndexed
                 if (crop == null) {
                     if (layer.visible) {
@@ -378,16 +371,10 @@ private class AndroidRasterRegion(
                     layer.bufferChanged = false
                 }
                 if (Build.VERSION.SDK_INT >= 33) {
-                    val scaleX = layer.destination.width().toFloat() / layer.source.width()
-                    val scaleY = layer.destination.height().toFloat() / layer.source.height()
                     transaction.setCrop(layer.control, layer.source)
                         .setBufferTransform(layer.control, SurfaceControl.BUFFER_TRANSFORM_IDENTITY)
-                        .setScale(layer.control, scaleX, scaleY)
-                        .setPosition(
-                            layer.control,
-                            layer.destination.left - layer.source.left * scaleX,
-                            layer.destination.top - layer.source.top * scaleY,
-                        )
+                        .setScale(layer.control, crop.scaleX, crop.scaleY)
+                        .setPosition(layer.control, crop.positionX, crop.positionY)
                 } else {
                     @Suppress("DEPRECATION")
                     transaction.setGeometry(layer.control, layer.source, layer.destination,
