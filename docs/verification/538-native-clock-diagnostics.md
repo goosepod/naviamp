@@ -20,7 +20,8 @@ native stream/position, resume and callback-release assertions and deadlines. A 
 thread name. It introduces no independent polling, extra native reads during acceptance, sleeps,
 device selection or recovery.
 
-After a failure, before engine cleanup, the test reports this history, handles, versions, enumerated
+Failure capture stays inside the playback `runBlocking` scope, before it cancels and joins the
+engine child jobs that release native channels. Before that cleanup, the test reports this history, handles, versions, enumerated
 devices, fresh JNI decoded/audible readings, and a bounded thread snapshot. Read-only getters from
 the same BASS library report the current thread's device and output-started state, the playback
 channel's device, buffered bytes and active state, with immediately sampled per-call error codes.

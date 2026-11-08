@@ -72,63 +72,66 @@ class DesktopPreviewPlaybackIntegrationTest {
                 val main = MutableStateFlow<PlaybackState>(PlaybackState.Idle)
                 val sample = MutableStateFlow<PlaybackState>(PlaybackState.Idle)
                 val progress = MutableStateFlow(PlaybackProgress.Unknown)
-                engine.setVolume(0)
-                engine.play(this, PlaybackRequest(file.toUri().toString()), {
-                    main.value = it
-                    diagnostics.record("state=$it")
-                }, {
-                    progress.value = it
-                    diagnostics.record("published=$it")
-                })
                 try {
-                    withTimeout(10_000) {
-                        combine(main, progress) { state, clock ->
-                            check(state !is PlaybackState.Error) { "Initial native playback failed: $state" }
-                            clock
-                        }.first { (it.positionSeconds ?: 0.0) >= 0.2 }
+                    engine.setVolume(0)
+                    engine.play(this, PlaybackRequest(file.toUri().toString()), {
+                        main.value = it
+                        diagnostics.record("state=$it")
+                    }, {
+                        progress.value = it
+                        diagnostics.record("published=$it")
+                    })
+                    try {
+                        withTimeout(10_000) {
+                            combine(main, progress) { state, clock ->
+                                check(state !is PlaybackState.Error) { "Initial native playback failed: $state" }
+                                clock
+                            }.first { (it.positionSeconds ?: 0.0) >= 0.2 }
+                        }
+                    } catch (timeout: TimeoutCancellationException) {
+                        throw AssertionError("Initial native playback did not advance; state=${main.value}; progress=${progress.value}; " +
+                            "source=${mainSource.value?.let(nativeBackend::positionSeconds)}; " +
+                            "active=${mainPlayback.value?.let(nativeBackend::activeState)}", timeout)
                     }
-                } catch (timeout: TimeoutCancellationException) {
-                    throw AssertionError("Initial native playback did not advance; state=${main.value}; progress=${progress.value}; " +
-                        "source=${mainSource.value?.let(nativeBackend::positionSeconds)}; " +
-                        "active=${mainPlayback.value?.let(nativeBackend::activeState)}", timeout)
+                    engine.pause()
+                    val sourceHandle = checkNotNull(mainSource.value)
+                    val playbackHandle = checkNotNull(mainPlayback.value)
+                    assertEquals(BassActiveState.Paused, nativeBackend.activeState(playbackHandle))
+                    val nativePausedPosition = checkNotNull(nativeBackend.positionSeconds(sourceHandle))
+                    // A fixed sleep cannot establish that the shared polling callback has run.
+                    // Compare only after its paused snapshot agrees with the actual native clock.
+                    withTimeout(10_000) {
+                        progress.first { abs((it.positionSeconds ?: Double.NEGATIVE_INFINITY) - nativePausedPosition) < 0.15 }
+                    }
+                    val pausedPosition = checkNotNull(progress.value.positionSeconds)
+                    assertEquals(PlaybackState.Paused, main.value)
+                    engine.playPreview(this, PlaybackRequest("http://127.0.0.1:${server.address.port}/preview.wav"), true, 0) { sample.value = it }
+                    withTimeout(10_000) { sample.first { it == PlaybackState.Finished || it is PlaybackState.Error } }
+                    assertEquals(PlaybackState.Finished, sample.value)
+                    assertEquals(PlaybackState.Paused, main.value)
+                    assertEquals(BassActiveState.Paused, nativeBackend.activeState(playbackHandle))
+                    val nativeAfterPreview = checkNotNull(nativeBackend.positionSeconds(sourceHandle))
+                    assertTrue(abs(nativeAfterPreview - nativePausedPosition) < 0.15,
+                        "Native main position changed during preview: $nativePausedPosition -> $nativeAfterPreview")
+                    val afterPreview = checkNotNull(progress.value.positionSeconds)
+                    assertTrue(abs(afterPreview - pausedPosition) < 0.15,
+                        "Main position changed during preview: $pausedPosition -> $afterPreview")
+                    engine.resume()
+                    withTimeout(5_000) { progress.first { (it.positionSeconds ?: 0.0) > pausedPosition + 0.2 } }
+                    println("Independent preview finished; native main $nativePausedPosition -> $nativeAfterPreview; sampled main $pausedPosition -> $afterPreview, resumed to ${progress.value.positionSeconds}")
+                    if (System.getenv("NAVIAMP_NATIVE_CLOCK_DIAGNOSTICS") == "true") {
+                        println(diagnostics.report(binding, mainPlayback.value, mainSource.value))
+                    }
+                    engine.stop()
+                    assertEquals(0, binding.endSyncRegistrationCount, "Main and preview native callbacks must be released")
+                } catch (failure: Throwable) {
+                    // Capture live handles before runBlocking cancels and joins engine child jobs.
+                    // Preserve the original result even if optional diagnostics fail.
+                    runCatching { println(diagnostics.report(binding, mainPlayback.value, mainSource.value)) }
+                        .onFailure { failure.addSuppressed(it) }
+                    throw failure
                 }
-                engine.pause()
-                val sourceHandle = checkNotNull(mainSource.value)
-                val playbackHandle = checkNotNull(mainPlayback.value)
-                assertEquals(BassActiveState.Paused, nativeBackend.activeState(playbackHandle))
-                val nativePausedPosition = checkNotNull(nativeBackend.positionSeconds(sourceHandle))
-                // A fixed sleep cannot establish that the shared polling callback has run.
-                // Compare only after its paused snapshot agrees with the actual native clock.
-                withTimeout(10_000) {
-                    progress.first { abs((it.positionSeconds ?: Double.NEGATIVE_INFINITY) - nativePausedPosition) < 0.15 }
-                }
-                val pausedPosition = checkNotNull(progress.value.positionSeconds)
-                assertEquals(PlaybackState.Paused, main.value)
-                engine.playPreview(this, PlaybackRequest("http://127.0.0.1:${server.address.port}/preview.wav"), true, 0) { sample.value = it }
-                withTimeout(10_000) { sample.first { it == PlaybackState.Finished || it is PlaybackState.Error } }
-                assertEquals(PlaybackState.Finished, sample.value)
-                assertEquals(PlaybackState.Paused, main.value)
-                assertEquals(BassActiveState.Paused, nativeBackend.activeState(playbackHandle))
-                val nativeAfterPreview = checkNotNull(nativeBackend.positionSeconds(sourceHandle))
-                assertTrue(abs(nativeAfterPreview - nativePausedPosition) < 0.15,
-                    "Native main position changed during preview: $nativePausedPosition -> $nativeAfterPreview")
-                val afterPreview = checkNotNull(progress.value.positionSeconds)
-                assertTrue(abs(afterPreview - pausedPosition) < 0.15,
-                    "Main position changed during preview: $pausedPosition -> $afterPreview")
-                engine.resume()
-                withTimeout(5_000) { progress.first { (it.positionSeconds ?: 0.0) > pausedPosition + 0.2 } }
-                println("Independent preview finished; native main $nativePausedPosition -> $nativeAfterPreview; sampled main $pausedPosition -> $afterPreview, resumed to ${progress.value.positionSeconds}")
-                if (System.getenv("NAVIAMP_NATIVE_CLOCK_DIAGNOSTICS") == "true") {
-                    println(diagnostics.report(binding, mainPlayback.value, mainSource.value))
-                }
-                engine.stop()
-                assertEquals(0, binding.endSyncRegistrationCount, "Main and preview native callbacks must be released")
             }
-        } catch (failure: Throwable) {
-            // Preserve the original result even if optional diagnostic collection itself fails.
-            runCatching { println(diagnostics.report(binding, mainPlayback.value, mainSource.value)) }
-                .onFailure { failure.addSuppressed(it) }
-            throw failure
         } finally {
             engine.release()
             server.stop(0)
