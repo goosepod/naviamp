@@ -177,7 +177,34 @@ jobs:
           java-version: "21"
 
       - name: Run Desktop tests with macOS native libraries
+        env:
+          NAVIAMP_NATIVE_CLOCK_DIAGNOSTICS: "true"
         run: ./gradlew -Pnaviamp.bass.platform=macos-arm64 -Pcompose.desktop.packaging.checkJdkVendor=false desktopTest
+
+      - name: Require independent macOS native clock executions
+        if: contains(github.event.pull_request.labels.*.name, 'verify:macos-native-clock-repeat')
+        timeout-minutes: 15
+        env:
+          NAVIAMP_NATIVE_CLOCK_DIAGNOSTICS: "true"
+        run: |
+          set -o pipefail
+          evidence="$PWD/build/macos-clock-replays"
+          mkdir -p "$evidence/initial"
+          cp -R platforms/desktop/build/test-results/desktopTest "$evidence/initial/results"
+          cp -R platforms/desktop/build/reports/tests/desktopTest "$evidence/initial/report"
+          for attempt in $(seq 1 10); do
+            status=0
+            ./gradlew -Pnaviamp.bass.platform=macos-arm64 \
+              -Pcompose.desktop.packaging.checkJdkVendor=false \
+              :platforms:desktop:desktopTest --rerun \
+              --tests '*DesktopPreviewPlaybackIntegrationTest' \
+              --tests '*DesktopDiscoveryPreviewCoreIntegrationTest' \
+              2>&1 | tee "$evidence/run-$attempt.log" || status=$?
+            mkdir -p "$evidence/run-$attempt"
+            cp -R platforms/desktop/build/test-results/desktopTest "$evidence/run-$attempt/results"
+            cp -R platforms/desktop/build/reports/tests/desktopTest "$evidence/run-$attempt/report"
+            if [ "$status" -ne 0 ]; then exit "$status"; fi
+          done
 
       - name: Verify macOS native popup ownership and stacking
         run: |
@@ -190,7 +217,10 @@ jobs:
         with:
           name: desktop-macos-test-reports
           if-no-files-found: error
-          path: "**/build/reports/tests/desktopTest/**"
+          path: |
+            **/build/reports/tests/desktopTest/**
+            platforms/desktop/build/test-results/desktopTest/**
+            build/macos-clock-replays/**
 
   android-device:
     name: Android emulator native tests (API ${{ matrix.api-level }})
@@ -314,6 +344,24 @@ jobs:
             if [ "$status" -ne 0 ]; then exit "$status"; fi
           done
 
+      - name: Require repeated API 35 raster execution
+        if: needs.changes.outputs.run_full == 'true' && matrix.api-level == 35 && contains(github.event.pull_request.labels.*.name, 'verify:android-raster-repeat')
+        timeout-minutes: 15
+        run: |
+          set -o pipefail
+          evidence="$PWD/build/android-raster-replays"
+          mkdir -p "$evidence"
+          cp -R core/ui/build/outputs/androidTest-results/connected/debug "$evidence/initial"
+          for attempt in $(seq 1 10); do
+            status=0
+            ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.animationProbe=true \
+              -Pandroid.testInstrumentationRunnerArguments.class=app.naviamp.ui.AndroidRasterPlacementTest \
+              :core:ui:connectedDebugAndroidTest --rerun --console=plain \
+              | tee "$evidence/run-$attempt.log" || status=$?
+            cp -R core/ui/build/outputs/androidTest-results/connected/debug "$evidence/run-$attempt"
+            if [ "$status" -ne 0 ]; then exit "$status"; fi
+          done
+
       - name: Repeat API 35 DNS-SD discovery tests
         if: needs.changes.outputs.run_full == 'true' && matrix.api-level == 35
         run: |
@@ -356,6 +404,7 @@ jobs:
             core/ui/build/outputs/androidTest-results/**
             build/android-emulator-diagnostics/**
             build/android-compose-replays/**
+            build/android-raster-replays/**
             build/mobile-mtls-run.*/fixture.log
             /tmp/naviamp-dnssd-repeat-*.txt
             /tmp/naviamp-emulator.log
@@ -522,6 +571,7 @@ jobs:
             iosSimulatorArm64Test \
             -x :platforms:ios:iosSimulatorArm64Test \
             :platforms:ios:linkDebugTestIosSimulatorArm64 \
+            :platforms:ios:stageIosSimulatorTestBassFrameworks \
             :apps:ios:compileKotlinIosArm64
           elapsed_seconds="$(($(date +%s) - started_at))"
           printf 'stage\tseconds\nGradle simulator tests and device compile\t%s\n' \
@@ -548,6 +598,8 @@ jobs:
 
       - name: Exercise native TLS and BASS on the booted simulator
         timeout-minutes: 5
+        env:
+          NAVIAMP_VERIFY_SOURCE_REF: ${{ inputs.source_ref }}
         run: |
           # The earlier compile stage builds this binary; this required step executes it
           # with real Apple trust services after the common standalone tests finish.
@@ -557,9 +609,22 @@ jobs:
           test -n "$fixture_bootstrap"
           export SIMCTL_CHILD_NAVIAMP_MTLS_FIXTURE_BOOTSTRAP="$fixture_bootstrap"
           started_at="$(date +%s)"
-          native_test=(./gradlew --max-workers=2 --console=plain --profile \
-            -Pnaviamp.ios.testDevice="$NAVIAMP_IOS_TLS_TEST_DEVICE" \
-            :platforms:ios:iosSimulatorArm64Test)
+          if [ -f scripts/run-prebuilt-ios-native-tests.py ]; then
+            native_test=(python3 scripts/run-prebuilt-ios-native-tests.py \
+              --device "$NAVIAMP_IOS_TLS_TEST_DEVICE" \
+              --executable platforms/ios/build/bin/iosSimulatorArm64/debugTest/test.kexe \
+              --output build/ios-native-execution)
+            native_results=build/ios-native-execution/results
+          elif [ -n "$NAVIAMP_VERIFY_SOURCE_REF" ]; then
+            # Recovery of a public source from before the prebuilt runner keeps its own tests.
+            native_test=(./gradlew --max-workers=2 --console=plain --profile \
+              -Pnaviamp.ios.testDevice="$NAVIAMP_IOS_TLS_TEST_DEVICE" \
+              :platforms:ios:iosSimulatorArm64Test)
+            native_results=platforms/ios/build/test-results/iosSimulatorArm64Test
+          else
+            echo 'Required prebuilt native runner is missing from this source.'
+            exit 1
+          fi
           packet_capture=()
           if [ "${{ (github.event_name == 'workflow_dispatch' && (inputs.ios_fixture_lifetime_diagnostic || inputs.ios_fixture_packet_diagnostic)) || contains(github.event.pull_request.labels.*.name, 'verify:ios-native-cold') }}" = true ]; then
             packet_capture=(--capture-loopback)
@@ -575,7 +640,7 @@ jobs:
             "${native_test[@]}"
           fi
           grep -q 'mTLS runner bootstrap supplied' \
-            platforms/ios/build/test-results/iosSimulatorArm64Test/TEST-app.naviamp.ios.playback.IosMutualTlsPlaybackIntegrationTest.xml
+            "$native_results/TEST-app.naviamp.ios.playback.IosMutualTlsPlaybackIntegrationTest.xml"
           elapsed_seconds="$(($(date +%s) - started_at))"
           printf 'Native TLS and BASS tests\t%s\n' "$elapsed_seconds" >> build/ci-timings/ios.tsv
           echo "| Native TLS and BASS tests | ${elapsed_seconds}s |" >> "$GITHUB_STEP_SUMMARY"
@@ -647,6 +712,7 @@ jobs:
           if-no-files-found: error
           path: |
             **/build/reports/tests/iosSimulatorArm64Test/**
+            build/ios-native-execution/**
             build/ios-native-diagnostics/**
             build/ios-native-replays/plan.json
             build/ios-native-replays/initial/**
@@ -660,6 +726,7 @@ jobs:
             build/ios-native-replays/run-*/boot.log
             build/ios-native-replays/run-*/services.log
             build/ios-native-replays/run-*/diagnostics/**
+            build/ios-native-replays/run-*/native-execution/**
             build/ios-native-replays/run-*/results/**
             build/ios-native-replays/run-*/report/**
             build/reports/profile/**

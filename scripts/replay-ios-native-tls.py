@@ -121,8 +121,8 @@ def remove_owned_device(record):
 
 
 def replay(root, output, runs):
-    results = root / 'platforms/ios/build/test-results/iosSimulatorArm64Test'
-    reports = root / 'platforms/ios/build/reports/tests/iosSimulatorArm64Test'
+    results = root / 'build/ios-native-execution/results'
+    reports = root / 'build/ios-native-execution/report'
     expected = read_results(results)
     initial = output / 'initial'
     initial.mkdir(parents=True, mode=0o700)
@@ -168,19 +168,20 @@ def replay(root, output, runs):
                            '--capture-loopback',
                            '--executable', str(root / 'platforms/ios/build/bin/iosSimulatorArm64/debugTest/test.kexe'),
                            '--fixture-bootstrap', str(bootstrap), '--output', str(run / 'diagnostics'), '--',
-                           './gradlew', '--max-workers=2', '--console=plain', '--profile',
-                           '-Pnaviamp.ios.testDevice=' + device, ':platforms:ios:iosSimulatorArm64Test', '--rerun']
+                           'python3', 'scripts/run-prebuilt-ios-native-tests.py', '--device', device,
+                           '--executable', str(root / 'platforms/ios/build/bin/iosSimulatorArm64/debugTest/test.kexe'),
+                           '--output', str(run / 'native-execution')]
                 started = time.monotonic()
                 with (run / 'native.log').open('w') as native_log:
                     result = subprocess.run(command, cwd=root, env=env, stdout=native_log,
                                             stderr=subprocess.STDOUT, timeout=300)
                 if result.returncode != 0:
                     raise RuntimeError(f'Native command failed with exit {result.returncode}')
-                if read_results(results) != expected:
+                if read_results(run / 'native-execution/results') != expected:
                     raise RuntimeError('Cold replay executed a different native test set')
-                task_line = '> Task :platforms:ios:iosSimulatorArm64Test'
-                if task_line not in (run / 'native.log').read_text().splitlines():
-                    raise RuntimeError('Native task did not execute; cached or skipped output is not acceptance')
+                execution = json.loads((run / 'native-execution/execution.json').read_text())
+                if execution['status'] != 'passed' or {tuple(case) for case in execution['executedCases']} != expected:
+                    raise RuntimeError('Fresh native execution metadata is missing or incomplete')
                 summary = {
                     'tests': len(expected), 'failures': 0, 'errors': 0, 'skipped': 0,
                     'nativeSeconds': time.monotonic() - started,
@@ -192,13 +193,12 @@ def replay(root, output, runs):
             finally:
                 try:
                     native_log = run / 'native.log'
-                    lines = native_log.read_text().splitlines() if native_log.exists() else []
-                    task = '> Task :platforms:ios:iosSimulatorArm64Test'
-                    executed = task in lines or task + ' FAILED' in lines
-                    if executed and results.exists():
-                        shutil.copytree(results, run / 'results')
-                    if executed and reports.exists():
-                        shutil.copytree(reports, run / 'report')
+                    fresh_results = run / 'native-execution/results'
+                    fresh_reports = run / 'native-execution/report'
+                    if fresh_results.exists():
+                        shutil.copytree(fresh_results, run / 'results')
+                    if fresh_reports.exists():
+                        shutil.copytree(fresh_reports, run / 'report')
                     if device_record.exists() and json.loads(device_record.read_text()).get('id'):
                         device = json.loads(device_record.read_text())['id']
                         with (run / 'services.log').open('w') as service_log:
