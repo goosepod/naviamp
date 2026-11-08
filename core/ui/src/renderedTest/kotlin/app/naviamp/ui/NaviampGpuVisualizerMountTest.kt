@@ -12,6 +12,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 @OptIn(ExperimentalCoroutinesApi::class)
+// Composition uses the real platform Trace implementation; run on JVM and Android devices.
 class NaviampGpuVisualizerMountTest {
     @Test fun changingEffectsReplacesTheRememberedNativeViewAndDisposesTheOldMount() = runTest {
         val clock = BroadcastFrameClock()

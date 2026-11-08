@@ -3,21 +3,18 @@ package app.naviamp.ui
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.test.*
-import androidx.compose.ui.graphics.ImageBitmap
 
 class NaviampRasterFrameScheduleTest {
     @Test fun regionSchedulingKeepsTranslationCadenceAndStopsStaticOrFinishedContent() {
-        val image = ImageBitmap(1, 1)
-        val progress = NaviampRasterLayer(image, revealMotion = progressLayerMotion(.25f, 600.0))
-        val static = NaviampRasterLayer(image, reveal = .25f)
-        val translation = NaviampRasterLayer(image,
-            translation = NaviampLayerMotion(listOf(0f, -100f), listOf(0L, 2400L)))
-        assertNull(naviampRasterFrameDelay(listOf(static), 1000f, 50L))
-        assertTrue(assertNotNull(naviampRasterFrameDelay(listOf(progress), 1000f, 50L)) > 16L)
-        assertEquals(16L, naviampRasterFrameDelay(listOf(progress, translation), 1000f, 50L))
-        assertNull(naviampRasterFrameDelay(listOf(translation), 1000f, 2400L))
-        assertEquals(16L, naviampRasterFrameDelay(listOf(translation.copy(
-            translation = translation.translation!!.copy(repeat = true))), 1000f, 2400L))
+        val progress = progressLayerMotion(.25f, 600.0)
+        val translation = NaviampLayerMotion(listOf(0f, -100f), listOf(0L, 2400L))
+        assertNull(naviampRasterMotionDelay(null, null, 1000f, 50L))
+        val progressDelay = assertNotNull(naviampRasterMotionDelay(null, progress, 1000f, 50L))
+        assertTrue(progressDelay > 16L)
+        val translationDelay = assertNotNull(naviampRasterMotionDelay(translation, null, 1000f, 50L))
+        assertEquals(16L, minOf(progressDelay, translationDelay))
+        assertNull(naviampRasterMotionDelay(translation, null, 1000f, 2400L))
+        assertEquals(16L, naviampRasterMotionDelay(translation.copy(repeat = true), null, 1000f, 2400L))
     }
 
     @Test fun pixelDeadlinesPreserveEveryDisplayedProgressFrameWithoutContinuousWakeups() {

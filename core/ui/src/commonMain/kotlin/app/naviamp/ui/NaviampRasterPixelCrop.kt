@@ -6,7 +6,12 @@ import kotlin.math.ceil
 import kotlin.math.floor
 
 /** A compositor that clips to whole pixels need not re-submit unchanged pixel geometry. */
-internal data class NaviampRasterPixelCrop(val source: IntRect, val destination: IntRect)
+internal data class NaviampRasterPixelCrop(val source: IntRect, val destination: IntRect) {
+    val scaleX: Float get() = destination.width.toFloat() / source.width
+    val scaleY: Float get() = destination.height.toFloat() / source.height
+    val positionX: Float get() = destination.left - source.left * scaleX
+    val positionY: Float get() = destination.top - source.top * scaleY
+}
 
 internal fun naviampRasterPixelCrop(
     image: Rect,

@@ -8,10 +8,16 @@ import kotlin.math.floor
  */
 internal fun naviampRasterFrameDelay(layers: List<NaviampRasterLayer>, width: Float, elapsedMillis: Long): Long? =
     layers.mapNotNull { layer ->
-        layer.translation?.let { motion ->
-            if (motion.repeat || elapsedMillis < motion.durationMillis) 16L else null
-        } ?: if (layer.translation == null) layer.revealMotion?.nextPixelChangeDelay(width, elapsedMillis) else null
+        naviampRasterMotionDelay(layer.translation, layer.revealMotion, width, elapsedMillis)
     }.minOrNull()
+
+internal fun naviampRasterMotionDelay(
+    translation: NaviampLayerMotion?, reveal: NaviampLayerMotion?, width: Float, elapsedMillis: Long,
+): Long? = when {
+    translation != null -> if (translation.repeat || elapsedMillis < translation.durationMillis) 16L else null
+    reveal != null -> reveal.nextPixelChangeDelay(width, elapsedMillis)
+    else -> null
+}
 
 internal fun NaviampLayerMotion.nextPixelChangeDelay(scale: Float, elapsedMillis: Long): Long? {
     if (!scale.isFinite() || scale <= 0f) return null

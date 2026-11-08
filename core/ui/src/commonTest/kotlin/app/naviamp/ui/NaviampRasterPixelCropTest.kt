@@ -5,6 +5,14 @@ import androidx.compose.ui.unit.IntRect
 import kotlin.test.*
 
 class NaviampRasterPixelCropTest {
+    @Test fun compositorTransformMapsBothSourceCornersToTheDestination() {
+        val crop = NaviampRasterPixelCrop(IntRect(3, 4, 10, 13), IntRect(11, 17, 19, 27))
+        assertEquals(11f, crop.positionX + crop.source.left * crop.scaleX, .00001f)
+        assertEquals(19f, crop.positionX + crop.source.right * crop.scaleX, .00001f)
+        assertEquals(17f, crop.positionY + crop.source.top * crop.scaleY, .00001f)
+        assertEquals(27f, crop.positionY + crop.source.bottom * crop.scaleY, .00001f)
+    }
+
     @Test fun subpixelProgressCommitsExactlyWhenThePresentedPixelsChange() {
         val bounds = Rect(37f, 1200f, 1037f, 1210f)
         val state = NaviampRasterPixelCropState()
