@@ -55,12 +55,26 @@ every execution independently. It does not reuse a native test result or retry a
 ## Validation
 
 The network Apple Silicon Mac compiles the isolated native binary, stages frameworks and prepares
-the fixture in 2m6s on source `09619fc436f6b64169b5e3acdd27e52c1232cc11`. Its first launcher
-control exits 111 during inventory, before any test starts; raw failure is retained under that
-Mac worktree's `build/ios-native-execution`. Kotlin's simulator command includes a literal `--`
-between the executable and native flags. The launcher now preserves that boundary, with a fake
-CoreSimulator regression requiring it. This setup failure is not native acceptance. The owned
-fixture and uniquely named simulator were released; the owner checkout/profile was untouched.
+the fixture in 2m6s on source `09619fc436f6b64169b5e3acdd27e52c1232cc11`. The first two local
+controls exit 111 during inventory, before any test starts. A matched three-variant probe of the
+same binary/inode isolates the cause to the private test driver's path casing: the filesystem
+accepts `Projects/naviamp`, but CoreSimulator rejects that alias; the physical `Projects/Naviamp`
+path lists all 17 cases both with and without a native argument separator. The launcher retains
+KotlinNativeSimulatorTest's literal `--` for command conformance; that was not the cause of error
+111. Failed preflight outputs remain separate from successful native evidence, under the Mac's
+`build/540-local/first-native-execution-failed` and `build/ios-native-execution-control2` directories.
+
+After correcting only the private driver's path, the complete native suite passes 17/17 with zero
+errors/failures/skips on source `390f67d32f0c563ff7ec707451881cc268a7371f`. Launcher time is
+13.436 seconds; the observer/wrapper completes in 14.695 seconds. The unchanged native binary's
+SHA256 is `217faee91bff6470d626247eb79372ab59fbcbb86ffc44f4f8732e372cac851b`. Fresh inventory,
+raw TeamCity output, all case identities, JUnit/HTML and metadata are retained under the Mac's
+`build/ios-native-execution`; `build/540-local-control3` records the fixture, boot and cleanup.
+All owned simulators/fixtures/processes were released. No owner app/profile or existing simulator
+was used. The CI passes a relative executable from its checkout, avoiding the private alias error.
+
+This local Mac runs macOS 27.0.1/Xcode 27.2 with an iOS 26.5 simulator. Its successful timing is not
+a matched hosted performance comparison; hosted acceptance remains independently required.
 
 Portable helper regression batch: 36/36 passed under WSL, zero failures/skips. Coverage includes
 protocol escaping, incomplete/duplicate/failed/ignored cases, manifest omissions, nonzero native

@@ -145,8 +145,7 @@ def run(executable, device, output, timeout=240, prefix=None, required=None):
     digest = hashlib.sha256(executable.read_bytes()).hexdigest()
     report = dict(status='failed', executable=str(executable), sha256=digest, device=device,
                   startedAt=stamp, budgetSeconds=timeout)
-    # Match KotlinNativeSimulatorTest's argument boundary: native flags follow a literal
-    # separator so CoreSimulator does not interpret them as its own spawn options.
+    # Preserve KotlinNativeSimulatorTest's exact boundary between the program and native flags.
     command = (prefix if prefix is not None else ['xcrun', 'simctl', 'spawn', device]) + [str(executable), '--']
     try:
         expected = inventory(execute(command + ['--ktest_list_tests'], output / 'inventory.log', started + timeout))
