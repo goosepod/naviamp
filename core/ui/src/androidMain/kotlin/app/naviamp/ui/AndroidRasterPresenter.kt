@@ -53,13 +53,14 @@ fun NaviampAndroidRasterHost(content: @Composable () -> Unit) {
 }
 
 private class AndroidRasterPresenter(private val activity: Activity) : NaviampRasterPresenter, Choreographer.FrameCallback {
-    private companion object { const val PresentationIntervalMillis = 16L }
     private val regions = mutableSetOf<AndroidRasterRegion>()
     private val transaction = SurfaceControl.Transaction()
-    private var frameScheduled = false
+    private val frameSchedule = NaviampRasterFrameSchedule()
+    private val frameDelays = ArrayList<Long>()
 
     override fun create(): NaviampRasterRegion = AndroidRasterRegion(activity, ::scheduleFrame) {
         regions.remove(it)
+        scheduleFrame()
     }.also(regions::add)
 
     @Composable
@@ -68,17 +69,21 @@ private class AndroidRasterPresenter(private val activity: Activity) : NaviampRa
     }
 
     private fun scheduleFrame() {
-        if (!frameScheduled && regions.any(AndroidRasterRegion::isAnimating)) {
-            frameScheduled = true
-            Choreographer.getInstance().postFrameCallbackDelayed(this, PresentationIntervalMillis)
-        } else if (!frameScheduled && regions.any(AndroidRasterRegion::hasReadySurface)) {
-            frameScheduled = true
-            Choreographer.getInstance().postFrameCallback(this)
+        val now = SystemClock.uptimeMillis()
+        frameDelays.clear()
+        regions.forEach { it.frameDelay(now)?.let(frameDelays::add) }
+        when (val request = frameSchedule.request(frameDelays, now)) {
+            NaviampRasterFrameRequest.Unchanged -> Unit
+            NaviampRasterFrameRequest.Cancel -> Choreographer.getInstance().removeFrameCallback(this)
+            is NaviampRasterFrameRequest.Schedule -> {
+                Choreographer.getInstance().removeFrameCallback(this)
+                Choreographer.getInstance().postFrameCallbackDelayed(this, request.delayMillis)
+            }
         }
     }
 
     override fun doFrame(frameTimeNanos: Long) {
-        frameScheduled = false
+        frameSchedule.delivered()
         var changed = false
         regions.forEach { changed = it.appendUpdate(transaction) || changed }
         if (changed) transaction.apply()
@@ -86,10 +91,10 @@ private class AndroidRasterPresenter(private val activity: Activity) : NaviampRa
     }
 
     fun close() {
-        Choreographer.getInstance().removeFrameCallback(this)
-        frameScheduled = false
         regions.toList().forEach(AndroidRasterRegion::close)
         regions.clear()
+        Choreographer.getInstance().removeFrameCallback(this)
+        frameSchedule.delivered()
         transaction.close()
     }
 }
@@ -137,7 +142,6 @@ private class AndroidRasterRegion(
     private var startedAt = 0L
     private var bounds = Rect.Zero
     private var clip = Rect.Zero
-    private var running = false
     private var needsUpdate = false
 
     init {
@@ -175,7 +179,6 @@ private class AndroidRasterRegion(
     override fun present(layers: List<NaviampRasterLayer>, bounds: Rect, clip: Rect, cornerRadius: Float): Boolean {
         if (bounds.isEmpty || clip.isEmpty) {
             requestedLayers = emptyList()
-            running = false
             releaseLayers()
             return false
         }
@@ -187,7 +190,6 @@ private class AndroidRasterRegion(
         this.bounds = bounds
         this.clip = clip
         updateBuffers()
-        running = layers.any { it.translation != null || it.revealMotion != null }
         needsUpdate = true
         if (!hostReady || this.layers.isEmpty()) return false
         return true
@@ -271,18 +273,16 @@ private class AndroidRasterRegion(
         layers = emptyList()
     }
 
-    fun isAnimating(): Boolean = running && attached && hostReady
-    fun hasReadySurface(): Boolean = needsUpdate && attached && hostReady && layers.isNotEmpty()
+    fun frameDelay(nowMillis: Long): Long? = naviampRasterFrameDelay(
+        requestedLayers, bounds.width, nowMillis - startedAt,
+        available = attached && hostReady && layers.isNotEmpty(), needsUpdate = needsUpdate,
+    )
 
     fun appendUpdate(transaction: SurfaceControl.Transaction): Boolean {
-        if (!attached || needsUpdate || !running) return false
+        if (!attached || !hostReady || layers.isEmpty()) return false
         val elapsed = SystemClock.uptimeMillis() - startedAt
         val changed = updateSurfaces(transaction, elapsed)
         needsUpdate = false
-        running = layers.any {
-            val motion = it.spec.translation ?: it.spec.revealMotion
-            motion != null && (motion.repeat || elapsed < motion.durationMillis)
-        }
         return changed
     }
 
@@ -317,6 +317,9 @@ private class AndroidRasterRegion(
                     // Keep cached children above the host SurfaceView's own buffer. Android 15
                     // resolves a layer-zero tie in favor of the parent, hiding child pixels.
                     transaction.setLayer(layer.control, index + 1)
+                    if (Build.VERSION.SDK_INT >= 33) {
+                        transaction.setBufferTransform(layer.control, SurfaceControl.BUFFER_TRANSFORM_IDENTITY)
+                    }
                     layer.ordered = true
                     changed = true
                 }
@@ -326,20 +329,16 @@ private class AndroidRasterRegion(
                     changed = true
                 }
                 if (!geometryChanged) return@forEachIndexed
-                layer.source.set(frame.sourceLeft, frame.sourceTop, frame.sourceRight, frame.sourceBottom)
-                layer.destination.set(frame.destinationLeft, frame.destinationTop, frame.destinationRight, frame.destinationBottom)
                 if (Build.VERSION.SDK_INT >= 33) {
-                    val scaleX = layer.destination.width().toFloat() / layer.source.width()
-                    val scaleY = layer.destination.height().toFloat() / layer.source.height()
-                    transaction.setCrop(layer.control, layer.source)
-                        .setBufferTransform(layer.control, SurfaceControl.BUFFER_TRANSFORM_IDENTITY)
-                        .setScale(layer.control, scaleX, scaleY)
-                        .setPosition(
-                            layer.control,
-                            layer.destination.left - layer.source.left * scaleX,
-                            layer.destination.top - layer.source.top * scaleY,
-                        )
+                    if (frame.sourceChanged) {
+                        layer.source.set(frame.sourceLeft, frame.sourceTop, frame.sourceRight, frame.sourceBottom)
+                        transaction.setCrop(layer.control, layer.source)
+                    }
+                    if (frame.scaleChanged) transaction.setScale(layer.control, frame.scaleX, frame.scaleY)
+                    if (frame.positionChanged) transaction.setPosition(layer.control, frame.positionX, frame.positionY)
                 } else {
+                    layer.source.set(frame.sourceLeft, frame.sourceTop, frame.sourceRight, frame.sourceBottom)
+                    layer.destination.set(frame.destinationLeft, frame.destinationTop, frame.destinationRight, frame.destinationBottom)
                     @Suppress("DEPRECATION")
                     transaction.setGeometry(layer.control, layer.source, layer.destination,
                         SurfaceControl.BUFFER_TRANSFORM_IDENTITY)
@@ -356,7 +355,6 @@ private class AndroidRasterRegion(
 
     override fun close() {
         ready = {}
-        running = false
         needsUpdate = false
         requestedLayers = emptyList()
         releaseLayers()
