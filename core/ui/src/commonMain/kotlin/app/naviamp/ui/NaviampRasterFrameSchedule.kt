@@ -6,10 +6,16 @@ import kotlin.math.floor
 /** Whole-pixel reveals only need a native callback when their floor/ceil bounds can change.
  * Translation keeps the existing animation cadence. Native timeline compositors need no callbacks.
  */
-internal fun naviampRasterFrameDelay(layers: List<NaviampRasterLayer>, width: Float, elapsedMillis: Long): Long? =
-    layers.mapNotNull { layer ->
+internal fun naviampRasterFrameDelay(
+    layers: List<NaviampRasterLayer>, width: Float, elapsedMillis: Long,
+    available: Boolean = true, needsUpdate: Boolean = false,
+): Long? {
+    if (!available || layers.isEmpty()) return null
+    if (needsUpdate) return 0L
+    return layers.mapNotNull { layer ->
         naviampRasterMotionDelay(layer.translation, layer.revealMotion, width, elapsedMillis)
     }.minOrNull()
+}
 
 internal fun naviampRasterMotionDelay(
     translation: NaviampLayerMotion?, reveal: NaviampLayerMotion?, width: Float, elapsedMillis: Long,

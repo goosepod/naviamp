@@ -9,6 +9,12 @@ import kotlin.math.floor
 /** A fixed viewport clips a cached image; scrolling changes only its fractional translation. */
 internal data class NaviampRasterTranslation(val viewport: IntRect, val position: Offset)
 
+internal fun naviampRasterTranslation(
+    layer: NaviampRasterLayer, bounds: Rect, clip: Rect, elapsedMillis: Long,
+): NaviampRasterTranslation? = naviampRasterTranslation(
+    bounds, clip, layer.origin, layer.translation?.valueAt(elapsedMillis) ?: 0f,
+)
+
 internal fun naviampRasterTranslation(bounds: Rect, clip: Rect, origin: Offset, x: Float): NaviampRasterTranslation? {
     val visible = bounds.intersect(clip)
     if (visible.isEmpty) return null

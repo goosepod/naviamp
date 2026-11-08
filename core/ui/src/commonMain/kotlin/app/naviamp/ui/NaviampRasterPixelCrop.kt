@@ -14,6 +14,18 @@ internal data class NaviampRasterPixelCrop(val source: IntRect, val destination:
 }
 
 internal fun naviampRasterPixelCrop(
+    layer: NaviampRasterLayer, bounds: Rect, clip: Rect, elapsedMillis: Long,
+): NaviampRasterPixelCrop? {
+    val left = bounds.left + layer.origin.x + (layer.translation?.valueAt(elapsedMillis) ?: 0f)
+    val top = bounds.top + layer.origin.y
+    return naviampRasterPixelCrop(
+        Rect(left, top, left + layer.image.width, top + layer.image.height), bounds, clip,
+        if (layer.translation == null) layer.revealMotion?.valueAt(elapsedMillis) ?: layer.reveal else null,
+        layer.clipFromStart,
+    )
+}
+
+internal fun naviampRasterPixelCrop(
     image: Rect,
     bounds: Rect,
     clip: Rect,
