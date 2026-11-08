@@ -1,13 +1,22 @@
 # TV raster submission experiment — November 7, 2026
 
-Tracking: #414 / draft PR #536. Equivalent integer geometry is resubmitted on every running
+Tracking: #414 / PR #536. Equivalent integer geometry is resubmitted on every running
 Android raster tick in accepted main `548e1f76`. The candidate moves sampled pixel geometry
 and equivalence detection into common code and omits redundant native geometry operations and
 empty transaction applications. First frames, changed buffers, visibility, ordering, clipping,
 motion clocks, animation sampling cadence and playback update frequency are preserved.
 
-This is a measured partial improvement, not completed performance acceptance. Scrolling and
-combined animation retain material app/compositor cost. Keep the issue and performance PR open.
+This report records a measured partial improvement; scrolling and combined animation retain
+material app/compositor cost.
+
+## Owner acceptance scope — November 8, 2026
+
+The owner accepts this increment for merge when its performance is unchanged or better than
+the previous implementation. Reaching the eventual absolute CPU/GPU budget is no longer a
+merge condition for PR #536. Complete this increment after non-regression acceptance and
+required verification, then keep #414 open for a separate future optimization pass. This
+decision supersedes the earlier draft/hold status recorded below; it does not claim that
+scrolling or combined animation has reached its final performance target.
 
 ## Common ownership and native boundary
 
