@@ -20,6 +20,34 @@ class NaviampRasterFrameTest {
         assertTrue(NaviampRasterFrame().sample())
     }
 
+    @Test fun scrollingDoesNotResubmitAnUnchangedScale() {
+        val frame = NaviampRasterFrame()
+        val motion = NaviampLayerMotion(listOf(0f, -100f), listOf(0, 1000))
+        assertTrue(frame.sample(11, motion))
+        assertTrue(frame.sourceChanged && frame.scaleChanged && frame.positionChanged)
+        assertFalse(frame.sample(12, motion))
+        assertFalse(frame.sourceChanged || frame.scaleChanged || frame.positionChanged)
+        assertTrue(frame.sample(21, motion))
+        assertTrue(frame.sourceChanged && frame.positionChanged)
+        assertFalse(frame.scaleChanged)
+    }
+
+    @Test fun movingAnUnclippedBitmapOnlyChangesItsPosition() {
+        val frame = NaviampRasterFrame()
+        fun sample(x: Float, clip: Rect = bounds) = frame.update(
+            50, 40, Offset(x, 0f), null, 1f, null, false, bounds, clip, 0,
+        )
+        assertTrue(sample(10f))
+        assertTrue(sample(20f))
+        assertTrue(frame.positionChanged)
+        assertFalse(frame.sourceChanged || frame.scaleChanged)
+        assertEquals(1f, frame.scaleX)
+        assertEquals(20f, frame.positionX)
+        assertTrue(sample(20f, Rect(130f, 200f, 660f, 240f)))
+        assertTrue(frame.sourceChanged)
+        assertFalse(frame.positionChanged || frame.scaleChanged)
+    }
+
     @Test fun translationPreservesPixelRoundingAndMovingClip() {
         val frame = NaviampRasterFrame()
         val motion = NaviampLayerMotion(listOf(0f, -100f), listOf(0, 1000))

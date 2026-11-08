@@ -21,6 +21,13 @@ internal class NaviampRasterFrame {
     var destinationTop = 0; private set
     var destinationRight = 0; private set
     var destinationBottom = 0; private set
+    var scaleX = 1f; private set
+    var scaleY = 1f; private set
+    var positionX = 0f; private set
+    var positionY = 0f; private set
+    var sourceChanged = false; private set
+    var scaleChanged = false; private set
+    var positionChanged = false; private set
 
     fun update(layer: NaviampRasterLayer, bounds: Rect, clip: Rect, elapsedMillis: Long): Boolean =
         update(layer.image.width, layer.image.height, layer.origin, layer.translation,
@@ -31,6 +38,9 @@ internal class NaviampRasterFrame {
         reveal: Float, revealMotion: NaviampLayerMotion?, clipFromStart: Boolean,
         bounds: Rect, clip: Rect, elapsedMillis: Long,
     ): Boolean {
+        sourceChanged = false
+        scaleChanged = false
+        positionChanged = false
         val imageLeft = bounds.left + origin.x + (translation?.valueAt(elapsedMillis) ?: 0f)
         val imageTop = bounds.top + origin.y
         var left = max(clip.left, imageLeft)
@@ -54,12 +64,21 @@ internal class NaviampRasterFrame {
         val dt = floor(top - bounds.top).toInt()
         val dr = ceil(right - bounds.left).toInt()
         val db = ceil(bottom - bounds.top).toInt()
+        val sx = (dr - dl).toFloat() / (sr - sl)
+        val sy = (db - dt).toFloat() / (sb - st)
+        val px = dl - sl * sx
+        val py = dt - st * sy
+        sourceChanged = !visible || sourceLeft != sl || sourceTop != st || sourceRight != sr || sourceBottom != sb
+        scaleChanged = !visible || scaleX != sx || scaleY != sy
+        positionChanged = !visible || positionX != px || positionY != py
         val changed = !visible || sourceLeft != sl || sourceTop != st || sourceRight != sr ||
             sourceBottom != sb || destinationLeft != dl || destinationTop != dt ||
             destinationRight != dr || destinationBottom != db
         visible = true
         sourceLeft = sl; sourceTop = st; sourceRight = sr; sourceBottom = sb
         destinationLeft = dl; destinationTop = dt; destinationRight = dr; destinationBottom = db
+        scaleX = sx; scaleY = sy
+        positionX = px; positionY = py
         return changed
     }
 }
