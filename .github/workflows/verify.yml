@@ -571,6 +571,7 @@ jobs:
             iosSimulatorArm64Test \
             -x :platforms:ios:iosSimulatorArm64Test \
             :platforms:ios:linkDebugTestIosSimulatorArm64 \
+            :platforms:ios:stageIosSimulatorTestBassFrameworks \
             :apps:ios:compileKotlinIosArm64
           elapsed_seconds="$(($(date +%s) - started_at))"
           printf 'stage\tseconds\nGradle simulator tests and device compile\t%s\n' \
@@ -597,6 +598,8 @@ jobs:
 
       - name: Exercise native TLS and BASS on the booted simulator
         timeout-minutes: 5
+        env:
+          NAVIAMP_VERIFY_SOURCE_REF: ${{ inputs.source_ref }}
         run: |
           # The earlier compile stage builds this binary; this required step executes it
           # with real Apple trust services after the common standalone tests finish.
@@ -606,9 +609,22 @@ jobs:
           test -n "$fixture_bootstrap"
           export SIMCTL_CHILD_NAVIAMP_MTLS_FIXTURE_BOOTSTRAP="$fixture_bootstrap"
           started_at="$(date +%s)"
-          native_test=(./gradlew --max-workers=2 --console=plain --profile \
-            -Pnaviamp.ios.testDevice="$NAVIAMP_IOS_TLS_TEST_DEVICE" \
-            :platforms:ios:iosSimulatorArm64Test)
+          if [ -f scripts/run-prebuilt-ios-native-tests.py ]; then
+            native_test=(python3 scripts/run-prebuilt-ios-native-tests.py \
+              --device "$NAVIAMP_IOS_TLS_TEST_DEVICE" \
+              --executable platforms/ios/build/bin/iosSimulatorArm64/debugTest/test.kexe \
+              --output build/ios-native-execution)
+            native_results=build/ios-native-execution/results
+          elif [ -n "$NAVIAMP_VERIFY_SOURCE_REF" ]; then
+            # Recovery of a public source from before the prebuilt runner keeps its own tests.
+            native_test=(./gradlew --max-workers=2 --console=plain --profile \
+              -Pnaviamp.ios.testDevice="$NAVIAMP_IOS_TLS_TEST_DEVICE" \
+              :platforms:ios:iosSimulatorArm64Test)
+            native_results=platforms/ios/build/test-results/iosSimulatorArm64Test
+          else
+            echo 'Required prebuilt native runner is missing from this source.'
+            exit 1
+          fi
           packet_capture=()
           if [ "${{ (github.event_name == 'workflow_dispatch' && (inputs.ios_fixture_lifetime_diagnostic || inputs.ios_fixture_packet_diagnostic)) || contains(github.event.pull_request.labels.*.name, 'verify:ios-native-cold') }}" = true ]; then
             packet_capture=(--capture-loopback)
@@ -624,7 +640,7 @@ jobs:
             "${native_test[@]}"
           fi
           grep -q 'mTLS runner bootstrap supplied' \
-            platforms/ios/build/test-results/iosSimulatorArm64Test/TEST-app.naviamp.ios.playback.IosMutualTlsPlaybackIntegrationTest.xml
+            "$native_results/TEST-app.naviamp.ios.playback.IosMutualTlsPlaybackIntegrationTest.xml"
           elapsed_seconds="$(($(date +%s) - started_at))"
           printf 'Native TLS and BASS tests\t%s\n' "$elapsed_seconds" >> build/ci-timings/ios.tsv
           echo "| Native TLS and BASS tests | ${elapsed_seconds}s |" >> "$GITHUB_STEP_SUMMARY"
@@ -696,6 +712,7 @@ jobs:
           if-no-files-found: error
           path: |
             **/build/reports/tests/iosSimulatorArm64Test/**
+            build/ios-native-execution/**
             build/ios-native-diagnostics/**
             build/ios-native-replays/plan.json
             build/ios-native-replays/initial/**
@@ -709,6 +726,7 @@ jobs:
             build/ios-native-replays/run-*/boot.log
             build/ios-native-replays/run-*/services.log
             build/ios-native-replays/run-*/diagnostics/**
+            build/ios-native-replays/run-*/native-execution/**
             build/ios-native-replays/run-*/results/**
             build/ios-native-replays/run-*/report/**
             build/reports/profile/**

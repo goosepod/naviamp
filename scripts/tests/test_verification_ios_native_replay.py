@@ -50,7 +50,7 @@ class NativeReplayCleanupTest(unittest.TestCase):
     def test_failed_boot_cleans_its_prepared_fixture_and_owned_device(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            results = root / 'platforms/ios/build/test-results/iosSimulatorArm64Test'
+            results = root / 'build/ios-native-execution/results'
             results.mkdir(parents=True)
             (results / 'TEST-native.xml').write_text(
                 f'<testsuite tests="1"><testcase classname="{OWNER}" name="{NAME}"/></testsuite>')
