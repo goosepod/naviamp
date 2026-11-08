@@ -177,7 +177,34 @@ jobs:
           java-version: "21"
 
       - name: Run Desktop tests with macOS native libraries
+        env:
+          NAVIAMP_NATIVE_CLOCK_DIAGNOSTICS: "true"
         run: ./gradlew -Pnaviamp.bass.platform=macos-arm64 -Pcompose.desktop.packaging.checkJdkVendor=false desktopTest
+
+      - name: Require independent macOS native clock executions
+        if: contains(github.event.pull_request.labels.*.name, 'verify:macos-native-clock-repeat')
+        timeout-minutes: 15
+        env:
+          NAVIAMP_NATIVE_CLOCK_DIAGNOSTICS: "true"
+        run: |
+          set -o pipefail
+          evidence="$PWD/build/macos-clock-replays"
+          mkdir -p "$evidence/initial"
+          cp -R platforms/desktop/build/test-results/desktopTest "$evidence/initial/results"
+          cp -R platforms/desktop/build/reports/tests/desktopTest "$evidence/initial/report"
+          for attempt in $(seq 1 10); do
+            status=0
+            ./gradlew -Pnaviamp.bass.platform=macos-arm64 \
+              -Pcompose.desktop.packaging.checkJdkVendor=false \
+              :platforms:desktop:desktopTest --rerun \
+              --tests '*DesktopPreviewPlaybackIntegrationTest' \
+              --tests '*DesktopDiscoveryPreviewCoreIntegrationTest' \
+              2>&1 | tee "$evidence/run-$attempt.log" || status=$?
+            mkdir -p "$evidence/run-$attempt"
+            cp -R platforms/desktop/build/test-results/desktopTest "$evidence/run-$attempt/results"
+            cp -R platforms/desktop/build/reports/tests/desktopTest "$evidence/run-$attempt/report"
+            if [ "$status" -ne 0 ]; then exit "$status"; fi
+          done
 
       - name: Verify macOS native popup ownership and stacking
         run: |
@@ -190,7 +217,10 @@ jobs:
         with:
           name: desktop-macos-test-reports
           if-no-files-found: error
-          path: "**/build/reports/tests/desktopTest/**"
+          path: |
+            **/build/reports/tests/desktopTest/**
+            platforms/desktop/build/test-results/desktopTest/**
+            build/macos-clock-replays/**
 
   android-device:
     name: Android emulator native tests (API ${{ matrix.api-level }})

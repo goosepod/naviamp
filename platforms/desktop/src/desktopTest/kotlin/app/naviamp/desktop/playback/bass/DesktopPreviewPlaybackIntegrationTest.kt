@@ -37,12 +37,24 @@ class DesktopPreviewPlaybackIntegrationTest {
         val nativeBackend = DesktopBassAudioBackend(binding)
         val mainSource = MutableStateFlow<BassStreamHandle?>(null)
         val mainPlayback = MutableStateFlow<BassStreamHandle?>(null)
+        val diagnostics = DesktopPlaybackClockDiagnostics()
         val backend = object : BassAudioBackend by nativeBackend {
             override fun positionSeconds(stream: BassStreamHandle): Double? =
-                nativeBackend.positionSeconds(stream).also { mainSource.compareAndSet(null, stream) }
+                nativeBackend.positionSeconds(stream).also {
+                    mainSource.compareAndSet(null, stream)
+                    diagnostics.record("decoded[$stream]=$it")
+                }
+
+            override fun audiblePositionSeconds(playbackStream: BassStreamHandle, sourceStream: BassStreamHandle): Double? =
+                nativeBackend.audiblePositionSeconds(playbackStream, sourceStream).also {
+                    diagnostics.record("audible[$playbackStream,$sourceStream]=$it")
+                }
 
             override fun play(stream: BassStreamHandle): Result<Unit> =
-                nativeBackend.play(stream).onSuccess { mainPlayback.compareAndSet(null, stream) }
+                nativeBackend.play(stream).onSuccess {
+                    mainPlayback.compareAndSet(null, stream)
+                    diagnostics.record("play[$stream] succeeded")
+                }
         }
         val engine = CoreBassPlaybackEngine(Result.success(backend), DesktopBassPlaybackEngineRuntime())
         try {
@@ -61,7 +73,13 @@ class DesktopPreviewPlaybackIntegrationTest {
                 val sample = MutableStateFlow<PlaybackState>(PlaybackState.Idle)
                 val progress = MutableStateFlow(PlaybackProgress.Unknown)
                 engine.setVolume(0)
-                engine.play(this, PlaybackRequest(file.toUri().toString()), { main.value = it }, { progress.value = it })
+                engine.play(this, PlaybackRequest(file.toUri().toString()), {
+                    main.value = it
+                    diagnostics.record("state=$it")
+                }, {
+                    progress.value = it
+                    diagnostics.record("published=$it")
+                })
                 try {
                     withTimeout(10_000) {
                         combine(main, progress) { state, clock ->
@@ -100,9 +118,17 @@ class DesktopPreviewPlaybackIntegrationTest {
                 engine.resume()
                 withTimeout(5_000) { progress.first { (it.positionSeconds ?: 0.0) > pausedPosition + 0.2 } }
                 println("Independent preview finished; native main $nativePausedPosition -> $nativeAfterPreview; sampled main $pausedPosition -> $afterPreview, resumed to ${progress.value.positionSeconds}")
+                if (System.getenv("NAVIAMP_NATIVE_CLOCK_DIAGNOSTICS") == "true") {
+                    println(diagnostics.report(binding, mainPlayback.value, mainSource.value))
+                }
                 engine.stop()
                 assertEquals(0, binding.endSyncRegistrationCount, "Main and preview native callbacks must be released")
             }
+        } catch (failure: Throwable) {
+            // Preserve the original result even if optional diagnostic collection itself fails.
+            runCatching { println(diagnostics.report(binding, mainPlayback.value, mainSource.value)) }
+                .onFailure { failure.addSuppressed(it) }
+            throw failure
         } finally {
             engine.release()
             server.stop(0)
