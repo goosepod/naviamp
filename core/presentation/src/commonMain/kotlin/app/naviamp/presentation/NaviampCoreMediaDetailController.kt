@@ -261,6 +261,10 @@ class NaviampCoreMediaDetailController(
         loadArtist(item, pushCurrentArtist = true)
     }
 
+    internal suspend fun selectAlbum(item: SharedMediaItemUi) {
+        loadAlbum(item)
+    }
+
     internal fun interfaceSettingsChanged(settings: app.naviamp.domain.settings.InterfaceSettings) {
         val previousVisibility = stateStore.state.value.shell.artistDetail.detail?.playlistsVisible
         if (!settings.showArtistPlaylists) cancelArtistPlaylists()
@@ -288,6 +292,7 @@ class NaviampCoreMediaDetailController(
                         coverArtUrl = coverArtUrl,
                         popularTrackIds = popularTrackIds,
                         canFavoriteAlbum = provider.capabilities.supportsAlbumFavorites,
+                        supportsTrackRadio = provider.capabilities.supportsTrackRadio,
                         showAlbumInformation = settings.showAlbumInformation,
                     ),
                 )
@@ -431,6 +436,7 @@ class NaviampCoreMediaDetailController(
                                 coverArtUrl = coverArtUrl,
                                 popularTrackIds = emptySet(),
                                 canFavoriteAlbum = provider.capabilities.supportsAlbumFavorites,
+                                supportsTrackRadio = provider.capabilities.supportsTrackRadio,
                                 showAlbumInformation = shell.general.interfaceSettings.showAlbumInformation,
                             ),
                             status = "Connected.",
@@ -458,6 +464,7 @@ class NaviampCoreMediaDetailController(
                                         coverArtUrl = coverArtUrl,
                                         popularTrackIds = popularTrackIds,
                                         canFavoriteAlbum = provider.capabilities.supportsAlbumFavorites,
+                                        supportsTrackRadio = provider.capabilities.supportsTrackRadio,
                                         showAlbumInformation = shell.general.interfaceSettings.showAlbumInformation,
                                     ),
                                 ),
@@ -483,6 +490,7 @@ class NaviampCoreMediaDetailController(
                                 coverArtUrl = coverArtUrl,
                                 popularTrackIds = popularTrackIds,
                                 canFavoriteAlbum = provider.capabilities.supportsAlbumFavorites,
+                                supportsTrackRadio = provider.capabilities.supportsTrackRadio,
                                 showAlbumInformation = shell.general.interfaceSettings.showAlbumInformation,
                             ),
                         ),

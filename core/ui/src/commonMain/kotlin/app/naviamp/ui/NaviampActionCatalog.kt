@@ -211,8 +211,10 @@ fun nowPlayingTrackMenuActions(
     canSaveQueueAsPlaylist: Boolean,
     canEmptyQueue: Boolean,
     sleepTimerLabel: String,
+    canStartRadio: Boolean = false,
 ): List<NaviampActionSpec> =
-    listOf(
+    listOfNotNull(
+        NaviampAction.StartTrackRadio.takeIf { canStartRadio && !isLive }?.toSpec(),
         NaviampAction.ChangeVisualizer.toSpec(enabled = visualizerAvailable),
         NaviampAction.DownloadTrack.toSpec(enabled = !isLive),
         NaviampAction.TrackDetails.toSpec(enabled = hasDetails),

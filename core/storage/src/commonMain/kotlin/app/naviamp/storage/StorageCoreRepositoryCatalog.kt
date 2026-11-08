@@ -63,6 +63,7 @@ class StorageCoreRepositoryCatalog(
     val playbackProfiles = StoragePlaybackProfileStore(queries, nowEpochMillis)
     val playbackHistory = StoragePlaybackHistoryStore(queries)
     val pendingProviderActions = StoragePendingProviderActionStore(queries, nowEpochMillis)
+    val discoveryAcquisitions = StorageDiscoveryAcquisitionStore(queries)
     val audioWaveforms = StorageAudioWaveformStore(
         queries = queries,
         json = Json { ignoreUnknownKeys = true; encodeDefaults = true },

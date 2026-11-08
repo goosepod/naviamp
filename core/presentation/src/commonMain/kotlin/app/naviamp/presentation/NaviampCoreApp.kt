@@ -105,6 +105,7 @@ fun NaviampCoreApp(
     },
 ) {
     val state by core.state.collectAsState()
+    NaviampDiscoveryAcquisitionRefresh(core, state)
     NaviampCoreSettingsStorageRefresh(
         core = core,
         visible = state.shell.shellChrome.selectedRoute == SharedRoute.Settings,

@@ -34,6 +34,7 @@ fun configureNaviampDesktopRasterLayers() {
 /** AWT publishes visibility/owned-window facts; shared UI owns motion and fallback behavior. */
 @Composable
 fun NaviampDesktopRasterHost(window: Window, windowState: WindowState, content: @Composable () -> Unit) {
+    val presentation = remember(window) { NaviampSurfacePresentation() }
     val presenter = remember(window) {
         configureNaviampDesktopPopupRenderer(window)
         val forceSkia = System.getenv("NAVIAMP_RASTER_FORCE_SKIA") == "true"
@@ -49,9 +50,17 @@ fun NaviampDesktopRasterHost(window: Window, windowState: WindowState, content: 
     }
     var visible by remember(window) { mutableStateOf(window.isShowing) }
     var overlay by remember(window) { mutableStateOf(false) }
+    SideEffect {
+        if (presentation.contentAttached(window.isShowing && !windowState.isMinimized)) {
+            requestNaviampDesktopSurfaceFrame(window)
+        }
+    }
     DisposableEffect(window) {
         fun update() {
             visible = window.isShowing
+            if (presentation.visibilityChanged(visible && !windowState.isMinimized)) {
+                requestNaviampDesktopSurfaceFrame(window)
+            }
             fun hasOverlay(owner: Window): Boolean = owner.ownedWindows.any {
                 it.name != RasterOverlayWindowName && (it.isShowing || hasOverlay(it))
             }
@@ -76,6 +85,13 @@ fun NaviampDesktopRasterHost(window: Window, windowState: WindowState, content: 
     androidx.compose.runtime.CompositionLocalProvider(LocalNaviampOwnedDialogSurface provides dialogSurface) {
         NaviampRasterEnvironment(presenter, visible && !windowState.isMinimized, overlay,
             System.getProperty("compose.layers.type") == "WINDOW", content)
+    }
+}
+
+/** AWT peer visibility and Skiko's native frame queue must be observed after the current commit. */
+private fun requestNaviampDesktopSurfaceFrame(window: Window) {
+    EventQueue.invokeLater {
+        if (window.isDisplayable && window.isShowing) findSkiaLayer(window)?.needRedraw()
     }
 }
 

@@ -269,6 +269,8 @@ tasks.named<Test>("desktopTest") {
     val mprisIntegration = providers.environmentVariable("NAVIAMP_MPRIS_INTEGRATION").orElse("false")
     inputs.property("mprisIntegration", mprisIntegration)
     outputs.upToDateWhen { mprisIntegration.get() != "true" }
+    // Live acceptance must execute against the configured server rather than reuse a test report.
+    outputs.upToDateWhen { !providers.environmentVariable("NAVIAMP_AURRAL_TEST_URL").isPresent }
     dependsOn(prepareDesktopNativeResources)
     providers.gradleProperty("naviamp.bass.test.outputDevice").orNull?.let { outputDevice ->
         systemProperty("naviamp.bass.test.outputDevice", outputDevice)
@@ -289,6 +291,16 @@ tasks.register<JavaExec>("runDesktopMutualTlsAppFixture") {
     mainClass.set("app.naviamp.desktop.DesktopMutualTlsAppFixtureKt")
     args(providers.gradleProperty("naviamp.mtls.fixtureDirectory")
         .orElse(layout.buildDirectory.dir("mtls-app-fixture").map { it.asFile.absolutePath }).get())
+}
+
+tasks.register<JavaExec>("prepareDesktopAurralAppFixture") {
+    group = "verification"
+    description = "Seed a fresh disposable Aurral acceptance profile from explicit test environment variables"
+    dependsOn("desktopTestClasses")
+    classpath = tasks.named<Test>("desktopTest").get().classpath
+    mainClass.set("app.naviamp.desktop.DesktopAurralAppFixtureKt")
+    val fixtureDirectory = providers.gradleProperty("naviamp.aurral.fixtureDirectory")
+    doFirst { args(fixtureDirectory.get()) }
 }
 
 fun desktopNativePlatformId(): String {

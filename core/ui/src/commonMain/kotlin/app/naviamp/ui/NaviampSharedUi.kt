@@ -81,6 +81,25 @@ fun NaviampSharedAppShell(
     onCastPicker: () -> Unit = {},
     onCastSelectLocal: () -> Unit = {},
 ) {
+    NaviampBackNavigation(uiState, actions, modifier) { contentModifier ->
+        NaviampSharedAppShellContent(modifier = contentModifier, uiState = uiState, settingsSync = settingsSync, playbackProgress = playbackProgress, visualizerBandsProvider = visualizerBandsProvider, actions = actions, syncActions = syncActions, applicationUpdateChecker = applicationUpdateChecker, castOutput = castOutput, onCastPicker = onCastPicker, onCastSelectLocal = onCastSelectLocal)
+    }
+}
+
+@Composable
+private fun NaviampSharedAppShellContent(
+    modifier: Modifier = Modifier,
+    uiState: NaviampAppShellUiState,
+    settingsSync: NaviampSettingsSyncUi = NaviampSettingsSyncUi(),
+    playbackProgress: StateFlow<PlaybackProgress>? = null,
+    visualizerBandsProvider: () -> List<Float> = { uiState.nowPlaying?.visualizerFrame?.bands.orEmpty() },
+    actions: NaviampAppShellActions,
+    syncActions: NaviampSettingsSyncActions,
+    applicationUpdateChecker: NaviampApplicationUpdateChecker? = null,
+    castOutput: NaviampCastOutputUi = NaviampCastOutputUi(),
+    onCastPicker: () -> Unit = {},
+    onCastSelectLocal: () -> Unit = {},
+) {
     val navigationActions = actions.navigationActions
     val connectionActions = actions.connectionActions
     val valueActions = actions.valueActions

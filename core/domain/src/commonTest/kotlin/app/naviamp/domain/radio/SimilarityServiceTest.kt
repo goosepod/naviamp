@@ -41,12 +41,14 @@ class SimilarityServiceTest {
         }
     }
 
-    @Test fun unsupportedSonicDoesNotSubstituteAndInstantMixWorksWithoutSonicSupport() = runTest {
+    @Test fun unsupportedSonicSelectsInstantMixBeforeDispatch() = runTest {
         val provider = FakeProvider(false)
         provider.regular = { _, _ -> listOf(track("regular")) }
-        val unsupported = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("seed"))))
-        assertEquals(SimilarityResultKind.Unsupported, unsupported.failure?.kind)
-        assertEquals(emptyList(), provider.regularRequests)
+        val resolved = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("seed"))))
+        assertEquals(SimilarityEndpoint.Regular, resolved.source)
+        assertEquals(listOf("regular"), resolved.getOrThrow().single().matches.map { it.track.id.value })
+        assertNull(resolved.failure)
+        assertEquals(listOf("seed"), provider.regularRequests)
         val regular = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("seed")), preferSonic = false))
         assertEquals(listOf("regular"), regular.getOrThrow().single().matches.map { it.track.id.value })
         assertEquals(emptyList(), provider.sonicRequests)

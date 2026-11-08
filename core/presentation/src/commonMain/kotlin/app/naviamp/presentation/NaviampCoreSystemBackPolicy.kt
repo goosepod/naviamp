@@ -6,10 +6,15 @@ package app.naviamp.presentation
  */
 fun NaviampCoreState.systemBackCommand(): NaviampCoreCommand? = when {
     overlays.statsForNerdsVisible -> NaviampCoreCommand.Settings.CloseStats
-    shell.shellChrome.nowPlayingOpen -> NaviampCoreCommand.Navigation.CloseNowPlaying
-    shell.home.collectionPage != null -> NaviampCoreCommand.Home.CloseCollection
-    shell.playlistDetail.selectedPlaylist != null -> NaviampCoreCommand.Navigation.BackFromPlaylist
-    shell.albumDetail.selectedAlbum != null -> NaviampCoreCommand.Navigation.BackFromAlbum
-    shell.artistDetail.selectedArtist != null -> NaviampCoreCommand.Navigation.BackFromArtist
-    else -> null
+    else -> when (app.naviamp.ui.naviampBackTarget(shell)) {
+        app.naviamp.ui.NaviampBackTarget.NowPlaying -> NaviampCoreCommand.Navigation.CloseNowPlaying
+        app.naviamp.ui.NaviampBackTarget.DiscoveryRequests -> NaviampCoreCommand.Home.DismissDiscoveryRequests
+        app.naviamp.ui.NaviampBackTarget.DiscoveryArtist -> NaviampCoreCommand.Home.DismissDiscoveryArtist
+        app.naviamp.ui.NaviampBackTarget.DiscoveryBrowser -> NaviampCoreCommand.Home.Browse(app.naviamp.domain.provider.DiscoveryBrowseAction.Close)
+        app.naviamp.ui.NaviampBackTarget.HomeCollection -> NaviampCoreCommand.Home.CloseCollection
+        app.naviamp.ui.NaviampBackTarget.Playlist -> NaviampCoreCommand.Navigation.BackFromPlaylist
+        app.naviamp.ui.NaviampBackTarget.Album -> NaviampCoreCommand.Navigation.BackFromAlbum
+        app.naviamp.ui.NaviampBackTarget.Artist -> NaviampCoreCommand.Navigation.BackFromArtist
+        null -> null
+    }
 }

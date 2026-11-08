@@ -23,6 +23,7 @@ parser.add_argument('--bind-address', default='127.0.0.1', help='Loopback or an 
 parser.add_argument('--port', type=int, default=18080, help='HTTP port; 0 selects an available test port')
 parser.add_argument('--artwork', action='store_true', help='Serve deterministic opaque covers for visible player acceptance')
 parser.add_argument('--silent', action='store_true', help='Serve silent PCM for unattended native playback tests')
+parser.add_argument('--sonic', action='store_true', help='Advertise deterministic Sonic matches for queue-end acceptance')
 parser.add_argument('--burst-seconds', type=float, default=125)
 parser.add_argument('--track-seconds', type=int, default=600)
 parser.add_argument('--tracks', type=int, default=1)
@@ -174,6 +175,8 @@ class Handler(BaseHTTPRequestHandler):
             'getSong': {'song': next((track for track in TRACKS if track['id'] == query.get('id', [''])[0]), TRACKS[0])},
             'search3': {'searchResult3': {'song':TRACKS, 'album':ALBUMS, 'artist':[]}},
             'getRandomSongs': {'randomSongs': {'song':TRACKS}},
+            'getSimilarSongs': {'similarSongs': {'song': [track for track in TRACKS if track['id'] != query.get('id', [''])[0]][:max(0, int(query.get('count', ['50'])[0]))]}},
+            'getSimilarSongs2': {'similarSongs2': {'song': TRACKS[:max(0, int(query.get('count', ['50'])[0]))]}},
             'getStarred2': {'starred2': {'song':[], 'album':[], 'artist':[]}},
             'getPlaylists': {'playlists': {'playlist':[]}},
             'getGenres': {'genres': {'genre':[]}},
@@ -187,6 +190,15 @@ class Handler(BaseHTTPRequestHandler):
                 if int(query.get(kind + 'Offset', ['0'])[0]) > 0 or query.get(kind + 'Count') == ['0']:
                     responses[action]['searchResult3'][kind] = []
         response.update(responses.get(action, {}))
+        if args.sonic:
+            if action == 'getOpenSubsonicExtensions':
+                response['openSubsonicExtensions'] = [dict(name='sonicSimilarity', versions=[1])]
+            elif action == 'getSonicSimilarTracks':
+                seed = next((i for i, track in enumerate(TRACKS) if track['id'] == query.get('id', [''])[0]), 0)
+                candidates = TRACKS[seed + 1:] + TRACKS[:seed]
+                count = max(0, int(query.get('count', ['50'])[0]))
+                response['sonicMatch'] = [dict(entry=track, similarity=1.0 - i * .001)
+                                          for i, track in enumerate(candidates[:count])]
         if args.accounts:
             playlist = dict(id='account-playlist', name=account + ' playlist', songCount=1, owner=account, public=False)
             if action == 'getPlaylists': response['playlists'] = dict(playlist=[playlist])

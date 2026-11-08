@@ -109,6 +109,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Constraints
@@ -903,6 +904,8 @@ private fun NowPlayingDetails(
     } else if (useLargeSizing) 19 else 15
     val titleTextHeight = if (largePresentation) {
         with(LocalDensity.current) { (36f * effectiveLargePresentationScale).sp.toDp() }
+    } else if (filledArtworkLayout) {
+        with(LocalDensity.current) { (titleFontSize + 4).sp.toDp() }
     } else if (useLargeSizing) 23.dp else 18.dp
     val metadataFontSize = if (largePresentation) {
         (18f * effectiveLargePresentationScale).roundToInt()
@@ -918,7 +921,8 @@ private fun NowPlayingDetails(
     val ratingStarSlotWidth = if (useLargeSizing) 23.dp else 18.dp
     val ratingStarsWidth = if (useLargeSizing) 116.dp else 92.dp
     val scrubberTimeFontSize = if (useLargeSizing) 14.sp else 11.sp
-    val scrubberTimeWidth = if (useLargeSizing) 52.dp else 42.dp
+    val scrubberTimeWidth = (if (useLargeSizing) 52.dp else 42.dp) *
+        (if (filledArtworkLayout) LocalDensity.current.fontScale.coerceAtLeast(1f) else 1f)
     val secondaryTransportButtonSize = if (useLargeSizing) 36.dp else 28.dp
     val secondaryTransportIconSize = if (useLargeSizing) 21.dp else 16.dp
     val transportButtonSize = if (useLargeSizing) 42.dp else 34.dp
@@ -937,7 +941,7 @@ private fun NowPlayingDetails(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = if (filledArtworkLayout) {
-            Arrangement.spacedBy(if (compactLayout) 6.dp else 8.dp)
+            Arrangement.spacedBy(if (compactLayout) 8.dp else 12.dp)
         } else if ((mobileLayout && !compactLayout) || pinBottomActions) {
             Arrangement.SpaceBetween
         } else {
@@ -980,7 +984,7 @@ private fun NowPlayingDetails(
                 Column(
                     horizontalAlignment = if (largePresentation) Alignment.Start else Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(
-                        if (largePresentation) largeIdentitySpacing else if (filledArtworkLayout) 4.dp else if (mobileLayout) 2.dp else 1.dp,
+                        if (largePresentation) largeIdentitySpacing else if (filledArtworkLayout) 6.dp else if (mobileLayout) 2.dp else 1.dp,
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1061,7 +1065,16 @@ private fun NowPlayingDetails(
         }
 
         if (showControls) {
-            if (compactMetadataRow && (showRating || showAudioInfo)) {
+            if (filledArtworkLayout && (showRating || showAudioInfo)) {
+                FilledArtworkMetadataRow(
+                    nowPlaying = nowPlaying, colors = colors,
+                    showRating = showRating, showAudioInfo = showAudioInfo,
+                    largeSizing = useLargeSizing,
+                    onToggleFavorite = { actions.currentTrack(NowPlayingCurrentTrackAction.ToggleFavorite) },
+                    onRatingSelected = { rating -> actions.currentTrack(NowPlayingCurrentTrackAction.SetRating, rating = rating) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else if (compactMetadataRow && (showRating || showAudioInfo)) {
                     CompactMetadataRow(
                         nowPlaying = nowPlaying,
                         colors = colors,
@@ -1079,7 +1092,7 @@ private fun NowPlayingDetails(
                         verticalArrangement = Arrangement.spacedBy(if (filledArtworkLayout) 4.dp else 1.dp),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        if (showRating && !nowPlaying.isLive && (nowPlaying.canFavorite || nowPlaying.canRate || nowPlaying.favoriteActive || nowPlaying.userRating != null)) {
+                        if (showRating && !nowPlaying.isLive && (nowPlaying.canFavorite || nowPlaying.canRate)) {
                             RatingRow(
                                 favoriteActive = nowPlaying.favoriteActive,
                                 canFavorite = nowPlaying.canFavorite,
@@ -1373,6 +1386,7 @@ private fun NowPlayingDetails(
                                 )
                             }
                             nowPlayingTrackMenuActions(
+                                canStartRadio = nowPlaying.canStartRadio,
                                 visualizerAvailable = nowPlaying.visualizerAvailable,
                                 isLive = nowPlaying.isLive,
                                 hasDetails = nowPlaying.detailSections.isNotEmpty(),
@@ -1382,12 +1396,15 @@ private fun NowPlayingDetails(
                                 sleepTimerLabel = nowPlaying.sleepTimer.label,
                             ).forEach { action ->
                                 NaviampDropdownMenuItem(
-                                    label = action.label,
+                                    label = if (action.action == NaviampAction.StartTrackRadio)
+                                        stringResource(Res.string.tv_start_radio) else action.label,
                                     icon = action.icon,
                                     enabled = action.enabled,
                                     onClick = {
                                         actionMenuExpanded = false
                                         when (action.action) {
+                                            NaviampAction.StartTrackRadio ->
+                                                actions.currentTrack(NowPlayingCurrentTrackAction.StartRadio)
                                             NaviampAction.ChangeVisualizer -> visualizerMenuExpanded = true
                                             NaviampAction.DownloadTrack ->
                                                 actions.currentTrack(NowPlayingCurrentTrackAction.Download)
@@ -1484,6 +1501,69 @@ internal fun nowPlayingActionMenuEnabled(nowPlaying: NowPlayingUi): Boolean =
     nowPlaying.menuEnabled || nowPlaying.remoteOutputDeviceName != null ||
         nowPlaying.playbackOutputs.isNotEmpty() || nowPlaying.castAvailable
 
+/** Keep ratings centered between audio fields, falling back to two lines when text cannot fit. */
+@Composable
+private fun FilledArtworkMetadataRow(
+    nowPlaying: NowPlayingUi,
+    colors: NaviampColors,
+    showRating: Boolean,
+    showAudioInfo: Boolean,
+    largeSizing: Boolean,
+    onToggleFavorite: () -> Unit,
+    onRatingSelected: (Int?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (nowPlaying.isLive) return
+    val ratingVisible = showRating &&
+        (nowPlaying.canFavorite || nowPlaying.canRate)
+    val audioVisible = showAudioInfo && nowPlaying.audioInfo.isNotBlank()
+    if (!ratingVisible && !audioVisible) return
+    val (format, quality) = nowPlaying.audioInfo.compactAudioInfoParts()
+    val textStyle = TextStyle(fontSize = if (largeSizing) 14.sp else 11.sp)
+    val measurer = rememberTextMeasurer()
+    val favoriteWidth = if (largeSizing) 30.dp else 24.dp
+    val starsWidth = if (largeSizing) 116.dp else 92.dp
+    val ratingWidth = (if (nowPlaying.canFavorite) favoriteWidth else 0.dp) +
+        (if (nowPlaying.canRate) starsWidth else 0.dp) +
+        (if (nowPlaying.canFavorite && nowPlaying.canRate) 3.dp else 0.dp)
+    val gap = 8.dp
+
+    @Composable fun ratings() {
+        RatingRow(nowPlaying.favoriteActive, nowPlaying.canFavorite, nowPlaying.userRating, nowPlaying.canRate,
+            colors, onToggleFavorite, onRatingSelected,
+            iconSize = if (largeSizing) 21.dp else 17.dp,
+            favoriteSlotWidth = favoriteWidth, starSlotWidth = if (largeSizing) 23.dp else 18.dp,
+            starsWidth = starsWidth, modifier = Modifier.testTag("now-playing-filled-rating"))
+    }
+
+    BoxWithConstraints(modifier.testTag("now-playing-filled-metadata")) {
+        val sideWidth = (maxWidth - ratingWidth - gap * 2) / 2
+        val requiredAudioWidth = with(LocalDensity.current) {
+            maxOf(measurer.measure(format, textStyle).size.width,
+                measurer.measure(quality, textStyle).size.width).toDp()
+        }
+        when {
+            ratingVisible && audioVisible && sideWidth >= requiredAudioWidth -> Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(gap),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(format, color = colors.secondaryText, style = textStyle,
+                    textAlign = TextAlign.End, maxLines = 1, modifier = Modifier.weight(1f))
+                ratings()
+                Text(quality, color = colors.secondaryText, style = textStyle,
+                    textAlign = TextAlign.Start, maxLines = 1, modifier = Modifier.weight(1f))
+            }
+            else -> Column(horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                if (ratingVisible) ratings()
+                if (audioVisible) Text(nowPlaying.audioInfo, color = colors.secondaryText,
+                    style = textStyle, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            }
+        }
+    }
+}
+
 @Composable
 private fun CompactMetadataRow(
     nowPlaying: NowPlayingUi,
@@ -1497,7 +1577,7 @@ private fun CompactMetadataRow(
     if (nowPlaying.isLive) return
 
     val showRatingControls = showRating &&
-        (nowPlaying.canFavorite || nowPlaying.canRate || nowPlaying.favoriteActive || nowPlaying.userRating != null)
+        (nowPlaying.canFavorite || nowPlaying.canRate)
     val showAudioText = showAudioInfo && nowPlaying.audioInfo.isNotBlank()
     if (!showRatingControls && !showAudioText) return
     val (audioType, audioQuality) = nowPlaying.audioInfo.compactAudioInfoParts()
@@ -2044,7 +2124,7 @@ private fun DrawScope.drawFallbackScrubLine(
 }
 
 @Composable
-private fun RatingRow(
+internal fun RatingRow(
     favoriteActive: Boolean,
     canFavorite: Boolean,
     rating: Int?,
@@ -2064,7 +2144,7 @@ private fun RatingRow(
         modifier = modifier.padding(vertical = 1.dp),
     ) {
         val inactiveColor = colors.primaryText.copy(alpha = 0.72f)
-        Box(
+        if (canFavorite) Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .width(favoriteSlotWidth)
@@ -2077,7 +2157,7 @@ private fun RatingRow(
                 modifier = Modifier.size(iconSize),
             )
         }
-        Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.width(starsWidth)) {
+        if (canRate) Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.width(starsWidth)) {
             (1..5).forEach { value ->
                 val selected = (rating ?: 0) >= value
                 Box(

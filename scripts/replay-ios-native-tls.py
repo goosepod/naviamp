@@ -57,6 +57,43 @@ def stop_fixture(fixture, bootstrap, root):
                 fixture.wait()
 
 
+def wait_fixture_ready(root, bootstrap, fixture, output, timeout=180):
+    """Provision generated certificates/server before any native assertion deadline starts."""
+    started = time.monotonic()
+    report = {'budgetSeconds': timeout, 'bootstrapSeconds': None, 'probes': [], 'status': 'starting'}
+    try:
+        while True:
+            if fixture.poll() is not None:
+                raise RuntimeError('Owned fixture exited during startup')
+            remaining = timeout - (time.monotonic() - started)
+            if remaining <= 0:
+                raise RuntimeError('Owned fixture did not become ready')
+            if bootstrap.exists():
+                if report['bootstrapSeconds'] is None:
+                    report['bootstrapSeconds'] = time.monotonic() - started
+                probe_started = time.monotonic()
+                probe = {'startedSeconds': probe_started - started, 'exitCode': None}
+                with (output / 'fixture-readiness.log').open('a') as log:
+                    try:
+                        probe['exitCode'] = subprocess.run(
+                            ['python3', 'scripts/mobile-mtls-fixture.py', 'ready', str(bootstrap)],
+                            cwd=root, stdout=log, stderr=subprocess.STDOUT,
+                            timeout=min(10, remaining)).returncode
+                    except subprocess.TimeoutExpired:
+                        log.write('Host readiness probe exceeded its setup budget\n')
+                probe['seconds'] = time.monotonic() - probe_started
+                report['probes'].append(probe)
+                if probe['exitCode'] == 0:
+                    report['status'] = 'ready'
+                    return
+            time.sleep(min(0.25, remaining))
+    finally:
+        report['seconds'] = time.monotonic() - started
+        if report['status'] != 'ready':
+            report['status'] = 'failed'
+        (output / 'fixture-startup.json').write_text(json.dumps(report, indent=2))
+
+
 def remove_owned_device(record):
     if not record.exists():
         return
@@ -84,8 +121,8 @@ def remove_owned_device(record):
 
 
 def replay(root, output, runs):
-    results = root / 'platforms/ios/build/test-results/iosSimulatorArm64Test'
-    reports = root / 'platforms/ios/build/reports/tests/iosSimulatorArm64Test'
+    results = root / 'build/ios-native-execution/results'
+    reports = root / 'build/ios-native-execution/report'
     expected = read_results(results)
     initial = output / 'initial'
     initial.mkdir(parents=True, mode=0o700)
@@ -108,23 +145,13 @@ def replay(root, output, runs):
         bootstrap = run / 'fixture.bootstrap'
         device_record = run / 'device.json'
         stage = 'fixture startup'
+        fixture = None
         with (run / 'fixture.log').open('w') as log:
-            fixture = subprocess.Popen([str(java), '@build/mobile-mtls-fixture.args', str(bootstrap)],
-                                       cwd=root, stdout=log, stderr=subprocess.STDOUT)
-            (run / 'fixture.pid').write_text(str(fixture.pid))
             try:
-                deadline = time.monotonic() + 90
-                while True:
-                    if fixture.poll() is not None:
-                        raise RuntimeError('Owned fixture exited during startup')
-                    if bootstrap.exists():
-                        ready = subprocess.run(['python3', 'scripts/mobile-mtls-fixture.py', 'ready', str(bootstrap)],
-                                               cwd=root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
-                        if ready.returncode == 0:
-                            break
-                    if time.monotonic() >= deadline:
-                        raise RuntimeError('Owned fixture did not become ready')
-                    time.sleep(0.25)
+                fixture = subprocess.Popen([str(java), '@build/mobile-mtls-fixture.args', str(bootstrap)],
+                                           cwd=root, stdout=log, stderr=subprocess.STDOUT)
+                (run / 'fixture.pid').write_text(str(fixture.pid))
+                wait_fixture_ready(root, bootstrap, fixture, run)
                 stage = 'simulator boot'
                 name = f'Naviamp TLS cold replay {index} {uuid.uuid4().hex[:12]}'
                 device_record.write_text(json.dumps({'id': None, 'name': name}))
@@ -138,21 +165,23 @@ def replay(root, output, runs):
                 env = os.environ.copy()
                 env['SIMCTL_CHILD_NAVIAMP_MTLS_FIXTURE_BOOTSTRAP'] = bootstrap.read_text()
                 command = ['python3', 'scripts/ios-native-test-diagnostics.py',
+                           '--capture-loopback',
                            '--executable', str(root / 'platforms/ios/build/bin/iosSimulatorArm64/debugTest/test.kexe'),
                            '--fixture-bootstrap', str(bootstrap), '--output', str(run / 'diagnostics'), '--',
-                           './gradlew', '--max-workers=2', '--console=plain', '--profile',
-                           '-Pnaviamp.ios.testDevice=' + device, ':platforms:ios:iosSimulatorArm64Test', '--rerun']
+                           'python3', 'scripts/run-prebuilt-ios-native-tests.py', '--device', device,
+                           '--executable', str(root / 'platforms/ios/build/bin/iosSimulatorArm64/debugTest/test.kexe'),
+                           '--output', str(run / 'native-execution')]
                 started = time.monotonic()
                 with (run / 'native.log').open('w') as native_log:
                     result = subprocess.run(command, cwd=root, env=env, stdout=native_log,
                                             stderr=subprocess.STDOUT, timeout=300)
                 if result.returncode != 0:
                     raise RuntimeError(f'Native command failed with exit {result.returncode}')
-                if read_results(results) != expected:
+                if read_results(run / 'native-execution/results') != expected:
                     raise RuntimeError('Cold replay executed a different native test set')
-                task_line = '> Task :platforms:ios:iosSimulatorArm64Test'
-                if task_line not in (run / 'native.log').read_text().splitlines():
-                    raise RuntimeError('Native task did not execute; cached or skipped output is not acceptance')
+                execution = json.loads((run / 'native-execution/execution.json').read_text())
+                if execution['status'] != 'passed' or {tuple(case) for case in execution['executedCases']} != expected:
+                    raise RuntimeError('Fresh native execution metadata is missing or incomplete')
                 summary = {
                     'tests': len(expected), 'failures': 0, 'errors': 0, 'skipped': 0,
                     'nativeSeconds': time.monotonic() - started,
@@ -164,13 +193,12 @@ def replay(root, output, runs):
             finally:
                 try:
                     native_log = run / 'native.log'
-                    lines = native_log.read_text().splitlines() if native_log.exists() else []
-                    task = '> Task :platforms:ios:iosSimulatorArm64Test'
-                    executed = task in lines or task + ' FAILED' in lines
-                    if executed and results.exists():
-                        shutil.copytree(results, run / 'results')
-                    if executed and reports.exists():
-                        shutil.copytree(reports, run / 'report')
+                    fresh_results = run / 'native-execution/results'
+                    fresh_reports = run / 'native-execution/report'
+                    if fresh_results.exists():
+                        shutil.copytree(fresh_results, run / 'results')
+                    if fresh_reports.exists():
+                        shutil.copytree(fresh_reports, run / 'report')
                     if device_record.exists() and json.loads(device_record.read_text()).get('id'):
                         device = json.loads(device_record.read_text())['id']
                         with (run / 'services.log').open('w') as service_log:
@@ -184,7 +212,8 @@ def replay(root, output, runs):
                     try:
                         remove_owned_device(device_record)
                     finally:
-                        stop_fixture(fixture, bootstrap, root)
+                        if fixture is not None:
+                            stop_fixture(fixture, bootstrap, root)
                 (run / 'cleanup-complete').write_text('Owned fixture and simulator released\n')
             (run / 'summary.json').write_text(json.dumps(summary))
             print(f'Cold native replay {index}: {len(expected)} executed, zero failures/errors/skips; owned resources cleaned', flush=True)

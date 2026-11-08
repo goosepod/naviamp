@@ -140,6 +140,7 @@ data class SharedTrackRowUi(
     val albumTitle: String? = null,
     val detailSections: List<NaviampDetailSectionUi> = emptyList(),
     val trackNumber: Int? = null,
+    val canStartRadio: Boolean = false,
 )
 
 data class SharedArtistCreditUi(
@@ -662,6 +663,7 @@ enum class SharedHomeCollectionArtwork {
     CoverArt,
     NavibeatGenerated,
     StationGenerated,
+    MixBuilderGenerated,
 }
 
 enum class SharedHomeCollectionItemAction {
@@ -970,6 +972,29 @@ data class SharedProviderDiscoveryUi(
     val feed: app.naviamp.domain.provider.ProviderDiscoveryFeed = app.naviamp.domain.provider.ProviderDiscoveryFeed(),
     val loading: Boolean = false,
     val artistDetail: SharedProviderDiscoveryArtistUi? = null,
+    val browser: app.naviamp.domain.provider.DiscoveryBrowserState? = null,
+    val artistPage: Boolean = false,
+    val artistBackStack: List<SharedProviderDiscoveryArtistUi> = emptyList(),
+    val releasePage: SharedDiscoveryReleaseUi? = null,
+    val sourceId: String? = null,
+    val originRoute: SharedRoute? = null,
+    val sourceGeneration: Long = 0,
+    val requestsOpen: Boolean = false,
+    val acquisitions: List<app.naviamp.domain.provider.DiscoveryAcquisitionRecord> = emptyList(),
+    val requestActivity: app.naviamp.domain.provider.ProviderDiscoveryActivities = app.naviamp.domain.provider.ProviderDiscoveryActivities(),
+    val requestsLoading: Boolean = false,
+    val requestsStatus: app.naviamp.domain.provider.ProviderDiscoveryStatus? = null,
+)
+
+data class SharedDiscoveryReleaseUi(
+    val release: app.naviamp.domain.provider.ProviderDiscoveryRelease,
+    val loading: Boolean = true,
+    val result: app.naviamp.domain.provider.ProviderDiscoveryReleaseDetails? = null,
+    val tracksLoading: Boolean = true,
+    val tracks: app.naviamp.domain.provider.ProviderDiscoveryReleaseTracks? = null,
+    val ownershipLoading: Boolean = true,
+    val ownership: app.naviamp.domain.provider.ProviderDiscoveryReleaseOwnership? = null,
+    val requestContext: app.naviamp.domain.provider.ProviderDiscoveryReleaseContext? = null,
 )
 
 data class DiscoverySamplePlaybackUi(val trackId: String? = null, val playing: Boolean = false,
@@ -988,6 +1013,14 @@ data class SharedProviderDiscoveryArtistUi(
     val samplesLoading: Boolean = false,
     val operationStatus: app.naviamp.domain.provider.ProviderDiscoveryOperationStatus? = null,
     val blockedActions: Set<app.naviamp.domain.provider.ProviderDiscoveryAction> = emptySet(),
+    val pendingAction: app.naviamp.domain.provider.ProviderDiscoveryAction? = null,
+    val requestOperations: Map<app.naviamp.domain.provider.ProviderDiscoveryAction, app.naviamp.domain.provider.ProviderDiscoveryOperation> = emptyMap(),
+    val acquisitions: Map<app.naviamp.domain.provider.ProviderDiscoveryAction, app.naviamp.domain.provider.DiscoveryAcquisitionRecord> = emptyMap(),
+    val similar: app.naviamp.domain.provider.ProviderDiscoverySimilarArtists? = null,
+    val similarLoading: Boolean = false,
+    val firstVisibleItem: Int = 0,
+    val firstVisibleOffset: Int = 0,
+    val releaseSection: app.naviamp.domain.media.AlbumReleaseSection? = null,
 )
 
 data class NaviampHomeActions(
@@ -1008,6 +1041,16 @@ data class NaviampHomeActions(
     val onDiscoveryFeedback: (String, app.naviamp.domain.provider.ProviderDiscoveryFeedbackAction) -> Unit = { _, _ -> },
     val onDiscoveryLibraryArtist: (String) -> Unit = {},
     val onDiscoveryAction: (String, app.naviamp.domain.provider.ProviderDiscoveryAction) -> Unit = { _, _ -> },
+    val onDiscoveryRelease: (String) -> Unit = {},
+    val onDiscoveryLibraryRelease: (String?, Long, String) -> Unit = { _, _, _ -> },
+    val onDiscoveryReleaseAction: (String?, Long, String, app.naviamp.domain.provider.ProviderDiscoveryAction) -> Unit = { _, _, _, _ -> },
+    val onDiscoveryViewport: (Int, Int, app.naviamp.domain.media.AlbumReleaseSection?) -> Unit = { _, _, _ -> },
+    val onDiscoveryBrowse: (app.naviamp.domain.provider.DiscoveryBrowseAction) -> Unit = {},
+    val onDiscoveryRequests: () -> Unit = {},
+    val onDiscoveryRequestsDismiss: () -> Unit = {},
+    val onDiscoveryRequestsRefresh: () -> Unit = {},
+    val onDiscoveryRequestSelected: (String?, Long, String) -> Unit = { _, _, _ -> },
+    val onDiscoveryRequestsExternal: (String?, Long) -> Unit = { _, _ -> },
 )
 
 data class NaviampMediaActions(

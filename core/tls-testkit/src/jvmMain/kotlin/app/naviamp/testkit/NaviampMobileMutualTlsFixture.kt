@@ -8,6 +8,8 @@ import java.nio.file.StandardCopyOption
 import java.util.Base64
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
+import jdk.jfr.Configuration
+import jdk.jfr.Recording
 
 class NaviampMobileMutualTlsFixtureHandle internal constructor(
     val bootstrap: String,
@@ -24,6 +26,12 @@ fun withNaviampMobileMutualTlsFixture(block: (NaviampMobileMutualTlsFixtureHandl
             val mutual = fixture.startServer(pauseAudioAfterBytes = 262_144)
             val privateCa = fixture.startServer(requireClientCertificate = false)
             val wrongName = wrongHost.startServer()
+            // Binding TCP sockets alone leaves first-use TLS initialization unverified.
+            // The wrong-name listener is healthy for its own certificate name; native
+            // tests still connect by IP and must reject that hostname mismatch.
+            fixture.verifyTlsServerReady(mutual)
+            fixture.verifyTlsServerReady(privateCa)
+            wrongHost.verifyTlsServerReady(wrongName, hostname = "wrong.invalid")
             val control = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
             val done = CountDownLatch(1)
             val endpoints = NaviampMobileTlsEndpoints(control.address.port,
@@ -64,7 +72,31 @@ fun withNaviampMobileMutualTlsFixture(block: (NaviampMobileMutualTlsFixtureHandl
     }
 }
 
-fun main(args: Array<String>) = withNaviampMobileMutualTlsFixture { fixture ->
+fun main(args: Array<String>) {
+    // Observe this disposable server only. Recording before first use preserves lazy TLS
+    // initialization and host stalls that a thread dump taken after cancellation misses.
+    val recording = if (System.getenv("NAVIAMP_MTLS_FIXTURE_JFR") == "true") {
+        require(args.size == 1) { "Fixture recording requires its owned bootstrap destination" }
+        Recording(Configuration.getConfiguration("profile")).apply {
+            name = "naviamp-disposable-fixture"
+            // A hosted runner's environment and unrelated process arguments can contain
+            // credentials. They are not needed to inspect this fixture's TLS stacks.
+            listOf("jdk.InitialEnvironmentVariable", "jdk.InitialSystemProperty",
+                "jdk.SystemProcess", "jdk.ProcessStart").forEach { disable(it) }
+            maxSize = 16L * 1024 * 1024
+            destination = Path.of(args.single()).toAbsolutePath().parent.resolve("fixture.jfr")
+            dumpOnExit = true
+            start()
+        }
+    } else null
+    try {
+        serveMobileMutualTlsFixture(args)
+    } finally {
+        recording?.use { it.stop() }
+    }
+}
+
+private fun serveMobileMutualTlsFixture(args: Array<String>) = withNaviampMobileMutualTlsFixture { fixture ->
     if (args.isNotEmpty()) {
         val target = Path.of(args.single()).toAbsolutePath()
         val pending = Files.createTempFile(target.parent, ".mobile-mtls-", ".bootstrap")

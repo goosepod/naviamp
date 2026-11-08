@@ -7,6 +7,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.ui.unit.Dp
 import kotlin.math.floor
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -19,14 +22,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.foundation.lazy.LazyListState
 import app.naviamp.domain.media.AlbumReleaseSection
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -52,11 +59,20 @@ internal fun NaviampProviderDiscoveryContent(
     onLibraryArtist: (String) -> Unit = {},
     onAction: (String, ProviderDiscoveryAction) -> Unit = { _, _ -> },
     playback: DiscoverySamplePlaybackUi = DiscoverySamplePlaybackUi(),
+    onRequests: () -> Unit = {},
+    onBrowse: (DiscoveryBrowseAction) -> Unit = {},
 ) {
     val providerName = localizedProviderName(discovery.providerId)
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-        Text(stringResource(Res.string.discovery_provider_title, providerName),
+    if (discovery.providerId == ProviderIdAurral) {
+        NaviampAurralHomeEntry(discovery, colors) { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Hub)) }
+    } else Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        DiscoveryText(stringResource(Res.string.discovery_provider_title, providerName),
             color = colors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+        DiscoveryActionButton(colors = colors, onClick = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Recommendations)) }) { DiscoveryText(stringResource(Res.string.discovery_recommendations)) }
+        DiscoveryActionButton(colors = colors, onClick = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Search)) }) { DiscoveryText(stringResource(Res.string.discovery_catalog_search)) }
+        if (discovery.feed.chartsAvailable) DiscoveryActionButton(colors = colors, onClick = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Trending)) }) { DiscoveryText(stringResource(Res.string.discovery_charts_title)) }
+        if (discovery.feed.genreBlockingAvailable) DiscoveryActionButton(colors = colors, onClick = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.BlockedGenres)) }) { DiscoveryText(stringResource(Res.string.discovery_blocked_genres)) }
+        DiscoveryActionButton(colors = colors, onClick = onRequests) { DiscoveryText(stringResource(Res.string.discovery_requests_title)) }
         val message = when {
             discovery.loading -> Res.string.discovery_loading
             else -> when (discovery.feed.status) {
@@ -69,15 +85,16 @@ internal fun NaviampProviderDiscoveryContent(
                 ProviderDiscoveryStatus.Ready -> if (discovery.feed.recommendations.isEmpty()) Res.string.discovery_empty else null
             }
         }
-        message?.let { Text(stringResource(it), color = colors.secondaryText, fontSize = 13.sp) }
+        message?.let { DiscoveryText(stringResource(it), color = colors.secondaryText, fontSize = 13.sp) }
         if (discovery.feed.recommendations.isNotEmpty()) {
-            DiscoveryArtistRail(stringResource(Res.string.discovery_recommendations), discovery.feed.recommendations, providerName, colors, onArtistSelected, onArtistDetails)
+            DiscoveryArtistRail(stringResource(Res.string.discovery_recommendations), discovery.feed.recommendations, providerName, colors, onArtistSelected, onArtistDetails, onOpen = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Recommendations)) })
         }
         if (discovery.feed.trending.isNotEmpty()) {
-            DiscoveryArtistRail(stringResource(Res.string.discovery_trending), discovery.feed.trending, providerName, colors, onArtistSelected, onArtistDetails)
+            DiscoveryArtistRail(stringResource(Res.string.discovery_trending), discovery.feed.trending, providerName, colors, onArtistSelected, onArtistDetails,
+                onOpen = if (discovery.feed.chartsAvailable) ({ onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Trending)) }) else null)
         }
     }
-    discovery.artistDetail?.let { detail ->
+    discovery.artistDetail?.takeIf { !discovery.artistPage }?.let { detail ->
         DiscoveryArtistDialog(detail, providerName, colors, onArtistDismiss,
             onRefresh = { onArtistDetails(detail.artist.id) },
             onExternal = { onArtistSelected(detail.artist.id) },
@@ -95,11 +112,12 @@ private fun DiscoveryArtistRail(
     colors: NaviampColors,
     onArtistSelected: (String) -> Unit,
     onArtistDetails: (String) -> Unit,
+    onOpen: (() -> Unit)? = null,
 ) {
     val state = rememberLazyListState()
     val scope = rememberCoroutineScope()
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, Modifier.weight(1f), color = colors.primaryText, fontWeight = FontWeight.SemiBold)
+        DiscoveryText(title, Modifier.weight(1f).semantics { heading() }.then(if (onOpen != null) Modifier.clickable(role = Role.Button, onClick = onOpen) else Modifier), color = colors.primaryText, fontWeight = FontWeight.SemiBold)
         listOf(false, true).forEach { forward ->
             HomeRailArrow(forward, if (forward) state.canScrollForward else state.canScrollBackward, colors) {
                 scope.launch {
@@ -124,14 +142,14 @@ private fun DiscoveryArtistRail(
             Column(modifier = Modifier.width(142.dp).then(interaction), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 NaviampCoverArt(artist.imageUrl, colors, 128.dp,
                     resolvedMediaArtworkCornerRadius(SharedMediaItemKind.Artist, 128.dp, 7.dp), mediaKind = SharedMediaItemKind.Artist)
-                Text(artist.name, color = colors.primaryText, fontSize = 13.sp,
+                DiscoveryText(artist.name, color = colors.primaryText, fontSize = 13.sp,
                     maxLines = 2, overflow = TextOverflow.Ellipsis)
                 if (artist.genres.isNotEmpty()) {
-                    Text(artist.genres.joinToString(", "), color = colors.secondaryText, fontSize = 11.sp,
+                    DiscoveryText(artist.genres.joinToString(", "), color = colors.secondaryText, fontSize = 11.sp,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 if (!artist.detailsAvailable && artist.externalUrl != null) {
-                    Text(actionLabel, color = colors.secondaryText, fontSize = 11.sp)
+                    DiscoveryText(actionLabel, color = colors.secondaryText, fontSize = 11.sp)
                 }
             }
         }
@@ -169,32 +187,59 @@ internal fun NaviampDiscoveryArtistPanel(
     onLibrary: () -> Unit,
     onAction: (ProviderDiscoveryAction) -> Unit,
     playback: DiscoverySamplePlaybackUi,
+    fullPage: Boolean = false,
+    onArtistDetails: (String) -> Unit = {},
+    onReleaseSelected: (String) -> Unit = {},
+    onViewport: (Int, Int, AlbumReleaseSection?) -> Unit = { _, _, _ -> },
+    stateKey: Any? = null,
+    dismissModifier: Modifier = Modifier,
+    navigationModifier: Modifier = Modifier,
+    onRequests: (() -> Unit)? = null,
 ) {
+    var imageOpen by remember(screen.artist.id, stateKey) { mutableStateOf(false) }
+    if (imageOpen) ExpandedMediaImageDialog(screen.artist.imageUrl, colors = colors,
+        onDismissRequest = { imageOpen = false })
     val releases = screen.details?.releases.orEmpty()
     val sections = AlbumReleaseSection.entries.filter { section -> releases.any { it.section == section } }
-    var selectedSection by remember(screen.artist.id) { mutableStateOf<AlbumReleaseSection?>(null) }
+    var selectedSection by remember(screen.artist.id, stateKey) { mutableStateOf(screen.releaseSection) }
+    val listState = remember(screen.artist.id, stateKey) { LazyListState(screen.firstVisibleItem, screen.firstVisibleOffset) }
+    val reportViewport by rememberUpdatedState(onViewport)
+    val latestSection by rememberUpdatedState(selectedSection)
+    LaunchedEffect(listState, fullPage) {
+        if (fullPage) snapshotFlow { Triple(listState.isScrollInProgress, listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) }
+            .collect { (moving, index, offset) -> if (!moving) reportViewport(index, offset, latestSection) }
+    }
     val effectiveSection = selectedSection?.takeIf { it in sections }
     val visibleReleases = releases.filter { effectiveSection == null || it.section == effectiveSection }
-    Surface(Modifier.widthIn(max = 1080.dp).fillMaxWidth().padding(12.dp),
-        shape = RoundedCornerShape(12.dp), color = colors.controlSurface) {
+    Surface((if (fullPage) Modifier.fillMaxSize() else Modifier.widthIn(max = 1080.dp).fillMaxWidth().padding(12.dp)).then(navigationModifier),
+        shape = RoundedCornerShape(if (fullPage) 0.dp else 12.dp), color = colors.controlSurface) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(screen.artist.name, modifier = Modifier.weight(1f), color = colors.primaryText,
-                    fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_close)) }
+                DiscoveryText(screen.artist.name, modifier = Modifier.weight(1f).semantics { heading() }, color = colors.primaryText,
+                    fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                onRequests?.let { DiscoveryActionButton(colors = colors, onClick = it) { DiscoveryText(stringResource(Res.string.discovery_requests_title)) } }
+                DiscoveryActionButton(colors = colors, onClick = onDismiss, modifier = dismissModifier) { DiscoveryText(stringResource(if (fullPage) Res.string.common_back else Res.string.common_close)) }
             }
-            BoxWithConstraints(Modifier.fillMaxWidth()) {
+            BoxWithConstraints(Modifier.fillMaxWidth().then(if (fullPage) Modifier.weight(1f) else Modifier)) {
                 val releaseColumns = discoveryReleaseColumns(maxWidth.value)
                 val coverSize = (maxWidth - 12.dp * (releaseColumns - 1)) / releaseColumns
                 val sampleColumns = if (maxWidth >= 680.dp) 2 else 1
                 val sampleRows = discoverySampleRows(screen.samples, sampleColumns)
-                LazyColumn(Modifier.fillMaxWidth().heightIn(max = 640.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                LazyColumn((if (fullPage) Modifier.fillMaxSize() else Modifier.fillMaxWidth().heightIn(max = 640.dp)).testTag("discovery-artist-list"),
+                    state = listState, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     item {
-                        NaviampCoverArt(screen.artist.imageUrl, colors, 96.dp,
-                            resolvedMediaArtworkCornerRadius(SharedMediaItemKind.Artist, 96.dp, 6.dp), mediaKind = SharedMediaItemKind.Artist)
-                        if (screen.loading) Text(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
+                        val imageAction = stringResource(Res.string.artwork_view_full_size)
+                        Box(Modifier.testTag("discovery-artist-artwork").clickable(
+                            enabled = !screen.artist.imageUrl.isNullOrBlank(), role = Role.Button,
+                            onClickLabel = imageAction, onClick = { imageOpen = true })
+                            .semantics { contentDescription = imageAction }) {
+                            NaviampCoverArt(screen.artist.imageUrl, colors, 96.dp,
+                                resolvedMediaArtworkCornerRadius(SharedMediaItemKind.Artist, 96.dp, 6.dp), mediaKind = SharedMediaItemKind.Artist)
+                        }
+                        if (screen.artist.genres.isNotEmpty()) DiscoveryText(screen.artist.genres.joinToString(", "), color = colors.secondaryText)
+                        if (screen.loading) DiscoveryText(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
                         if (!screen.loading && screen.status != ProviderDiscoveryStatus.Ready) {
-                            Text(stringResource(when (screen.status) {
+                            DiscoveryText(stringResource(when (screen.status) {
                                 ProviderDiscoveryStatus.Unsupported -> Res.string.discovery_unsupported
                                 ProviderDiscoveryStatus.PasswordRequired -> Res.string.discovery_password_required
                                 ProviderDiscoveryStatus.SignInRequired -> Res.string.discovery_sign_in_required
@@ -204,19 +249,19 @@ internal fun NaviampDiscoveryArtistPanel(
                         }
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (screen.details?.canChangeMonitoring == true && screen.details.monitored != null) {
-                                TextButton(onClick = { onAction(ProviderDiscoveryAction.SetMonitoring(screen.details.monitored != true)) },
+                                DiscoveryActionButton(colors = colors, onClick = { onAction(ProviderDiscoveryAction.SetMonitoring(screen.details.monitored != true)) },
                                     enabled = !screen.actionBusy && !screen.savingFeedback && ProviderDiscoveryAction.SetMonitoring(screen.details.monitored != true) !in screen.blockedActions) {
-                                    Text(stringResource(if (screen.details.monitored == true) Res.string.discovery_stop_monitoring else Res.string.discovery_monitor_artist))
+                                    DiscoveryText(stringResource(if (screen.details.monitored == true) Res.string.discovery_stop_monitoring else Res.string.discovery_monitor_artist))
                                 }
                             }
-                            if (screen.details?.libraryArtist != null) TextButton(onClick = onLibrary) {
-                                Text(stringResource(Res.string.discovery_open_library))
+                            if (screen.details?.libraryArtist != null) DiscoveryActionButton(colors = colors, onClick = onLibrary) {
+                                DiscoveryText(stringResource(Res.string.discovery_open_library))
                             }
-                            if (screen.artist.externalUrl != null) TextButton(onClick = onExternal) {
-                                Text(stringResource(Res.string.discovery_open_provider, providerName))
+                            if (screen.artist.externalUrl != null) DiscoveryActionButton(colors = colors, onClick = onExternal) {
+                                DiscoveryText(stringResource(Res.string.discovery_open_provider, providerName))
                             }
-                            TextButton(onClick = onRefresh, enabled = !screen.loading && !screen.savingFeedback && !screen.actionBusy) {
-                                Text(stringResource(Res.string.library_refresh))
+                            DiscoveryActionButton(colors = colors, onClick = onRefresh, enabled = !screen.loading && !screen.savingFeedback && !screen.actionBusy) {
+                                DiscoveryText(stringResource(Res.string.library_refresh))
                             }
                         }
                         screen.details?.let { details ->
@@ -225,7 +270,7 @@ internal fun NaviampDiscoveryArtistPanel(
                                 ProviderDiscoveryFeedbackAction.entries.forEach { action ->
                                     FilterChip(selected = action in details.feedback, enabled = !screen.savingFeedback && !screen.actionBusy,
                                         onClick = { onFeedback(action) }, label = {
-                                            Text(stringResource(when (action) {
+                                            DiscoveryText(stringResource(when (action) {
                                                 ProviderDiscoveryFeedbackAction.MoreLikeThis -> Res.string.discovery_more_like_this
                                                 ProviderDiscoveryFeedbackAction.LessLikeThis -> Res.string.discovery_less_like_this
                                                 ProviderDiscoveryFeedbackAction.BlockArtist -> Res.string.discovery_block_artist
@@ -234,17 +279,19 @@ internal fun NaviampDiscoveryArtistPanel(
                                 }
                             }
                         }
-                        if (screen.actionBusy) Text(stringResource(Res.string.discovery_action_busy), color = colors.secondaryText)
-                        screen.operationStatus?.let { status -> Text(stringResource(discoveryOperationMessage(status)), color = colors.secondaryText) }
-                        if (screen.savingFeedback) Text(stringResource(Res.string.discovery_saving_feedback), color = colors.secondaryText)
-                        if (screen.feedbackFailed) Text(stringResource(Res.string.discovery_feedback_failed), color = colors.secondaryText)
+                        if (screen.actionBusy) DiscoveryText(stringResource(Res.string.discovery_action_busy), color = colors.secondaryText)
+                        screen.operationStatus?.let { status -> DiscoveryText(stringResource(discoveryOperationMessage(status)), color = colors.secondaryText) }
+                        if (screen.operationStatus == ProviderDiscoveryOperationStatus.WaitingForRelease)
+                            DiscoveryText(stringResource(Res.string.discovery_waiting_for_release_description), color = colors.secondaryText)
+                        if (screen.savingFeedback) DiscoveryText(stringResource(Res.string.discovery_saving_feedback), color = colors.secondaryText)
+                        if (screen.feedbackFailed) DiscoveryText(stringResource(Res.string.discovery_feedback_failed), color = colors.secondaryText)
                     }
                     if (!screen.loading) item(key = "samples-header") {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(stringResource(Res.string.discovery_samples), color = colors.primaryText, fontWeight = FontWeight.SemiBold)
-                            if (playback.failed) Text(stringResource(Res.string.discovery_samples_failed), color = colors.secondaryText)
-                            if (screen.loading || screen.samplesLoading || screen.samplesStatus == null) Text(stringResource(Res.string.discovery_samples_loading), color = colors.secondaryText)
-                            else if (screen.samples.isEmpty()) Text(stringResource(
+                            DiscoveryText(stringResource(Res.string.discovery_samples), modifier = Modifier.semantics { heading() }, color = colors.primaryText, fontWeight = FontWeight.SemiBold)
+                            if (playback.failed) DiscoveryText(stringResource(Res.string.discovery_samples_failed), color = colors.secondaryText)
+                            if (screen.loading || screen.samplesLoading || screen.samplesStatus == null) DiscoveryText(stringResource(Res.string.discovery_samples_loading), color = colors.secondaryText)
+                            else if (screen.samples.isEmpty()) DiscoveryText(stringResource(
                                 if (screen.samplesStatus == ProviderDiscoveryStatus.Ready) Res.string.discovery_no_samples else Res.string.discovery_samples_failed), color = colors.secondaryText)
                         }
                     }
@@ -259,20 +306,34 @@ internal fun NaviampDiscoveryArtistPanel(
                     }
                     if (releases.isNotEmpty()) item(key = "release-filters") {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(stringResource(Res.string.discovery_releases), color = colors.primaryText, fontWeight = FontWeight.SemiBold)
+                            DiscoveryText(stringResource(Res.string.discovery_releases), modifier = Modifier.semantics { heading() }, color = colors.primaryText, fontWeight = FontWeight.SemiBold)
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                FilterChip(selected = effectiveSection == null, onClick = { selectedSection = null },
-                                    label = { Text(stringResource(Res.string.discovery_all_releases)) })
+                                FilterChip(selected = effectiveSection == null, onClick = { selectedSection = null; onViewport(0, 0, null) },
+                                    label = { DiscoveryText(stringResource(Res.string.discovery_all_releases)) })
                                 sections.forEach { section ->
-                                    FilterChip(selected = effectiveSection == section, onClick = { selectedSection = section },
-                                        label = { Text(albumReleaseSectionLabel(section)) })
+                                    FilterChip(selected = effectiveSection == section, onClick = { selectedSection = section; onViewport(0, 0, section) },
+                                        label = { DiscoveryText(albumReleaseSectionLabel(section)) })
                                 }
                             }
                         }
                     }
                     items(visibleReleases.chunked(releaseColumns), key = { "releases:${it.first().id}" }) { row ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            row.forEach { release -> DiscoveryReleaseCard(release, coverSize, screen, colors, onAction) }
+                            row.forEach { release -> DiscoveryReleaseCard(release, coverSize, screen, colors, onAction,
+                                if (fullPage && release.releaseGroupMbid != null) { { onReleaseSelected(release.id) } } else null) }
+                        }
+                    }
+                    if (fullPage && (screen.similarLoading || screen.similar?.artists?.isNotEmpty() == true ||
+                            screen.similar?.status == ProviderDiscoveryStatus.Unavailable)) item(key = "similar-artists") {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            if (screen.similarLoading) DiscoveryText(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
+                            if (screen.similar?.status == ProviderDiscoveryStatus.Unavailable) {
+                                DiscoveryText(stringResource(Res.string.discovery_similar_artists), color = colors.primaryText)
+                                DiscoveryText(stringResource(Res.string.discovery_unavailable), color = colors.secondaryText)
+                            }
+                            if (screen.similar?.artists?.isNotEmpty() == true) DiscoveryArtistRail(
+                                stringResource(Res.string.discovery_similar_artists), screen.similar.artists, providerName, colors,
+                                onArtistDetails, onArtistDetails)
                         }
                     }
                 }
@@ -307,14 +368,14 @@ private fun DiscoverySampleRow(
         RoundedCornerShape(7.dp)).clickable(enabled = enabled, role = Role.Button, onClickLabel = playLabel, onClick = toggle)
         .padding(horizontal = 6.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(number.toString(), Modifier.width(20.dp), color = colors.mutedText, fontSize = 11.sp)
+        DiscoveryText(number.toString(), Modifier.width(20.dp), color = colors.mutedText, fontSize = 11.sp)
         IconButton(onClick = toggle, enabled = enabled, modifier = Modifier.size(30.dp)) {
             Icon(if (playing) NaviampTransportIcons.Pause else NaviampTransportIcons.Play,
                 playLabel, Modifier.size(16.dp), tint = colors.primaryText)
         }
         Column(Modifier.weight(1f)) {
-            Text(sample.title, color = colors.primaryText, fontSize = 13.sp, lineHeight = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            sample.albumTitle?.let { Text(it, color = colors.secondaryText, fontSize = 11.sp, lineHeight = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            DiscoveryText(sample.title, color = colors.primaryText, fontSize = 13.sp, lineHeight = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            sample.albumTitle?.let { DiscoveryText(it, color = colors.secondaryText, fontSize = 11.sp, lineHeight = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         }
         if (screen.details?.canRequestTracks == true) IconButton(
             onClick = { onAction(ProviderDiscoveryAction.RequestTrack(sample.id)) },
@@ -329,35 +390,75 @@ private fun DiscoverySampleRow(
 private fun DiscoveryReleaseCard(
     release: ProviderDiscoveryRelease, size: Dp, screen: SharedProviderDiscoveryArtistUi,
     colors: NaviampColors, onAction: (ProviderDiscoveryAction) -> Unit,
+    onOpen: (() -> Unit)? = null,
 ) {
-    Column(Modifier.width(size), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    val operation = screen.requestOperations[ProviderDiscoveryAction.RequestAlbum(release.id)]
+    val acquisition = screen.acquisitions[ProviderDiscoveryAction.RequestAlbum(release.id)]
+    val waiting = operation?.status == ProviderDiscoveryOperationStatus.WaitingForRelease
+    val indicator = discoveryRequestIndicator(operation, acquisition)
+    Column(Modifier.width(size).then(if (onOpen != null) Modifier.clickable(role = Role.Button, onClick = onOpen) else Modifier),
+        verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Box {
             NaviampCoverArt(release.imageUrl, colors, size, resolvedMediaArtworkCornerRadius(SharedMediaItemKind.Album, size, 7.dp), mediaKind = SharedMediaItemKind.Album)
             if (screen.details?.canRequestAlbums == true) Surface(Modifier.align(Alignment.BottomEnd).padding(6.dp),
                 shape = RoundedCornerShape(6.dp), color = colors.controlSurface.copy(alpha = 0.92f)) {
                 IconButton(onClick = { onAction(ProviderDiscoveryAction.RequestAlbum(release.id)) },
-                    enabled = !screen.actionBusy && !screen.savingFeedback && ProviderDiscoveryAction.RequestAlbum(release.id) !in screen.blockedActions,
+                    enabled = !waiting && !screen.actionBusy && !screen.savingFeedback && ProviderDiscoveryAction.RequestAlbum(release.id) !in screen.blockedActions,
                     modifier = Modifier.size(30.dp)) {
-                    Icon(NaviampIcons.Downloads, stringResource(Res.string.discovery_request_album), Modifier.size(17.dp), tint = colors.primaryText)
+                    Icon(indicator?.icon ?: NaviampIcons.Downloads,
+                        stringResource(indicator?.label ?: Res.string.discovery_request_album),
+                        Modifier.size(17.dp), tint = colors.primaryText)
                 }
             }
         }
-        Text(release.title, color = colors.primaryText, fontSize = 13.sp, lineHeight = 17.sp, fontWeight = FontWeight.SemiBold,
+        DiscoveryText(release.title, color = colors.primaryText, fontSize = 13.sp, lineHeight = 17.sp, fontWeight = FontWeight.SemiBold,
             maxLines = 2, overflow = TextOverflow.Ellipsis)
-        Text(listOfNotNull(release.releaseDate?.take(4), albumReleaseSectionLabel(release.section)).joinToString(" · "),
+        DiscoveryText(listOfNotNull(release.releaseDate?.take(4), albumReleaseSectionLabel(release.section)).joinToString(" · "),
             color = colors.secondaryText, fontSize = 11.sp, lineHeight = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        operation?.takeIf { waiting }?.let {
+            DiscoveryText(discoveryOperationLabel(it), color = colors.secondaryText, fontSize = 11.sp, lineHeight = 14.sp)
+        }
+        if (!waiting) screen.acquisitions[ProviderDiscoveryAction.RequestAlbum(release.id)]?.let { DiscoveryAcquisitionResult(it, colors) }
     }
 }
 
-private fun discoveryOperationMessage(status: ProviderDiscoveryOperationStatus) = when (status) {
+@Composable
+internal fun discoveryOperationLabel(operation: ProviderDiscoveryOperation): String {
+    val date = discoveryCalendarDate(operation.waitingForRelease?.releaseDate)
+    return if (operation.status == ProviderDiscoveryOperationStatus.WaitingForRelease && date != null)
+        stringResource(Res.string.discovery_waiting_for_release_date, date)
+    else stringResource(discoveryOperationMessage(operation.status))
+}
+
+@Composable
+internal fun DiscoveryOperationResult(operation: ProviderDiscoveryOperation, colors: NaviampColors) {
+    DiscoveryText(discoveryOperationLabel(operation), color = colors.secondaryText)
+    if (operation.status == ProviderDiscoveryOperationStatus.WaitingForRelease)
+        DiscoveryText(stringResource(Res.string.discovery_waiting_for_release_description), color = colors.secondaryText)
+}
+
+internal fun discoveryStatusMessage(status: ProviderDiscoveryStatus?) = when (status) {
+    ProviderDiscoveryStatus.Unsupported -> Res.string.discovery_unsupported
+    ProviderDiscoveryStatus.PasswordRequired -> Res.string.discovery_password_required
+    ProviderDiscoveryStatus.SignInRequired -> Res.string.discovery_sign_in_required
+    ProviderDiscoveryStatus.Forbidden -> Res.string.discovery_forbidden
+    ProviderDiscoveryStatus.Building -> Res.string.discovery_building
+    else -> Res.string.discovery_unavailable
+}
+
+internal fun discoveryOperationMessage(status: ProviderDiscoveryOperationStatus) = when (status) {
     ProviderDiscoveryOperationStatus.Queued -> Res.string.discovery_request_queued
     ProviderDiscoveryOperationStatus.AlreadyQueued -> Res.string.discovery_request_already_queued
     ProviderDiscoveryOperationStatus.AlreadyOwned -> Res.string.discovery_request_owned
     ProviderDiscoveryOperationStatus.Saved -> Res.string.discovery_request_saved
+    ProviderDiscoveryOperationStatus.WaitingForRelease -> Res.string.discovery_waiting_for_release
     ProviderDiscoveryOperationStatus.MonitoringEnabled -> Res.string.discovery_monitoring_enabled
     ProviderDiscoveryOperationStatus.MonitoringDisabled -> Res.string.discovery_monitoring_disabled
     ProviderDiscoveryOperationStatus.MissingSource -> Res.string.discovery_request_missing_source
+    ProviderDiscoveryOperationStatus.Conflict -> Res.string.discovery_request_conflict
     ProviderDiscoveryOperationStatus.Forbidden -> Res.string.discovery_action_forbidden
     ProviderDiscoveryOperationStatus.Unsupported -> Res.string.discovery_action_unsupported
-    ProviderDiscoveryOperationStatus.Unavailable, ProviderDiscoveryOperationStatus.Uncertain -> Res.string.discovery_action_uncertain
+    ProviderDiscoveryOperationStatus.Rejected -> Res.string.discovery_request_rejected
+    ProviderDiscoveryOperationStatus.Unavailable -> Res.string.discovery_unavailable
+    ProviderDiscoveryOperationStatus.Uncertain -> Res.string.discovery_action_uncertain
 }

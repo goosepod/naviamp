@@ -23,6 +23,8 @@ import app.naviamp.domain.media.ArtistDiscography
 
 interface MediaProvider {
     val discovery: ProviderDiscovery? get() = null
+    /** Stable account identity for requests, independent of library-folder display filters. */
+    val discoveryAccountScope: String get() = cacheNamespace
     val id: ProviderId
     val displayName: String
     val capabilities: ProviderCapabilities

@@ -50,6 +50,7 @@ import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.SleepTimerState
 import app.naviamp.domain.playback.sleepTimerDisplayLabel
+import app.naviamp.domain.provider.isDiscoveryPreview
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
@@ -318,6 +319,8 @@ fun HomeContent.toSharedHomeUi(
                 mediaKind = SharedMediaItemKind.MixBuilder,
                 action = SharedHomeCollectionItemAction.SelectMixBuilder,
                 mixBuilder = builder,
+                artwork = SharedHomeCollectionArtwork.MixBuilderGenerated,
+                artworkKey = builder.id,
             )
         })
         sonicDiscoveryRows.rows.forEach { row ->
@@ -1595,6 +1598,7 @@ fun AlbumDetails.toSharedAlbumDetailUi(
     popularTrackIds: Set<String> = emptySet(),
     canFavoriteAlbum: Boolean = false,
     showAlbumInformation: Boolean = true,
+    supportsTrackRadio: Boolean = false,
 ): SharedAlbumDetailUi {
     val sections = tracks.albumDiscSections().map { section ->
         SharedAlbumDiscSectionUi(
@@ -1607,7 +1611,10 @@ fun AlbumDetails.toSharedAlbumDetailUi(
                     coverArtUrl,
                     fallbackCoverArtId = album.coverArtId ?: album.id.value,
                     popular = track.id.value in popularTrackIds,
-                ).copy(hasAlbum = false)
+                ).copy(
+                    hasAlbum = false,
+                    canStartRadio = supportsTrackRadio && !track.isInternetRadioTrack() && !track.id.isDiscoveryPreview(),
+                )
             },
         )
     }
@@ -1782,6 +1789,17 @@ fun radioTrackArtworkQuery(streamTitle: String?): String? =
         ?.trim()
         ?.takeIf { it.length >= 3 }
 
+/** The search result that is the song a station announces, as "Artist - Title" or as the title alone. */
+fun radioTrackArtworkMatch(tracks: List<Track>, streamTitle: String?): Track? {
+    val announced = radioTrackArtworkQuery(streamTitle) ?: return null
+    return tracks.firstOrNull { track ->
+        track.coverArtId != null && (
+            announced.equals("${track.artistName} - ${track.title}", ignoreCase = true) ||
+                announced.equals(track.title, ignoreCase = true)
+            )
+    }
+}
+
 private fun streamMetadataArtworkUrl(properties: Map<String, String>): String? {
     val artworkKeys = setOf(
         "artwork",
@@ -1804,7 +1822,8 @@ private fun streamMetadataArtworkUrl(properties: Map<String, String>): String? {
 }
 
 private fun radioStationArtworkUrl(station: InternetRadioStation): String =
-    knownRadioStationArtworkUrl(station)
+    station.coverArtUrl
+        ?: knownRadioStationArtworkUrl(station)
         ?: station.homePageUrl?.let(::faviconUrl)
         ?: generatedRadioTileUrl(station.name)
 

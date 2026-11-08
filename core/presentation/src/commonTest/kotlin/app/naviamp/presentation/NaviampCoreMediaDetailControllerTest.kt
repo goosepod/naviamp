@@ -38,6 +38,19 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreMediaDetailControllerTest {
+    @Test fun albumTrackRadioCapabilitySurvivesEnrichmentAndSettingsRemapping() = runTest {
+        for (supported in listOf(false, true)) {
+            val provider = MediaDetailTestProvider(trackRadioSupported = supported)
+            val (store, controller) = controller(provider)
+            controller.execute(NaviampCoreCommand.Media.ItemAction(
+                mediaItem("album-1", "Album").albumActionRequest(NaviampArtistAlbumCommand.Select)))
+            runCurrent()
+            assertEquals(listOf(supported), store.state.value.shell.albumDetail.detail!!.tracks.map { it.canStartRadio })
+            controller.media.interfaceSettingsChanged(InterfaceSettings(showAlbumInformation = false))
+            assertEquals(listOf(supported), store.state.value.shell.albumDetail.detail!!.tracks.map { it.canStartRadio })
+        }
+    }
+
     @Test fun sectionLayoutChangesKeepPartialAppearanceAndPlaylistStateWithoutNewLookups() = runTest {
         val provider = MediaDetailTestProvider()
         var popularReads = 0
@@ -568,6 +581,7 @@ private class MediaDetailTestProvider(
     private val firstArtistGate: CompletableDeferred<Unit>? = null,
     private val albumInfoGate: CompletableDeferred<Unit>? = null,
     private val nativeDiscography: Boolean = false,
+    private val trackRadioSupported: Boolean = false,
     private val playlistGate: CompletableDeferred<Unit>? = null,
 ) : MediaProvider {
     var playlistReads = 0
@@ -589,7 +603,7 @@ private class MediaDetailTestProvider(
         supportsDownloadTranscode = false,
         supportsArtistRadio = false,
         supportsAlbumRadio = false,
-        supportsTrackRadio = false,
+        supportsTrackRadio = trackRadioSupported,
         supportsArtistFavorites = true,
         supportsAlbumFavorites = true,
         supportsArtistDiscography = nativeDiscography,

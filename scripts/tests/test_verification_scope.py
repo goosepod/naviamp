@@ -8,6 +8,28 @@ SCRIPT = Path(__file__).resolve().parents[1] / 'classify-verification-scope.sh'
 
 
 class VerificationScopeTest(unittest.TestCase):
+    def test_pre_classifier_release_recovery_requires_full_verification(self):
+        workflow = (SCRIPT.parents[1] / '.github/workflows/verify.yml').read_text()
+        start = workflow.index('          if [ -f scripts/classify-verification-scope.sh ]; then')
+        end = workflow.index('\n\n  shared-android:', start)
+        command = '\n'.join(line[10:] for line in workflow[start:end].splitlines())
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / 'outputs'
+            for event, source, allowed in [('workflow_call', 'v2.10.0', True),
+                                           ('push', 'v2.10.0', True),
+                                           ('pull_request', 'v2.10.0', False),
+                                           ('workflow_call', '', True),
+                                           ('pull_request', '', False)]:
+                with self.subTest(event=event, source=source):
+                    output.write_text('')
+                    result = subprocess.run(['bash', '-c', command], cwd=directory,
+                        text=True, capture_output=True, env={**os.environ,
+                            'GITHUB_EVENT_NAME': event, 'SOURCE_REF': source,
+                            'GITHUB_OUTPUT': str(output)})
+                    self.assertEqual(allowed, result.returncode == 0, result.stderr)
+                    self.assertEqual('run_full=true\nrun_translations=false\n' if allowed else '',
+                        output.read_text())
+
     def test_workflow_steps_do_not_duplicate_conditions(self):
         workflow = SCRIPT.parents[1] / '.github/workflows/verify.yml'
         conditions = 0

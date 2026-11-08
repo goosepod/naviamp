@@ -23,7 +23,8 @@ internal class NaviampMenuActivation {
 
 /** A focusable popup may take focus from its parent; observe group activation when supplied. */
 @Composable
-internal fun NaviampMenuActivationEffect(onDismissRequest: () -> Unit) {
+internal fun NaviampMenuActivationEffect(onDismissRequest: () -> Unit, dismissOnBack: Boolean = true) {
+    NaviampSystemBackHandler(enabled = true) { if (dismissOnBack) onDismissRequest() }
     val active = LocalNaviampWindowGroupActive.current ?: LocalWindowInfo.current.isWindowFocused
     val activation = remember { NaviampMenuActivation() }
     val dismiss by rememberUpdatedState(onDismissRequest)
