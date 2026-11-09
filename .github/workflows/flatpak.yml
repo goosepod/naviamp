@@ -1,0 +1,67 @@
+name: Flatpak package
+on:
+  pull_request:
+    paths:
+      - 'packaging/flatpak/**'
+      - 'scripts/flatpak/**'
+      - '.github/workflows/flatpak.yml'
+      - '.gitattributes'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - name: Test release input validation
+        run: python3 -m unittest discover -s scripts/flatpak -p 'test_*.py' -v
+      - name: Install sandbox and acceptance tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder appstream zstd gnome-keyring libsecret-tools \
+            dbus-x11 xvfb xdotool imagemagick pulseaudio pulseaudio-utils flac
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --noninteractive --assumeyes flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
+      - name: Build the released application fixture
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p build/flatpak-ci
+          gh api repos/goosepod/naviamp/releases/tags/v2.10.0 > build/flatpak-ci/release.json
+          python3 scripts/flatpak/prepare.py --release-json build/flatpak-ci/release.json --output build/flatpak-ci/input
+          flatpak-builder --user --force-clean --repo=build/flatpak-ci/repo build/flatpak-ci/app \
+            build/flatpak-ci/input/io.github.goosepod.Naviamp.json
+          appstreamcli validate --no-net build/flatpak-ci/input/io.github.goosepod.Naviamp.metainfo.xml
+      - name: Sign the CI fixture with an ephemeral test identity
+        run: |
+          install -d -m 700 "$RUNNER_TEMP/flatpak-ci-key"
+          gpg --homedir "$RUNNER_TEMP/flatpak-ci-key" --batch --pinentry-mode loopback --passphrase '' \
+            --quick-generate-key 'Flatpak CI test only' ed25519 sign 1d
+          fingerprint=$(gpg --homedir "$RUNNER_TEMP/flatpak-ci-key" --with-colons --list-secret-keys | awk -F: '$1=="fpr" {print $10; exit}')
+          gpg --homedir "$RUNNER_TEMP/flatpak-ci-key" --armor --export "$fingerprint" > build/flatpak-ci/test-key.asc
+          flatpak build-sign --gpg-homedir="$RUNNER_TEMP/flatpak-ci-key" --gpg-sign="$fingerprint" \
+            build/flatpak-ci/repo io.github.goosepod.Naviamp stable
+          flatpak build-update-repo --gpg-homedir="$RUNNER_TEMP/flatpak-ci-key" --gpg-sign="$fingerprint" build/flatpak-ci/repo
+      - name: Verify the installed sandbox and native output
+        run: |
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=naviamp_flatpak_test
+          pactl set-default-sink naviamp_flatpak_test
+          xvfb-run -a --server-args='-screen 0 1280x900x24 +extension GLX' dbus-run-session -- \
+            bash scripts/flatpak/smoke.sh "$PWD/build/flatpak-ci/repo" "$RUNNER_TEMP/flatpak-smoke" "$PWD/build/flatpak-ci/test-key.asc"
+      - name: Retain acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: flatpak-package-evidence
+          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/flatpak-smoke/application.png
+            ${{ runner.temp }}/flatpak-smoke/application.log
+            ${{ runner.temp }}/flatpak-smoke/native-audio.txt
+            ${{ runner.temp }}/flatpak-smoke/mpris.txt
+            ${{ runner.temp }}/flatpak-smoke/permissions.txt
+            build/flatpak-ci/input/source.json

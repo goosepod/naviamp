@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.goosepod.Naviamp</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  <name>Naviamp</name>
+  <summary>Music player for Navidrome and other music libraries</summary>
+  <developer id="io.github.goosepod"><name>Naviamp contributors</name></developer>
+  <description>
+    <p>Browse, discover, queue, download, and play music from Navidrome, Subsonic and OpenSubsonic servers, Jellyfin, and Bandcamp.</p>
+    <p>Manage playlists and your listening queue, explore your library, and listen offline. Connect to your own music server to get started.</p>
+  </description>
+  <launchable type="desktop-id">io.github.goosepod.Naviamp.desktop</launchable>
+  <provides><binary>naviamp</binary></provides>
+  <url type="homepage">https://goosepod.com/naviamp/</url>
+  <url type="bugtracker">https://github.com/goosepod/naviamp/issues</url>
+  <url type="vcs-browser">https://github.com/goosepod/naviamp</url>
+  <content_rating type="oars-1.1"/>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://goosepod.com/assets/naviamp/player-full.jpg</image>
+      <caption>Now Playing with artwork, playback controls, and queue</caption>
+    </screenshot>
+  </screenshots>
+  <releases/>
+</component>

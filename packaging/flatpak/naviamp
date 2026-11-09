@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+# The released image includes its own Java runtime and native libraries.
+exec /app/lib/naviamp/bin/Naviamp "$@"
