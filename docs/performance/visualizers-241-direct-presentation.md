@@ -21,6 +21,43 @@ The local integration also includes the separately tracked playback-recovery wor
 [PR #554](https://github.com/goosepod/naviamp/pull/554). Mac performance and lifecycle acceptance
 below remain separate gates; this test result does not waive them.
 
+## November 9 real-app follow-up (partial acceptance)
+
+The isolated release application at `6336ed112ee6a2cccdc4354f30ec9b93f6933375` keeps
+its production jars, native libraries and trimmed runtime byte-identical to the packaged build.
+Only the disposable launcher, app identity and private fixture profile differ. It uses a
+48 kHz mono, 600-second loopback fixture, a 950 × 640 window (950 × 612 parent surface),
+1x scale, the same two 75 Hz displays and AC power. This input differs from the earlier
+16 kHz fixture, so these results do not establish a before/after improvement.
+
+Two fully unobscured Ocean of Ink intervals measured 11.80% and 10.53% of one CPU core,
+with zero parent frames. The first contains 310 ms of JVM compilation; retain it rather than
+presenting it as settled performance. The existing shared target remains 45 FPS; no animation
+cadence, playback update rate or production renderer was changed for these tests. Visible
+before/after inspection confirms moving ripples, and playback advances. An independently
+verified minimized interval reports `iconified=true`, no on-screen owned window, 3.01% CPU
+and zero parent frames. Restoring the app returns the rendered ocean and advancing playback.
+
+A bounded three-second Metal trace stalled saving; interrupting the owned recorder after
+45 seconds let it exit successfully. Its run data and GPU tables export successfully, unlike
+the earlier malformed twelve-second trace. The owned process has 119 depth-zero Fragment
+intervals over 4.07 seconds: mean 4.09 ms, median 4.03 ms, p95 5.40 ms, p99 5.77 ms,
+maximum 5.82 ms. This is a short recovered diagnostic: interval durations are neither total
+GPU utilization, display FPS nor end-to-end frame latency. It does not establish sustained
+thermal behavior or compositor cost.
+
+The owner confirms that Tab traversal, Enter/Space activation, and VoiceOver announcements of
+Play and Playback position work in this isolated app. Record those as owner-verified checks;
+automated keyboard injection was inconclusive even against a native menu. Native menu
+activation/cancellation and minimize/restore were separately observed.
+
+Most attempted static and individual-animation controls were refused by the unchanged native
+visibility guard because the computer-control software cursor overlapped the client. No rejected
+interval is counted. Matched static/progress/marquee/combined controls, sustained cadence,
+allocation/compositor evidence and the remaining effect/lifecycle cases are still open. These
+partial results do not close #241 or make draft PR #242 ready for merge. Local evidence,
+including failures, is retained under `build/mac-acceptance-20261109/remediation`.
+
 Tracked by [issue #241](https://github.com/goosepod/naviamp/issues/241) and
 [draft PR #242](https://github.com/goosepod/naviamp/pull/242).
 
