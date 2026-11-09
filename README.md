@@ -26,6 +26,48 @@ Beta builds are available through TestFlight for [macOS](https://testflight.appl
 [Join us on Discord](https://discord.gg/7dd9954VGd) to chat with the Naviamp community, ask questions,
 and share feedback.
 
+### Linux Flatpak
+
+Install the official Linux x86_64 Flatpak from Naviamp's signed GitHub Pages repository.
+The first package contains the public v2.10.0 app, including Java, and runs on X11 or XWayland.
+[Bundles, checksums and release information](https://github.com/goosepod/naviamp-flatpak/releases)
+are hosted on GitHub Releases. A Flathub listing is not required; Flathub supplies the
+Freedesktop runtime. Linux DEB, RPM, and portable ZIP downloads remain on
+[GitHub Releases](https://github.com/goosepod/naviamp/releases/latest).
+
+1. [Set up Flatpak for your Linux distribution](https://flatpak.org/setup/).
+2. Open the [Naviamp installer](https://goosepod.com/naviamp-flatpak/Naviamp.flatpakref) in a
+   Flatpak-capable software center, or run:
+
+   ```sh
+   flatpak install --user --from https://goosepod.com/naviamp-flatpak/Naviamp.flatpakref
+   ```
+
+3. Launch Naviamp from your application menu, or run:
+
+   ```sh
+   flatpak run io.github.goosepod.Naviamp
+   ```
+
+The installer configures the app's update remote. To update a per-user installation:
+
+```sh
+flatpak update --user io.github.goosepod.Naviamp
+```
+
+Close and reopen Naviamp after updating. Automatic update scheduling depends on your software
+center's Flatpak support and settings. To uninstall the app:
+
+```sh
+flatpak uninstall --user io.github.goosepod.Naviamp
+```
+
+The Flatpak keeps its settings and database separately from DEB/RPM/ZIP installations. To migrate,
+export and import shared settings deliberately, reconnect your servers, and choose accessible download
+storage. Existing data is not silently moved or deleted. Native Wayland and other architectures
+are not currently advertised. See the [distribution notes](https://github.com/goosepod/naviamp-flatpak/releases)
+for tested environments and remaining compatibility checks.
+
 ### Android Alpha on Google Play
 
 Naviamp is available through a closed Android Alpha on Google Play. To join:

@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
@@ -49,6 +50,9 @@ fun main() {
     val lifecycleProbe = System.getenv("NAVIAMP_PROBE_LIFECYCLE") == "true"
     val popupProbe = System.getenv("NAVIAMP_PROBE_POPUPS") == "true"
     val menuProbe = System.getenv("NAVIAMP_PROBE_MENUS") == "true"
+    val menuHoverProbe = System.getenv("NAVIAMP_PROBE_MENU_HOVER") == "true"
+    val menuItems = System.getenv("NAVIAMP_PROBE_MENU_ITEMS")?.toIntOrNull()?.coerceIn(1, 6) ?: 6
+    val menuTop = System.getenv("NAVIAMP_PROBE_MENU_TOP")?.toIntOrNull()?.coerceIn(0, 400) ?: 0
     val dialogProbe = System.getenv("NAVIAMP_PROBE_DIALOGS") == "true"
     val tooltipProbe = System.getenv("NAVIAMP_PROBE_TOOLTIPS") == "true"
     val hoverProbe = System.getenv("NAVIAMP_PROBE_HOVER") == "true"
@@ -69,6 +73,7 @@ fun main() {
     var alphaBounds by remember { mutableStateOf(Rect.Zero) }
     var alphaReferencesVisible by remember { mutableStateOf(false) }
     var popupVisible by remember { mutableStateOf(false) }
+    var menuBounds by remember { mutableStateOf(Rect.Zero) }
     val rowCount = remember { System.getenv("NAVIAMP_PROBE_ROWS")?.toIntOrNull()?.coerceIn(0, 1000) ?: 150 }
     val cpu = remember { ManagementFactory.getOperatingSystemMXBean() as com.sun.management.OperatingSystemMXBean }
     val threadCpu = remember { ManagementFactory.getThreadMXBean() }
@@ -153,9 +158,10 @@ fun main() {
                 title = { Text("Probe dialog") }, text = { Text("Steady modal rendering") },
                 confirmButton = { Text("Confirm") })
         } else if (popupVisible && menuProbe) Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.TopEnd) {
-            Box(Modifier.size(48.dp)) {
-                NaviampDropdownMenu(expanded = true, onDismissRequest = { popupVisible = false }) {
-                    repeat(6) { index -> NaviampDropdownMenuItem("Probe action $index", onClick = {}) }
+            Box(Modifier.offset(y = menuTop.dp).size(48.dp)) {
+                NaviampDropdownMenu(expanded = true, onDismissRequest = { popupVisible = false },
+                    modifier = Modifier.onGloballyPositioned { menuBounds = it.boundsInWindow() }) {
+                    repeat(menuItems) { index -> NaviampDropdownMenuItem("Probe action $index", onClick = {}) }
                 }
             }
         } else if (popupVisible) androidx.compose.ui.window.Popup(alignment = androidx.compose.ui.Alignment.TopEnd) {
@@ -297,6 +303,47 @@ fun main() {
                 val popupBounds = window.ownedWindows.filter { it.isShowing }.associateWith { it.bounds }
                 val beforePixels = if (capturePixels) captureProbe(window, "$mode-cycle$cycle-$next-before", dimmed) else null
                 if (menuProbe && popupVisible && beforePixels != null) verifyMenuPaint(beforePixels.pixels)
+                if (menuHoverProbe && menuProbe && popupVisible) {
+                    val initialMenu = menuBounds
+                    val robot = java.awt.Robot(window.graphicsConfiguration.device)
+                    val transform = window.graphicsConfiguration.defaultTransform
+                    val origin = window.locationOnScreen
+                    val samples = mutableListOf<String>()
+                    repeat(3) { cycleIndex ->
+                        repeat(menuItems) { item ->
+                            robot.mouseMove(origin.x + window.insets.left + (initialMenu.center.x / transform.scaleX).toInt(),
+                                origin.y + window.insets.top + ((initialMenu.top + (8 + 24 + item * 48) * transform.scaleY) / transform.scaleY).toInt())
+                            repeat(12) { frame ->
+                                delay(20)
+                                val native = popupBounds.keys.associateWith { it.bounds }
+                                samples += "cycle=$cycleIndex item=$item frame=$frame menu=$menuBounds native=${native.values}"
+                                check(native.all { (popup, bounds) -> popupBounds[popup] == bounds }) {
+                                    "Hover moved native menu: ${samples.joinToString("\n")}"
+                                }
+                                check(menuBounds == initialMenu) { "Hover moved Core menu: ${samples.joinToString("\n")}" }
+                            }
+                            if (capturePixels) {
+                                val capture = captureProbe(window, "menu-hover-$menuTop-$menuItems-$cycleIndex-$item")
+                                val column = window.insets.left + (initialMenu.center.x / transform.scaleX).toInt()
+                                val expectedTop = window.insets.top + (initialMenu.top / transform.scaleY).toInt()
+                                fun paintedTop(image: java.awt.image.BufferedImage): Int =
+                                    ((expectedTop - 24).coerceAtLeast(0)..(expectedTop + 24).coerceAtMost(image.height - 1))
+                                        .firstOrNull { y -> !probePixelsDiffer(image.getRGB(column, y), 0x292c36, 3) }
+                                        ?: error("Menu top edge is missing from the physical display")
+                                check(paintedTop(capture.pixels) == paintedTop(checkNotNull(beforePixels).pixels)) {
+                                    "Hover moved the painted menu despite stable layout/native bounds"
+                                }
+                            }
+                        }
+                        robot.mouseMove(origin.x + window.width - 10, origin.y + window.height - 10)
+                        delay(200)
+                    }
+                    println("ANIMATION_MENU_HOVER top=$menuTop items=$menuItems samples=${samples.size} bounds=$menuBounds native=${popupBounds.values}")
+                    // The existing paint/CPU comparison measures an unhovered surface. Restore
+                    // that state instead of comparing its plain text oracle with a hover overlay.
+                    robot.mouseMove(origin.x + window.width - 10, origin.y + window.height - 10)
+                    delay(500)
+                }
                 val compositorCpu = compositors.associateWith { it.info().totalCpuDuration().orElse(null)?.toNanos() }
                 val threadIds = threadCpu.allThreadIds
                 val threadBefore = threadIds.associateWith { threadCpu.getThreadCpuTime(it) }

@@ -2,7 +2,8 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 val composeVersion = libs.versions.compose.get()
 val visualizerProbe = providers.gradleProperty("naviamp.visualizerProbe").orNull == "true"
-val animationProbe = providers.gradleProperty("naviamp.animationProbe").orNull == "true" || visualizerProbe
+val visualizerMountProbe = providers.gradleProperty("naviamp.visualizerMountProbe").orNull == "true"
+val animationProbe = providers.gradleProperty("naviamp.animationProbe").orNull == "true" || visualizerProbe || visualizerMountProbe
 
 plugins {
     alias(libs.plugins.android.library)
@@ -99,6 +100,9 @@ android {
         if (visualizerProbe) {
             testApplicationId = "app.naviamp.ui.visualizer241.test"
             testInstrumentationRunnerArguments["class"] = "app.naviamp.ui.AndroidVisualizerProbeTest"
+        } else if (visualizerMountProbe) {
+            testApplicationId = "app.naviamp.ui.mount544.test"
+            testInstrumentationRunnerArguments["class"] = "app.naviamp.ui.AndroidVisualizerMountTest"
         } else if (animationProbe) {
             testInstrumentationRunnerArguments["class"] = listOf(
                 "app.naviamp.ui.AndroidAnimationProbeTest",
@@ -106,6 +110,8 @@ android {
                 "app.naviamp.ui.NaviampGpuVisualizerMountTest",
                 "app.naviamp.ui.NaviampVisualizerProgressSubscriptionTest",
                 "app.naviamp.ui.NaviampRasterLayerScheduleTest",
+                "app.naviamp.ui.AndroidVisualizerMountTest",
+                "app.naviamp.ui.NaviampMenuAttachmentTest",
                 "app.naviamp.ui.NaviampDialogInitialFocusTest",
                 "app.naviamp.ui.NaviampSmartPlaylistReferencePickerTest",
                 "app.naviamp.ui.NaviampSmartPlaylistSummaryUiTest",

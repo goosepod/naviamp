@@ -3,20 +3,7 @@ package app.naviamp.ui
 import kotlin.math.ceil
 import kotlin.math.floor
 
-/** Whole-pixel reveals only need a native callback when their floor/ceil bounds can change.
- * Translation keeps the existing animation cadence. Native timeline compositors need no callbacks.
- */
-internal fun naviampRasterFrameDelay(
-    layers: List<NaviampRasterLayer>, width: Float, elapsedMillis: Long,
-    available: Boolean = true, needsUpdate: Boolean = false,
-): Long? {
-    if (!available || layers.isEmpty()) return null
-    if (needsUpdate) return 0L
-    return layers.mapNotNull { layer ->
-        naviampRasterMotionDelay(layer.translation, layer.revealMotion, width, elapsedMillis)
-    }.minOrNull()
-}
-
+/** Shared deadlines for cached pixels. Translation retains its original sampling cadence. */
 internal fun naviampRasterMotionDelay(
     translation: NaviampLayerMotion?, reveal: NaviampLayerMotion?, width: Float, elapsedMillis: Long,
 ): Long? = when {
@@ -25,6 +12,21 @@ internal fun naviampRasterMotionDelay(
     else -> null
 }
 
+internal fun naviampRasterFrameDelay(
+    layers: List<NaviampRasterLayer>, width: Float, elapsedMillis: Long,
+    available: Boolean = true, needsUpdate: Boolean = false,
+): Long? {
+    if (!available || layers.isEmpty()) return null
+    if (needsUpdate) return 0L
+    var next: Long? = null
+    for (layer in layers) {
+        val delay = naviampRasterMotionDelay(layer.translation, layer.revealMotion, width, elapsedMillis) ?: continue
+        next = next?.let { minOf(it, delay) } ?: delay
+    }
+    return next
+}
+
+/** Wake by the next floor/ceil edge, without polling unchanged whole-pixel reveal geometry. */
 internal fun NaviampLayerMotion.nextPixelChangeDelay(scale: Float, elapsedMillis: Long): Long? {
     if (!scale.isFinite() || scale <= 0f) return null
     val elapsed = elapsedMillis.coerceAtLeast(0L)
@@ -37,10 +39,9 @@ internal fun NaviampLayerMotion.nextPixelChangeDelay(scale: Float, elapsedMillis
         (timesMillis[end] - timesMillis[end - 1])
     if (velocity == 0.0) return remaining
     val edge = valueAt(elapsed) * scale
-    // At an integer boundary one side's ceil/floor changes immediately after the boundary.
     if (edge == floor(edge)) return 1L
     val boundary = if (velocity > 0) ceil(edge) else floor(edge)
-    // Round toward the preceding millisecond; the next vsync must not miss a pixel boundary.
+    // Schedule before the boundary; the native vsync chooses the actual presentation time.
     return floor((boundary - edge) / velocity).toLong().coerceIn(1L, remaining)
 }
 
@@ -50,20 +51,22 @@ internal sealed interface NaviampRasterFrameRequest {
     data class Schedule(val delayMillis: Long) : NaviampRasterFrameRequest
 }
 
-/** Shared scheduling policy; a native adapter only posts/removes its OS frame callback. */
+/** Adapters execute the requested OS callback operation; Core selects its deadline and lifetime. */
 internal class NaviampRasterFrameSchedule {
     private var dueMillis: Long? = null
+
     fun request(delays: List<Long>, nowMillis: Long): NaviampRasterFrameRequest {
         val delay = delays.minOrNull()?.coerceAtLeast(0L)
         if (delay == null) {
-            val hadCallback = dueMillis != null
+            val pending = dueMillis != null
             dueMillis = null
-            return if (hadCallback) NaviampRasterFrameRequest.Cancel else NaviampRasterFrameRequest.Unchanged
+            return if (pending) NaviampRasterFrameRequest.Cancel else NaviampRasterFrameRequest.Unchanged
         }
         val due = nowMillis + delay
         if (dueMillis?.let { it <= due } == true) return NaviampRasterFrameRequest.Unchanged
         dueMillis = due
         return NaviampRasterFrameRequest.Schedule(delay)
     }
+
     fun delivered() { dueMillis = null }
 }

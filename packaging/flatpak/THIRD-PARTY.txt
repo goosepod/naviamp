@@ -1,0 +1,24 @@
+Naviamp Flatpak redistribution
+
+This package redistributes the checksum-pinned official Naviamp Linux application image without
+changing its Java classes, Java runtime or native playback libraries. Corresponding Naviamp source
+is available at the public release tag recorded in source.json. Naviamp's GPL-3.0 license does not
+relicense its separately licensed dependencies.
+
+The bundled Java runtime retains its original legal/ directory and license notices under
+/app/lib/naviamp/lib/runtime/legal. The Freedesktop runtime and its components carry their own
+notices under /usr/share/licenses/freedesktop-sdk.
+
+The secret-tool executable is built from libsecret 0.21.7, distributed under LGPL-2.1-or-later.
+Its license is included as libsecret-COPYING. Corresponding source:
+https://download.gnome.org/sources/libsecret/0.21/libsecret-0.21.7.tar.xz
+
+BASS and its bundled native codec add-ons are separately licensed by their authors, including
+Un4seen Developments. BASS is free for non-commercial use under its upstream conditions; it is
+not relicensed under Naviamp's GPL. The same native libraries are included in the original public
+Naviamp Linux image. Upstream licensing and add-on documentation:
+https://www.un4seen.com/doc/bass/bass.html
+https://www.un4seen.com/bass.html#addons
+
+Applications built from modified source or redistributed commercially must independently satisfy
+all applicable upstream licensing conditions; this package does not grant a BASS sublicense.

@@ -57,6 +57,7 @@ private class AndroidRasterPresenter(private val activity: Activity) : NaviampRa
     private val regions = mutableSetOf<AndroidRasterRegion>()
     private val transaction = SurfaceControl.Transaction()
     private val frameSchedule = NaviampRasterFrameSchedule()
+    private val frameDelays = ArrayList<Long>()
 
     override fun create(): NaviampRasterRegion = AndroidRasterRegion(activity, ::scheduleFrame) {
         regions.remove(it)
@@ -70,7 +71,9 @@ private class AndroidRasterPresenter(private val activity: Activity) : NaviampRa
 
     private fun scheduleFrame() {
         val now = SystemClock.uptimeMillis()
-        when (val request = frameSchedule.request(regions.mapNotNull { it.nextFrameDelay(now) }, now)) {
+        frameDelays.clear()
+        regions.forEach { it.nextFrameDelay(now)?.let(frameDelays::add) }
+        when (val request = frameSchedule.request(frameDelays, now)) {
             NaviampRasterFrameRequest.Unchanged -> Unit
             NaviampRasterFrameRequest.Cancel -> Choreographer.getInstance().removeFrameCallback(this)
             is NaviampRasterFrameRequest.Schedule -> {
@@ -198,9 +201,9 @@ private class AndroidRasterRegion(
 
     override fun synchronizeDraw() {
         if (!needsUpdate || !hostReady || layers.isEmpty()) return
-        // The SurfaceView render thread owns parent movement. Each child transaction contains
-        // complete current geometry, so layout/image handoffs can commit without waiting on a
-        // root draw that some Android compositors never deliver.
+        // The SurfaceView render thread owns parent movement. Commit the shared owner's changed
+        // child geometry or native buffers without waiting on a root draw that some Android
+        // compositors never deliver.
         SurfaceControl.Transaction().use { transaction ->
             val changed = updateSurfaces(transaction, SystemClock.uptimeMillis() - startedAt)
             needsUpdate = false
@@ -359,16 +362,22 @@ private class AndroidRasterRegion(
                 if (!layer.visible) {
                     transaction.setVisibility(layer.control, true)
                     layer.visible = true
+                    changed = true
                 }
                 if (!layer.ordered) {
                     // Keep cached children above the host SurfaceView's own buffer. Android 15
                     // resolves a layer-zero tie in favor of the parent, hiding child pixels.
                     transaction.setLayer(layer.control, index + 1)
+                    if (Build.VERSION.SDK_INT >= 33) {
+                        transaction.setBufferTransform(layer.control, SurfaceControl.BUFFER_TRANSFORM_IDENTITY)
+                    }
                     layer.ordered = true
+                    changed = true
                 }
                 if (Build.VERSION.SDK_INT >= 34 && layer.bufferChanged) {
                     transaction.setBuffer(layer.control, requireNotNull(layer.hardwareBitmap).hardwareBuffer)
                     layer.bufferChanged = false
+                    changed = true
                 }
                 if (Build.VERSION.SDK_INT >= 33) {
                     transaction.setCrop(layer.control, layer.source)

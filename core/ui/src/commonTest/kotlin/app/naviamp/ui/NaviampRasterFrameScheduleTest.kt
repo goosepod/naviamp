@@ -5,19 +5,17 @@ import kotlin.math.floor
 import kotlin.test.*
 
 class NaviampRasterFrameScheduleTest {
-    @Test fun regionSchedulingKeepsTranslationCadenceAndStopsStaticOrFinishedContent() {
+    @Test fun translationKeepsItsCadenceWhileStaticAndFinishedContentStop() {
         val progress = progressLayerMotion(.25f, 600.0)
         val translation = NaviampLayerMotion(listOf(0f, -100f), listOf(0L, 2400L))
         assertNull(naviampRasterMotionDelay(null, null, 1000f, 50L))
-        val progressDelay = assertNotNull(naviampRasterMotionDelay(null, progress, 1000f, 50L))
-        assertTrue(progressDelay > 16L)
-        val translationDelay = assertNotNull(naviampRasterMotionDelay(translation, null, 1000f, 50L))
-        assertEquals(16L, minOf(progressDelay, translationDelay))
+        assertTrue(assertNotNull(naviampRasterMotionDelay(null, progress, 1000f, 50L)) > 16L)
+        assertEquals(16L, naviampRasterMotionDelay(translation, progress, 1000f, 50L))
         assertNull(naviampRasterMotionDelay(translation, null, 1000f, 2400L))
         assertEquals(16L, naviampRasterMotionDelay(translation.copy(repeat = true), null, 1000f, 2400L))
     }
 
-    @Test fun pixelDeadlinesPreserveEveryDisplayedProgressFrameWithoutContinuousWakeups() {
+    @Test fun deadlinesPresentEveryReferencePixelOnTheSameVsyncWithoutContinuousWakeups() {
         for (motion in listOf(
             NaviampLayerMotion(listOf(.25f, 1f), listOf(0L, 450_000L)),
             NaviampLayerMotion(listOf(.75f, 0f), listOf(0L, 450_000L)),
@@ -38,20 +36,22 @@ class NaviampRasterFrameScheduleTest {
                 assertEquals(floor(edge), presentedFloor, "floor at $now")
                 assertEquals(ceil(edge), presentedCeil, "ceil at $now")
             }
-            assertTrue(callbacks < 60, "only about 17 pixel boundaries in 10 seconds, got $callbacks")
+            assertTrue(callbacks < 60, "$callbacks callbacks for approximately 17 changing pixel edges")
         }
     }
 
-    @Test fun pausesEndpointsAndRepeatingKeyframesDoNotSpinOrFreeze() {
+    @Test fun holdsRepeatBoundariesAndInvalidSurfacesNeitherSpinNorFreeze() {
         val motion = NaviampLayerMotion(listOf(0f, 0f, 1f, 1f), listOf(0L, 800L, 1800L, 2600L))
         assertEquals(800L, motion.nextPixelChangeDelay(100f, 0L))
         assertEquals(800L, motion.nextPixelChangeDelay(100f, 1800L))
         assertNull(motion.nextPixelChangeDelay(100f, 2600L))
-        assertNull(motion.nextPixelChangeDelay(0f, 0L))
+        for (width in listOf(0f, -1f, Float.NaN, Float.POSITIVE_INFINITY)) {
+            assertNull(motion.nextPixelChangeDelay(width, 0L))
+        }
         assertEquals(800L, motion.copy(repeat = true).nextPixelChangeDelay(100f, 2600L))
     }
 
-    @Test fun inputPreemptsLongWaitsAndHidingCancelsTheCallback() {
+    @Test fun inputPreemptsADeferredFrameAndHidingCancelsIt() {
         val schedule = NaviampRasterFrameSchedule()
         assertEquals(NaviampRasterFrameRequest.Schedule(600), schedule.request(listOf(600), 0))
         assertEquals(NaviampRasterFrameRequest.Unchanged, schedule.request(listOf(600), 10))

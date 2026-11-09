@@ -54,7 +54,7 @@ class MacosRunnerRoutingTest(unittest.TestCase):
     def test_older_release_recovery_without_helper_stays_hosted_and_manual_fails_closed(self):
         workflow = (ROOT / '.github/workflows/verify.yml').read_text()
         start = workflow.index('          if [ -f scripts/select-verification-macos-runner.py ]; then')
-        end = workflow.index('          scripts/classify-verification-scope.sh', start)
+        end = workflow.index('          if [ -f scripts/classify-verification-scope.sh ]; then', start)
         block = '\n'.join(line[10:] for line in workflow[start:end].splitlines())
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / 'output'
