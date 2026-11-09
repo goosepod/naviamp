@@ -5,3 +5,7 @@ native/bass-jni/vendor/** -text -diff
 
 # Naviamp-added Apple packaging declarations are reviewable text, not upstream SDK inputs.
 platforms/ios/vendor/bass/**/PrivacyInfo.xcprivacy text eol=lf diff
+
+# Flatpak inputs can be built from a Windows checkout through WSL.
+packaging/flatpak/** text eol=lf
+scripts/flatpak/** text eol=lf
