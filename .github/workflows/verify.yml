@@ -580,7 +580,12 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Restore Gradle build state
+      - name: Restore compatible compiler caches (read only)
+        if: hashFiles('.github/actions/ios-cache/action.yml') != ''
+        uses: ./.github/actions/ios-cache
+
+      - name: Restore legacy source dependencies (read only)
+        if: inputs.source_ref != '' && hashFiles('.github/actions/ios-cache/action.yml') == ''
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: true
@@ -591,13 +596,23 @@ jobs:
           packages: platform-tools
 
       - name: Compile both targets and run common simulator tests
+        env:
+          NAVIAMP_VERIFY_SOURCE_REF: ${{ inputs.source_ref }}
         run: |
           mkdir -p build/ci-timings
           started_at="$(date +%s)"
+          cache_flags=()
+          if [ -f scripts/ios-ci-cache.init.gradle.kts ]; then
+            cache_flags=(--build-cache --init-script scripts/ios-ci-cache.init.gradle.kts "-Pkonan.data.dir=$NAVIAMP_KONAN_HOME")
+          elif [ -z "$NAVIAMP_VERIFY_SOURCE_REF" ]; then
+            echo 'Required native test-cache policy is missing from this source.'
+            exit 1
+          fi
           ./gradlew \
             --parallel \
             --max-workers=2 \
             --profile \
+            "${cache_flags[@]}" \
             verifyCoreFirstArchitecture \
             iosSimulatorArm64Test \
             -x :platforms:ios:iosSimulatorArm64Test \

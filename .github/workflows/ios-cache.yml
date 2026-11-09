@@ -1,0 +1,135 @@
+name: iOS cache population and diagnostics
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/*.kt'
+      - '**/*.kts'
+      - 'core/**'
+      - 'providers/**'
+      - 'apps/ios/**'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - 'platforms/ios/**'
+      - 'native/**'
+      - 'scripts/**'
+      - '.github/actions/ios-cache/**'
+      - '.github/workflows/ios-cache.yml'
+      - '.github/workflows/verify.yml'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Populate, compare fresh hosted cold/warm stages, or run focused native diagnostics
+        type: choice
+        options: [populate, benchmark, native]
+        default: populate
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-cache-${{ github.ref }}-${{ inputs.mode || 'populate' }}
+  cancel-in-progress: false
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g
+  TZ: America/Los_Angeles
+
+jobs:
+  populate:
+    # No PR code or non-default branch may populate caches consumed by Verify.
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+      - uses: ./.github/actions/ios-cache
+        id: cache
+        with:
+          restore: ${{ inputs.mode != 'benchmark' }}
+          generation: ${{ inputs.mode == 'benchmark' && format('{0}-{1}', github.sha, github.run_id) || github.sha }}
+      - name: Compile and measure (native mode also executes fresh native boundaries)
+        env:
+          MODE: ${{ inputs.mode || 'populate' }}
+        run: |
+          native=()
+          if [ "$MODE" != populate ]; then native=(--native); fi
+          if [ "$MODE" = native ]; then native=(--focused-native); fi
+          python3 scripts/ios-ci-cache.py build "${native[@]}"
+      - name: Save Gradle cache from trusted main only
+        if: inputs.mode != 'native'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ runner.temp }}/naviamp-ios-cache/gradle/caches
+            ${{ runner.temp }}/naviamp-ios-cache/gradle/wrapper
+            !${{ runner.temp }}/naviamp-ios-cache/gradle/caches/keyrings/**
+          key: ${{ steps.cache.outputs.gradle-key }}
+      - name: Save native compiler cache from trusted main only
+        if: inputs.mode != 'native'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}/naviamp-ios-cache/konan
+          key: ${{ steps.cache.outputs.konan-key }}
+      - name: Clean up only owned native fixtures and simulators
+        if: always() && inputs.mode != 'populate' && github.event_name == 'workflow_dispatch'
+        run: python3 scripts/replay-ios-native-tls.py --cleanup-only --output build/ci-cache/native
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: ios-cache-first-stage
+          if-no-files-found: error
+          path: |
+            build/ci-cache/**
+            build/reports/profile/**
+            **/build/test-results/iosSimulatorArm64Test/**
+
+  warm:
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'benchmark'
+    needs: populate
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+      - uses: ./.github/actions/ios-cache
+        id: cache
+        with:
+          generation: ${{ format('{0}-{1}', github.sha, github.run_id) }}
+      - name: Require both exact cold-stage archives on this fresh runner
+        env:
+          GRADLE_KEY: ${{ steps.cache.outputs.gradle-key }}
+          GRADLE_MATCH: ${{ steps.cache.outputs.gradle-match }}
+          KONAN_KEY: ${{ steps.cache.outputs.konan-key }}
+          KONAN_MATCH: ${{ steps.cache.outputs.konan-match }}
+        run: |
+          test "$GRADLE_KEY" = "$GRADLE_MATCH"
+          test "$KONAN_KEY" = "$KONAN_MATCH"
+      - name: Repeat identical compilation and fresh native execution
+        run: python3 scripts/ios-ci-cache.py build --native
+      - name: Clean up only owned native fixtures and simulators
+        if: always()
+        run: python3 scripts/replay-ios-native-tls.py --cleanup-only --output build/ci-cache/native
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: ios-cache-warm-stage
+          if-no-files-found: error
+          path: |
+            build/ci-cache/**
+            build/reports/profile/**
+            **/build/test-results/iosSimulatorArm64Test/**

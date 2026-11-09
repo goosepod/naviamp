@@ -1,0 +1,64 @@
+name: Restore compatible iOS compiler caches
+description: Read-only caches; the separate trusted writer owns all saves.
+inputs:
+  restore:
+    description: Set false for a deliberately empty hosted benchmark stage
+    default: 'true'
+  generation:
+    description: Immutable cache suffix
+    default: ${{ github.sha }}
+outputs:
+  gradle-key:
+    description: Immutable Gradle archive key for this source/generation
+    value: ${{ steps.identity.outputs.gradle-key }}
+  konan-key:
+    description: Immutable native compiler archive key for this source/generation
+    value: ${{ steps.identity.outputs.konan-key }}
+  gradle-match:
+    description: Actual restored Gradle key, empty on a miss
+    value: ${{ steps.gradle.outputs.cache-matched-key }}
+  konan-match:
+    description: Actual restored native compiler key, empty on a miss
+    value: ${{ steps.konan.outputs.cache-matched-key }}
+runs:
+  using: composite
+  steps:
+    - id: identity
+      shell: bash
+      env:
+        CACHE_GENERATION: ${{ inputs.generation }}
+      run: python3 scripts/ios-ci-cache.py key --cache-root "$RUNNER_TEMP/naviamp-ios-cache" --generation "$CACHE_GENERATION"
+    - uses: gradle/actions/setup-gradle@v6
+      with:
+        cache-provider: external
+    - id: gradle
+      if: inputs.restore == 'true'
+      uses: actions/cache/restore@v6
+      with:
+        path: |
+          ${{ runner.temp }}/naviamp-ios-cache/gradle/caches
+          ${{ runner.temp }}/naviamp-ios-cache/gradle/wrapper
+          !${{ runner.temp }}/naviamp-ios-cache/gradle/caches/keyrings/**
+        key: ${{ steps.identity.outputs.gradle-key }}
+        restore-keys: ${{ steps.identity.outputs.prefix }}-gradle-
+    - id: konan
+      if: inputs.restore == 'true'
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ runner.temp }}/naviamp-ios-cache/konan
+        key: ${{ steps.identity.outputs.konan-key }}
+        restore-keys: ${{ steps.identity.outputs.prefix }}-konan-
+    - shell: bash
+      env:
+        GRADLE_MATCH: ${{ steps.gradle.outputs.cache-matched-key }}
+        KONAN_MATCH: ${{ steps.konan.outputs.cache-matched-key }}
+        RESTORE_REQUESTED: ${{ inputs.restore }}
+      run: |
+        python3 - <<'PY'
+        import json, os
+        from pathlib import Path
+        value = {k: os.environ[k] for k in ('GRADLE_MATCH', 'KONAN_MATCH', 'RESTORE_REQUESTED')}
+        Path('build/ci-cache/restore.json').write_text(json.dumps(value, indent=2))
+        with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as out:
+            out.write('### iOS cache restore\n```json\n' + json.dumps(value, indent=2) + '\n```\n')
+        PY
