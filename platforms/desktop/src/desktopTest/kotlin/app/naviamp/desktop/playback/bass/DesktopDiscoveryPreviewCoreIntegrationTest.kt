@@ -28,7 +28,9 @@ class DesktopDiscoveryPreviewCoreIntegrationTest {
         val observed = object : BassAudioBackend by native {
             override fun audiblePositionSeconds(playbackStream: BassStreamHandle, sourceStream: BassStreamHandle): Double? =
                 native.audiblePositionSeconds(playbackStream, sourceStream).also {
-                    mainHandles.value = playbackStream to sourceStream
+                    // Main playback uses a mixer; the independent preview is a direct stream.
+                    // Startup monitoring now observes both, but this contract queries main only.
+                    if (playbackStream != sourceStream) mainHandles.value = playbackStream to sourceStream
                 }
         }
         val engine = CoreBassPlaybackEngine(Result.success(observed), DesktopBassPlaybackEngineRuntime())

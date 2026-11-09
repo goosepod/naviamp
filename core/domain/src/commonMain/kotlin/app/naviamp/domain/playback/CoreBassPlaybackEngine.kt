@@ -282,13 +282,19 @@ open class CoreBassPlaybackEngine(
                         onStateChanged(PlaybackState.Playing)
 
                         var pollingState = BassPlaybackPollingState()
+                        var startupRecovery = BassOutputStartupRecoveryState()
                         while (execution.isCurrent(currentPlaybackId)) {
                             activeRequest.randomAccess?.failure?.let { throw it }
                             val snapshot = bass.bassPlaybackSnapshot(
                                 playbackHandle = playbackHandle,
                                 sourceHandle = currentSourceStream,
                             )
-                            if (interruptedPlaybackId == currentPlaybackId) break
+                            if (!execution.isCurrent(currentPlaybackId) || interruptedPlaybackId == currentPlaybackId) break
+                            val recovery = planBassOutputStartupRecovery(startupRecovery, snapshot, runtime.nowEpochMillis())
+                            startupRecovery = recovery.state
+                            if (recovery.reinitializeOutput) {
+                                bass.reinitializeOutput(BassStreamHandle(playbackHandle)).getOrThrow()
+                            }
                             val update = planBassPlaybackPollingUpdate(
                                 snapshot = snapshot,
                                 previous = pollingState,

@@ -22,6 +22,10 @@ class DesktopBassJniBinding private constructor(
 
     fun init(): Boolean = nativeInit()
 
+    fun reinitializeOutput(stream: Int): Boolean = nativeReinitializeOutput(stream)
+
+    fun bufferedOutputSeconds(stream: Int): Double? = nativeBufferedOutputSeconds(stream).takeIf { it >= 0.0 }
+
     fun init(deviceId: String?): Boolean = nativeInitDevice(deviceId)
 
     fun init(deviceId: String?, sampleRateHz: Int): Boolean = nativeInitDeviceAtSampleRate(deviceId, sampleRateHz)
@@ -142,6 +146,8 @@ class DesktopBassJniBinding private constructor(
     private external fun nativeMixerVersion(): Int
     private external fun nativeLastErrorCode(): Int
     private external fun nativeInit(): Boolean
+    private external fun nativeReinitializeOutput(stream: Int): Boolean
+    private external fun nativeBufferedOutputSeconds(stream: Int): Double
     private external fun nativeInitDevice(deviceId: String?): Boolean
     private external fun nativeInitDeviceAtSampleRate(deviceId: String?, sampleRateHz: Int): Boolean
     private external fun nativeConfigurePlaybackBuffers(

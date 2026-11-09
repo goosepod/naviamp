@@ -2,10 +2,12 @@ package app.naviamp.domain.playback
 
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
+import app.naviamp.domain.bass.bassPlaybackSnapshot
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /** Owns one extra BASS channel, never the device, main mixer, queue or prepared streams. */
@@ -55,6 +57,20 @@ internal class BassPreviewPlayback(
                 }.getOrThrow()
                 output.play(channel).getOrThrow()
                 onStateChanged(PlaybackState.Playing)
+                var startup = BassOutputStartupRecoveryState()
+                while (epoch == generation && stream == channel && !startup.complete) {
+                    withContext(runtime.workContext) {
+                        if (epoch == generation && stream == channel) {
+                            val snapshot = output.bassPlaybackSnapshot(channel.value, channel.value)
+                            val recovery = planBassOutputStartupRecovery(startup, snapshot, runtime.nowEpochMillis())
+                            startup = recovery.state
+                            if (recovery.reinitializeOutput && epoch == generation && stream == channel) {
+                                output.reinitializeOutput(channel).getOrThrow()
+                            }
+                        }
+                    }
+                    if (!startup.complete) delay(DefaultBassPollingIntervalMillis)
+                }
             } catch (error: Throwable) {
                 if (error is CancellationException) throw error
                 if (epoch == generation) finish(PlaybackState.Error(error.message.orEmpty()))

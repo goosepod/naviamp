@@ -39,6 +39,9 @@ class DesktopPreviewPlaybackIntegrationTest {
         val mainPlayback = MutableStateFlow<BassStreamHandle?>(null)
         val diagnostics = DesktopPlaybackClockDiagnostics()
         val backend = object : BassAudioBackend by nativeBackend {
+            override fun reinitializeOutput(stream: BassStreamHandle): Result<Unit> =
+                nativeBackend.reinitializeOutput(stream).also { diagnostics.record("output reinitialization[$stream]=$it") }
+
             override fun positionSeconds(stream: BassStreamHandle): Double? =
                 nativeBackend.positionSeconds(stream).also {
                     mainSource.compareAndSet(null, stream)
