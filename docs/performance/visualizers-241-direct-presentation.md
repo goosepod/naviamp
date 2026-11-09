@@ -51,12 +51,47 @@ Play and Playback position work in this isolated app. Record those as owner-veri
 automated keyboard injection was inconclusive even against a native menu. Native menu
 activation/cancellation and minimize/restore were separately observed.
 
-Most attempted static and individual-animation controls were refused by the unchanged native
-visibility guard because the computer-control software cursor overlapped the client. No rejected
-interval is counted. Matched static/progress/marquee/combined controls, sustained cadence,
-allocation/compositor evidence and the remaining effect/lifecycle cases are still open. These
-partial results do not close #241 or make draft PR #242 ready for merge. Local evidence,
-including failures, is retained under `build/mac-acceptance-20261109/remediation`.
+Initial static and individual-animation controls were refused by the unchanged native visibility
+guard because the computer-control software cursor overlapped the client. No rejected interval
+is counted. A later private-profile restart at a clean position allows the four-state controls
+below. Sustained cadence, allocation/attributed compositor evidence and the remaining effect/lifecycle
+cases are still open. These partial results do not close #241 or make draft PR #242 ready for merge.
+Local evidence, including failures, is retained under `build/mac-acceptance-20261109/remediation`.
+
+### Matched long-track controls
+
+These use the same long track from the 48 kHz fixture, reporting WAV 768 kbps, with the same
+source, runtime, window dimensions, scale, display, refresh rate and AC power. The restored short
+track's older cached metadata is not used in this comparison. Each scenario is a fresh JVM;
+startup intervals are retained separately and compilation time is recorded, not subtracted.
+The disposable profile seeds auto-play and the existing scroll-title preference before launch.
+Static text is a control, not a change to animation policy. Artist/album scrolling stays off.
+No production settings or animation cadence are changed.
+
+| Long-track state | App CPU, one core | Parent frames per 10 s | JVM compilation per interval |
+| --- | ---: | ---: | ---: |
+| Static, paused | 2.29%, 0.47%, 0.76% | 2, 0, 0 | 120, 10, 0 ms |
+| Scrolling title, paused | 0.36%, 0.74% | 0, 0 | 0, 10 ms |
+| Static title, playing progress | 3.61%, 4.18%, 3.99% | 0, 0, 0 | 160, 150, 180 ms |
+| Scrolling title and playing progress | 4.17%, 4.16%, 3.04% | 0, 0, 0 | 170, 150, 80 ms |
+
+Additional paused-marquee intervals measure 0.87% and 0.35%, both with zero parent frames.
+Visible before/after observations confirm title translation and clipping, a fixed paused clock,
+and simultaneous progress/title motion in the combined state. The control app is closed afterward;
+its private auto-play preference is restored off, and the installed app is left running.
+
+The whole-desktop WindowServer counter ranges from 82–90% in the static intervals, 67–80% in
+marquee, 62–63% in progress, and 67–68% in combined. Other desktop activity changes between
+groups, including Windows App covering the test window temporarily. Its covered intervals are
+rejected. Clean-position restarts use different locations on the same monitor while preserving
+the measured viewport. These system counters are not a causal measure of Naviamp compositor
+cost, nor evidence that total animation cost meets its budget. Playback intervals still contain
+compilation. The results support low additional **app-process** marquee cost and absence of
+continuous parent redraws; compositor attribution and sustained/end-to-end acceptance remain open.
+
+The refreshed code at `146be1a62` passes the complete cross-platform Verify matrix. API 30's
+first attempt fails downloading an SDK ZIP before emulator creation; the retained targeted rerun
+passes. Neither this CI result nor the four-state controls waive the remaining performance gates.
 
 Tracked by [issue #241](https://github.com/goosepod/naviamp/issues/241) and
 [draft PR #242](https://github.com/goosepod/naviamp/pull/242).
