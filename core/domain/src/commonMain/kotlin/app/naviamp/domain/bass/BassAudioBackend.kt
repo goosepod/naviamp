@@ -156,6 +156,7 @@ data class BassPlaybackSnapshot(
     val sourceActiveState: Int?,
     val progress: PlaybackProgress,
     val metadata: PlaybackStreamMetadata,
+    val bufferedOutputSeconds: Double? = null,
 )
 
 /** Core-owned native buffering policy translated by each BASS host adapter. */
@@ -202,6 +203,12 @@ interface BassAudioBackend {
     fun init(deviceId: String?): Result<Unit> = init()
 
     fun init(deviceId: String?, sampleRateHz: Int): Result<Unit> = init(deviceId)
+
+    /** Reopens only this channel's native output device, retaining all existing channels. */
+    fun reinitializeOutput(stream: BassStreamHandle): Result<Unit> = unsupportedBassOperation("BASS init")
+
+    /** Duration already queued for this output, queried without consuming any audio. */
+    fun bufferedOutputSeconds(stream: BassStreamHandle): Double? = null
 
     fun free(): Result<Unit> = unsupportedBassOperation("BASS free")
 
@@ -689,6 +696,9 @@ fun BassAudioBackend.bassPlaybackSnapshot(
             decodedPositionSeconds = decodedPositionSeconds,
         ),
         metadata = PlaybackStreamMetadata.fromProperties(streamMetadata(progressHandle)),
+        bufferedOutputSeconds = if (playbackActiveState == BassActiveState.Playing) {
+            bufferedOutputSeconds(BassStreamHandle(playbackHandle))
+        } else null,
     )
 }
 

@@ -37,6 +37,8 @@ object AndroidBassJni {
         get() = nativeLastErrorCode()
 
     fun init(): Boolean = nativeInit()
+    fun reinitializeOutput(stream: Int): Boolean = nativeReinitializeOutput(stream)
+    fun bufferedOutputSeconds(stream: Int): Double? = nativeBufferedOutputSeconds(stream).takeIf { it >= 0.0 }
     fun init(sampleRateHz: Int): Boolean = nativeInitAtSampleRate(sampleRateHz)
 
     fun configurePlaybackBuffers(
@@ -158,6 +160,8 @@ object AndroidBassJni {
     private external fun nativeMixerVersion(): Int
     private external fun nativeLastErrorCode(): Int
     private external fun nativeInit(): Boolean
+    private external fun nativeReinitializeOutput(stream: Int): Boolean
+    private external fun nativeBufferedOutputSeconds(stream: Int): Double
     private external fun nativeInitAtSampleRate(sampleRateHz: Int): Boolean
     private external fun nativeConfigurePlaybackBuffers(
         playbackBufferMillis: Int,
