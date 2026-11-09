@@ -4,6 +4,15 @@
 
 extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved);
 
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeReinitializeOutput(JNIEnv*, jobject, jint stream);
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeReinitializeOutput(JNIEnv*, jobject, jint stream);
+extern "C" JNIEXPORT jdouble JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeBufferedOutputSeconds(JNIEnv*, jobject, jint stream);
+extern "C" JNIEXPORT jdouble JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeBufferedOutputSeconds(JNIEnv*, jobject, jint stream);
+
 extern "C" JNIEXPORT jint JNICALL
 Java_app_naviamp_android_playback_AndroidBassJni_nativeBassVersion(JNIEnv* env, jobject thiz);
 

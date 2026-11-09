@@ -76,6 +76,8 @@ struct BassApi {
     decltype(&::BASS_Free) BASS_Free = nullptr;
     decltype(&::BASS_SetDevice) BASS_SetDevice = nullptr;
     decltype(&::BASS_GetDevice) BASS_GetDevice = nullptr;
+    decltype(&::BASS_GetInfo) BASS_GetInfo = nullptr;
+    decltype(&::BASS_ChannelGetDevice) BASS_ChannelGetDevice = nullptr;
     decltype(&::BASS_ChannelSetDevice) BASS_ChannelSetDevice = nullptr;
     decltype(&::BASS_Mixer_ChannelRemove) BASS_Mixer_ChannelRemove = nullptr;
     decltype(&::BASS_ChannelSetSync) BASS_ChannelSetSync = nullptr;
@@ -142,6 +144,8 @@ bool load_bass_symbols() {
     ok = load_symbol(bassApi.bass, "BASS_Free", bassApi.BASS_Free) && ok;
     ok = load_symbol(bassApi.bass, "BASS_SetDevice", bassApi.BASS_SetDevice) && ok;
     ok = load_symbol(bassApi.bass, "BASS_GetDevice", bassApi.BASS_GetDevice) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_GetInfo", bassApi.BASS_GetInfo) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_ChannelGetDevice", bassApi.BASS_ChannelGetDevice) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ChannelSetDevice", bassApi.BASS_ChannelSetDevice) && ok;
     ok = load_symbol(bassApi.bassmix, "BASS_Mixer_ChannelRemove", bassApi.BASS_Mixer_ChannelRemove) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ChannelSetSync", bassApi.BASS_ChannelSetSync) && ok;
@@ -229,6 +233,8 @@ bool configure_windows_title_bar(JNIEnv* env, jobject window, bool isDark) {
 #define BASS_Free bassApi.BASS_Free
 #define BASS_SetDevice bassApi.BASS_SetDevice
 #define BASS_GetDevice bassApi.BASS_GetDevice
+#define BASS_GetInfo bassApi.BASS_GetInfo
+#define BASS_ChannelGetDevice bassApi.BASS_ChannelGetDevice
 #define BASS_ChannelSetDevice bassApi.BASS_ChannelSetDevice
 #define BASS_Mixer_ChannelRemove bassApi.BASS_Mixer_ChannelRemove
 #define BASS_ChannelSetSync bassApi.BASS_ChannelSetSync
@@ -319,6 +325,23 @@ bool reinit_output_device(int device, jint sampleRateHz) {
     BASS_Free();
     DWORD frequency = static_cast<DWORD>(std::max(8000, std::min(static_cast<int>(sampleRateHz), 768000)));
     return init_output_device(device, frequency, BASS_DEVICE_FREQ);
+}
+
+bool reinitialize_channel_output(jint stream) {
+    DWORD device = BASS_ChannelGetDevice(static_cast<DWORD>(stream));
+    if (device == static_cast<DWORD>(-1) || !BASS_SetDevice(device)) return false;
+    BASS_INFO info{};
+    if (!BASS_GetInfo(&info)) return false;
+    // BASS_DEVICE_REINIT retains channels and syncs. Never BASS_Free this device here.
+    return BASS_Init(static_cast<int>(device), info.freq, info.initflags | BASS_DEVICE_REINIT, nullptr, nullptr);
+}
+
+double buffered_output_seconds(jint stream) {
+    DWORD channel = static_cast<DWORD>(stream);
+    DWORD buffered = BASS_ChannelGetData(channel, nullptr, BASS_DATA_AVAILABLE);
+    if (buffered == static_cast<DWORD>(-1)) return -1.0;
+    double seconds = BASS_ChannelBytes2Seconds(channel, buffered);
+    return seconds >= 0.0 && std::isfinite(seconds) ? seconds : -1.0;
 }
 
 jobjectArray output_devices(JNIEnv* env) {
@@ -1454,6 +1477,26 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativePlay(JNIEnv* 
     (void)env;
     (void)thiz;
     return BASS_ChannelPlay(static_cast<DWORD>(stream), FALSE) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeReinitializeOutput(JNIEnv*, jobject, jint stream) {
+    return reinitialize_channel_output(stream) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeReinitializeOutput(JNIEnv*, jobject, jint stream) {
+    return reinitialize_channel_output(stream) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jdouble JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeBufferedOutputSeconds(JNIEnv*, jobject, jint stream) {
+    return buffered_output_seconds(stream);
+}
+
+extern "C" JNIEXPORT jdouble JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeBufferedOutputSeconds(JNIEnv*, jobject, jint stream) {
+    return buffered_output_seconds(stream);
 }
 
 extern "C" JNIEXPORT jboolean JNICALL

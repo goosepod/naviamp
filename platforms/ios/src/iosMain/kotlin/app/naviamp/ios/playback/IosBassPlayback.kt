@@ -40,6 +40,11 @@ import app.naviamp.ios.bass.native.BASS_FXSetParameters
 import app.naviamp.ios.bass.native.BASS_FX_DX8_PARAMEQ
 import app.naviamp.ios.bass.native.BASS_GetVersion
 import app.naviamp.ios.bass.native.BASS_Init
+import app.naviamp.ios.bass.native.BASS_INFO
+import app.naviamp.ios.bass.native.BASS_GetInfo
+import app.naviamp.ios.bass.native.BASS_ChannelGetDevice
+import app.naviamp.ios.bass.native.BASS_SetDevice
+import app.naviamp.ios.bass.native.BASS_DEVICE_REINIT
 import app.naviamp.ios.bass.native.BASS_LEVEL_MONO
 import app.naviamp.ios.bass.native.BASS_LEVEL_RMS
 import app.naviamp.ios.bass.native.BASS_MIXER_CHAN_NORAMPIN
@@ -138,6 +143,22 @@ class IosBassAudioBackend : BassAudioBackend {
         get() = BASS_ErrorGetCode()
 
     override val supportsMixer: Boolean = true
+
+    override fun reinitializeOutput(stream: BassStreamHandle): Result<Unit> = bassResult("BASS_Init failed") {
+        memScoped {
+            val device = BASS_ChannelGetDevice(stream.uint)
+            if (device == UInt.MAX_VALUE || BASS_SetDevice(device) == 0) return@memScoped false
+            val info = alloc<BASS_INFO>()
+            if (BASS_GetInfo(info.ptr) == 0) return@memScoped false
+            BASS_Init(device.toInt(), info.freq, info.initflags or BASS_DEVICE_REINIT.toUInt(), null, null) != 0
+        }
+    }
+
+    override fun bufferedOutputSeconds(stream: BassStreamHandle): Double? {
+        val bytes = BASS_ChannelGetData(stream.uint, null, BASS_DATA_AVAILABLE.toUInt())
+        if (bytes == UInt.MAX_VALUE) return null
+        return BASS_ChannelBytes2Seconds(stream.uint, bytes.toULong()).takeIf { it.isFinite() && it >= 0.0 }
+    }
 
     override val pluginDiagnostics: List<BassPluginDiagnostic>
         get() {

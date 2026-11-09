@@ -82,6 +82,12 @@ class DesktopBassAudioBackend(
         return Result.success(Unit)
     }
 
+    override fun reinitializeOutput(stream: BassStreamHandle): Result<Unit> =
+        if (bass.reinitializeOutput(stream.value)) Result.success(Unit)
+        else Result.failure(IllegalStateException(errorMessage("BASS_Init failed")))
+
+    override fun bufferedOutputSeconds(stream: BassStreamHandle): Double? = bass.bufferedOutputSeconds(stream.value)
+
     override fun outputDevices(): List<AudioOutputDevice> =
         bass.outputDevices()
             .mapNotNull { line ->

@@ -15,6 +15,61 @@ import kotlin.test.assertTrue
 
 class DesktopBassJniBindingIntegrationTest {
     @Test
+    fun reinitializesTheChannelsOutputRetainingPlaybackPausedPositionAndCallbacks() {
+        org.junit.Assume.assumeTrue("Real output is required for output-client recovery acceptance", !usesNoSoundIntegrationDevice())
+        val binding = requireBinding()
+        val wav = createSilentWavFile(seconds = 12)
+        var noSoundInitialized = false
+        try {
+            assertTrue(binding.initForIntegrationTest())
+            val nativeLibrary = com.sun.jna.NativeLibrary.getInstance(
+                File(binding.libraryDirectory, System.mapLibraryName("bass")).absolutePath,
+            )
+            fun currentDevice() = nativeLibrary.getFunction("BASS_GetDevice").invokeInt(emptyArray<Any>())
+            val outputDevice = currentDevice()
+            val source = binding.createFileDecodeStream(wav.absolutePath)
+            val output = binding.createMixer(44_100, 2, true)
+            val paused = binding.createFileStream(wav.absolutePath)
+            assertTrue(source != 0 && output != 0 && paused != 0)
+            assertTrue(binding.addMixerChannel(output, source))
+            assertTrue(binding.setVolume(output, 0f))
+            assertTrue(binding.setVolume(paused, 0f))
+            assertTrue(binding.setEndSync(source) {} != 0)
+            assertTrue(binding.setEndSync(paused) {} != 0)
+            assertTrue(binding.play(output))
+            assertTrue(binding.play(paused))
+            assertTrue(binding.pause(paused))
+            assertTrue(binding.seek(paused, 0.4))
+            val pausedPosition = assertNotNull(binding.positionSeconds(paused))
+            val callbacks = binding.endSyncRegistrationCount
+            // Reinitialization must follow the channel, not this thread's current device.
+            noSoundInitialized = binding.init("0")
+            assertTrue(noSoundInitialized)
+            assertEquals(0, currentDevice())
+            assertTrue(binding.reinitializeOutput(output), "BASS reinit failed: ${binding.lastErrorCode}")
+            assertEquals(outputDevice, currentDevice(), "Reinit must select the channel's output device")
+            assertEquals(BassActiveState.Playing, binding.activeState(output))
+            assertEquals(BassActiveState.Paused, binding.activeState(paused))
+            assertEquals(pausedPosition, binding.positionSeconds(paused))
+            assertEquals(callbacks, binding.endSyncRegistrationCount)
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+            while ((binding.audiblePositionSeconds(output, source) ?: 0.0) < 0.2 && System.nanoTime() < deadline) Thread.sleep(20)
+            assertTrue((binding.audiblePositionSeconds(output, source) ?: 0.0) >= 0.2, "Reinitialized real output clock must advance")
+            assertNotNull(binding.bufferedOutputSeconds(output))
+            assertTrue(binding.freeStream(output))
+            assertTrue(binding.freeStream(source))
+            assertTrue(binding.freeStream(paused))
+            assertEquals(0, binding.endSyncRegistrationCount)
+            assertTrue(!binding.reinitializeOutput(0))
+            assertEquals(5, binding.lastErrorCode)
+        } finally {
+            binding.free()
+            if (noSoundInitialized) { binding.setOutputDevice("0"); binding.free() }
+            wav.delete()
+        }
+    }
+
+    @Test
     fun randomAccessCallbacksCloseAfterFailedCreationAndRecoverForValidAudio() {
         val binding = requireBinding()
         fun callbacks(bytes: ByteArray) = app.naviamp.domain.playback.BassFileCallbacks(
