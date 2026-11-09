@@ -26,6 +26,45 @@ Beta builds are available through TestFlight for [macOS](https://testflight.appl
 [Join us on Discord](https://discord.gg/7dd9954VGd) to chat with the Naviamp community, ask questions,
 and share feedback.
 
+### Linux Flatpak (planned)
+
+An official x86_64 Flatpak with repository-managed updates is selected for v2.11.0 in
+[#292](https://github.com/goosepod/naviamp/issues/292). **The Flatpak package and repository are not
+published yet.** Until then, use the Linux DEB, RPM, or portable ZIP from
+[GitHub Releases](https://github.com/goosepod/naviamp/releases/latest).
+
+The planned distribution uses a signed repository hosted on GitHub Pages, with a
+`Naviamp.flatpakref` installer on GitHub Releases. A Flathub listing is not required.
+
+Once the first Flatpak release is published:
+
+1. [Set up Flatpak for your Linux distribution](https://flatpak.org/setup/).
+2. Download `Naviamp.flatpakref` from that release. Open it in a software center that supports
+   Flatpak, or run this command from the directory containing the downloaded file:
+
+   ```sh
+   flatpak install --user --from ./Naviamp.flatpakref
+   ```
+
+3. Launch Naviamp from your application menu, or run:
+
+   ```sh
+   flatpak run io.github.goosepod.Naviamp
+   ```
+
+The installer configures the app's update remote. To update a per-user installation:
+
+```sh
+flatpak update --user io.github.goosepod.Naviamp
+```
+
+Close and reopen Naviamp after updating. Automatic update scheduling depends on your software
+center's Flatpak support and settings. To uninstall the app:
+
+```sh
+flatpak uninstall --user io.github.goosepod.Naviamp
+```
+
 ### Android Alpha on Google Play
 
 Naviamp is available through a closed Android Alpha on Google Play. To join:
