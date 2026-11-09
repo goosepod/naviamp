@@ -1,5 +1,26 @@
 # Direct GPU visualizer presentation, iteration 1
 
+## November 9 composition-test synchronization
+
+The refreshed full UI suite initially reports 743 tests with one failure in
+`NaviampVisualizerProgressSubscriptionTest` (FrequencyTerrain: six versus seven root
+compositions); the unchanged isolated control passes. Its manual clock reuses earlier frame
+timestamps and does not establish that an effect selection has actually been applied before
+capturing the next progress-mutation baseline. The production non-lyric helper returns before
+reading the playback flow, and the failing check still observes zero flow subscriptions.
+
+The test now supplies strictly increasing frames on recomposer demand and waits for the selected
+effect's applied side effect plus recomposer idle before measuring progress. Every non-lyric
+no-subscription/no-recomposition assertion remains. A positive control verifies that the lyric
+effect actually recomposes for progress; switching away must release both subscription and
+progress-driven recomposition. This changes only the harness, not production visualizer behavior.
+The corrected full suite passes all 743 cases with zero failures/errors/skips. The original
+failed full suite and passing isolated control remain retained.
+
+The local integration also includes the separately tracked playback-recovery work from
+[PR #554](https://github.com/goosepod/naviamp/pull/554). Mac performance and lifecycle acceptance
+below remain separate gates; this test result does not waive them.
+
 Tracked by [issue #241](https://github.com/goosepod/naviamp/issues/241) and
 [draft PR #242](https://github.com/goosepod/naviamp/pull/242).
 
