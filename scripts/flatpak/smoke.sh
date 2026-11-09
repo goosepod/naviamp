@@ -28,6 +28,7 @@ mkdir -p "$work/keyring-data"
 printf naviamp-ci-test-only | env XDG_DATA_HOME="$work/keyring-data" \
   gnome-keyring-daemon --foreground --unlock --components=secrets > "$work/keyring.log" 2>&1 &
 keyring_pid=$!
+gdbus wait --session --timeout 10 org.freedesktop.secrets
 flatpak run --command=sh "$app" -c '
   printf test-only | secret-tool store --label=Flatpak-test naviamp-flatpak test
   test "$(secret-tool lookup naviamp-flatpak test)" = test-only

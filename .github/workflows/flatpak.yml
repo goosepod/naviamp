@@ -5,6 +5,7 @@ on:
       - 'packaging/flatpak/**'
       - 'scripts/flatpak/**'
       - '.github/workflows/flatpak.yml'
+      - '.gitattributes'
   workflow_dispatch:
 permissions:
   contents: read
