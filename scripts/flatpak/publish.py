@@ -73,10 +73,6 @@ GPGKey={encoded}
     run("flatpak", "build-bundle", f"--gpg-keys={key_file}", f"--repo-url={base}repo/",
         "--runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo", repo,
         assets / f"Naviamp-v{version}-x86_64.flatpak", APP_ID, "stable")
-    run("tar", "--zstd", "-cf", assets / "repository.tar.zst", "-C", public, "repo")
-    checksums = "".join(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n"
-                        for p in sorted(assets.iterdir()) if p.is_file())
-    (assets / "SHA256SUMS").write_text(checksums)
     (public / ".nojekyll").write_text("")
     (public / "index.html").write_text(f"""<!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -95,6 +91,11 @@ flatpak run {APP_ID}</pre>
     size = sum(p.stat().st_size for p in public.rglob("*") if p.is_file())
     if size > 900 * 1024 * 1024:
         raise ValueError("The repository exceeds the GitHub Pages publication budget")
+    run("tar", "--zstd", "-cf", assets / "repository.tar.zst", "-C", public, "repo")
+    run("tar", "--zstd", "-cf", assets / "pages.tar.zst", "-C", public, ".")
+    checksums = "".join(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n"
+                        for p in sorted(assets.iterdir()) if p.is_file())
+    (assets / "SHA256SUMS").write_text(checksums)
     print(json.dumps({**provenance, "published_bytes": size}))
 
 

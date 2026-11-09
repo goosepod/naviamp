@@ -11,8 +11,9 @@ is published. Java/Compose uses X11, including XWayland on Wayland desktops; nat
 ## Build and publish
 
 Publication lives in the dedicated [naviamp-flatpak repository](https://github.com/goosepod/naviamp-flatpak).
-Its workflow checks out accepted Naviamp `main`, downloads an existing stable public Linux release,
-builds the package, signs its OSTree commit and summary, tests it, and deploys GitHub Pages. The
+Build and sign locally, then upload only the signed public files to a draft distribution release.
+The publication workflow checks out accepted Naviamp `main`, verifies the signature against the
+pinned public key, tests the package, and deploys GitHub Pages before publishing the release. The
 application version stays identical to the source release. Packaging revisions use separate
 distribution tags, so no application release tag or existing application binary is rewritten.
 
@@ -20,10 +21,10 @@ The stable remote is `https://goosepod.com/naviamp-flatpak/repo/`. Installers ar
 `https://goosepod.com/naviamp-flatpak/Naviamp.flatpakref` and `naviamp.flatpakrepo`. The repository's
 `repository.json` and `naviamp.asc` pin its public signing identity. Never use `--no-gpg-verify`.
 
-The publisher owns `FLATPAK_GPG_PRIVATE_KEY` in the dedicated distribution repository. No private key
-belongs in source, build artifacts, logs, the website, or an application release. The owner's local
+The private key stays on the owner's computer; GitHub receives only signed public files. No private key
+belongs in Actions secrets, source, build artifacts, logs, the website, or an application release. The owner's local
 signing home is in Ubuntu at `~/.local/share/naviamp-flatpak-signing`, mode 0700. Keep an encrypted,
-offline backup of the secret key and revocation certificate. GitHub Secrets is not a backup. Import
+offline backup of the secret key and revocation certificate. Import
 the same identity for later releases; losing it breaks the existing remote's trust continuity.
 Plan key expiry/rotation before the recorded expiry, with a signed transition for existing clients.
 
@@ -43,7 +44,10 @@ The publication script only prepares output. It never deploys it. Output directo
 and separate from signing material. Retain `source.json`, the package digest and acceptance results.
 The public repository retains two parent revisions and static deltas; the immutable release archive
 backs up its objects for the next publication. The Pages output must remain below 900 MiB, leaving
-headroom under GitHub's 1 GiB site limit. Monitor bandwidth as adoption grows.
+headroom under GitHub's 1 GiB site limit. Monitor bandwidth as adoption grows. Upload the generated
+assets to a draft in `goosepod/naviamp-flatpak` tagged `vX.Y.Z-flatpak.N`, then dispatch its
+`Publish Flatpak` workflow with that distribution tag. Increase N for a packaging correction;
+never rewrite an existing application release or published distribution tag.
 
 ## Sandbox and acceptance
 
