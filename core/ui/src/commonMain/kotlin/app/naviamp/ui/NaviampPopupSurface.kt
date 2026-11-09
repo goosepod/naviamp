@@ -119,13 +119,13 @@ internal fun NaviampWindowDropdownMenu(expanded: Boolean, onDismissRequest: () -
     val pixelOffset = with(density) { IntOffset(offset.x.roundToPx(), offset.y.roundToPx()) }
     val margin = with(density) { 48.dp.roundToPx() }
     val shadowPadding = with(density) { 32.dp.roundToPx() }
-    val viewportPosition = remember { object : PopupPositionProvider {
-        override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize,
-            layoutDirection: LayoutDirection, popupContentSize: IntSize): IntOffset {
-            anchor = anchorBounds
-            return IntOffset.Zero
-        }
-    } }
+    // Observe the same parent anchor as Popup, independently of the presentation surface. The
+    // desktop scene-layer popup can refit to hover drawing outside its cached picture bounds.
+    Layout(content = {}, modifier = Modifier.onGloballyPositioned { coordinates ->
+        val parent = coordinates.parentLayoutCoordinates ?: coordinates
+        val position = parent.positionInWindow()
+        anchor = IntRect(position.round(), IntSize(parent.size.width, parent.size.height))
+    }) { _, _ -> layout(0, 0) {} }
     val scroll = rememberScrollState()
     var moveFocus by remember { mutableStateOf<(FocusDirection) -> Boolean>({ false }) }
     val menuKeys = Modifier.onPreviewKeyEvent { event ->
@@ -140,7 +140,7 @@ internal fun NaviampWindowDropdownMenu(expanded: Boolean, onDismissRequest: () -
                 else -> false
             }
         }
-    Popup(popupPositionProvider = viewportPosition, onDismissRequest = onDismissRequest, properties = properties) {
+    NaviampViewportPopup(onDismissRequest = onDismissRequest, properties = properties) {
         // Entrance motion belongs to the popup's frame clock, independently of cached parent drawing.
         val transition = updateTransition(expandedState, label = "Naviamp menu")
         val alpha by transition.animateFloat(transitionSpec = { tween(120) }, label = "opacity") { if (it) 1f else 0f }

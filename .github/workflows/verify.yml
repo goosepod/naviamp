@@ -474,6 +474,20 @@ jobs:
           .\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :core:ui:playerAnimationProbe --console=plain |
             Tee-Object -FilePath build/windows-animation-probe.txt
 
+      - name: Verify Windows header menu hover
+        shell: powershell
+        env:
+          NAVIAMP_PROBE_INTEGRATED: "true"
+          NAVIAMP_PROBE_POPUPS: "true"
+          NAVIAMP_PROBE_MENUS: "true"
+          NAVIAMP_PROBE_MENU_HOVER: "true"
+          NAVIAMP_PROBE_MENU_ITEMS: "1"
+          NAVIAMP_PROBE_PHASES: "popup-combined"
+          NAVIAMP_PROBE_VERIFY: "true"
+        run: |
+          .\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :core:ui:playerAnimationProbe --console=plain |
+            Tee-Object -FilePath build/windows-menu-hover-probe.txt
+
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -484,6 +498,8 @@ jobs:
             **/build/reports/tests/desktopTest/**
             providers/navidrome/build/reports/tests/jvmTest/**
             build/windows-animation-probe.txt
+            build/windows-menu-hover-probe.txt
+            core/ui/build/animation-probe/menu-hover-0-1-*.png
 
   desktop-linux:
     name: Desktop native tests (Linux)
