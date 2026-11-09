@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Naviamp
+Comment=Music player for Navidrome and other music libraries
+Exec=naviamp
+Icon=io.github.goosepod.Naviamp
+Terminal=false
+Categories=AudioVideo;Audio;Player;
+StartupWMClass=app-naviamp-desktop-MainKt

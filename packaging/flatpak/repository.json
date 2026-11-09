@@ -1,0 +1,7 @@
+{
+  "url": "https://goosepod.com/naviamp-flatpak/",
+  "signing_fingerprint": "47DCCEF27F4F56B168350BB3DB9D51B285362245",
+  "application_id": "io.github.goosepod.Naviamp",
+  "branch": "stable",
+  "architecture": "x86_64"
+}
