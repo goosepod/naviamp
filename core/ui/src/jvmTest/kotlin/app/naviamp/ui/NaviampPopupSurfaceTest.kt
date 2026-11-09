@@ -3,10 +3,12 @@ package app.naviamp.ui
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.*
 import androidx.compose.ui.unit.dp
@@ -20,15 +22,47 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampPopupSurfaceTest {
+    @Test fun shortHeaderMenuKeepsBoundsAcrossHover() = verifyMenuHover(0, 1)
+    @Test fun longHeaderMenuKeepsBoundsAcrossHover() = verifyMenuHover(0, 6)
+    @Test fun shortBodyMenuKeepsBoundsAcrossHover() = verifyMenuHover(180, 1)
+
+    private fun verifyMenuHover(top: Int, count: Int) = runComposeUiTest {
+        setContent {
+            CompositionLocalProvider(LocalNaviampOwnedPopupWindows provides true) {
+                Box(Modifier.size(700.dp, 500.dp)) {
+                    NaviampRowOverflowMenu(NaviampColors(), List(count) {
+                        NaviampRowMenuItem("Action $it", NaviampTransportIcons.MoreVertical, {})
+                    }, Modifier.align(Alignment.TopEnd).offset(y = top.dp))
+                }
+            }
+        }
+        onNodeWithContentDescription("More actions").performMouseInput { click() }
+        waitForIdle()
+        val initial = onNodeWithText("Action 0").fetchSemanticsNode().boundsInRoot
+        repeat(3) {
+            repeat(count) { index ->
+                onNodeWithText("Action $index").performMouseInput { moveTo(center) }
+                mainClock.advanceTimeBy(500)
+                waitForIdle()
+                assertEquals(initial, onNodeWithText("Action 0").fetchSemanticsNode().boundsInRoot,
+                    "Hover must not move the open menu (top=$top, count=$count, item=$index)")
+            }
+            onNodeWithText("Action 0").performMouseInput { exit() }
+            waitForIdle()
+            assertEquals(initial, onNodeWithText("Action 0").fetchSemanticsNode().boundsInRoot)
+        }
+    }
+
     @Test fun nativeSurfaceReceivesViewportWhileCoreOwnsContentAndEscapeDismissal() = runComposeUiTest {
         var rendered = false
         var dismissed = false
+        val focusability = mutableListOf<Boolean>()
         val surface = object : NaviampOwnedDialogSurface {
             @Composable override fun Render(size: androidx.compose.ui.unit.DpSize,
                 properties: androidx.compose.ui.window.PopupProperties, onCloseRequest: () -> Unit,
                 content: @Composable () -> Unit) {
                 assertTrue(size.width.value > 0 && size.height.value > 0)
-                assertTrue(properties.focusable)
+                focusability += properties.focusable
                 rendered = true
                 content()
             }
@@ -42,8 +76,10 @@ class NaviampPopupSurfaceTest {
             }
         }
         assertTrue(rendered)
+        assertTrue(focusability.first(), "The dialog must accept keyboard focus")
         onNode(hasSetTextAction()).performClick()
         onNodeWithText("Classical").assertExists()
+        assertTrue(false in focusability, "An editable dropdown must keep focus in its editor")
         onNode(hasSetTextAction()).performSemanticsAction(SemanticsActions.RequestFocus)
             .performKeyInput { pressKey(Key.Escape) }
         runOnIdle { assertFalse(dismissed) }
