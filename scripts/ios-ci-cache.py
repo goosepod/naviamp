@@ -25,6 +25,16 @@ def command(*args):
     return subprocess.check_output(args, text=True).strip()
 
 
+def configure_homes(cache_root):
+    gradle_home, konan_home = cache_root / 'gradle', cache_root / 'konan'
+    gradle_home.mkdir(parents=True, exist_ok=True)
+    # Xcode invokes Gradle again without the compile step's -P arguments. User-home
+    # properties apply to every invocation and are deliberately outside the archive paths.
+    native_path = str(konan_home).replace('\\', '\\\\')
+    (gradle_home / 'gradle.properties').write_text('konan.data.dir=' + native_path + '\n')
+    return gradle_home, konan_home
+
+
 def metadata(root, cache_root, generation):
     if not re.fullmatch(r'[a-zA-Z0-9_-]{1,100}', generation):
         raise ValueError('Invalid cache generation')
@@ -32,6 +42,7 @@ def metadata(root, cache_root, generation):
         command('xcrun', '--sdk', 'iphonesimulator', '--show-sdk-build-version'),
         command('xcrun', '--sdk', 'iphoneos', '--show-sdk-build-version'))
     cache_root = cache_root.resolve()
+    gradle_home, konan_home = configure_homes(cache_root)
     output = root / 'build/ci-cache'
     output.mkdir(parents=True, exist_ok=True)
     result = dict(identity=identity, prefix=prefix, generation=generation,
@@ -40,7 +51,7 @@ def metadata(root, cache_root, generation):
     (output / 'compatibility.json').write_text(json.dumps(result, indent=2))
     values = {'prefix': prefix, 'gradle-key': f'{prefix}-gradle-{generation}',
               'konan-key': f'{prefix}-konan-{generation}',
-              'gradle-home': str(cache_root / 'gradle'), 'konan-home': str(cache_root / 'konan')}
+              'gradle-home': str(gradle_home), 'konan-home': str(konan_home)}
     with open(os.environ['GITHUB_OUTPUT'], 'a') as target:
         for key, value in values.items():
             target.write(f'{key}={value}\n')

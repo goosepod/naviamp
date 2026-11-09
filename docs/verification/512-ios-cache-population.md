@@ -31,7 +31,9 @@ suffix; later compatible consumers may use the newest matching archive. Project 
 test reports, configuration cache and credential settings are not archive paths. The Gradle
 setup action explicitly delegates to this external cache, avoiding competing cache providers.
 
-The `.konan` location is supplied through Kotlin's documented `konan.data.dir` property. Gradle
+The `.konan` location is supplied through Kotlin's documented `konan.data.dir` property in the
+isolated Gradle user home's `gradle.properties`, so Xcode's later Gradle invocations inherit it too.
+That machine-specific file is recreated before restore and is not archived. Gradle
 task-output caching is enabled explicitly for this iOS stage. The init script disables both result
 caching and up-to-date skipping for every Gradle test task; compiled artifacts may be reused, test
 bodies still execute. The real TLS/BASS suite also runs directly through the existing prebuilt
@@ -62,6 +64,17 @@ the second keeps five inputs up to date while the test task executes. Inspection
 actual plugin hierarchy confirms `KotlinNativeSimulatorTest → KotlinNativeTest → KotlinTest →
 AbstractTestTask`, so the same policy covers native Gradle test tasks. These checks establish the
 policy and wiring locally; they do not replace hosted cache write/restore measurements.
+
+The first hosted PR run passes both-target compilation, common tests and fresh native execution,
+then rejects the production framework link because it sees platform KLIBs from both the private
+compiler directory and the default `~/.konan`. Only the initial command supplied `-Pkonan.data.dir`;
+Xcode invoked Gradle again without it. Persisting the same property in the isolated Gradle home
+fixes the cross-invocation path mismatch; keep the original failed log and rerun full Verify. Do not
+enable duplicate-KLIB tolerance or mix compiler directories to silence the failure.
+
+The corrected local suite passes 84 helper tests. A real Gradle 8.14.5 probe, using a temporary
+home whose path contains spaces, reports the identical native directory both with the initial
+explicit `-P` argument and through an independent `/bin/sh` invocation without that argument.
 
 References: [Kotlin native compilation guidance](https://kotlinlang.org/docs/native-improving-compilation-time.html),
 [Gradle setup and external caching](https://github.com/gradle/actions/blob/main/docs/setup-gradle.md),

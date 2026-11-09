@@ -10,6 +10,15 @@ SPEC.loader.exec_module(CACHE)
 
 
 class CacheCompatibilityTest(unittest.TestCase):
+    def test_every_gradle_invocation_inherits_the_same_native_home_without_cli_flags(self):
+        with tempfile.TemporaryDirectory(prefix='naviamp cache ') as directory:
+            root = Path(directory)
+            gradle_home, konan_home = CACHE.configure_homes(root)
+            self.assertEqual(root / 'gradle', gradle_home)
+            self.assertEqual('konan.data.dir=' + str(konan_home) + '\n',
+                             (gradle_home / 'gradle.properties').read_text())
+            self.assertFalse((gradle_home / 'caches/gradle.properties').exists())
+
     def key(self, root=ROOT, architecture='arm64', xcode='Xcode 27.2\nBuild 27B52',
             simulator_sdk='24A1', device_sdk='24A1'):
         return CACHE.compatibility(root, architecture, xcode, simulator_sdk, device_sdk)[1]
