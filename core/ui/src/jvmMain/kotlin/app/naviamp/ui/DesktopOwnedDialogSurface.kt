@@ -3,6 +3,7 @@ package app.naviamp.ui
 import androidx.compose.runtime.*
 import androidx.compose.ui.awt.ComposeDialog
 import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.PopupProperties
 import java.awt.Rectangle
@@ -18,10 +19,22 @@ import kotlin.math.roundToInt
 internal class DesktopOwnedDialogSurface(private val owner: Window) : NaviampOwnedDialogSurface {
     @Composable
     override fun Render(size: DpSize, properties: PopupProperties, onCloseRequest: () -> Unit,
+        content: @Composable () -> Unit) = RenderSurface(size, DpOffset.Zero, properties, onCloseRequest, content)
+
+    @Composable
+    override fun RenderPositioned(size: DpSize, offset: DpOffset, properties: PopupProperties,
+        onCloseRequest: () -> Unit, content: @Composable () -> Unit) =
+        RenderSurface(size, offset, properties, onCloseRequest, content)
+
+    @Composable
+    private fun RenderSurface(size: DpSize, offset: DpOffset, properties: PopupProperties, onCloseRequest: () -> Unit,
         content: @Composable () -> Unit) {
         val close = rememberUpdatedState(onCloseRequest)
         val requestedSize = rememberUpdatedState(size)
-        fun targetBounds(): Rectangle = Rectangle(owner.x + owner.insets.left, owner.y + owner.insets.top,
+        val requestedOffset = rememberUpdatedState(offset)
+        fun targetBounds(): Rectangle = Rectangle(
+            owner.x + owner.insets.left + requestedOffset.value.x.value.roundToInt(),
+            owner.y + owner.insets.top + requestedOffset.value.y.value.roundToInt(),
             requestedSize.value.width.value.roundToInt(), requestedSize.value.height.value.roundToInt())
         DialogWindow(
             create = {
