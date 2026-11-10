@@ -24,6 +24,12 @@ and Linux VM. Successful controls below do not close the underlying investigatio
   The tooltip's preceding full matrix also passes; its final refresh with this accepted cache
   change requires fresh exact-head verification before merge.
 
+The final tooltip refresh passes full verification and merges at
+`bb2c3a5ebadf67fefa5d53da385edb9b185487ce`. The cache benchmark also completes: matched total
+job time is 20m32s cold versus 12m11s warm, including archive overhead, with all 2,512 common
+cases and 17 native cases freshly executed in each stage. Scope, cache keys/sizes and limitations
+are audited in [`512-ios-cache-population.md`](512-ios-cache-population.md).
+
 ## Physical Android raster controls (#330)
 
 Source is tooltip integration head `268e9bf39615b3cf26174ce42ad8a63e236984e4`; its native raster
@@ -147,9 +153,11 @@ fix are not. See [`454-hosted-fixture-diagnosis.md`](454-hosted-fixture-diagnosi
 running in [42858007591](https://github.com/goosepod/naviamp/actions/runs/42858007591).
 
 There is no physical iOS device. Apple native evidence here is simulator evidence; physical iOS
-runtime/audio/touch/performance acceptance is not inferred. Remaining release gates include #454,
-#330, #493, broader #342, measured hosted cache benefit #512, remaining Linux #552, pending
-UI/cache integration, and release/changelog preparation after scope is accepted.
+runtime/audio/touch/performance acceptance is not inferred. The owner subsequently decides that
+unresolved #330, #342, #493 and #552 must not hold v2.11.0. They remain open, with their original
+criteria/evidence, as nonblocking follow-ups outside the release milestone. Native assertions and
+the final full release matrix remain enforced. Tooltip/cache integration and measured cache benefit
+are accepted; #454's post-boot readiness candidate and final release/changelog verification remain.
 
 No platform production source is modified by this campaign's new probes/documentation. The
 tooltip branch's pre-existing JVM adapter only translates Core-supplied size/offset into AWT
