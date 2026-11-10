@@ -164,7 +164,6 @@
     <string name="similarity_empty_help">Analiz edilmiş başka bir parça deneyin. Bir parçada eşleşme bulunmaması yapılandırma sorunu olduğunu kanıtlamaz.</string>
     <string name="similarity_regular">Normal benzerlik</string>
     <string name="similarity_radio_empty">Radyo ek parça bulamadı.</string>
-    <string name="similarity_radio_failed">Radyo kuyruğu oluşturulamadı.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
     <string name="similarity_admin_title">Sunucu eklenti ayrıntıları</string>
     <string name="similarity_admin_required">Eklenti ayrıntıları yönetici erişimi gerektirir.</string>
@@ -252,8 +251,6 @@
     <string name="smart_playlist_summary_predicate">%1$s %2$s</string>
     <string name="smart_playlist_summary_range">%1$s – %2$s</string>
     <string name="smart_playlist_summary_reference_context">%1$s (%2$s)</string>
-    <string name="smart_playlist_summary_ascending">%1$s (artan)</string>
-    <string name="smart_playlist_summary_descending">%1$s (azalan)</string>
     <string name="smart_playlist_summary_unavailable_playlist">Çalma listesi kullanılamıyor (%1$s)</string>
     <string name="smart_playlist_summary_clean">açık içerik yok</string>
     <string name="smart_playlist_summary_explicit">açık içerik</string>
@@ -452,7 +449,6 @@
     <string name="discovery_chart_genres">Türler</string>
     <string name="discovery_chart_region">Liste bölgesi: %1$s</string>
     <string name="discovery_chart_days_at_top">Bir numarada geçirilen gün: %1$s</string>
-    <string name="discovery_chart_rank_history">Son sıralamalar: %1$s</string>
     <string name="discovery_chart_save_playlist">Şarkı listesini çalma listesi olarak kaydet</string>
     <string name="discovery_chart_saved">Liste, eşitlenen çalma listesi olarak kaydedildi.</string>
     <string name="discovery_chart_playlist_description">Aurral bu çalma listesini eşitler ve eksik parçaları edinebilir. Kaydetmek tüm parçaların çalınabildiği anlamına gelmez.</string>

@@ -23,7 +23,6 @@
     <string name="player_full_view">Full player</string>
     <string name="player_split_view">Split view</string>
     <string name="player_queue">Queue</string>
-    <string name="home_navibeat_mixes">NAVIBEAT MIXES</string>
     <string name="settings_title">Settings</string>
     <string name="settings_selected_label">Selected</string>
 
@@ -60,10 +59,7 @@
     <string name="common_delete">Delete</string>
     <string name="common_save">Save</string>
     <string name="common_reset">Reset</string>
-    <string name="common_clear">Clear</string>
     <string name="common_choose">Choose</string>
-    <string name="common_import">Import</string>
-    <string name="common_export">Export</string>
     <string name="common_enabled">Enabled</string>
     <string name="common_off">Off</string>
     <string name="common_default">Default</string>
@@ -90,12 +86,6 @@
     <string name="settings_lyrics_subtitle">Download, display, and source order</string>
     <string name="settings_lyrics_download">Online Lyrics</string>
     <string name="settings_lyrics_download_subtitle">Allow lookups from enabled online lyrics services.</string>
-    <string name="settings_lyrics_prefer_synced">Prefer Synced</string>
-    <string name="settings_lyrics_prefer_synced_subtitle">Keep searching until a synced source is found.</string>
-    <string name="settings_lyrics_prefer_word_synced">Prefer Word-Synced</string>
-    <string name="settings_lyrics_prefer_word_synced_subtitle">Keep searching until word-by-word timing is found.</string>
-    <string name="settings_lyrics_timing">Lyrics Timing</string>
-    <string name="settings_lyrics_timing_subtitle">Choose the most detailed timing Naviamp should display.</string>
     <string name="settings_lyrics_timing_first">First Available</string>
     <string name="settings_lyrics_timing_first_subtitle">Use the first lyrics found in your source order.</string>
     <string name="settings_lyrics_timing_plain">Plain</string>
@@ -115,9 +105,6 @@
     <string name="settings_lyrics_display_word_subtitle">Display word-by-word highlighting when it is available.</string>
     <string name="settings_lyrics_search_order">Search Order</string>
     <string name="settings_lyrics_search_order_subtitle">Choose where Naviamp looks for lyrics first.</string>
-    <string name="settings_lyrics_summary_synced_download">Synced, Download</string>
-    <string name="settings_lyrics_summary_synced">Synced</string>
-    <string name="settings_lyrics_summary_word_synced">Word-synced</string>
     <string name="settings_lyrics_summary_download">Online</string>
     <string name="settings_lyrics_summary_display">Display: %1$s</string>
     <string name="lyrics_display_text">Text</string>
@@ -127,28 +114,21 @@
     <string name="settings_lyrics_source_provider_subtitle">Lyrics reported by Navidrome.</string>
     <string name="settings_lyrics_source_embedded">Embedded</string>
     <string name="settings_lyrics_source_embedded_subtitle">Lyrics stored in the audio file.</string>
-    <string name="settings_lyrics_source_download">Download</string>
-    <string name="settings_lyrics_source_download_subtitle">Lyrics from the online lyrics provider.</string>
     <string name="settings_lyrics_source_online">Online</string>
     <string name="settings_lyrics_source_online_subtitle">Try enabled online lyrics services in order.</string>
     <string name="settings_lyrics_drag_source">Reorder lyrics source</string>
-    <string name="settings_experience_empty">Experience controls will appear here as they are added.</string>
     <string name="settings_experience_player_title">Player</string>
     <string name="settings_experience_player_subtitle">Queue behavior, Now Playing, and waveforms</string>
     <string name="settings_experience_related_tracks_title">Radio</string>
     <string name="settings_experience_related_tracks_subtitle">Choose how Radio finds tracks and continues playback.</string>
     <string name="settings_experience_waveforms_title">Waveforms</string>
     <string name="settings_experience_waveforms_subtitle">Track waveforms and detail</string>
-    <string name="settings_related_autoplay_summary">Related, Autoplay</string>
-    <string name="settings_related_summary">Related</string>
-    <string name="settings_autoplay_summary">Autoplay</string>
 
     <string name="settings_about_production">A GoosePod Production</string>
     <string name="settings_about_version_build">%1$s Build %2$s</string>
     <string name="settings_about_libraries_title">Libraries</string>
     <string name="settings_about_fonts_title">Fonts</string>
     <string name="settings_about_audio_title">Audio</string>
-    <string name="settings_about_license_title">GNU General Public License v3.0</string>
     <string name="settings_about_latest_changes_title">Latest Changes</string>
     <string name="settings_about_empty_changelog">Changelog entries will appear here in a future release.</string>
     <string name="settings_about_thanks_title">Thanks</string>
@@ -179,7 +159,6 @@
     <string name="settings_sync_now">Sync now</string>
     <string name="settings_sync_export_local">Export local settings</string>
     <string name="settings_sync_import_provider">Import provider settings</string>
-    <string name="settings_sync_configured">Configured</string>
     <string name="settings_source_saved_count">%1$d saved</string>
     <string name="settings_source_delete_title">Delete Connection</string>
     <string name="settings_source_delete_message">Delete %1$s? This removes the saved server entry.</string>
@@ -271,8 +250,6 @@
     <string name="settings_output_pinned_unavailable">Pinned output unavailable: %1$s. Playback is using the OS default.</string>
     <string name="settings_output_pinned">Pinned</string>
     <string name="settings_output_system_default_device">System Default Device</string>
-    <string name="settings_output_default_suffix"> (Default)</string>
-    <string name="settings_output_selected_suffix"> (Selected)</string>
     <string name="settings_sample_rate_converter_title">Sample Rate Converter</string>
     <string name="settings_sample_rate_converter_subtitle">Resampling quality when rates differ</string>
     <string name="settings_sample_rate_matching_title">Sample Rate Matching</string>
@@ -349,7 +326,6 @@
     <string name="settings_radio_single_artist">single artist</string>
     <string name="settings_radio_artist_blocks">%1$d same / %2$d other</string>
 
-    <string name="settings_related_lyrics_download">Download lyrics for tracks</string>
     <string name="settings_related_sonic_similarity">Sonic Similarity</string>
     <string name="settings_related_sonic_similarity_subtitle">Find similar-sounding tracks using the server’s Sonic Similarity service. Requires server support.</string>
     <string name="settings_related_sonic_autoplay">Radio Autoplay</string>
@@ -371,17 +347,7 @@
     <string name="settings_equalizer_rename_profile_title">Rename EQ profile</string>
     <string name="settings_equalizer_profile_name">Profile name</string>
 
-    <string name="nav_home">Home</string>
-    <string name="nav_playlists">Playlists</string>
-    <string name="nav_library">Library</string>
-    <string name="nav_search">Search</string>
-    <string name="nav_artist_mix">Artist Mix</string>
-    <string name="nav_album_mix">Album Mix</string>
-    <string name="nav_genre_mix">Genre Mix</string>
-    <string name="nav_sonic_path">Sonic Path</string>
     <string name="nav_sonic_mix">Sonic Mix</string>
-    <string name="nav_radio">Radio</string>
-    <string name="nav_downloads">Downloads</string>
     <string name="nav_settings">Settings</string>
 
     <string name="transport_shuffle">Shuffle</string>
@@ -394,10 +360,7 @@
 
     <string name="home_music_title">Home</string>
     <string name="home_empty">Home sections will appear after connection.</string>
-    <string name="home_mixes_for_you">MIXES FOR YOU</string>
     <string name="home_recently_played_radio">Recently Played Radio</string>
-    <string name="home_recent_radio_empty">Start a radio station to build this list.</string>
-    <string name="home_recently_added_music">Recently Added In Music</string>
     <string name="home_recent_playlists">Recent Playlists</string>
     <string name="home_recent_internet_radio">Recent Internet Radio</string>
     <string name="home_recent_albums">Recent Albums</string>
@@ -411,7 +374,6 @@
     <string name="search_title">Search</string>
     <string name="search_music_label">Search music</string>
     <string name="search_searching">Searching...</string>
-    <string name="search_clear">Clear search</string>
     <string name="search_no_matches">No matches found.</string>
     <string name="search_artists">Artists</string>
     <string name="search_albums">Albums</string>
@@ -426,7 +388,6 @@
     <string name="library_search_artists">Search library artists</string>
     <string name="library_search_albums">Search library albums</string>
     <string name="library_search_songs">Search library songs</string>
-    <string name="library_clear_search">Clear library search</string>
     <string name="library_refresh">Refresh</string>
     <string name="library_refreshing">Refreshing...</string>
     <string name="library_no_artists">No library artists found.</string>
@@ -496,7 +457,6 @@
     <string name="mix_build_mix">Build Mix</string>
     <string name="mix_add_to_queue">Add to Queue</string>
     <string name="mix_remove">Remove</string>
-    <string name="mix_seed_tracks">Seed Tracks</string>
     <string name="mix_selected_seed_tracks">Selected Seed Tracks</string>
     <string name="mix_find_seed_tracks">Find Seed Tracks</string>
     <string name="mix_search_results">Search Results</string>
@@ -630,8 +590,6 @@
     <string name="tv_the_name_other_naviamp_devices_see_when_connecting">The name other Naviamp devices see when connecting.</string>
     <string name="tv_stop_pairing">Stop pairing</string>
     <string name="tv_pair_a_controller">Pair a controller</string>
-    <string name="tv_this_tv_is_visible_to_naviamp_controllers_on_your_local_network">This TV is visible to Naviamp controllers on your local network.</string>
-    <string name="tv_make_this_tv_visible_temporarily_to_a_phone_or_desktop_on_the_same_network">Make this TV visible temporarily to a phone or Desktop on the same network.</string>
     <string name="tv_only_approve_if_you_started_pairing_on_this_device">Only approve if you started pairing on this device.</string>
     <string name="tv_approve">Approve</string>
     <string name="tv_reject_request">Reject request</string>
@@ -671,11 +629,8 @@
     <string name="tv_timing_used_in_now_playing">Timing used in Now Playing</string>
     <string name="tv_background">Background</string>
     <string name="tv_choose_the_living_room_backdrop">Choose the living-room backdrop</string>
-    <string name="tv_tune_artwork_derived_colors_for_the_room">Tune artwork-derived colors for the room</string>
     <string name="tv_blur_amount">Blur amount</string>
-    <string name="tv_adjust_how_strongly_the_album_artwork_is_softened">Adjust how strongly the album artwork is softened</string>
     <string name="tv_single_color">Single color</string>
-    <string name="tv_adjust_hue_saturation_and_brightness">Adjust hue, saturation, and brightness</string>
     <string name="tv_waveform_density">Waveform density</string>
     <string name="tv_choose_the_detail_level_of_the_now_playing_waveform">Choose the detail level of the Now Playing waveform</string>
     <string name="tv_include_release_context_in_now_playing">Include release context in Now Playing</string>
@@ -710,7 +665,6 @@
     <string name="tv_direct_setup_description">Connect directly from this TV. Pairing a phone or computer will remain optional.</string>
     <string name="tv_keyboard_navigation_hint">While typing, choose Next on the TV keyboard to advance. Use Back or Esc to close the keyboard.</string>
     <string name="tv_set_up_from_a_phone_or_computer">Set up from a phone or computer</string>
-    <string name="tv_put_this_tv_in_pairing_mode_find_it_from_naviamp_on_the_same_network_and_enter">Put this TV in pairing mode, find it from Naviamp on the same network, and enter the code shown here.</string>
     <string name="tv_show_pairing_code">Show pairing code</string>
     <string name="tv_approve_controller">Approve controller</string>
     <string name="tv_set_up_server">Set up server</string>
@@ -741,7 +695,6 @@
     <string name="tv_nothing_else_is_queued">Nothing else is queued.</string>
     <string name="tv_play_next">Play Next</string>
     <string name="tv_queue_actions">Queue actions</string>
-    <string name="tv_lyrics_are_not_available">Lyrics are not available.</string>
     <string name="tv_repeat_off">Repeat off</string>
     <string name="tv_repeat_all">Repeat all</string>
     <string name="tv_repeat_one">Repeat one</string>
@@ -831,8 +784,6 @@
     <string name="connection_save_and_connect">Save and connect</string>
     <string name="connection_coming_soon">Coming soon</string>
     <string name="connection_connection_error">Connection error</string>
-    <string name="connection_connect_or_enter_credentials_to_load_available_libraries">Connect or enter credentials to load available libraries.</string>
-    <string name="connection_default_library">Default library</string>
     <string name="connection_edit_station">Edit station</string>
     <string name="connection_stream_url">Stream URL</string>
     <string name="connection_home_page_url">Home page URL</string>
@@ -1027,7 +978,6 @@
     <string name="similarity_empty_help">Try another analyzed track. No matches for one track does not prove a configuration problem.</string>
     <string name="similarity_regular">Regular similarity</string>
     <string name="similarity_radio_empty">Radio found no additional tracks.</string>
-    <string name="similarity_radio_failed">The Radio queue could not be built.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
     <string name="similarity_admin_title">Server plugin details</string>
     <string name="similarity_admin_required">Plugin details require administrator access.</string>
@@ -1109,8 +1059,6 @@
     <string name="smart_playlist_summary_predicate">%1$s %2$s</string>
     <string name="smart_playlist_summary_range">%1$s – %2$s</string>
     <string name="smart_playlist_summary_reference_context">%1$s (%2$s)</string>
-    <string name="smart_playlist_summary_ascending">%1$s (ascending)</string>
-    <string name="smart_playlist_summary_descending">%1$s (descending)</string>
     <string name="smart_playlist_summary_unavailable_playlist">Unavailable playlist (%1$s)</string>
     <string name="smart_playlist_summary_clean">clean</string>
     <string name="smart_playlist_summary_explicit">explicit</string>
@@ -1307,7 +1255,6 @@
     <string name="discovery_chart_genres">Genres</string>
     <string name="discovery_chart_region">Chart region: %1$s</string>
     <string name="discovery_chart_days_at_top">Days at number one: %1$s</string>
-    <string name="discovery_chart_rank_history">Recent ranks: %1$s</string>
     <string name="discovery_chart_save_playlist">Save songs chart as playlist</string>
     <string name="discovery_chart_saved">Chart saved as a synced playlist.</string>
     <string name="discovery_chart_playlist_description">Aurral syncs this playlist and may acquire missing tracks. Saving does not mean all tracks are playable.</string>
