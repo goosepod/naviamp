@@ -332,3 +332,34 @@ and a new observed comparison remain required; #454 is open.
 
 Private local copies: `/private/tmp/naviamp-454-instrumented-20261110` and
 `/private/tmp/naviamp-454-prior-diagnosis-20261110`. Raw recordings and profiles are not committed.
+
+## November 10 follow-up and post-boot readiness candidate
+
+Observed run [42858007591](https://github.com/goosepod/naviamp/actions/runs/42858007591)
+passes all 17 native cases on diagnostic source `0a5374e0c`; native execution takes 7.823 seconds.
+It is not a fix result. Before/after snapshots report 174.19 MiB swap in use and 58%/55% free
+memory. The post-run inventory contains one booted verification simulator. The pre-run inventory
+RPC exceeds its requested five-second subprocess timeout and returns after 11.384 seconds; that
+unavailable observation is retained, not interpreted as an empty inventory. This passing control
+does not establish what the host was doing during the earlier failed request.
+
+There is a concrete readiness gap in the test staging: expensive certificate/TLS setup is checked
+before simulator boot, but no owned dependency check follows that resource-intensive lifecycle.
+The failed trace shows that initial readiness does not guarantee prompt later control responses.
+The candidate retains certificate generation before boot and rechecks the exact owned fixture
+manifest **after boot, before native testing**. Both ordinary Verify and independent cold replays
+call one shared readiness owner in `mobile-mtls-fixture.py`.
+
+This is bounded dependency provisioning, not a retry of native tests. Each host request has at most
+five seconds within the existing 180-second setup budget; transient transport failures are retained
+in a fresh JSON report, while a different fixture identity fails immediately. Expired provisioning
+fails the job before acceptance. There is no heartbeat during native execution, profiler dependency,
+bootstrap shortcut, authentication retry, or change to the native ten-/25-second deadlines,
+positive/negative assertions, clock/seek checks or complete binary inventory. The native client must
+still fetch and verify its live manifest independently through its actual Apple HTTP engine.
+
+All 92 helper tests pass, including transport recovery within setup, budget exhaustion, immediate
+wrong-identity refusal, retained evidence and lifecycle order. YAML parses successfully. This remains
+a candidate correction to the staging gap, not a claim to have repaired the underlying OS/JVM
+scheduling mechanism. Acceptance requires the exact-head complete matrix and three independent
+17-case native suites without JVM flight recording. Earlier passing/failed controls remain preserved.
