@@ -51,9 +51,9 @@ class NaviampAboutUiTest {
 
         onNodeWithText("Changelog").assertIsDisplayed().performClick()
         onNodeWithText("Latest Changes").assertIsDisplayed()
-        onNodeWithText("Connect to certificate-protected servers on every platform: import password-protected PKCS12 client identities and private server authorities into app storage for browsing, artwork and uncached playback, including seeking on range-capable streams.").assertIsDisplayed()
-        onNodeWithText("Find playlists you created that contain an artist directly on the artist page, with an optional section controlled in Experience settings.").assertIsDisplayed()
-        onNodeWithText("Build smart playlists with named playlist references, readable rule summaries without JSON syntax, owner-aware explanations, and simpler Options and Advanced sections.").assertIsDisplayed()
+        onNodeWithText("Browse a dedicated Aurral hub with full Recommendations and Search pages, related artists, releases and editions, track previews, Trending charts and genre blocking. Track requests through waiting-for-release, acquisition and validated Library availability, including after reconnecting.").assertIsDisplayed()
+        onNodeWithText("Install the Linux app as an official signed x86_64 Flatpak, with repository-managed updates and private application storage.").assertIsDisplayed()
+        onNodeWithText("Choose square album artwork corners and an artwork layout that fills the Now Playing artwork area. The shared settings follow export, import and sync.").assertIsDisplayed()
         val roots = onAllNodes(isRoot())
         var rendered: androidx.compose.ui.graphics.ImageBitmap? = null
         waitUntil(timeoutMillis = 5_000) {
@@ -64,17 +64,17 @@ class NaviampAboutUiTest {
             } else false
         }
         writeAboutReleaseImage(requireNotNull(rendered))
-        onNodeWithText("Show or hide Top Tracks on artist pages and choose a maximum of 5–50 tracks in steps of five. The default remains 10 tracks. Choose separate List/Grid layouts for playlists and Appears on albums; appearance tracks stay in a list.")
+        onNodeWithText("Stop the old stream immediately when manually skipping to a track that takes time to load.")
             .performScrollTo().assertIsDisplayed()
-        onNodeWithText("Prevent Android playback recovery from crashing when foreground-service startup races with a stopped track or is rejected in the background.")
+        onNodeWithText("Save the final paused playback position so a later restart restores the current checkpoint.")
             .performScrollTo().assertIsDisplayed()
-        onNodeWithText("Keep Library search controls stationary and preserve server matches for accented names, aliases and metadata across Artists, Albums and Songs without refreshing the library. Clearing a search restores the previous browse list.")
+        onNodeWithText("The local database upgrades automatically to store Aurral request history. Existing connections, settings and album playback profiles are retained.")
             .performScrollTo().assertIsDisplayed()
-        onNodeWithText("Import certificates separately on each device for certificate-protected connections; private certificate files and identity passwords are not transferred by settings sync.")
+        onNodeWithText("The signed Flatpak currently packages v2.10.0. Its v2.11.0 update is pending access to the existing signing environment; use the direct Linux download for v2.11.0 until that update is published.")
             .performScrollTo().assertIsDisplayed()
-        onNodeWithText("Authenticated streams from servers without finite byte-range support or provider time offsets retain buffered-seeking limitations.")
+        onNodeWithText("Android TV playback can restart after a stream failure or Wi-Fi interruption. Authenticated streams without finite byte ranges or provider time offsets retain buffered-seeking limitations.")
             .performScrollTo().assertIsDisplayed()
-        onNodeWithText("Known issues").assertIsDisplayed()
+        onNodeWithText("Known issues").performScrollTo().assertIsDisplayed()
     }
 }
 
@@ -96,7 +96,7 @@ private fun writeAboutReleaseImage(image: androidx.compose.ui.graphics.ImageBitm
     val pixels = image.toPixelMap()
     val output = java.awt.image.BufferedImage(pixels.width, pixels.height, java.awt.image.BufferedImage.TYPE_INT_ARGB)
     for (y in 0 until pixels.height) for (x in 0 until pixels.width) output.setRGB(x, y, pixels[x, y].toArgb())
-    val file = java.io.File("build/reports/release-2.10/about-changelog.png")
+    val file = java.io.File("build/reports/release-2.11/about-changelog.png")
     file.parentFile.mkdirs()
     javax.imageio.ImageIO.write(output, "png", file)
 }
