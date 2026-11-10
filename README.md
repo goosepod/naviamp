@@ -15,10 +15,10 @@ Navidrome project.
 
 ## Get Naviamp
 
-Download for macOS from the [Mac App Store](https://apps.apple.com/app/naviamp-music-player/id6821135881)
+Download for macOS from the [Mac App Store](https://apps.apple.com/app/naviamp-music-player/id6821135881?platform=mac)
 or for Windows from the [Microsoft Store](https://apps.microsoft.com/detail/9PCFJ644LXLL).
 
-Find standalone downloads and release notes on [GitHub Releases](https://github.com/goosepod/naviamp/releases).
+Find the latest standalone downloads and release notes on [GitHub Releases](https://github.com/goosepod/naviamp/releases/latest).
 
 Beta builds are available through TestFlight for [macOS](https://testflight.apple.com/join/vZ48sYNh) and
 [iOS](https://testflight.apple.com/join/efbB6TFd).
@@ -29,7 +29,8 @@ and share feedback.
 ### Linux Flatpak
 
 Install the official Linux x86_64 Flatpak from Naviamp's signed GitHub Pages repository.
-The first package contains the public v2.10.0 app, including Java, and runs on X11 or XWayland.
+The signed package currently contains v2.10.0, including Java, and runs on X11 or XWayland.
+The v2.11.0 Flatpak update is pending signing; direct Linux downloads already contain v2.11.0.
 [Bundles, checksums and release information](https://github.com/goosepod/naviamp-flatpak/releases)
 are hosted on GitHub Releases. A Flathub listing is not required; Flathub supplies the
 Freedesktop runtime. Linux DEB, RPM, and portable ZIP downloads remain on
@@ -256,14 +257,14 @@ Naviamp is available for macOS, Windows, Linux, and Android. Try the iPhone/iPad
 [TestFlight](https://testflight.apple.com/join/efbB6TFd). An unsigned arm64 IPA is also available for
 users who can provide their own signing.
 
-Get Naviamp for macOS from the [Mac App Store](https://apps.apple.com/app/naviamp-music-player/id6821135881).
+Get Naviamp for macOS from the [Mac App Store](https://apps.apple.com/app/naviamp-music-player/id6821135881?platform=mac).
 
-Get Naviamp for Windows from the [Microsoft Store](https://apps.microsoft.com/detail/9pcfj644lxll?hl=en-US&gl=US).
+Get Naviamp for Windows from the [Microsoft Store](https://apps.microsoft.com/detail/9PCFJ644LXLL).
 
 Store and beta channels can carry different versions and have separate review or tester eligibility
 requirements. A GitHub release does not automatically update any store.
 
-Direct downloads for all available platforms are on [GitHub Releases](https://github.com/goosepod/naviamp/releases).
+Direct downloads for all available platforms are on [GitHub Releases](https://github.com/goosepod/naviamp/releases/latest).
 Windows and macOS desktop packages downloaded from GitHub are not publisher-signed and may show
 an operating-system warning. The Windows installers on GitHub install only for the current user
 and do not require administrator permission. See the
@@ -334,7 +335,7 @@ make android-debug
   App Bundle; see [Android distribution](docs/android-distribution.md).
 - Windows and Linux standalone/installer targets must run on their respective operating systems.
 
-Release operators should use the [v2.10.0 distribution handoff](docs/releases/v2.10.0-readiness.md)
+Release operators should use the [v2.11.0 distribution handoff](docs/releases/v2.11.0-readiness.md)
 for exact packages, signing and remaining store gates.
 
 The complete test matrix is documented in [Testing Naviamp](docs/testing.md). The shared
