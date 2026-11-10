@@ -274,3 +274,61 @@ explicit manual diagnostic inputs enable the recorder. The three corrective cold
 therefore pass without the profiler affecting fixture residency or scheduling; the separately
 pinned recorder-only comparison retains its instrumentation. Loopback packet metadata remains
 available on the acceptance run, as on the previously captured failures.
+
+## November 10: reproduced on accepted main with packet and JVM evidence
+
+Manual [Verify 42851514504](https://github.com/goosepod/naviamp/actions/runs/42851514504)
+tests accepted main `8bc75ad9f14b64750a1fa78c960908fecdf7d211` with the existing
+`ios_fixture_packet_diagnostic=true` input. All other standard platform jobs pass; native iOS
+executes the complete 17-case inventory with 16 passes and one fixture-bootstrap timeout.
+TLS has not started and the initial main-queue callback has completed. This independently
+reproduces #454 on accepted main, outside the visualizer draft. No unchanged retry is requested.
+
+The retained `ios-test-reports` artifact includes packet metadata and the fixture's bounded
+Java Flight Recording. Times below are the runner's local November 10 clock (UTC−08:00):
+
+| Event | Time | Evidence |
+| --- | --- | --- |
+| Native client sends 175-byte bootstrap request | 08:29:41.593486 | Loopback packet metadata |
+| Host acknowledges request | 08:29:41.593559 | Loopback packet metadata |
+| JVM control dispatcher starts its recorded socket read | 08:29:46.923142 | JFR, 175 bytes read in 80.767 ms |
+| Native client cancels | 08:29:50.827204 | Loopback packet metadata |
+| JVM starts recorded 79-byte response write | 08:29:58.258428 | JFR, 236.372 ms write |
+| First server response bytes reach loopback | 08:29:58.494698 | Loopback packet metadata |
+
+The first response is **16.901212 seconds** after the request. The fixture's HTTP dispatcher
+(Java thread 36) is sampled accepting/registering the connection, parsing headers, constructing
+the exchange, formatting response headers and linking method handles during the delayed interval.
+This is positive evidence of slow host-side request processing, rather than only a post-failure
+idle-thread dump. The fixture recording contains one 1.900 ms GC at 08:25:32, and no recorded
+fixture GC overlapping the request. Its reported whole-machine CPU load is 1.0 throughout the
+request interval, while the fixture JVM's normalized CPU fractions are small. These counters and
+sparse samples do not establish whether OS scheduling, paging, other simulator activity or another
+host constraint causes the delay. In particular, a sampled formatter/method-handle stack does not
+prove that cold initialization alone is the cause: host readiness had already served bootstrap.
+
+The older recorder-only run 42358080227 is also retained and reviewed. With its fixed binary per
+daemon condition, all four single-use-daemon suites pass (68 case executions). Under the retained
+daemon condition both aged suites fail bootstrap and both fresh suites pass (66 passing and two
+failing case executions). Those binaries predate the later readiness correction and are not
+binary-identical across conditions or to this November 10 failure. The old comparison supports
+continuing resource diagnosis; it does not establish the latest recurrence's cause or a fix.
+
+### Next diagnostic increment
+
+The existing opt-in packet observer now captures bounded host memory, swap, pressure, numeric
+process resource counters/executable names, and booted-simulator inventory immediately before
+and after the native command. Each observation records its own wall-clock start and elapsed time;
+each subprocess has a five-second bound and an unavailable observation cannot replace the native
+result. It records no process argument vectors, environment variables, credentials or profiles.
+Snapshots are included only with the existing opt-in packet capture; ordinary Verify is unchanged.
+
+The additional snapshots are observations, not a resource or production fix. They can affect
+fixture age and host activity, so any passing observed run remains scoped diagnostic evidence.
+The bootstrap/authentication/playback deadlines, negative checks, binary inventory and assertion
+set remain unchanged. Tests cover bounded unavailable snapshots, preservation of a failing native
+exit code, and absence of snapshots during ordinary execution. Exact-source hosted validation
+and a new observed comparison remain required; #454 is open.
+
+Private local copies: `/private/tmp/naviamp-454-instrumented-20261110` and
+`/private/tmp/naviamp-454-prior-diagnosis-20261110`. Raw recordings and profiles are not committed.

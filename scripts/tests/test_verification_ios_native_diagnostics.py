@@ -14,6 +14,37 @@ HELPER = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'ios-native-te
 
 
 class NativeDiagnosticOwnershipTest(unittest.TestCase):
+    def test_ordinary_native_execution_does_not_run_host_snapshots(self):
+        with tempfile.TemporaryDirectory() as directory:
+            arguments = ['diagnostics', '--executable', str(Path(directory) / 'test.kexe'),
+                         '--output', directory, '--', 'native-command']
+            with patch.object(sys, 'argv', arguments), \
+                    patch.dict(HELPER['main'].__globals__, observe=lambda *args: 7), \
+                    patch.dict(HELPER['main'].__globals__, host_resources=lambda *args: self.fail('Not diagnostic')):
+                self.assertEqual(7, HELPER['main']())
+
+    def test_unavailable_host_snapshots_are_bounded_and_keep_the_native_failure(self):
+        @contextmanager
+        def packets(*args):
+            yield
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            arguments = ['diagnostics', '--executable', str(output / 'test.kexe'),
+                         '--fixture-bootstrap', str(output / 'fixture.bootstrap'),
+                         '--output', str(output), '--capture-loopback', '--', 'native-command']
+            with patch.object(sys, 'argv', arguments), \
+                    patch.dict(HELPER['main'].__globals__, observe=lambda *args: 7), \
+                    patch('runpy.run_path', return_value={'packets': packets}), \
+                    patch('subprocess.run', side_effect=subprocess.TimeoutExpired(['snapshot'], 5)) as run:
+                self.assertEqual(7, HELPER['main']())
+            self.assertEqual(10, run.call_count)
+            self.assertTrue(all(call.kwargs['timeout'] == 5 for call in run.call_args_list))
+            for stage in ('before-native', 'after-native'):
+                timing = json.loads((output / f'host-{stage}-timing.json').read_text())
+                self.assertTrue(all(item['unavailable'] == 'TimeoutExpired' for item in timing.values()))
+            self.assertEqual({'exitCode': 7}, json.loads((output / 'native-command-result.json').read_text()))
+
     def test_slow_process_inventory_is_bounded_and_does_not_abort_observation(self):
         with patch('subprocess.check_output', side_effect=subprocess.TimeoutExpired(['ps'], 5)) as inventory:
             self.assertEqual(set(), HELPER['processes']('/owned/test.kexe'))
@@ -32,6 +63,7 @@ class NativeDiagnosticOwnershipTest(unittest.TestCase):
                          '--output', str(output), '--capture-loopback', '--', 'native-command']
             with patch.object(sys, 'argv', arguments), \
                     patch.dict(HELPER['main'].__globals__, observe=lambda *args: 7), \
+                    patch.dict(HELPER['main'].__globals__, host_resources=lambda *args: None), \
                     patch('runpy.run_path', return_value={'packets': observer}):
                 with self.assertRaisesRegex(RuntimeError, 'observer cleanup failed'):
                     HELPER['main']()
