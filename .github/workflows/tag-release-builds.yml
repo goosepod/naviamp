@@ -311,7 +311,9 @@ jobs:
     needs:
       - version
     runs-on: macos-latest
-    timeout-minutes: 45
+    # v2.10.0 already used almost 45 minutes; allow cold optimized linking and upload margin.
+    # Functional/native assertion deadlines remain in the separate verification workflow.
+    timeout-minutes: 90
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
