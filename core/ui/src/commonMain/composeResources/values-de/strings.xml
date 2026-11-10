@@ -199,7 +199,7 @@
     <string name="settings_lyrics_source_embedded">Eingebettet</string>
     <string name="settings_lyrics_source_embedded_subtitle">Liedtext in der Audiodatei gespeichert.</string>
     <string name="settings_lyrics_source_online">Online</string>
-    <string name="settings_lyrics_source_online_subtitle">Aktivierte Lyrics-Anbieter der Reeihe nach probieren.</string>
+    <string name="settings_lyrics_source_online_subtitle">Aktivierte Lyrics-Anbieter der Reihe nach probieren.</string>
     <string name="settings_lyrics_drag_source">Liedtextquelle neu anordnen</string>
     <string name="settings_experience_player_title">Player</string>
     <string name="settings_experience_player_subtitle">Wiedergabewarteschlange, aktuelle Wiedergabe und Wellenformen.</string>
