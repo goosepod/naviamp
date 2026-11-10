@@ -174,6 +174,11 @@ def replay(root, output, runs, fresh=False):
                 with (run / 'boot.log').open('w') as boot_log:
                     subprocess.run(['xcrun', 'simctl', 'bootstatus', device, '-b'], check=True,
                                    stdout=boot_log, stderr=subprocess.STDOUT, timeout=300)
+                stage = 'post-boot fixture readiness'
+                with (run / 'post-boot-readiness.log').open('w') as readiness_log:
+                    subprocess.run(['python3', 'scripts/mobile-mtls-fixture.py', 'await-ready', str(bootstrap),
+                                    '--readiness-report', str(run / 'post-boot-readiness.json')],
+                                   cwd=root, check=True, stdout=readiness_log, stderr=subprocess.STDOUT, timeout=200)
                 stage = 'native execution'
                 env = os.environ.copy()
                 env['SIMCTL_CHILD_NAVIAMP_MTLS_FIXTURE_BOOTSTRAP'] = bootstrap.read_text()

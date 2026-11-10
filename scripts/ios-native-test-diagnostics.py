@@ -33,6 +33,32 @@ def processes(executable):
         return set()
 
 
+def host_resources(output, stage):
+    """Manual diagnostics only; retain bounded observations without changing native results."""
+    commands = {
+        'memory': ['vm_stat'],
+        'swap': ['sysctl', 'vm.swapusage'],
+        'pressure': ['memory_pressure', '-Q'],
+        # Executable names and numeric resource counters, never arguments or environment.
+        'processes': ['ps', '-axo', 'pid=,ppid=,pcpu=,rss=,comm='],
+        'booted-simulators': ['xcrun', 'simctl', 'list', 'devices', 'booted', '--json'],
+    }
+    results = {}
+    for name, command in commands.items():
+        started = time.monotonic()
+        wall_started = time.time()
+        with (output / f'host-{stage}-{name}.log').open('w') as log:
+            try:
+                result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, timeout=5)
+                results[name] = {'exitCode': result.returncode}
+            except (OSError, subprocess.TimeoutExpired) as error:
+                log.write(f'Diagnostic unavailable: {error}\n')
+                results[name] = {'unavailable': type(error).__name__}
+        results[name]['seconds'] = time.monotonic() - started
+        results[name]['startedUnixSeconds'] = wall_started
+    (output / f'host-{stage}-timing.json').write_text(json.dumps(results, indent=2))
+
+
 def owns_fixture(command, bootstrap):
     try:
         arguments = shlex.split(command)
@@ -125,10 +151,15 @@ def main():
     if args.capture_loopback:
         helper = runpy.run_path(str(Path(__file__).with_name('diagnose-ios-fixture-lifetime.py')))
         scope = helper['packets'](args.fixture_bootstrap, args.output / 'loopback-packets.log')
-    with scope:
-        result = observe(command, str(args.executable.resolve()), args.output, args.fixture_bootstrap)
-        # Retain the actual command result even if diagnostic observer teardown fails afterward.
-        (args.output / 'native-command-result.json').write_text(json.dumps({'exitCode': result}))
+        host_resources(args.output, 'before-native')
+    try:
+        with scope:
+            result = observe(command, str(args.executable.resolve()), args.output, args.fixture_bootstrap)
+            # Retain the actual command result even if diagnostic observer teardown fails afterward.
+            (args.output / 'native-command-result.json').write_text(json.dumps({'exitCode': result}))
+    finally:
+        if args.capture_loopback:
+            host_resources(args.output, 'after-native')
     return result
 
 

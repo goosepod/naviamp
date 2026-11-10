@@ -94,3 +94,47 @@ its earlier successful suite; the change does not weaken the three-suite verific
 References: [Kotlin native compilation guidance](https://kotlinlang.org/docs/native-improving-compilation-time.html),
 [Gradle setup and external caching](https://github.com/gradle/actions/blob/main/docs/setup-gradle.md),
 [GitHub cache scope](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching).
+
+## Accepted hosted cold/warm measurement — November 10
+
+Follow-up #556 merges at `d281f2b0de3db72e0b3538a1a2eca4ac737c17db` after its exact-head full
+matrix passes. Matched [benchmark 42858817970](https://github.com/goosepod/naviamp/actions/runs/42858817970)
+then completes on two fresh hosted runners at that same source. Both compatibility identities are
+ARM64, Kotlin 2.3.21, Xcode 26.6 build 17F113, simulator/device SDK 23F81a, runner image
+macos26/20261102.0473.1 and the same Gradle wrapper digest.
+
+| Measurement | Cold stage | Warm stage |
+| --- | ---: | ---: |
+| Complete benchmark job, excluding queue | 20m32s | 12m11s |
+| Gradle compile/common-test workload | 977.827s | 331.104s |
+| Native fixture/simulator provisioning and execution | 150.389s | 243.706s |
+| Cache restore action | skipped restoration; 7s setup | 94s |
+| Gradle/native archive saves | 38s + 17s | no save |
+| Task outcomes | 153 executed; no cache hits | 105 executed; 39 from cache; 9 up to date |
+
+Complete-job time falls by **8m21s (40.7%)** in this one matched pair, including the measured
+save/restore cost. The Gradle stage falls by 66.1%; native provisioning is slower in the warm
+sample and is included in the net result. Queue wait is excluded from both job durations. This is
+not a repeated performance guarantee or a measured percentage for the entire production Verify
+workflow: Xcode app/archive and Keychain work are not part of this benchmark workload.
+
+The cold stage deliberately restores nothing. The warm stage requires and restores the exact
+two cold-stage archives whose generation suffix is
+`d281f2b0de3db72e0b3538a1a2eca4ac737c17db-42858817970`, with compatibility prefix
+`naviamp-ios-v1-28efd75b2926e87235709b65`. Compressed archive sizes are **1,250,993,482 bytes**
+for Gradle and **415,629,552 bytes** for Kotlin/Native (1.67 GB total). The recorded uncompressed
+directories are approximately 2.37/2.40 GB Gradle and 2.18 GB native. No cross-toolchain fallback
+or restored test-result directory is used.
+
+Both stages execute the identical **2,512 common test cases across 342 reports**, with zero
+failures/errors/skips, and a fresh **17-case native TLS/BASS suite**, also zero failures/errors/skips.
+Every common test task with real reports executes instead of returning from cache/up-to-date;
+the empty application-host test task remains explicitly skipped. Native executions carry fresh
+inventories/results and their own verified executable hashes. The independently linked native
+binaries have different hashes; no binary-identical comparison is claimed.
+
+The complete hosted artifacts, exact restore records, compatibility JSON, task counts, native
+execution records and Actions cache inventory establish the cache acceptance for #512. The
+independent fixture reliability issue #454 remains open. Private audited copies are retained in
+`/private/tmp/naviamp-cache-cold-20261110`, `/private/tmp/naviamp-cache-warm-20261110` and
+`/private/tmp/naviamp-cache-inventory-20261110.json`.
