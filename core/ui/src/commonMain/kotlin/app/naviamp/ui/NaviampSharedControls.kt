@@ -311,6 +311,7 @@ fun SharedTransportControls(
             onClick = onRepeat ?: {},
             enabled = onRepeat != null,
             selected = repeatEnabled,
+            inactive = !repeatEnabled,
             size = sideSize,
         )
     }
@@ -324,6 +325,7 @@ private fun TransportIconButton(
     onClick: () -> Unit,
     enabled: Boolean = true,
     selected: Boolean = false,
+    inactive: Boolean = false,
     size: Dp = 46.dp,
 ) {
     NaviampTooltip(contentDescription, colors) {
@@ -337,6 +339,7 @@ private fun TransportIconButton(
                     when {
                         !enabled -> colors.controlSurface.copy(alpha = 0.55f)
                         selected -> colors.primaryText
+                        inactive -> colors.controlSurface
                         else -> colors.accent
                     },
                 ),
@@ -346,6 +349,7 @@ private fun TransportIconButton(
                 contentDescription = contentDescription,
                 tint = when {
                     !enabled -> colors.mutedText
+                    inactive -> naviampTransportIconTint(colors, enabled = true, inactive = true)
                     selected -> colors.background
                     else -> colors.onAccent
                 },

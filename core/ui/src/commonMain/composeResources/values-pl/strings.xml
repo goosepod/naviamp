@@ -43,10 +43,7 @@
     <string name="common_delete">Usuń</string>
     <string name="common_save">Zapisz</string>
     <string name="common_reset">Resetuj</string>
-    <string name="common_clear">Wyczyść</string>
     <string name="common_choose">Wybierz</string>
-    <string name="common_import">Importuj</string>
-    <string name="common_export">Eksportuj</string>
     <string name="common_enabled">Włączone</string>
     <string name="common_off">Wyłączone</string>
     <string name="common_default">Domyślne</string>
@@ -64,12 +61,6 @@
     <string name="settings_lyrics_subtitle">Pobieranie, wyświetlanie i kolejność źródeł</string>
     <string name="settings_lyrics_download">Teksty online</string>
     <string name="settings_lyrics_download_subtitle">Zezwalaj na wyszukiwanie w włączonych serwisach z tekstami piosenek.</string>
-    <string name="settings_lyrics_prefer_synced">Preferuj Zsynchronizowane</string>
-    <string name="settings_lyrics_prefer_synced_subtitle">Wyszukuj aż zsynchronizowane źródło zostanie znalezione.</string>
-    <string name="settings_lyrics_prefer_word_synced">Preferuj zsynchronizowane do słów</string>
-    <string name="settings_lyrics_prefer_word_synced_subtitle">Szukaj aż synchronizacja słowo w słowo zostanie znaleziona.</string>
-    <string name="settings_lyrics_timing">Dopasowanie czasowe tekstu</string>
-    <string name="settings_lyrics_timing_subtitle">Wybierz najbardziej szczegółowy poziom synchronizacji tekstu.</string>
     <string name="settings_lyrics_timing_first">Pierwsze Dostępne</string>
     <string name="settings_lyrics_timing_first_subtitle">Użyj pierwszego znalezionego tekstu z twoich źródeł.</string>
     <string name="settings_lyrics_timing_plain">Zwykłe</string>
@@ -83,15 +74,11 @@
     <string name="settings_lyrics_display_timing">Prezentacja synchronizacji</string>
     <string name="settings_lyrics_display_timing_subtitle">Wybierz jak zapisane teksty piosenek są pokazywane podczas odtwarzania.</string>
     <string name="settings_lyrics_search_order_subtitle">Wybierz gdzie Naviamp szuka tekstów w pierwszej kolejności.</string>
-    <string name="settings_lyrics_summary_synced">Zsynchronizowane</string>
-    <string name="settings_related_summary">Powiązane</string>
-    <string name="settings_autoplay_summary">Autoodtwarzanie</string>
     <string name="settings_about_production">Twórczość GoosePod</string>
     <string name="settings_about_version_build">%1$s Wersja %2$s</string>
     <string name="settings_about_libraries_title">Biblioteki</string>
     <string name="settings_about_fonts_title">Czcionki</string>
     <string name="settings_about_audio_title">Dźwięk</string>
-    <string name="settings_about_license_title">GNU General Public License v3.0</string>
     <string name="settings_about_latest_changes_title">Ostatnie zmiany</string>
     <string name="settings_about_empty_changelog">Historia zmian pojawi się tutaj w przyszłej wersji.</string>
     <string name="settings_about_thanks_title">Dzięki</string>
@@ -121,7 +108,6 @@
     <string name="settings_sync_now">Synchronizuj teraz</string>
     <string name="settings_sync_export_local">Eksportuj ustawienia lokalne</string>
     <string name="settings_sync_import_provider">Importuj ustawienia dostawcy</string>
-    <string name="settings_sync_configured">Zkonfigurowano</string>
     <string name="settings_source_saved_count">%1$d zapisano</string>
     <string name="settings_source_delete_title">Usuń połączenie</string>
     <string name="settings_source_delete_message">Usunąć %1$s? Spowoduje to usunięcie zapisanego serwera.</string>
@@ -283,7 +269,6 @@
     <string name="similarity_empty_help">Spróbuj innego przeanalizowanego utworu. Brak dopasowań dla jednego utworu nie dowodzi błędu konfiguracji.</string>
     <string name="similarity_regular">Zwykłe podobieństwo</string>
     <string name="similarity_radio_empty">Radio nie znalazło dodatkowych utworów.</string>
-    <string name="similarity_radio_failed">Nie można utworzyć kolejki radia.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
     <string name="similarity_admin_title">Szczegóły wtyczek serwera</string>
     <string name="similarity_admin_required">Szczegóły wtyczek wymagają uprawnień administratora.</string>
@@ -371,8 +356,6 @@
     <string name="smart_playlist_summary_predicate">%1$s %2$s</string>
     <string name="smart_playlist_summary_range">%1$s – %2$s</string>
     <string name="smart_playlist_summary_reference_context">%1$s (%2$s)</string>
-    <string name="smart_playlist_summary_ascending">%1$s (rosnąco)</string>
-    <string name="smart_playlist_summary_descending">%1$s (malejąco)</string>
     <string name="smart_playlist_summary_unavailable_playlist">Playlista niedostępna (%1$s)</string>
     <string name="smart_playlist_summary_clean">bez treści niecenzuralnych</string>
     <string name="smart_playlist_summary_explicit">niecenzuralne</string>
@@ -571,7 +554,6 @@
     <string name="discovery_chart_genres">Gatunki</string>
     <string name="discovery_chart_region">Region listy: %1$s</string>
     <string name="discovery_chart_days_at_top">Dni na pierwszym miejscu: %1$s</string>
-    <string name="discovery_chart_rank_history">Ostatnie pozycje: %1$s</string>
     <string name="discovery_chart_save_playlist">Zapisz listę przebojów jako playlistę</string>
     <string name="discovery_chart_saved">Zapisano listę jako synchronizowaną playlistę.</string>
     <string name="discovery_chart_playlist_description">Aurral synchronizuje tę playlistę i może pobrać brakujące utwory. Zapisanie nie oznacza, że wszystkie utwory można odtworzyć.</string>

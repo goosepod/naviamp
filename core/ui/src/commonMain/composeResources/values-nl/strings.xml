@@ -164,7 +164,6 @@
     <string name="similarity_empty_help">Probeer een ander geanalyseerd nummer. Geen overeenkomsten voor één nummer bewijst geen configuratieprobleem.</string>
     <string name="similarity_regular">Gewone gelijkenis</string>
     <string name="similarity_radio_empty">Radio vond geen extra nummers.</string>
-    <string name="similarity_radio_failed">De Radio-wachtrij kon niet worden gemaakt.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
     <string name="similarity_admin_title">Serverplugindetails</string>
     <string name="similarity_admin_required">Plugindetails vereisen beheerderstoegang.</string>
@@ -252,8 +251,6 @@
     <string name="smart_playlist_summary_predicate">%1$s %2$s</string>
     <string name="smart_playlist_summary_range">%1$s – %2$s</string>
     <string name="smart_playlist_summary_reference_context">%1$s (%2$s)</string>
-    <string name="smart_playlist_summary_ascending">%1$s (oplopend)</string>
-    <string name="smart_playlist_summary_descending">%1$s (aflopend)</string>
     <string name="smart_playlist_summary_unavailable_playlist">Afspeellijst niet beschikbaar (%1$s)</string>
     <string name="smart_playlist_summary_clean">niet expliciet</string>
     <string name="smart_playlist_summary_explicit">expliciet</string>
@@ -452,7 +449,6 @@
     <string name="discovery_chart_genres">Genres</string>
     <string name="discovery_chart_region">Hitlijstregio: %1$s</string>
     <string name="discovery_chart_days_at_top">Dagen op nummer één: %1$s</string>
-    <string name="discovery_chart_rank_history">Recente posities: %1$s</string>
     <string name="discovery_chart_save_playlist">Hitlijst als afspeellijst opslaan</string>
     <string name="discovery_chart_saved">Hitlijst opgeslagen als gesynchroniseerde afspeellijst.</string>
     <string name="discovery_chart_playlist_description">Aurral synchroniseert deze afspeellijst en kan ontbrekende nummers ophalen. Opslaan betekent niet dat alle nummers afspeelbaar zijn.</string>

@@ -164,7 +164,6 @@
     <string name="similarity_empty_help">请尝试另一首已分析的歌曲。一首歌曲没有匹配项并不能证明配置有问题。</string>
     <string name="similarity_regular">常规相似度</string>
     <string name="similarity_radio_empty">电台未找到更多歌曲。</string>
-    <string name="similarity_radio_failed">无法构建电台队列。</string>
     <string name="similarity_protocol_codes">HTTP：%1$s；API：%2$s</string>
     <string name="similarity_admin_title">服务器插件详情</string>
     <string name="similarity_admin_required">查看插件详情需要管理员权限。</string>
@@ -252,8 +251,6 @@
     <string name="smart_playlist_summary_predicate">%1$s %2$s</string>
     <string name="smart_playlist_summary_range">%1$s – %2$s</string>
     <string name="smart_playlist_summary_reference_context">%1$s (%2$s)</string>
-    <string name="smart_playlist_summary_ascending">%1$s（升序）</string>
-    <string name="smart_playlist_summary_descending">%1$s（降序）</string>
     <string name="smart_playlist_summary_unavailable_playlist">播放列表不可用（%1$s）</string>
     <string name="smart_playlist_summary_clean">无露骨内容</string>
     <string name="smart_playlist_summary_explicit">露骨内容</string>
@@ -452,7 +449,6 @@
     <string name="discovery_chart_genres">流派</string>
     <string name="discovery_chart_region">榜单地区：%1$s</string>
     <string name="discovery_chart_days_at_top">位居榜首天数：%1$s</string>
-    <string name="discovery_chart_rank_history">近期排名：%1$s</string>
     <string name="discovery_chart_save_playlist">将歌曲榜单保存为播放列表</string>
     <string name="discovery_chart_saved">榜单已保存为同步播放列表。</string>
     <string name="discovery_chart_playlist_description">Aurral 会同步此播放列表，并可能获取缺失的曲目。保存不代表所有曲目都可以播放。</string>

@@ -140,10 +140,22 @@ enum class NaviampRepeatMode {
     Track,
 }
 
-internal fun naviampRepeatIconCenterText(mode: NaviampRepeatMode): String? = when (mode) {
-    NaviampRepeatMode.Off -> null
-    NaviampRepeatMode.Queue -> "A"
-    NaviampRepeatMode.Track -> "1"
+internal fun naviampRepeatIcon(mode: NaviampRepeatMode): ImageVector =
+    if (mode == NaviampRepeatMode.Track) NaviampTransportIcons.RepeatOne else NaviampTransportIcons.Repeat
+
+/** Off is still actionable; its visual treatment must not imply an unavailable control. */
+internal fun naviampTransportIconTint(
+    colors: NaviampColors,
+    enabled: Boolean,
+    inactive: Boolean,
+    lightSurface: Boolean = false,
+): Color {
+    val foreground = if (lightSurface) colors.background else colors.primaryText
+    return foreground.copy(alpha = when {
+        !enabled -> 0.32f
+        inactive -> 0.55f
+        else -> 1f
+    })
 }
 
 enum class NaviampNowPlayingTab {
@@ -1181,7 +1193,7 @@ private fun NowPlayingDetails(
                 )
                 NaviampTransportIconButton(
                     enabled = nowPlaying.canRepeat,
-                    icon = NaviampTransportIcons.Repeat,
+                    icon = naviampRepeatIcon(nowPlaying.repeatMode),
                     contentDescription = when (nowPlaying.repeatMode) {
                         NaviampRepeatMode.Off -> "Repeat off"
                         NaviampRepeatMode.Queue -> "Repeat queue"
@@ -1191,7 +1203,7 @@ private fun NowPlayingDetails(
                     selected = nowPlaying.repeatMode != NaviampRepeatMode.Off,
                     buttonSize = secondaryTransportButtonSize,
                     iconSize = secondaryTransportIconSize,
-                    centerText = naviampRepeatIconCenterText(nowPlaying.repeatMode),
+                    inactive = nowPlaying.repeatMode == NaviampRepeatMode.Off,
                     onClick = { actions.playback(NowPlayingPlaybackAction.CycleRepeatMode) },
                 )
             }
@@ -3699,7 +3711,7 @@ fun NaviampTransportIconButton(
     selected: Boolean = false,
     buttonSize: Dp = if (prominent) 44.dp else 34.dp,
     iconSize: Dp = if (prominent) 24.dp else 20.dp,
-    centerText: String? = null,
+    inactive: Boolean = false,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
@@ -3725,19 +3737,10 @@ fun NaviampTransportIconButton(
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
-                tint = if (enabled) colors.primaryText else colors.mutedText.copy(alpha = 0.55f),
+                tint = if (inactive) naviampTransportIconTint(colors, enabled, inactive = true)
+                    else if (enabled) colors.primaryText else colors.mutedText.copy(alpha = 0.55f),
                 modifier = Modifier.requiredSize(iconSize),
             )
-            centerText?.let {
-                Text(
-                    it,
-                    color = colors.primaryText,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.align(Alignment.Center),
-                )
-            }
         }
     }
 }

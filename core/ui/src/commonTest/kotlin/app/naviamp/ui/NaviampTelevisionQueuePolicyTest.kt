@@ -33,10 +33,17 @@ class NaviampTelevisionQueuePolicyTest {
     }
 
     @Test
-    fun repeatModeLabelsMatchTheSharedThreeStateCycle() {
-        assertNull(naviampRepeatIconCenterText(NaviampRepeatMode.Off))
-        assertEquals("A", naviampRepeatIconCenterText(NaviampRepeatMode.Queue))
-        assertEquals("1", naviampRepeatIconCenterText(NaviampRepeatMode.Track))
+    fun inactiveRepeatRemainsDistinctFromActiveAndUnavailableOnLightAndDarkSurfaces() {
+        for (colors in listOf(NaviampColors.Dark, NaviampColors.Light, NaviampTelevisionColors)) {
+            for (lightSurface in listOf(false, true)) {
+                val active = naviampTransportIconTint(colors, true, false, lightSurface)
+                val off = naviampTransportIconTint(colors, true, true, lightSurface)
+                val unavailable = naviampTransportIconTint(colors, false, true, lightSurface)
+                kotlin.test.assertTrue(active.alpha > off.alpha)
+                kotlin.test.assertTrue(off.alpha > unavailable.alpha)
+                assertEquals(active.copy(alpha = off.alpha), off)
+            }
+        }
     }
 
     @Test

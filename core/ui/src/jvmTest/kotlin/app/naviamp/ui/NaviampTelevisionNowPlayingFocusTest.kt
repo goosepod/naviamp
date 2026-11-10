@@ -291,7 +291,7 @@ class NaviampTelevisionNowPlayingFocusTest {
     }
 
     @Test
-    fun repeatAllHasAnExplicitVisualModeMarker() = runComposeUiTest {
+    fun repeatAllHasAnAccessibleLabelWithoutAnExtraLetter() = runComposeUiTest {
         setContent {
             TelevisionNowPlaying(
                 nowPlaying = NowPlayingUi(
@@ -321,7 +321,7 @@ class NaviampTelevisionNowPlayingFocusTest {
         }
 
         onNodeWithContentDescription("Repeat all").assertExists()
-        onNodeWithText("A").assertExists()
+        onNodeWithText("A").assertDoesNotExist()
     }
 
     @Test

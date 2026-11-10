@@ -64,7 +64,8 @@ class NaviampTelevisionScreenProtectionUiTest {
         mainClock.advanceTimeBy(200)
         assertEquals(1, commands)
         onNodeWithContentDescription("Repeat one").assertIsDisplayed().assertIsFocused()
-        onNodeWithText("1").assertIsDisplayed()
+        // The 1 is part of the vector; the complete state remains announced by the button.
+        onNodeWithText("1").assertDoesNotExist()
         onNodeWithTag(TelevisionNowPlayingScrubberTestTag).assertIsDisplayed()
         val pixels = onRoot().captureToImage().toPixelMap()
         val snapshot = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)

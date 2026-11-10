@@ -164,7 +164,6 @@
     <string name="similarity_empty_help">جرّب مقطعًا آخر تم تحليله. عدم وجود نتائج لمقطع واحد لا يثبت وجود مشكلة في الإعدادات.</string>
     <string name="similarity_regular">التشابه العادي</string>
     <string name="similarity_radio_empty">لم يجد الراديو مقاطع إضافية.</string>
-    <string name="similarity_radio_failed">تعذر إنشاء قائمة انتظار الراديو.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
     <string name="similarity_admin_title">تفاصيل إضافات الخادم</string>
     <string name="similarity_admin_required">تتطلب تفاصيل الإضافات صلاحيات المسؤول.</string>
@@ -252,8 +251,6 @@
     <string name="smart_playlist_summary_predicate">%1$s %2$s</string>
     <string name="smart_playlist_summary_range">%1$s – %2$s</string>
     <string name="smart_playlist_summary_reference_context">%1$s (%2$s)</string>
-    <string name="smart_playlist_summary_ascending">%1$s (تصاعدي)</string>
-    <string name="smart_playlist_summary_descending">%1$s (تنازلي)</string>
     <string name="smart_playlist_summary_unavailable_playlist">قائمة التشغيل غير متاحة (%1$s)</string>
     <string name="smart_playlist_summary_clean">خالٍ من المحتوى الصريح</string>
     <string name="smart_playlist_summary_explicit">محتوى صريح</string>
@@ -452,7 +449,6 @@
     <string name="discovery_chart_genres">الأنواع</string>
     <string name="discovery_chart_region">منطقة التصنيف: %1$s</string>
     <string name="discovery_chart_days_at_top">أيام في المركز الأول: %1$s</string>
-    <string name="discovery_chart_rank_history">المراكز الأخيرة: %1$s</string>
     <string name="discovery_chart_save_playlist">حفظ تصنيف الأغاني كقائمة تشغيل</string>
     <string name="discovery_chart_saved">حُفظ التصنيف كقائمة تشغيل متزامنة.</string>
     <string name="discovery_chart_playlist_description">يزامن Aurral القائمة وقد يجلب المقاطع المفقودة. الحفظ لا يعني أن جميع المقاطع قابلة للتشغيل.</string>
