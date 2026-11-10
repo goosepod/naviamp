@@ -136,6 +136,7 @@ class FixtureLifetimeDiagnosticsTest(unittest.TestCase):
             'Compile both targets and run common simulator tests',
             'Start disposable mobile mTLS fixture',
             'Boot a dedicated simulator for native TLS services',
+            'Require fixture health after simulator boot',
             'Exercise native TLS and BASS on the booted simulator')]
         self.assertEqual(sorted(stages), stages)
         self.assertEqual(1, ios.count('run: bash scripts/start-mobile-mtls-fixture.sh'))
