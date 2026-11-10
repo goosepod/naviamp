@@ -1,5 +1,6 @@
 package app.naviamp.ui
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
@@ -16,15 +17,19 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
 import androidx.compose.ui.unit.dp
 import kotlin.test.Test
+import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampChangelogRenderedUiTest {
     @Test fun actualAboutChangelogRendersAllCurrentReleaseEntriesAndScrollsToTheEnd() = runComposeUiTest {
         val about = NaviampAboutUi()
+        lateinit var scroll: ScrollState
         setContent {
+            scroll = rememberScrollState()
             MaterialTheme(colorScheme = darkColorScheme()) {
                 Column(Modifier.width(720.dp).height(650.dp).background(NaviampColors.Dark.background)
-                    .verticalScroll(rememberScrollState())) {
+                    .verticalScroll(scroll)) {
                     NaviampAboutSettingsSection(NaviampColors.Dark, about)
                 }
             }
@@ -33,11 +38,17 @@ class NaviampChangelogRenderedUiTest {
         onNodeWithText("Latest Changes").assertExists()
         val entries = about.changelog.flatMap { it.entries }
         entries.forEach { entry -> onNodeWithText(entry).performScrollTo().assertIsDisplayed() }
+        runOnIdle { runBlocking { scroll.scrollTo(scroll.maxValue) } }
+        waitForIdle()
+        val lastEntry = onNodeWithText(entries.last()).fetchSemanticsNode().boundsInRoot
+        val viewport = onRoot().fetchSemanticsNode().boundsInRoot
+        assertTrue(lastEntry.top >= viewport.top && lastEntry.bottom <= viewport.bottom,
+            "The complete final acknowledgment must be reachable inside the changelog viewport")
         System.getenv("NAVIAMP_CHANGELOG_CAPTURE")?.let { directory ->
             java.io.File(directory).mkdirs()
             javax.imageio.ImageIO.write(onRoot().captureToImage().toAwtImage(), "png", java.io.File(directory, "about-changelog-end.png"))
-            onNodeWithText(entries.single { it.contains("Audio Cache and Downloads storage totals") }).performScrollTo().assertIsDisplayed()
-            javax.imageio.ImageIO.write(onRoot().captureToImage().toAwtImage(), "png", java.io.File(directory, "about-changelog-storage.png"))
+            onNodeWithText(entries.single { it.contains("final paused playback position") }).performScrollTo().assertIsDisplayed()
+            javax.imageio.ImageIO.write(onRoot().captureToImage().toAwtImage(), "png", java.io.File(directory, "about-changelog-playback.png"))
             onNodeWithText(entries.first()).performScrollTo()
             javax.imageio.ImageIO.write(onRoot().captureToImage().toAwtImage(), "png", java.io.File(directory, "about-changelog-start.png"))
         }
