@@ -349,8 +349,11 @@ object NaviampTransportIcons {
         }
     }.build()
 
-    val Repeat: ImageVector = ImageVector.Builder(
-        name = "Repeat",
+    val Repeat: ImageVector = repeatIcon(one = false)
+    val RepeatOne: ImageVector = repeatIcon(one = true)
+
+    private fun repeatIcon(one: Boolean): ImageVector = ImageVector.Builder(
+        name = if (one) "RepeatOne" else "Repeat",
         defaultWidth = IconSize,
         defaultHeight = IconSize,
         viewportWidth = Viewport,
@@ -362,9 +365,16 @@ object NaviampTransportIcons {
             strokeLineCap = StrokeCap.Round,
             strokeLineJoin = StrokeJoin.Round,
         ) {
-            moveTo(17f, 2.8f)
-            lineTo(20.5f, 6.3f)
-            lineTo(17f, 9.8f)
+            moveTo(7.5f, 18f)
+            lineTo(6.4f, 18f)
+            curveTo(4.52f, 18f, 3f, 16.48f, 3f, 14.6f)
+            lineTo(3f, 8.4f)
+            curveTo(3f, 6.52f, 4.52f, 5f, 6.4f, 5f)
+            lineTo(17.6f, 5f)
+            curveTo(19.48f, 5f, 21f, 6.52f, 21f, 8.4f)
+            lineTo(21f, 14.6f)
+            curveTo(21f, 16.48f, 19.48f, 18f, 17.6f, 18f)
+            lineTo(12f, 18f)
         }
         path(
             stroke = SolidColor(Color.Black),
@@ -372,31 +382,21 @@ object NaviampTransportIcons {
             strokeLineCap = StrokeCap.Round,
             strokeLineJoin = StrokeJoin.Round,
         ) {
-            moveTo(3.5f, 10f)
-            lineTo(3.5f, 8.3f)
-            curveTo(3.5f, 7.2f, 4.4f, 6.3f, 5.5f, 6.3f)
-            lineTo(20.5f, 6.3f)
+            moveTo(15f, 15f)
+            lineTo(12f, 18f)
+            lineTo(15f, 21f)
         }
-        path(
-            stroke = SolidColor(Color.Black),
-            strokeLineWidth = 1.9f,
-            strokeLineCap = StrokeCap.Round,
-            strokeLineJoin = StrokeJoin.Round,
-        ) {
-            moveTo(7f, 21.2f)
-            lineTo(3.5f, 17.7f)
-            lineTo(7f, 14.2f)
-        }
-        path(
-            stroke = SolidColor(Color.Black),
-            strokeLineWidth = 1.9f,
-            strokeLineCap = StrokeCap.Round,
-            strokeLineJoin = StrokeJoin.Round,
-        ) {
-            moveTo(20.5f, 14f)
-            lineTo(20.5f, 15.7f)
-            curveTo(20.5f, 16.8f, 19.6f, 17.7f, 18.5f, 17.7f)
-            lineTo(3.5f, 17.7f)
+        if (one) {
+            path(
+                stroke = SolidColor(Color.Black),
+                strokeLineWidth = 1.7f,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round,
+            ) {
+                moveTo(10.4f, 10f)
+                lineTo(12.2f, 8.6f)
+                lineTo(12.2f, 13f)
+            }
         }
     }.build()
 
