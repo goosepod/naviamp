@@ -164,7 +164,6 @@
     <string name="similarity_empty_help">Essayez un autre titre analysé. L’absence de correspondances pour un titre ne prouve pas un problème de configuration.</string>
     <string name="similarity_regular">Similarité classique</string>
     <string name="similarity_radio_empty">Radio n’a trouvé aucun titre supplémentaire.</string>
-    <string name="similarity_radio_failed">Impossible de créer la file Radio.</string>
     <string name="similarity_protocol_codes">HTTP : %1$s ; API : %2$s</string>
     <string name="similarity_admin_title">Détails des plugins du serveur</string>
     <string name="similarity_admin_required">Les détails des plugins nécessitent un accès administrateur.</string>
@@ -252,8 +251,6 @@
     <string name="smart_playlist_summary_predicate">%1$s %2$s</string>
     <string name="smart_playlist_summary_range">%1$s – %2$s</string>
     <string name="smart_playlist_summary_reference_context">%1$s (%2$s)</string>
-    <string name="smart_playlist_summary_ascending">%1$s (croissant)</string>
-    <string name="smart_playlist_summary_descending">%1$s (décroissant)</string>
     <string name="smart_playlist_summary_unavailable_playlist">Playlist indisponible (%1$s)</string>
     <string name="smart_playlist_summary_clean">non explicite</string>
     <string name="smart_playlist_summary_explicit">explicite</string>
@@ -452,7 +449,6 @@
     <string name="discovery_chart_genres">Genres</string>
     <string name="discovery_chart_region">Région du classement : %1$s</string>
     <string name="discovery_chart_days_at_top">Jours à la première place : %1$s</string>
-    <string name="discovery_chart_rank_history">Classements récents : %1$s</string>
     <string name="discovery_chart_save_playlist">Enregistrer le classement en playlist</string>
     <string name="discovery_chart_saved">Classement enregistré en playlist synchronisée.</string>
     <string name="discovery_chart_playlist_description">Aurral synchronise cette playlist et peut acquérir les titres manquants. Tous les titres ne sont pas forcément lisibles après cet enregistrement.</string>

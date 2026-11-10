@@ -164,7 +164,6 @@
     <string name="similarity_empty_help">Tente outra faixa analisada. A falta de correspondências para uma faixa não comprova um problema de configuração.</string>
     <string name="similarity_regular">Similaridade normal</string>
     <string name="similarity_radio_empty">A Rádio não encontrou outras faixas.</string>
-    <string name="similarity_radio_failed">Não foi possível criar a fila da Rádio.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
     <string name="similarity_admin_title">Detalhes dos plugins do servidor</string>
     <string name="similarity_admin_required">Os detalhes dos plugins exigem acesso de administrador.</string>
@@ -252,8 +251,6 @@
     <string name="smart_playlist_summary_predicate">%1$s %2$s</string>
     <string name="smart_playlist_summary_range">%1$s – %2$s</string>
     <string name="smart_playlist_summary_reference_context">%1$s (%2$s)</string>
-    <string name="smart_playlist_summary_ascending">%1$s (crescente)</string>
-    <string name="smart_playlist_summary_descending">%1$s (decrescente)</string>
     <string name="smart_playlist_summary_unavailable_playlist">Playlist indisponível (%1$s)</string>
     <string name="smart_playlist_summary_clean">sem conteúdo explícito</string>
     <string name="smart_playlist_summary_explicit">explícito</string>
@@ -417,7 +414,6 @@
     <string name="player_full_view">Player completo</string>
     <string name="player_split_view">Visão dividida</string>
     <string name="player_queue">Fila</string>
-    <string name="home_navibeat_mixes">MIXES NAVIBEAT</string>
     <string name="settings_title">Configurações</string>
     <string name="settings_selected_label">Selecionado</string>
     <string name="settings_language_title">Idioma</string>
@@ -451,10 +447,7 @@
     <string name="common_delete">Excluir</string>
     <string name="common_save">Salvar</string>
     <string name="common_reset">Redefinir</string>
-    <string name="common_clear">Limpar</string>
     <string name="common_choose">Escolher</string>
-    <string name="common_import">Importar</string>
-    <string name="common_export">Exportar</string>
     <string name="common_enabled">Ativado</string>
     <string name="common_off">Desativado</string>
     <string name="common_default">Padrão</string>
@@ -478,12 +471,6 @@
     <string name="settings_lyrics_subtitle">Download, exibição e ordem das fontes</string>
     <string name="settings_lyrics_download">Letras online</string>
     <string name="settings_lyrics_download_subtitle">Permite buscas nos serviços de letras online ativados.</string>
-    <string name="settings_lyrics_prefer_synced">Preferir sincronizadas</string>
-    <string name="settings_lyrics_prefer_synced_subtitle">Continua buscando até encontrar uma fonte sincronizada.</string>
-    <string name="settings_lyrics_prefer_word_synced">Preferir sincronia por palavra</string>
-    <string name="settings_lyrics_prefer_word_synced_subtitle">Continua buscando até encontrar sincronia palavra por palavra.</string>
-    <string name="settings_lyrics_timing">Sincronia das letras</string>
-    <string name="settings_lyrics_timing_subtitle">Escolha a sincronia mais detalhada que o Naviamp deve exibir.</string>
     <string name="settings_lyrics_timing_first">Primeira disponível</string>
     <string name="settings_lyrics_timing_first_subtitle">Usa a primeira letra encontrada na ordem das suas fontes.</string>
     <string name="settings_lyrics_timing_plain">Simples</string>
@@ -503,9 +490,6 @@
     <string name="settings_lyrics_display_word_subtitle">Exibe o destaque palavra por palavra quando disponível.</string>
     <string name="settings_lyrics_search_order">Ordem da busca</string>
     <string name="settings_lyrics_search_order_subtitle">Escolha onde o Naviamp procura as letras primeiro.</string>
-    <string name="settings_lyrics_summary_synced_download">Sincronizadas, download</string>
-    <string name="settings_lyrics_summary_synced">Sincronizadas</string>
-    <string name="settings_lyrics_summary_word_synced">Por palavra</string>
     <string name="settings_lyrics_summary_download">Online</string>
     <string name="settings_lyrics_summary_display">Exibição: %1$s</string>
     <string name="lyrics_display_text">Texto</string>
@@ -515,25 +499,18 @@
     <string name="settings_lyrics_source_provider_subtitle">Letras informadas pelo Navidrome.</string>
     <string name="settings_lyrics_source_embedded">Incorporadas</string>
     <string name="settings_lyrics_source_embedded_subtitle">Letras armazenadas no arquivo de áudio.</string>
-    <string name="settings_lyrics_source_download">Download</string>
-    <string name="settings_lyrics_source_download_subtitle">Letras do provedor de letras online.</string>
     <string name="settings_lyrics_source_online">Online</string>
     <string name="settings_lyrics_source_online_subtitle">Tenta os serviços de letras online ativados, em ordem.</string>
     <string name="settings_lyrics_drag_source">Reordenar fonte de letras</string>
-    <string name="settings_experience_empty">Os controles de experiência aparecerão aqui à medida que forem adicionados.</string>
     <string name="settings_experience_player_title">Player</string>
     <string name="settings_experience_player_subtitle">Comportamento da fila, Tocando agora e waveforms</string>
     <string name="settings_experience_waveforms_title">Waveforms</string>
     <string name="settings_experience_waveforms_subtitle">Waveforms e detalhes das faixas</string>
-    <string name="settings_related_autoplay_summary">Relacionadas, reprodução automática</string>
-    <string name="settings_related_summary">Relacionadas</string>
-    <string name="settings_autoplay_summary">Reprodução automática</string>
     <string name="settings_about_production">Uma produção GoosePod</string>
     <string name="settings_about_version_build">%1$s build %2$s</string>
     <string name="settings_about_libraries_title">Bibliotecas</string>
     <string name="settings_about_fonts_title">Fontes</string>
     <string name="settings_about_audio_title">Áudio</string>
-    <string name="settings_about_license_title">Licença Pública Geral GNU v3.0</string>
     <string name="settings_about_latest_changes_title">Últimas alterações</string>
     <string name="settings_about_empty_changelog">As entradas do histórico de alterações aparecerão aqui em uma versão futura.</string>
     <string name="settings_about_thanks_title">Agradecimentos</string>
@@ -563,7 +540,6 @@
     <string name="settings_sync_now">Sincronizar agora</string>
     <string name="settings_sync_export_local">Exportar configurações locais</string>
     <string name="settings_sync_import_provider">Importar configurações do provedor</string>
-    <string name="settings_sync_configured">Configurado</string>
     <string name="settings_source_saved_count">%1$d salvas</string>
     <string name="settings_source_delete_title">Excluir conexão</string>
     <string name="settings_source_delete_message">Excluir %1$s? Isso remove a entrada do servidor salvo.</string>
@@ -649,8 +625,6 @@
     <string name="settings_output_pinned_unavailable">Saída fixada indisponível: %1$s. A reprodução está usando o padrão do sistema.</string>
     <string name="settings_output_pinned">Fixada</string>
     <string name="settings_output_system_default_device">Dispositivo padrão do sistema</string>
-    <string name="settings_output_default_suffix">(padrão)</string>
-    <string name="settings_output_selected_suffix">(selecionado)</string>
     <string name="settings_sample_rate_converter_title">Conversor de taxa de amostragem</string>
     <string name="settings_sample_rate_converter_subtitle">Qualidade da reamostragem quando as taxas diferem</string>
     <string name="settings_sample_rate_matching_title">Correspondência de taxa de amostragem</string>
@@ -719,7 +693,6 @@
     <string name="settings_radio_mixed_artists">artistas variados</string>
     <string name="settings_radio_single_artist">artista único</string>
     <string name="settings_radio_artist_blocks">%1$d iguais / %2$d outros</string>
-    <string name="settings_related_lyrics_download">Baixar letras das faixas</string>
     <string name="settings_related_sonic_similarity">Similaridade sonora</string>
     <string name="settings_debug_logging">Registro de depuração</string>
     <string name="settings_equalizer_no_profiles">Nenhum perfil salvo ainda.</string>
@@ -735,17 +708,7 @@
     <string name="settings_equalizer_save_profile_title">Salvar perfil de EQ</string>
     <string name="settings_equalizer_rename_profile_title">Renomear perfil de EQ</string>
     <string name="settings_equalizer_profile_name">Nome do perfil</string>
-    <string name="nav_home">Início</string>
-    <string name="nav_playlists">Playlists</string>
-    <string name="nav_library">Biblioteca</string>
-    <string name="nav_search">Buscar</string>
-    <string name="nav_artist_mix">Mix do artista</string>
-    <string name="nav_album_mix">Mix do álbum</string>
-    <string name="nav_genre_mix">Mix do gênero</string>
-    <string name="nav_sonic_path">Caminho sonoro</string>
     <string name="nav_sonic_mix">Mix sonoro</string>
-    <string name="nav_radio">Rádio</string>
-    <string name="nav_downloads">Downloads</string>
     <string name="nav_settings">Configurações</string>
     <string name="transport_shuffle">Aleatório</string>
     <string name="transport_previous">Anterior</string>
@@ -756,10 +719,7 @@
     <string name="transport_repeat">Repetir</string>
     <string name="home_music_title">Início</string>
     <string name="home_empty">As seções do início aparecerão após a conexão.</string>
-    <string name="home_mixes_for_you">MIXES PARA VOCÊ</string>
     <string name="home_recently_played_radio">Rádios tocadas recentemente</string>
-    <string name="home_recent_radio_empty">Inicie uma estação de rádio para montar esta lista.</string>
-    <string name="home_recently_added_music">Adicionadas recentemente em Música</string>
     <string name="home_recent_playlists">Playlists recentes</string>
     <string name="home_recent_internet_radio">Rádios da internet recentes</string>
     <string name="home_recent_albums">Álbuns recentes</string>
@@ -772,7 +732,6 @@
     <string name="search_title">Buscar</string>
     <string name="search_music_label">Buscar músicas</string>
     <string name="search_searching">Buscando...</string>
-    <string name="search_clear">Limpar busca</string>
     <string name="search_no_matches">Nenhum resultado encontrado.</string>
     <string name="search_artists">Artistas</string>
     <string name="search_albums">Álbuns</string>
@@ -786,7 +745,6 @@
     <string name="library_search_artists">Buscar artistas da biblioteca</string>
     <string name="library_search_albums">Buscar álbuns da biblioteca</string>
     <string name="library_search_songs">Buscar músicas da biblioteca</string>
-    <string name="library_clear_search">Limpar busca da biblioteca</string>
     <string name="library_refresh">Atualizar</string>
     <string name="library_refreshing">Atualizando...</string>
     <string name="library_no_artists">Nenhum artista encontrado na biblioteca.</string>
@@ -852,7 +810,6 @@
     <string name="mix_build_mix">Criar mix</string>
     <string name="mix_add_to_queue">Adicionar à fila</string>
     <string name="mix_remove">Remover</string>
-    <string name="mix_seed_tracks">Faixas de origem</string>
     <string name="mix_selected_seed_tracks">Faixas de origem selecionadas</string>
     <string name="mix_find_seed_tracks">Encontrar faixas de origem</string>
     <string name="mix_search_results">Resultados da busca</string>
@@ -976,8 +933,6 @@
     <string name="tv_the_name_other_naviamp_devices_see_when_connecting">O nome que outros dispositivos Naviamp veem ao se conectar.</string>
     <string name="tv_stop_pairing">Parar pareamento</string>
     <string name="tv_pair_a_controller">Parear um controle</string>
-    <string name="tv_this_tv_is_visible_to_naviamp_controllers_on_your_local_network">Esta TV está visível para controles Naviamp na sua rede local.</string>
-    <string name="tv_make_this_tv_visible_temporarily_to_a_phone_or_desktop_on_the_same_network">Torna esta TV visível temporariamente para um celular ou computador na mesma rede.</string>
     <string name="tv_only_approve_if_you_started_pairing_on_this_device">Aprove somente se você iniciou o pareamento neste dispositivo.</string>
     <string name="tv_approve">Aprovar</string>
     <string name="tv_reject_request">Recusar solicitação</string>
@@ -1017,11 +972,8 @@
     <string name="tv_timing_used_in_now_playing">Sincronia usada em Tocando agora</string>
     <string name="tv_background">Plano de fundo</string>
     <string name="tv_choose_the_living_room_backdrop">Escolha o fundo para a sala de estar</string>
-    <string name="tv_tune_artwork_derived_colors_for_the_room">Ajuste as cores derivadas da capa para o ambiente</string>
     <string name="tv_blur_amount">Intensidade do desfoque</string>
-    <string name="tv_adjust_how_strongly_the_album_artwork_is_softened">Ajuste o quanto a capa do álbum é suavizada</string>
     <string name="tv_single_color">Cor única</string>
-    <string name="tv_adjust_hue_saturation_and_brightness">Ajuste matiz, saturação e brilho</string>
     <string name="tv_waveform_density">Densidade da waveform</string>
     <string name="tv_choose_the_detail_level_of_the_now_playing_waveform">Escolha o nível de detalhe da waveform em Tocando agora</string>
     <string name="tv_include_release_context_in_now_playing">Incluir contexto do lançamento em Tocando agora</string>
@@ -1054,7 +1006,6 @@
     <string name="tv_direct_setup_description">Conecte-se diretamente desta TV. Parear um celular ou computador continuará opcional.</string>
     <string name="tv_keyboard_navigation_hint">Ao digitar, escolha Avançar no teclado da TV para continuar. Use Voltar ou Esc para fechar o teclado.</string>
     <string name="tv_set_up_from_a_phone_or_computer">Configurar por um celular ou computador</string>
-    <string name="tv_put_this_tv_in_pairing_mode_find_it_from_naviamp_on_the_same_network_and_enter">Coloque esta TV em modo de pareamento, encontre-a pelo Naviamp na mesma rede e digite o código exibido aqui.</string>
     <string name="tv_show_pairing_code">Mostrar código de pareamento</string>
     <string name="tv_approve_controller">Aprovar controle</string>
     <string name="tv_set_up_server">Configurar servidor</string>
@@ -1085,7 +1036,6 @@
     <string name="tv_nothing_else_is_queued">Mais nada na fila.</string>
     <string name="tv_play_next">Reproduzir a seguir</string>
     <string name="tv_queue_actions">Ações da fila</string>
-    <string name="tv_lyrics_are_not_available">Letras indisponíveis.</string>
     <string name="tv_repeat_off">Repetir desativado</string>
     <string name="tv_repeat_all">Repetir tudo</string>
     <string name="tv_repeat_one">Repetir uma</string>
@@ -1180,8 +1130,6 @@
     <string name="connection_save_and_connect">Salvar e conectar</string>
     <string name="connection_coming_soon">Em breve</string>
     <string name="connection_connection_error">Erro de conexão</string>
-    <string name="connection_connect_or_enter_credentials_to_load_available_libraries">Conecte-se ou digite as credenciais para carregar as bibliotecas disponíveis.</string>
-    <string name="connection_default_library">Biblioteca padrão</string>
     <string name="connection_edit_station">Editar estação</string>
     <string name="connection_stream_url">URL do stream</string>
     <string name="connection_home_page_url">URL da página inicial</string>
@@ -1284,7 +1232,6 @@
     <string name="discovery_chart_genres">Gêneros</string>
     <string name="discovery_chart_region">Região da parada: %1$s</string>
     <string name="discovery_chart_days_at_top">Dias em primeiro lugar: %1$s</string>
-    <string name="discovery_chart_rank_history">Posições recentes: %1$s</string>
     <string name="discovery_chart_save_playlist">Salvar parada como playlist</string>
     <string name="discovery_chart_saved">Parada salva como playlist sincronizada.</string>
     <string name="discovery_chart_playlist_description">O Aurral sincroniza esta playlist e pode adquirir faixas ausentes. Salvar não significa que todas as faixas podem ser reproduzidas.</string>

@@ -164,7 +164,6 @@
     <string name="similarity_empty_help">Попробуйте другой проанализированный трек. Отсутствие совпадений для одного трека не доказывает ошибку настройки.</string>
     <string name="similarity_regular">Обычное сходство</string>
     <string name="similarity_radio_empty">Радио не нашло дополнительных треков.</string>
-    <string name="similarity_radio_failed">Не удалось создать очередь радио.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
     <string name="similarity_admin_title">Сведения о плагинах сервера</string>
     <string name="similarity_admin_required">Для просмотра плагинов нужны права администратора.</string>
@@ -252,8 +251,6 @@
     <string name="smart_playlist_summary_predicate">%1$s %2$s</string>
     <string name="smart_playlist_summary_range">%1$s – %2$s</string>
     <string name="smart_playlist_summary_reference_context">%1$s (%2$s)</string>
-    <string name="smart_playlist_summary_ascending">%1$s (по возрастанию)</string>
-    <string name="smart_playlist_summary_descending">%1$s (по убыванию)</string>
     <string name="smart_playlist_summary_unavailable_playlist">Плейлист недоступен (%1$s)</string>
     <string name="smart_playlist_summary_clean">без ненормативной лексики</string>
     <string name="smart_playlist_summary_explicit">ненормативная лексика</string>
@@ -452,7 +449,6 @@
     <string name="discovery_chart_genres">Жанры</string>
     <string name="discovery_chart_region">Регион чарта: %1$s</string>
     <string name="discovery_chart_days_at_top">Дней на первом месте: %1$s</string>
-    <string name="discovery_chart_rank_history">Последние позиции: %1$s</string>
     <string name="discovery_chart_save_playlist">Сохранить чарт как плейлист</string>
     <string name="discovery_chart_saved">Чарт сохранён как синхронизируемый плейлист.</string>
     <string name="discovery_chart_playlist_description">Aurral синхронизирует этот плейлист и может загрузить недостающие треки. Сохранение не означает, что все треки доступны для воспроизведения.</string>
