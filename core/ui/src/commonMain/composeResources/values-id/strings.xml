@@ -164,7 +164,6 @@
     <string name="similarity_empty_help">Coba lagu lain yang telah dianalisis. Tidak adanya kecocokan untuk satu lagu tidak membuktikan masalah konfigurasi.</string>
     <string name="similarity_regular">Kemiripan biasa</string>
     <string name="similarity_radio_empty">Radio tidak menemukan lagu tambahan.</string>
-    <string name="similarity_radio_failed">Antrean Radio tidak dapat dibuat.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
     <string name="similarity_admin_title">Detail plugin server</string>
     <string name="similarity_admin_required">Detail plugin memerlukan akses administrator.</string>
@@ -252,8 +251,6 @@
     <string name="smart_playlist_summary_predicate">%1$s %2$s</string>
     <string name="smart_playlist_summary_range">%1$s – %2$s</string>
     <string name="smart_playlist_summary_reference_context">%1$s (%2$s)</string>
-    <string name="smart_playlist_summary_ascending">%1$s (menaik)</string>
-    <string name="smart_playlist_summary_descending">%1$s (menurun)</string>
     <string name="smart_playlist_summary_unavailable_playlist">Playlist tidak tersedia (%1$s)</string>
     <string name="smart_playlist_summary_clean">tanpa konten eksplisit</string>
     <string name="smart_playlist_summary_explicit">eksplisit</string>
@@ -452,7 +449,6 @@
     <string name="discovery_chart_genres">Genre</string>
     <string name="discovery_chart_region">Wilayah tangga lagu: %1$s</string>
     <string name="discovery_chart_days_at_top">Hari di posisi pertama: %1$s</string>
-    <string name="discovery_chart_rank_history">Peringkat terbaru: %1$s</string>
     <string name="discovery_chart_save_playlist">Simpan tangga lagu sebagai daftar putar</string>
     <string name="discovery_chart_saved">Tangga lagu disimpan sebagai daftar putar tersinkron.</string>
     <string name="discovery_chart_playlist_description">Aurral menyinkronkan daftar putar ini dan dapat memperoleh lagu yang belum ada. Menyimpan tidak berarti semua lagu dapat diputar.</string>

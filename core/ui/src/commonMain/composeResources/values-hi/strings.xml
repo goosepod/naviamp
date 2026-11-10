@@ -164,7 +164,6 @@
     <string name="similarity_empty_help">विश्लेषण किया गया कोई दूसरा ट्रैक आज़माएँ। एक ट्रैक के लिए मिलान न मिलना कॉन्फ़िगरेशन की समस्या का प्रमाण नहीं है।</string>
     <string name="similarity_regular">सामान्य समानता</string>
     <string name="similarity_radio_empty">रेडियो को अतिरिक्त ट्रैक नहीं मिले। मौजूदा कतार बरकरार रखी गई।</string>
-    <string name="similarity_radio_failed">रेडियो की कतार नहीं बन सकी। मौजूदा कतार बरकरार रखी गई।</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
     <string name="similarity_admin_title">सर्वर प्लगइन का विवरण</string>
     <string name="similarity_admin_required">प्लगइन का विवरण देखने के लिए व्यवस्थापक पहुँच चाहिए।</string>
@@ -252,8 +251,6 @@
     <string name="smart_playlist_summary_predicate">%1$s %2$s</string>
     <string name="smart_playlist_summary_range">%1$s – %2$s</string>
     <string name="smart_playlist_summary_reference_context">%1$s (%2$s)</string>
-    <string name="smart_playlist_summary_ascending">%1$s (आरोही)</string>
-    <string name="smart_playlist_summary_descending">%1$s (अवरोही)</string>
     <string name="smart_playlist_summary_unavailable_playlist">प्लेलिस्ट उपलब्ध नहीं (%1$s)</string>
     <string name="smart_playlist_summary_clean">अश्लील सामग्री नहीं</string>
     <string name="smart_playlist_summary_explicit">अश्लील सामग्री</string>
@@ -452,7 +449,6 @@
     <string name="discovery_chart_genres">शैलियाँ</string>
     <string name="discovery_chart_region">चार्ट का क्षेत्र: %1$s</string>
     <string name="discovery_chart_days_at_top">पहले स्थान पर दिन: %1$s</string>
-    <string name="discovery_chart_rank_history">हाल की रैंक: %1$s</string>
     <string name="discovery_chart_save_playlist">गानों के चार्ट को प्लेलिस्ट के रूप में सहेजें</string>
     <string name="discovery_chart_saved">चार्ट सिंक की गई प्लेलिस्ट के रूप में सहेजा गया।</string>
     <string name="discovery_chart_playlist_description">Aurral इस प्लेलिस्ट को सिंक करता है और गायब ट्रैक प्राप्त कर सकता है। सहेजने का मतलब यह नहीं कि सभी ट्रैक चलाए जा सकते हैं।</string>

@@ -164,7 +164,6 @@
     <string name="similarity_empty_help">Спробуйте інший проаналізований трек. Відсутність збігів для одного треку не доводить помилку налаштування.</string>
     <string name="similarity_regular">Звичайна схожість</string>
     <string name="similarity_radio_empty">Радіо не знайшло додаткових треків.</string>
-    <string name="similarity_radio_failed">Не вдалося створити чергу радіо.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
     <string name="similarity_admin_title">Відомості про плагіни сервера</string>
     <string name="similarity_admin_required">Для перегляду плагінів потрібні права адміністратора.</string>
@@ -252,8 +251,6 @@
     <string name="smart_playlist_summary_predicate">%1$s %2$s</string>
     <string name="smart_playlist_summary_range">%1$s – %2$s</string>
     <string name="smart_playlist_summary_reference_context">%1$s (%2$s)</string>
-    <string name="smart_playlist_summary_ascending">%1$s (за зростанням)</string>
-    <string name="smart_playlist_summary_descending">%1$s (за спаданням)</string>
     <string name="smart_playlist_summary_unavailable_playlist">Список відтворення недоступний (%1$s)</string>
     <string name="smart_playlist_summary_clean">без ненормативної лексики</string>
     <string name="smart_playlist_summary_explicit">ненормативна лексика</string>
@@ -452,7 +449,6 @@
     <string name="discovery_chart_genres">Жанри</string>
     <string name="discovery_chart_region">Регіон чарту: %1$s</string>
     <string name="discovery_chart_days_at_top">Днів на першому місці: %1$s</string>
-    <string name="discovery_chart_rank_history">Останні позиції: %1$s</string>
     <string name="discovery_chart_save_playlist">Зберегти чарт як список відтворення</string>
     <string name="discovery_chart_saved">Чарт збережено як синхронізований список.</string>
     <string name="discovery_chart_playlist_description">Aurral синхронізує цей список і може завантажити відсутні треки. Збереження не означає, що всі треки можна відтворити.</string>
