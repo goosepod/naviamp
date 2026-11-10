@@ -105,7 +105,7 @@ def build(root, native, focused):
     (output / 'build.json').write_text(json.dumps(summary, indent=2))
     if not code and native:
         started = time.monotonic()
-        code = subprocess.call(['python3', 'scripts/replay-ios-native-tls.py', '--runs', '1',
+        code = subprocess.call(['python3', 'scripts/replay-ios-native-tls.py', '--fresh', '--runs', '1',
                                 '--output', 'build/ci-cache/native'], cwd=root)
         summary.update(nativeSeconds=time.monotonic() - started, nativeExit=code)
         (output / 'build.json').write_text(json.dumps(summary, indent=2))

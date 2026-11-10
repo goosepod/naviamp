@@ -76,6 +76,21 @@ The corrected local suite passes 84 helper tests. A real Gradle 8.14.5 probe, us
 home whose path contains spaces, reports the identical native directory both with the initial
 explicit `-P` argument and through an independent `/bin/sh` invocation without that argument.
 
+## Fresh hosted native invocation
+
+PR #555 is accepted on main at `22a6feb6e`. Its automatic population run can compile and save
+without native execution, but inspection of the first manual benchmark finds a separate setup
+defect: `replay-ios-native-tls.py` requires an earlier native report. A new hosted benchmark has
+compiled the binary but has no such report. The affected benchmark is cancelled before claiming
+any native or warm-cache result; the automatic population run remains active.
+
+The explicit `--fresh` mode executes the existing prebuilt runner on a new owned simulator.
+That runner inventories the binary, checks the exact required source manifest, executes every
+case, validates all events and rejects any old output directory. The replay wrapper additionally
+requires the new XML, expected inventory and executed inventory to match. Subsequent suites must
+match the first complete inventory. The existing default replay mode still requires and compares
+its earlier successful suite; the change does not weaken the three-suite verification gate.
+
 References: [Kotlin native compilation guidance](https://kotlinlang.org/docs/native-improving-compilation-time.html),
 [Gradle setup and external caching](https://github.com/gradle/actions/blob/main/docs/setup-gradle.md),
 [GitHub cache scope](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching).

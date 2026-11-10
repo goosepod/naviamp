@@ -120,21 +120,34 @@ def remove_owned_device(record):
     simctl('delete', found['udid'])
 
 
-def replay(root, output, runs):
+def validate_execution(run, expected=None):
+    execution = json.loads((run / 'native-execution/execution.json').read_text())
+    actual = read_results(run / 'native-execution/results')
+    inventory = frozenset(tuple(case) for case in execution['expectedCases'])
+    if (execution['status'] != 'passed' or not inventory
+            or frozenset(tuple(case) for case in execution['executedCases']) != inventory
+            or actual != inventory or (expected is not None and actual != expected)):
+        raise RuntimeError('Fresh native execution does not match its complete binary inventory')
+    return actual
+
+
+def replay(root, output, runs, fresh=False):
     results = root / 'build/ios-native-execution/results'
     reports = root / 'build/ios-native-execution/report'
-    expected = read_results(results)
-    initial = output / 'initial'
-    initial.mkdir(parents=True, mode=0o700)
-    shutil.copytree(results, initial / 'results')
-    if reports.exists():
-        shutil.copytree(reports, initial / 'report')
+    expected = None if fresh else read_results(results)
+    if not fresh:
+        initial = output / 'initial'
+        initial.mkdir(parents=True, mode=0o700)
+        shutil.copytree(results, initial / 'results')
+        if reports.exists():
+            shutil.copytree(reports, initial / 'report')
     groups = json.loads(simctl('list', 'devices', 'available', '--json'))['devices']
     runtime, template = next((runtime, device) for runtime, group in groups.items()
                              for device in group if device['name'].startswith('iPhone'))
     (output / 'plan.json').write_text(json.dumps({
         'runs': runs, 'runtime': runtime, 'template': template['name'],
-        'expectedCases': sorted(expected),
+        'expectedCases': sorted(expected) if expected is not None else None,
+        'inventoryOrigin': 'fresh binary inventory' if fresh else 'required prior native execution',
         'sourceCommit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip(),
         'sourceDirty': bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=root, text=True).strip()),
     }, indent=2))
@@ -177,11 +190,10 @@ def replay(root, output, runs):
                                             stderr=subprocess.STDOUT, timeout=300)
                 if result.returncode != 0:
                     raise RuntimeError(f'Native command failed with exit {result.returncode}')
-                if read_results(run / 'native-execution/results') != expected:
-                    raise RuntimeError('Cold replay executed a different native test set')
-                execution = json.loads((run / 'native-execution/execution.json').read_text())
-                if execution['status'] != 'passed' or {tuple(case) for case in execution['executedCases']} != expected:
-                    raise RuntimeError('Fresh native execution metadata is missing or incomplete')
+                expected = validate_execution(run, expected)
+                plan = json.loads((output / 'plan.json').read_text())
+                plan['expectedCases'] = sorted(expected)
+                (output / 'plan.json').write_text(json.dumps(plan, indent=2))
                 summary = {
                     'tests': len(expected), 'failures': 0, 'errors': 0, 'skipped': 0,
                     'nativeSeconds': time.monotonic() - started,
@@ -225,6 +237,8 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--runs', type=int, default=2)
     parser.add_argument('--cleanup-only', action='store_true')
+    parser.add_argument('--fresh', action='store_true',
+                        help='Require a fresh binary-inventoried suite without prior reports')
     args = parser.parse_args()
     if not 1 <= args.runs <= 10:
         parser.error('--runs must be between 1 and 10')
@@ -243,7 +257,7 @@ def main():
     def interrupted(signum, frame):
         raise InterruptedError('Native replay interrupted')
     signal.signal(signal.SIGTERM, interrupted)
-    replay(args.root.resolve(), output, args.runs)
+    replay(args.root.resolve(), output, args.runs, fresh=args.fresh)
 
 
 if __name__ == '__main__':
