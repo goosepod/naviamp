@@ -43,17 +43,38 @@ class NativeReplayResultsTest(unittest.TestCase):
             self.results(duplicate)
 
 
+class FreshNativeInventoryTest(unittest.TestCase):
+    def test_fresh_reports_must_match_binary_inventory_and_all_executed_cases(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run = Path(directory)
+            results = run / 'native-execution/results'
+            results.mkdir(parents=True)
+            (results / 'TEST-native.xml').write_text(
+                f'<testsuite tests="1"><testcase classname="{OWNER}" name="{NAME}"/></testsuite>')
+            record = run / 'native-execution/execution.json'
+            suite = [[OWNER, NAME]]
+            data = {'status': 'passed', 'expectedCases': suite, 'executedCases': suite}
+            record.write_text(json.dumps(data))
+            self.assertEqual(frozenset({(OWNER, NAME)}), HELPER['validate_execution'](run))
+            for change in ({'expectedCases': suite + [[OWNER, 'omittedCase']]},
+                           {'executedCases': []}, {'status': 'failed'}):
+                record.write_text(json.dumps(dict(data, **change)))
+                with self.subTest(change=change), self.assertRaises(RuntimeError):
+                    HELPER['validate_execution'](run)
+
+
 class NativeReplayCleanupTest(unittest.TestCase):
     device_id = '12345678-1234-1234-1234-123456789abc'
     name = 'Naviamp TLS cold replay 1 owned-marker'
 
-    def test_failed_boot_cleans_its_prepared_fixture_and_owned_device(self):
+    def test_failed_boot_cleans_its_prepared_fixture_and_owned_device(self, fresh=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             results = root / 'build/ios-native-execution/results'
-            results.mkdir(parents=True)
-            (results / 'TEST-native.xml').write_text(
-                f'<testsuite tests="1"><testcase classname="{OWNER}" name="{NAME}"/></testsuite>')
+            if not fresh:
+                results.mkdir(parents=True)
+                (results / 'TEST-native.xml').write_text(
+                    f'<testsuite tests="1"><testcase classname="{OWNER}" name="{NAME}"/></testsuite>')
             output = root / 'build/replays'
             output.mkdir(parents=True)
             cleanup = Mock()
@@ -71,12 +92,15 @@ class NativeReplayCleanupTest(unittest.TestCase):
                     patch('subprocess.check_output', return_value='test-commit'), \
                     patch('subprocess.run'), patch('subprocess.Popen', return_value=fixture) as launch:
                 with self.assertRaisesRegex(RuntimeError, 'owned boot failed'):
-                    HELPER['replay'](root, output, 1)
+                    HELPER['replay'](root, output, 1, fresh=fresh)
                 launch.assert_called_once()
                 cleanup.assert_called_once()
                 stop.assert_called_once_with(fixture, output / 'run-1/fixture.bootstrap', root)
             failure = json.loads((output / 'run-1/summary.json').read_text())
             self.assertEqual('simulator boot', failure['stage'])
+
+    def test_fresh_run_needs_no_prior_reports_and_still_cleans_failed_boot(self):
+        self.test_failed_boot_cleans_its_prepared_fixture_and_owned_device(fresh=True)
 
     def test_never_removes_a_device_whose_name_changed(self):
         with tempfile.TemporaryDirectory() as directory:
