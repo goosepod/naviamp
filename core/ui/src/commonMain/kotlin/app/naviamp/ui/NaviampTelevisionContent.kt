@@ -1742,13 +1742,13 @@ internal fun TelevisionNowPlaying(
                         if (!nowPlaying.isLive) {
                             TelevisionIconButton(
                                 enabled = nowPlaying.canRepeat,
-                                icon = NaviampTransportIcons.Repeat,
+                                icon = naviampRepeatIcon(nowPlaying.repeatMode),
                                 description = televisionRepeatModeDescription(nowPlaying.repeatMode),
                                 colors = colors,
                                 size = TelevisionNowPlayingSecondaryButtonSize,
                                 iconSize = TelevisionNowPlayingSecondaryIconSize,
                                 selected = nowPlaying.repeatMode != NaviampRepeatMode.Off,
-                                centerText = naviampRepeatIconCenterText(nowPlaying.repeatMode),
+                                inactive = nowPlaying.repeatMode == NaviampRepeatMode.Off,
                                 whiteHighlight = true,
                             ) {
                                 actions.playback(NowPlayingPlaybackAction.CycleRepeatMode)
@@ -2195,7 +2195,7 @@ internal fun TelevisionIconButton(
     size: Dp = 48.dp,
     prominent: Boolean = false,
     iconSize: Dp = if (prominent) 34.dp else 25.dp,
-    centerText: String? = null,
+    inactive: Boolean = false,
     whiteHighlight: Boolean = false,
     selectedKeepsDarkBackground: Boolean = false,
     iconTint: Color? = null,
@@ -2258,21 +2258,13 @@ internal fun TelevisionIconButton(
             Icon(
                 icon,
                 contentDescription = description,
-                tint = iconTint
+                tint = if (inactive) naviampTransportIconTint(colors, enabled, inactive = true, lightSurface = usesLightSurface)
+                    else iconTint
                     ?: if (usesLightSurface) colors.background
                     else if (enabled) colors.primaryText
                     else colors.mutedText,
                 modifier = Modifier.size(iconSize),
             )
-            centerText?.let {
-                Text(
-                    it,
-                    color = if (usesLightSurface) colors.background else colors.primaryText,
-                    fontSize = if (it.length > 1) 7.sp else 10.sp,
-                    fontWeight = FontWeight.Black,
-                    textAlign = TextAlign.Center,
-                )
-            }
         }
     }
 }
