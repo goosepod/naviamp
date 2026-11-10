@@ -6,29 +6,23 @@ and Linux VM. Successful controls below do not close the underlying investigatio
 
 ## Integration
 
-- Repeat PR #558 merged at `71789f38ce58ca5f540cc766339fab75cb0d4d77`, after full CI and the
-  owner's earlier real-Mac acceptance. String-audit PR #562 merged at
-  `8bc75ad9f14b64750a1fa78c960908fecdf7d211`, after full CI. Its existing audit records the
-  53 removed keys / 278 catalog entries.
-- Tooltip PR #561 now targets main and includes accepted main. Refreshed head
-  `268e9bf39615b3cf26174ce42ad8a63e236984e4` passes 13 focused tooltip/TV-policy JVM cases,
-  Android/JVM/both iOS target compilation and the Core architecture check. Fresh
-  [Verify 42852630740](https://github.com/goosepod/naviamp/actions/runs/42852630740) gates merge.
-- Cache follow-up #556's original source passes full Verify 42739201626 after one isolated
-  control of its Windows Google Maven download timeout. The original failure precedes native
-  execution. Branch protection then requires a current-main refresh: head `5943f3202` and
-  [Verify 42854578928](https://github.com/goosepod/naviamp/actions/runs/42854578928) passes.
-  It merges at `d281f2b0de3db72e0b3538a1a2eca4ac737c17db`. The hosted cold/warm benchmark
-  [42858817970](https://github.com/goosepod/naviamp/actions/runs/42858817970) is dispatched.
-  All 86 helper tests pass locally; no net hosted speed result is claimed before the benchmark.
-  The tooltip's preceding full matrix also passes; its final refresh with this accepted cache
-  change requires fresh exact-head verification before merge.
+- Repeat #558 merges at `71789f38ce58ca5f540cc766339fab75cb0d4d77` after full CI and the
+  owner's real macOS acceptance. String audit #562 merges at
+  `8bc75ad9f14b64750a1fa78c960908fecdf7d211` after full CI; its audit records 53 removed keys
+  and 278 catalog entries.
+- Cache #556 merges at `d281f2b0de3db72e0b3538a1a2eca4ac737c17db` after its current-main
+  exact-head matrix. Tooltip #561's final refresh also passes the full matrix and merges at
+  `bb2c3a5ebadf67fefa5d53da385edb9b185487ce`.
+- Weblate #567 receives a focused German typo correction and passes translation validation before
+  a regular merge at `0290c780880d0e32c1a5ad786a556a06deea6121`. The original translator commit
+  remains an ancestor of main; no squash/rewrite of its ancestry is used.
 
-The final tooltip refresh passes full verification and merges at
-`bb2c3a5ebadf67fefa5d53da385edb9b185487ce`. The cache benchmark also completes: matched total
-job time is 20m32s cold versus 12m11s warm, including archive overhead, with all 2,512 common
-cases and 17 native cases freshly executed in each stage. Scope, cache keys/sizes and limitations
-are audited in [`512-ios-cache-population.md`](512-ios-cache-population.md).
+The matched hosted cache benchmark
+[42858817970](https://github.com/goosepod/naviamp/actions/runs/42858817970) completes in 20m32s
+cold versus 12m11s warm, including archive overhead. All 2,512 common cases and 17 native cases
+execute freshly in each stage. Scope, cache keys/sizes and limitations are audited in
+[`512-ios-cache-population.md`](512-ios-cache-population.md); this is not a measurement of the
+entire production Verify/Xcode/Keychain workload.
 
 ## Physical Android raster controls (#330)
 
@@ -149,16 +143,48 @@ executes all 17 native cases, with one fixture-bootstrap timeout. Packet/JFR evi
 16.901212 seconds before the first server response, after native cancellation. TLS has not started.
 The host-side response delay is established; the scheduling/paging/resource mechanism and durable
 fix are not. See [`454-hosted-fixture-diagnosis.md`](454-hosted-fixture-diagnosis.md) and
-[draft #564](https://github.com/goosepod/naviamp/pull/564). The bounded host-resource follow-up is
-running in [42858007591](https://github.com/goosepod/naviamp/actions/runs/42858007591).
+[#564](https://github.com/goosepod/naviamp/pull/564). The bounded host-resource diagnostic
+[42858007591](https://github.com/goosepod/naviamp/actions/runs/42858007591) passes its 17 native
+cases, but the overall run is unsuccessful and is not full-matrix acceptance.
+
+Candidate `32c0538afe36a21134ee66ee24bd0b2eb9914f1a` requires the exact owned fixture to answer
+again after simulator boot, before timed native execution, within the existing setup budget.
+It does not retry native assertions or extend the ten-second bootstrap or authentication deadlines.
+Three fresh local suites pass the same complete 17-method binary inventory: **51 executions,
+zero failures/errors/skips**, JFR disabled, all owned resources cleaned. Their post-boot readiness
+checks take approximately 0.127s, 0.224s and 0.084s. This supplies local simulator evidence, not
+proof of a hosted root-cause fix. Hosted exact-head
+[Verify 42867932239](https://github.com/goosepod/naviamp/actions/runs/42867932239) passes the
+complete matrix, including production iOS app and Keychain. Its initial native suite and two
+cold replays execute the same complete 17-method inventory on three distinct simulators:
+**51 executions, zero failures/errors/skips**, JFR disabled, both replay cleanup markers present.
+Their binary SHA-256 is `44066855b05ebe2c04dd49bc90bb0337a5df344d75b4f0a5a6178762b6707e97`;
+post-boot readiness takes approximately 0.125s, 0.659s and 2.804s. The reports are independently
+audited after job completion. PR #564 merges at `8b030cce871063638580dee88188c7918e62d6aa`.
+This accepts the concrete readiness lifecycle correction, not a deeper OS/JVM causal explanation.
+
+Private local evidence: `/private/tmp/naviamp-454-candidate-cold-local-staged-20261110`.
+An earlier sandbox-denied simulator lookup and missing-framework launch fail before native
+inventory; the existing framework-staging task resolves the latter. Neither counts as a native
+execution or passing suite.
 
 There is no physical iOS device. Apple native evidence here is simulator evidence; physical iOS
 runtime/audio/touch/performance acceptance is not inferred. The owner subsequently decides that
 unresolved #330, #342, #493 and #552 must not hold v2.11.0. They remain open, with their original
 criteria/evidence, as nonblocking follow-ups outside the release milestone. Native assertions and
 the final full release matrix remain enforced. Tooltip/cache integration and measured cache benefit
-are accepted; #454's post-boot readiness candidate and final release/changelog verification remain.
+are accepted, as is #454's post-boot readiness correction. The versioned release candidate still
+requires its own complete verification and packaging gates.
 
 No platform production source is modified by this campaign's new probes/documentation. The
 tooltip branch's pre-existing JVM adapter only translates Core-supplied size/offset into AWT
 owned-window bounds before show; measurement, placement and timing remain common.
+
+## Flatpak release availability
+
+The owner confirms that the original Ubuntu signing environment is on a different, currently
+unavailable Windows machine. The tested public signed package remains v2.10.0. Its v2.11.0
+update is tracked separately in [#569](https://github.com/goosepod/naviamp/issues/569), preserving
+the existing trust identity and remote; no replacement key or signature bypass is introduced.
+The app release/direct Linux packages continue with this limitation clearly stated in release
+notes, the shared About changelog and plain announcements.
