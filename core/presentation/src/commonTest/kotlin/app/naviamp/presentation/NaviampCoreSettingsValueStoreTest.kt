@@ -17,6 +17,31 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 class NaviampCoreSettingsValueStoreTest {
+    @Test fun oldDuplicateStationsAreReconciledDurablyAndOptionsSurviveReopening() {
+        val values = MemorySettingsValues()
+        val station = genreRecentRadioStream(Genre("Jazz")).copy(
+            sourceId = "account-a", id = "genre:Jazz:session:2", startedAtEpochMillis = 2,
+            sessionTracks = listOf(SavedTrack("one", "One", artistName = "Artist")),
+        )
+        // Store the old JSON directly so the save path cannot pre-reconcile it.
+        val catalog = naviampCoreSettingsValueCatalog(values).storedSettings
+        catalog.saveRecentRadioStreams(listOf(station))
+        val key = KeyRecentRadio
+        values.entries[key] = kotlinx.serialization.json.Json.encodeToString(
+            kotlinx.serialization.builtins.ListSerializer(RecentRadioStream.serializer()),
+            listOf(station, station.copy(id = "genre:Jazz:session:1", startedAtEpochMillis = 1)),
+        )
+        assertEquals(listOf(station), catalog.loadRecentRadioStreams())
+        val persisted = values.entries[key]
+        assertEquals(listOf(station), naviampCoreSettingsValueCatalog(values).storedSettings.loadRecentRadioStreams())
+        assertEquals(persisted, values.entries[key])
+        val configured = station.copy(stationSeedIds = listOf("Jazz", "Rock"),
+            generationOptions = app.naviamp.domain.radio.RecentRadioGenerationOptions(minimumTracks = 999))
+        catalog.saveRecentRadioStreams(listOf(configured))
+        val reopened = naviampCoreSettingsValueCatalog(values).storedSettings.loadRecentRadioStreams().single()
+        assertEquals(configured.copy(generationOptions = configured.generationOptions?.normalized()), reopened)
+    }
+
     @Test fun artistSectionLayoutsPersistIndependentlyAndOlderSettingsUseLists() {
         val values = MemorySettingsValues()
         val catalog = naviampCoreSettingsValueCatalog(values)

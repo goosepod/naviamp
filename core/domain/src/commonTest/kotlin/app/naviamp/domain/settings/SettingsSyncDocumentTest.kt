@@ -386,6 +386,8 @@ class SettingsSyncDocumentTest {
                         kind = RecentRadioKind.Library,
                         sourceId = "goosepod",
                         startedAtEpochMillis = 123L,
+                        stationSeedIds = listOf("seed-a", "seed-b"),
+                        generationOptions = app.naviamp.domain.radio.RecentRadioGenerationOptions(minimumTracks = 30),
                         sessionTracks = listOf(
                             SavedTrack("track-1", "Track", artistName = "Artist"),
                         ),
@@ -427,6 +429,8 @@ class SettingsSyncDocumentTest {
         assertEquals("Road DJ", decoded.preferences.playback.radioDjs.single().name)
         assertEquals("Waveform", decoded.preferences.visualizer.selectedVisualizer)
         assertEquals("goosepod", decoded.preferences.recentRadioStreams.single().sourceId)
+        assertEquals(listOf("seed-a", "seed-b"), decoded.preferences.recentRadioStreams.single().stationSeedIds)
+        assertEquals(30, decoded.preferences.recentRadioStreams.single().generationOptions?.minimumTracks)
         assertEquals("track-1", decoded.preferences.recentRadioStreams.single().sessionTracks.single().id)
         assertEquals("goosepod", decoded.preferences.recentInternetRadioStations.single().sourceId)
         assertTrue(decoded.preferences.interfaceSettings.checkForUpdates)

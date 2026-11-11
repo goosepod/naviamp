@@ -24,7 +24,7 @@ class NaviampCoreRecentRadioController(
             return NaviampCoreCommandResult.Completed
         }
         if (stream.sessionTracks.isNotEmpty()) {
-            media.play(stream.sessionTracks.map { it.toTrack() })
+            media.replayRecentRadio(stream)
             return NaviampCoreCommandResult.Completed
         }
         val action = recentRadioAction(stream)
@@ -38,7 +38,7 @@ class NaviampCoreRecentRadioController(
             is RecentRadioAction.PlayGenre -> media.startGenreRadio(action.genre.name)
             is RecentRadioAction.PlayDecade -> media.startDecadeRadio(action.fromYear, action.toYear)
             is RecentRadioAction.PlayArtist -> media.startArtistRadio(action.artist)
-            is RecentRadioAction.PlayAlbum -> media.startAlbumRadio(action.album)
+            is RecentRadioAction.PlayAlbum -> media.startAlbumRadio(action.album, stream)
             is RecentRadioAction.PlayTrack -> media.startTrackRadio(action.track)
         }
         return NaviampCoreCommandResult.Completed
