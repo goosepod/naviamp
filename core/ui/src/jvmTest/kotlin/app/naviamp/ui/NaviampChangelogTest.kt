@@ -6,49 +6,35 @@ import kotlin.test.assertTrue
 
 class NaviampChangelogTest {
     @Test
-    fun release2110ContainsThePublicChangesInSignificanceOrder() {
+    fun release2111ContainsThePublicChangesInSignificanceOrder() {
         val about = NaviampAboutUi()
         val changelog = about.changelog
-        assertEquals("v2.11.0", about.version)
-        assertEquals(listOf("Features", "Improvements", "Bug fixes", "Upgrade notes", "Known issues", "Thanks"),
+        assertEquals("v2.11.1", about.version)
+        assertEquals("62", about.buildNumber)
+        assertEquals(listOf("Features", "Improvements", "Bug fixes", "Upgrade notes", "Known issues"),
             changelog.map { it.title })
-        val features = changelog.first().entries
-        assertTrue(features.first().contains("Aurral hub"))
-        assertTrue(features.first().contains("Track requests"))
-        assertTrue(features.first().contains("waiting-for-release"))
-        assertTrue(features.first().contains("after reconnecting"))
-        assertTrue(features[1].contains("signed x86_64 Flatpak"))
-        assertTrue(features.any { it.contains("square album artwork") && it.contains("sync") })
-        assertTrue(features.any { it.contains("TV Now Playing controls visible") && it.contains("focus") })
+        val feature = changelog.first().entries.single()
+        assertTrue(feature.contains("Stream Details") && feature.contains("update") && feature.contains("copying"))
+        val improvements = changelog.single { it.title == "Improvements" }.entries
+        assertTrue(improvements.any { it.contains("per-song artwork") && it.contains("SomaFM") })
+        assertTrue(improvements.any { it.contains("codec and bitrate") && it.contains("setting") })
         val fixes = changelog.single { it.title == "Bug fixes" }.entries
-        assertTrue(fixes.any { it.contains("old stream immediately") })
-        assertTrue(fixes.any { it.contains("Retry lyrics") })
-        assertTrue(fixes.any { it.contains("Cast sender module is unavailable") })
-        assertTrue(fixes.any { it.contains("album’s saved playback profile") })
-        assertTrue(fixes.any { it.contains("final paused playback position") })
-        assertTrue(fixes.any { it.contains("audible clock stalls") })
-        assertTrue(fixes.any { it.contains("initial announced internet-radio song title") })
-        assertTrue(fixes.any { it.contains("tooltips correctly before their first visible frame") })
+        assertEquals(4, fixes.size)
+        assertTrue(fixes.any { it.contains("blank artwork identifier") })
+        assertTrue(fixes.any { it.contains("homepage edits") && it.contains("clearing") })
+        assertTrue(fixes.any { it.contains("shuffle") && it.contains("restoring") })
+        assertTrue(fixes.any { it.contains("generated Radio") && it.contains("duplicate") && it.contains("distinct") })
         val upgrades = changelog.single { it.title == "Upgrade notes" }.entries
-        assertTrue(upgrades.any { it.contains("database upgrades automatically") })
-        assertTrue(upgrades.any { it.contains("v2.11.0") && it.contains("synchronization") })
-        val known = changelog.single { it.title == "Known issues" }.entries
-        assertTrue(known.any { it.contains("Android 15") && it.contains("Windows") && it.contains("under investigation") })
-        assertTrue(known.any { it.contains("physical GNOME/KDE") && it.contains("outstanding") })
+        assertTrue(upgrades.any { it.contains("No special upgrade steps") })
+        assertTrue(upgrades.any { it.contains("Historical tuning") })
+        assertTrue(upgrades.any { it.contains("v2.10.0") && it.contains("await signing") })
+        assertTrue(changelog.single { it.title == "Known issues" }.entries.any { it.contains("No new known issues") })
     }
 
     @Test
-    fun aboutUsesPlainChangeListsAndDeduplicatedContributorThanks() {
-        val changelog = NaviampAboutUi().changelog
-        val changes = changelog.filter { it.title != "Thanks" }.flatMap { it.entries }
+    fun aboutUsesPlainCurrentReleaseChangesWithoutRepeatingEarlierContributions() {
+        val changes = NaviampAboutUi().changelog.flatMap { it.entries }
         assertTrue(changes.none { it.contains("http") || Regex("(?:Issue|PR|commit) #?\\d+").containsMatchIn(it) })
-        assertTrue(changes.none { it.contains("@crsthn-slv") || it.contains("@sewnie") })
-        val thanks = changelog.single { it.title == "Thanks" }.entries
-        for (handle in listOf("@crsthn-slv", "@sewnie")) {
-            assertEquals(1, thanks.count { it.contains(handle) })
-            assertTrue(thanks.single { it.contains(handle) }.contains("first-time contributor"))
-        }
-        assertTrue(thanks.single { it.contains("@crsthn-slv") }.contains("Brazilian Portuguese translation"))
-        assertTrue(thanks.single { it.contains("@sewnie") }.contains("reporting"))
+        assertTrue(changes.none { it.contains("@") || it.contains("Aurral hub") || it.contains("first-time contributor") })
     }
 }

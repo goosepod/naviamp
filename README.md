@@ -30,7 +30,7 @@ and share feedback.
 
 Install the official Linux x86_64 Flatpak from Naviamp's signed GitHub Pages repository.
 The signed package currently contains v2.10.0, including Java, and runs on X11 or XWayland.
-The v2.11.0 Flatpak update is pending signing; direct Linux downloads already contain v2.11.0.
+Newer Flatpak updates await signing; use the direct Linux downloads for the latest application release.
 [Bundles, checksums and release information](https://github.com/goosepod/naviamp-flatpak/releases)
 are hosted on GitHub Releases. A Flathub listing is not required; Flathub supplies the
 Freedesktop runtime. Linux DEB, RPM, and portable ZIP downloads remain on
@@ -107,7 +107,7 @@ Ask on Discord before uninstalling: uninstalling erases local app data.
 - **A full Now Playing experience.** Manage Back To, Up Next, and related queues alongside waveform
   seeking, favorites, ratings, lyrics, repeat, shuffle, volume, and detailed audio metadata.
 - **Internet radio.** Browse, create, edit, and play internet radio stations next to the rest of your
-  music, with live now-playing metadata when the station provides it.
+  music, with live metadata, stream-provided song artwork, and Stream Details when the station supplies them.
 - **Downloads and offline listening.** Keep music on the device, choose storage and cache behavior,
   and use an offline dashboard when the server is out of reach.
 - **Serious playback controls.** ReplayGain, gapless playback, crossfade, sample-rate matching,
@@ -192,6 +192,7 @@ controls that the active server cannot fulfill.
 | Report precise playback position and completion | Navidrome enhancement | OpenSubsonic `playbackReport` extension |
 | Resume a transcoded stream from a server-side offset | Navidrome enhancement | OpenSubsonic `transcodeOffset` extension |
 | Browse, create, edit, delete, and play internet radio stations | Yes | Internet-radio station APIs for saved stations |
+| Internet-radio Stream Details, live metadata and artwork | Yes | Metadata and supported image URLs supplied by the stream; known station logos and other artwork fallbacks apply |
 | Authenticate with a renewable native session token | Navidrome enhancement | Navidrome native authentication; standard token-and-salt authentication remains available |
 | Gapless playback, crossfade, ReplayGain, equalizer, sample-rate matching, and downmixing | Yes | Performed locally by Naviamp's BASS playback engine |
 | Waveform seeking, audio metadata, lyrics timing, and visualizers | Yes | Performed locally; metadata and lyrics depend on the source |
@@ -248,7 +249,7 @@ Naviamp uses the BASS audio engine and combines its playback controls with a fle
 - Configurable artwork, colors, gradients, blur, metadata, long-text behavior, and compact layouts.
 - Desktop visualizers ranging from reactive bars and fluid gradients to particles, terrain, tunnels,
   vinyl grooves, and album art.
-- Internet-radio playback and metadata alongside normal library playback.
+- Internet-radio playback, live artwork and metadata, and Stream Details with available station, broadcast, and audio information.
 - Download, cache, and offline controls for listening away from the server.
 
 ## Platforms and downloads
@@ -335,7 +336,7 @@ make android-debug
   App Bundle; see [Android distribution](docs/android-distribution.md).
 - Windows and Linux standalone/installer targets must run on their respective operating systems.
 
-Release operators should use the [v2.11.0 distribution handoff](docs/releases/v2.11.0-readiness.md)
+Release operators should use the [v2.11.1 release readiness record](docs/releases/v2.11.1-readiness.md)
 for exact packages, signing and remaining store gates.
 
 The complete test matrix is documented in [Testing Naviamp](docs/testing.md). The shared
