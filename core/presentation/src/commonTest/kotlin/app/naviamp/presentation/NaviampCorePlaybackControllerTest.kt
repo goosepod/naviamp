@@ -995,6 +995,31 @@ class NaviampCorePlaybackControllerTest {
     }
 
     @Test
+    fun connectShuffleSettingIsIdempotentAndReenablingChoosesAFreshOrder() = runTest {
+        val fixture = playbackFixture(this)
+        val original = fixture.live.state.value.queue
+        fun shuffle(enabled: Boolean) = fixture.controller.executeConnectPlayback(
+            app.naviamp.domain.connect.NaviampConnectSetShuffle(enabled),
+        )
+
+        assertTrue(shuffle(true))
+        val first = fixture.live.state.value.queue
+        assertTrue(first.contextUpNext() != original.contextUpNext())
+        assertTrue(shuffle(true))
+        assertEquals(first, fixture.live.state.value.queue)
+        assertTrue(shuffle(false))
+        assertEquals(original, fixture.live.state.value.queue)
+        assertTrue(shuffle(false))
+        assertEquals(original, fixture.live.state.value.queue)
+        assertTrue(shuffle(true))
+        val second = fixture.live.state.value.queue
+        assertTrue(second.contextUpNext() != first.contextUpNext())
+        assertEquals(original.current, second.current)
+        assertEquals(original.backTo(), second.backTo())
+        assertEquals(original.contextUpNext().toSet(), second.contextUpNext().toSet())
+    }
+
+    @Test
     fun transportQueueVolumeRepeatAndShuffleAreResolvedByCore() = runTest {
         val fixture = playbackFixture(this)
 
