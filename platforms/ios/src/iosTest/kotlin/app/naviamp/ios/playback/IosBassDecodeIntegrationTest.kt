@@ -20,6 +20,23 @@ import kotlin.test.assertTrue
 
 class IosBassDecodeIntegrationTest {
     @Test
+    fun embeddedTagsReachSharedStreamDetails() {
+        val path = "${NSTemporaryDirectory().trimEnd('/')}/naviamp-metadata-${NSUUID.UUID().UUIDString}.ogg"
+        val bytes = app.naviamp.testkit.naviampStreamMetadataFixture()
+        bytes.usePinned { pinned ->
+            assertTrue(NSData.create(bytes = pinned.addressOf(0), length = bytes.size.toULong()).writeToFile(path, true))
+        }
+        val backend = IosBassAudioBackend()
+        try {
+            assertTrue(BASS_Init(0, SampleRate.toUInt(), 0u, null, null) != 0)
+            app.naviamp.testkit.verifyNaviampStreamTagReading(backend, path)
+        } finally {
+            backend.free()
+            NSFileManager.defaultManager.removeItemAtPath(path, null)
+        }
+    }
+
+    @Test
     fun bundledBassDecodesAndSeeksThroughTheSharedFileCallbacks() {
         val bytes = testWav()
         val source = object : app.naviamp.domain.playback.PlaybackRandomAccessSource {

@@ -469,4 +469,18 @@
     <string name="discovery_hub_requests">Стежте за завантаженнями й поповненням медіатеки.</string>
     <string name="discovery_hub_genres">Виберіть жанри для виключення з рекомендацій.</string>
     <string name="artwork_view_full_size">Переглянути зображення в повному розмірі</string>
+    <string name="stream_details">Відомості про потік</string>
+    <string name="stream_actions">Дії з потоком</string>
+    <string name="stream_details_station">Станція</string>
+    <string name="stream_details_broadcast">Поточна трансляція</string>
+    <string name="stream_details_metadata">Метадані потоку</string>
+    <string name="stream_details_genre">Жанр</string>
+    <string name="stream_details_description">Опис</string>
+    <string name="stream_details_artwork_url">URL обкладинки</string>
+    <string name="stream_details_sample_rate">Частота дискретизації (Гц)</string>
+    <string name="stream_details_channels">Канали</string>
+    <string name="stream_details_content_type">Тип вмісту</string>
+    <string name="stream_details_embedded_artwork">Вбудована обкладинка доступна</string>
+    <string name="stream_details_redacted">приховано</string>
+    <string name="stream_details_unavailable_url">URL недоступна</string>
 </resources>

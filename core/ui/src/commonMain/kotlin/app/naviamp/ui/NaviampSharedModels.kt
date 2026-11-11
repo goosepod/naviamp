@@ -1337,6 +1337,7 @@ data class NowPlayingUi(
     val lyricsDisplayTiming: app.naviamp.domain.lyrics.LyricsTiming? = null,
     val menuEnabled: Boolean = false,
     val detailSections: List<NaviampDetailSectionUi> = emptyList(),
+    val streamDetailSections: List<NaviampStreamDetailSection> = emptyList(),
     val playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
     val useInlinePlaylistPicker: Boolean = true,
     val playlistActionStatus: String? = null,

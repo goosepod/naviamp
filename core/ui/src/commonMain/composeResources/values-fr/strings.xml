@@ -469,4 +469,18 @@
     <string name="discovery_hub_requests">Suivez les téléchargements et les ajouts à votre bibliothèque.</string>
     <string name="discovery_hub_genres">Choisissez les genres à exclure des recommandations.</string>
     <string name="artwork_view_full_size">Afficher l’image en taille réelle</string>
+    <string name="stream_details">Détails du flux</string>
+    <string name="stream_actions">Actions du flux</string>
+    <string name="stream_details_station">Station</string>
+    <string name="stream_details_broadcast">Diffusion actuelle</string>
+    <string name="stream_details_metadata">Métadonnées du flux</string>
+    <string name="stream_details_genre">Genre</string>
+    <string name="stream_details_description">Description</string>
+    <string name="stream_details_artwork_url">URL de la pochette</string>
+    <string name="stream_details_sample_rate">Fréquence d’échantillonnage (Hz)</string>
+    <string name="stream_details_channels">Canaux</string>
+    <string name="stream_details_content_type">Type de contenu</string>
+    <string name="stream_details_embedded_artwork">Pochette intégrée disponible</string>
+    <string name="stream_details_redacted">masqué</string>
+    <string name="stream_details_unavailable_url">URL indisponible</string>
 </resources>

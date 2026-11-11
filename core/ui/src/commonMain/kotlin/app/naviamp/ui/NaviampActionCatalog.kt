@@ -212,12 +212,13 @@ fun nowPlayingTrackMenuActions(
     canEmptyQueue: Boolean,
     sleepTimerLabel: String,
     canStartRadio: Boolean = false,
+    detailsLabel: String = NaviampAction.TrackDetails.label,
 ): List<NaviampActionSpec> =
     listOfNotNull(
         NaviampAction.StartTrackRadio.takeIf { canStartRadio && !isLive }?.toSpec(),
         NaviampAction.ChangeVisualizer.toSpec(enabled = visualizerAvailable),
         NaviampAction.DownloadTrack.toSpec(enabled = !isLive),
-        NaviampAction.TrackDetails.toSpec(enabled = hasDetails),
+        NaviampAction.TrackDetails.toSpec(label = detailsLabel, enabled = hasDetails),
         NaviampAction.GoToAlbum.toSpec(enabled = !isLive),
         NaviampAction.GoToArtist.toSpec(enabled = !isLive),
         NaviampAction.AddToPlaylist.toSpec(enabled = canAddToPlaylist),

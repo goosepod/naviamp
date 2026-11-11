@@ -469,4 +469,18 @@
     <string name="discovery_hub_requests">تابع التنزيلات والإضافات إلى مكتبتك.</string>
     <string name="discovery_hub_genres">اختر الأنواع المراد استبعادها من التوصيات.</string>
     <string name="artwork_view_full_size">عرض الصورة بالحجم الكامل</string>
+    <string name="stream_details">تفاصيل البث</string>
+    <string name="stream_actions">إجراءات البث</string>
+    <string name="stream_details_station">المحطة</string>
+    <string name="stream_details_broadcast">البث الحالي</string>
+    <string name="stream_details_metadata">بيانات البث الوصفية</string>
+    <string name="stream_details_genre">النوع</string>
+    <string name="stream_details_description">الوصف</string>
+    <string name="stream_details_artwork_url">رابط الصورة</string>
+    <string name="stream_details_sample_rate">معدل أخذ العينات (هرتز)</string>
+    <string name="stream_details_channels">القنوات</string>
+    <string name="stream_details_content_type">نوع المحتوى</string>
+    <string name="stream_details_embedded_artwork">تتوفر صورة مضمنة</string>
+    <string name="stream_details_redacted">محجوب</string>
+    <string name="stream_details_unavailable_url">الرابط غير متاح</string>
 </resources>
