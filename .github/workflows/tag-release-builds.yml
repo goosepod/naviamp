@@ -69,8 +69,11 @@ jobs:
 
             evidence_dir="$RUNNER_TEMP/verification-${artifact_id}"
             mkdir -p "$evidence_dir"
-            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$evidence_dir/evidence.zip"
-            unzip -q "$evidence_dir/evidence.zip" -d "$evidence_dir"
+            if ! gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$evidence_dir/evidence.zip" || \
+               ! unzip -q "$evidence_dir/evidence.zip" -d "$evidence_dir"; then
+              echo "Verification evidence could not be read; require fresh verification unless another proof matches."
+              continue
+            fi
             evidence_file="$evidence_dir/evidence.txt"
             test -f "$evidence_file" || continue
             recorded_head="$(sed -n 's/^source_head_sha=//p' "$evidence_file")"
