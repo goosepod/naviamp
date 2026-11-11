@@ -477,6 +477,7 @@ class NaviampCoreNowPlayingMediaControllerTest {
             cancelledFixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))
         }
         assertTrue(cancelledFixture.artistActivity.trackRadioRecords.isEmpty())
+        assertTrue(cancelledFixture.store.state.value.shell.home.content.recentRadioStreams.isEmpty())
 
         val artistFixture = mediaFixture(this)
         artistFixture.transactions.startArtistRadio(Artist(ArtistId("direct"), "Direct"))
@@ -654,7 +655,7 @@ class NaviampCoreNowPlayingMediaControllerTest {
         assertEquals("Playing current radio.", fixture.store.state.value.overlays.status)
         val recentSection = fixture.store.state.value.shell.home.content.collectionSections
             .single { it.id == app.naviamp.domain.settings.HomeSectionIds.RecentRadio }
-        assertTrue(recentSection.items.single().mediaItem.id.startsWith("track:current:session:"))
+        assertEquals("track:current", recentSection.items.single().mediaItem.id)
         assertEquals("2 tracks", recentSection.items.single().mediaItem.subtitle)
 
         fixture.live.replace(
@@ -744,6 +745,7 @@ class NaviampCoreNowPlayingMediaControllerTest {
         assertEquals(before, fixture.live.state.value)
         assertTrue(fixture.effects.selections.isEmpty())
         assertTrue(fixture.effects.appliedQueues.isEmpty())
+        assertTrue(fixture.store.state.value.shell.home.content.recentRadioStreams.isEmpty())
         assertEquals(app.naviamp.domain.radio.RadioBuildOutcome.Failed, fixture.store.state.value.shell.playback.radioDiagnostics?.outcome)
     }
 
@@ -1015,6 +1017,7 @@ private fun mediaFixture(scope: kotlinx.coroutines.CoroutineScope): MediaFixture
         recentRadioStreams = NaviampRecentRadioStreamController(
             load = { recentRadioStreams },
             save = { recentRadioStreams = it },
+            currentSourceId = { store.state.value.shell.connectionSettings.currentSourceId },
         ),
         externalUri = NaviampCoreExternalUriPort {},
         favoritedAtIso8601 = { "now" },
