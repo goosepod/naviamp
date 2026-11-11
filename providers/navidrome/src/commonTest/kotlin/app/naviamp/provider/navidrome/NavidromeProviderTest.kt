@@ -2687,6 +2687,34 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun internetRadioStationsWithoutArtworkKeepTheStationFallback() = runTest {
+        for (coverArtField in listOf("", "\"coverArt\": null,", "\"coverArt\": \"\",", "\"coverArt\": \"   \",")) {
+            val provider = NavidromeProvider(
+                connection = connection("https://music.example.test"),
+                httpClient = FakeHttpClient(
+                    """
+                    {
+                      "subsonic-response": {
+                        "status": "ok",
+                        "internetRadioStations": {
+                          "internetRadioStation": [{
+                            $coverArtField
+                            "id": "groovesalad",
+                            "name": "Groove Salad",
+                            "streamUrl": "https://ice.somafm.com/groovesalad"
+                          }]
+                        }
+                      }
+                    }
+                    """.trimIndent(),
+                ),
+            )
+
+            assertNull(provider.internetRadioStations().single().coverArtUrl, coverArtField)
+        }
+    }
+
+    @Test
     fun createInternetRadioStationSendsStationFields() = runTest {
         val httpClient = RecordingResponseHttpClient(
             """
