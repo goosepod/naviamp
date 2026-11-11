@@ -1123,7 +1123,7 @@ private fun NowPlayingDetails(
                             )
                         }
 
-                        if (showAudioInfo && !nowPlaying.isLive && nowPlaying.audioInfo.isNotBlank()) {
+                        if (showAudioInfo && nowPlaying.audioInfo.isNotBlank()) {
                             Text(
                                 nowPlaying.audioInfo,
                                 color = colors.secondaryText,
@@ -1525,8 +1525,7 @@ private fun FilledArtworkMetadataRow(
     onRatingSelected: (Int?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (nowPlaying.isLive) return
-    val ratingVisible = showRating &&
+    val ratingVisible = showRating && !nowPlaying.isLive &&
         (nowPlaying.canFavorite || nowPlaying.canRate)
     val audioVisible = showAudioInfo && nowPlaying.audioInfo.isNotBlank()
     if (!ratingVisible && !audioVisible) return
@@ -1586,9 +1585,7 @@ private fun CompactMetadataRow(
     onRatingSelected: (Int?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (nowPlaying.isLive) return
-
-    val showRatingControls = showRating &&
+    val showRatingControls = showRating && !nowPlaying.isLive &&
         (nowPlaying.canFavorite || nowPlaying.canRate)
     val showAudioText = showAudioInfo && nowPlaying.audioInfo.isNotBlank()
     if (!showRatingControls && !showAudioText) return

@@ -1364,7 +1364,7 @@ class NavidromeProvider(
             params = listOf("id" to station.id) + internetRadioParams(
                 name = trimmedName,
                 streamUrl = trimmedStreamUrl,
-                homePageUrl = station.homePageUrl,
+                homePageUrl = station.homePageUrl.orEmpty(),
             ),
         )
     }
@@ -2206,8 +2206,10 @@ class NavidromeProvider(
         buildList {
             add("name" to name)
             add("streamUrl" to streamUrl)
-            homePageUrl?.trim()?.takeIf { it.isNotBlank() }?.let {
-                add("homePageUrl" to it)
+            // Subsonic requests use homepageUrl; responses use homePageUrl.
+            // An explicit empty value clears the homepage when editing a station.
+            homePageUrl?.trim()?.let {
+                add("homepageUrl" to it)
             }
         }
 
@@ -2336,7 +2338,7 @@ class NavidromeProvider(
             id = stringValue("id") ?: throw NavidromeException("Internet radio station is missing an id."),
             name = stringValue("name") ?: "Internet Radio",
             streamUrl = stringValue("streamUrl") ?: throw NavidromeException("Internet radio station is missing a stream URL."),
-            homePageUrl = stringValue("homePageUrl"),
+            homePageUrl = stringValue("homePageUrl")?.trim()?.takeIf { it.isNotBlank() },
             coverArtUrl = stringValue("coverArt")?.let { coverArtUrl(it) },
         )
 
