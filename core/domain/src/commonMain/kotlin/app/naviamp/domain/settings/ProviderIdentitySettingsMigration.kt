@@ -67,6 +67,7 @@ fun RecentRadioStream.migratedProviderIdentities(
         track = track?.migratedProviderIdentities(transform),
         coverArtIds = coverArtIds.map(transform),
         sessionTracks = sessionTracks.map { it.migratedProviderIdentities(transform) },
+        stationSeedIds = if (kind == RecentRadioKind.Genre) stationSeedIds else stationSeedIds.map(transform),
     )
 }
 

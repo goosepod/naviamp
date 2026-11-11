@@ -895,10 +895,13 @@ data class RecentRadioStream(
     val coverArtIds: List<String> = emptyList(),
     /** The media source that generated this session. Null identifies legacy seed-only history. */
     val sourceId: String? = null,
-    /** Start time used to preserve repeated runs of the same radio seed as distinct sessions. */
+    /** Most recent successful start/replay, independent of the station identity. */
     val startedAtEpochMillis: Long? = null,
     /** The exact generated queue. Empty for history saved by older Naviamp versions. */
     val sessionTracks: List<SavedTrack> = emptyList(),
+    /** Explicit multi-seed membership; older composite IDs are retained conservatively. */
+    val stationSeedIds: List<String> = emptyList(),
+    val generationOptions: app.naviamp.domain.radio.RecentRadioGenerationOptions? = null,
 )
 
 @Serializable
