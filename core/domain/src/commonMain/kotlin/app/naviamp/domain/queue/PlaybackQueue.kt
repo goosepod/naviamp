@@ -286,20 +286,23 @@ data class PlaybackQueue(
         )
     }
 
-    fun shuffleUpcoming(): Pair<PlaybackQueue, List<Track>>? {
+    fun shuffleUpcoming(shuffle: UpcomingShufflePolicy = UpcomingShufflePolicy()): Pair<PlaybackQueue, List<Track>>? {
         val priorityTracks = playNext()
         val originalUpcoming = contextUpNext()
         if (originalUpcoming.size < 2 || currentIndex !in tracks.indices) return null
         return copy(
-            tracks = tracks.take(currentIndex + 1) + priorityTracks + originalUpcoming.shuffled(),
+            tracks = tracks.take(currentIndex + 1) + priorityTracks + shuffle.selectOrder(originalUpcoming),
             playNextCount = priorityTracks.size,
             groups = emptyList(),
         ) to originalUpcoming
     }
 
-    fun toggleUpcomingShuffle(shuffledSnapshot: List<Track>?): UpcomingShuffleToggle? =
+    fun toggleUpcomingShuffle(
+        shuffledSnapshot: List<Track>?,
+        shuffle: UpcomingShufflePolicy = UpcomingShufflePolicy(),
+    ): UpcomingShuffleToggle? =
         if (shuffledSnapshot == null) {
-            val (queue, snapshot) = shuffleUpcoming() ?: return null
+            val (queue, snapshot) = shuffleUpcoming(shuffle) ?: return null
             UpcomingShuffleToggle(queue = queue, shuffledSnapshot = snapshot)
         } else {
             UpcomingShuffleToggle(queue = restoreUpcoming(shuffledSnapshot), shuffledSnapshot = null)

@@ -4,9 +4,12 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.queue.UpcomingShufflePolicy
 import app.naviamp.domain.settings.PreviousButtonBehavior
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 
 class PlaybackQueueManagerTest {
     @Test
@@ -338,6 +341,37 @@ class PlaybackQueueManagerTest {
             ),
             manager.toggleUpcomingShuffle(shuffled.queue, shuffledSnapshot = shuffled.shuffledSnapshot),
         )
+    }
+
+    @Test
+    fun repeatedShuffleEnablesVaryWhileOffRestoresAndPriorityStaysPinned() {
+        val history = track("history")
+        val current = track("current")
+        val priority = track("priority")
+        val upcoming = (1..5).map { track(it.toString()) }
+        val original = PlaybackQueue(listOf(history, current, priority) + upcoming, currentIndex = 1, playNextCount = 1)
+        val manager = PlaybackQueueManager(mutation = PlaybackQueueMutationManager(
+            UpcomingShufflePolicy(object : Random() {
+                override fun nextBits(bitCount: Int): Int = 0
+                override fun nextInt(until: Int): Int = until - 1
+            }),
+        ))
+        var previous = upcoming
+        repeat(6) {
+            val enabled = manager.toggleUpcomingShuffle(original, shuffledSnapshot = null)
+            assertEquals(true, enabled.changed)
+            assertEquals(upcoming, enabled.shuffledSnapshot)
+            assertEquals(listOf(history, current, priority), enabled.queue.tracks.take(3))
+            assertEquals(1, enabled.queue.currentIndex)
+            assertEquals(1, enabled.queue.playNextCount)
+            assertEquals(upcoming.toSet(), enabled.queue.contextUpNext().toSet())
+            assertNotEquals(upcoming, enabled.queue.contextUpNext())
+            assertNotEquals(previous, enabled.queue.contextUpNext())
+            previous = enabled.queue.contextUpNext()
+            val disabled = manager.toggleUpcomingShuffle(enabled.queue, enabled.shuffledSnapshot)
+            assertEquals(original, disabled.queue)
+            assertEquals(null, disabled.shuffledSnapshot)
+        }
     }
 
     @Test
