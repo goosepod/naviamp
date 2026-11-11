@@ -107,7 +107,7 @@ Ask on Discord before uninstalling: uninstalling erases local app data.
 - **A full Now Playing experience.** Manage Back To, Up Next, and related queues alongside waveform
   seeking, favorites, ratings, lyrics, repeat, shuffle, volume, and detailed audio metadata.
 - **Internet radio.** Browse, create, edit, and play internet radio stations next to the rest of your
-  music, with live metadata, stream-provided song artwork, and Stream Details when the station supplies them.
+  music, with Stream Details, plus live song information and artwork when supplied by the stream.
 - **Downloads and offline listening.** Keep music on the device, choose storage and cache behavior,
   and use an offline dashboard when the server is out of reach.
 - **Serious playback controls.** ReplayGain, gapless playback, crossfade, sample-rate matching,
