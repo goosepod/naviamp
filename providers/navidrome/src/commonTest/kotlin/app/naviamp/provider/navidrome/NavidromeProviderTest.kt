@@ -2747,9 +2747,33 @@ class NavidromeProviderTest {
         )
 
         assertEquals(
-            "https://music.example.test/rest/createInternetRadioStation.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&name=KEXP&streamUrl=https%3A%2F%2Fkexp.example%2Fstream&homePageUrl=https%3A%2F%2Fkexp.org",
+            "https://music.example.test/rest/createInternetRadioStation.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&name=KEXP&streamUrl=https%3A%2F%2Fkexp.example%2Fstream&homepageUrl=https%3A%2F%2Fkexp.org",
             httpClient.urls.first(),
         )
+    }
+
+    @Test
+    fun stationHomepageEditsUseRequestCasingAndSurviveReloadIncludingClear() = runTest {
+        var homepage = ""
+        val client = object : NavidromeHttpClient {
+            override suspend fun get(url: String): String {
+                if ("/updateInternetRadioStation.view" in url) {
+                    // The actual Subsonic request contract is homepageUrl (lowercase p).
+                    homepage = io.ktor.http.Url(url).parameters["homepageUrl"].orEmpty()
+                }
+                return if ("/getInternetRadioStations.view" in url) {
+                    """{"subsonic-response":{"status":"ok","internetRadioStations":{"internetRadioStation":[
+                        {"id":"rp","name":"Radio Paradise","streamUrl":"https://stream.radioparadise.com/aac-320","homePageUrl":"$homepage"}
+                    ]}}}"""
+                } else """{"subsonic-response":{"status":"ok"}}"""
+            }
+        }
+        val provider = NavidromeProvider(connection("https://music.example.test"), client)
+        val station = app.naviamp.domain.InternetRadioStation("rp", "Radio Paradise", "https://stream.radioparadise.com/aac-320")
+        for (url in listOf(" https://radioparadise.com/ ", "https://radioparadise.com/listen", "", null)) {
+            provider.updateInternetRadioStation(station.copy(homePageUrl = url))
+            assertEquals(url?.trim()?.takeIf { it.isNotBlank() }, provider.internetRadioStations().single().homePageUrl)
+        }
     }
 
     @Test
@@ -2771,7 +2795,7 @@ class NavidromeProviderTest {
         provider.deleteInternetRadioStation("station-1")
 
         assertEquals(
-            "https://music.example.test/rest/updateInternetRadioStation.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=station-1&name=KEXP&streamUrl=https%3A%2F%2Fkexp.example%2Fstream",
+            "https://music.example.test/rest/updateInternetRadioStation.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=station-1&name=KEXP&streamUrl=https%3A%2F%2Fkexp.example%2Fstream&homepageUrl=",
             httpClient.urls.first(),
         )
         assertEquals(

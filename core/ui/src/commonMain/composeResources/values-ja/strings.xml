@@ -469,4 +469,18 @@
     <string name="discovery_hub_requests">ダウンロードやライブラリへの追加を確認。</string>
     <string name="discovery_hub_genres">おすすめから除外するジャンルを選択。</string>
     <string name="artwork_view_full_size">アートワークを原寸で表示</string>
+    <string name="stream_details">ストリームの詳細</string>
+    <string name="stream_actions">ストリームの操作</string>
+    <string name="stream_details_station">放送局</string>
+    <string name="stream_details_broadcast">現在の放送</string>
+    <string name="stream_details_metadata">ストリームのメタデータ</string>
+    <string name="stream_details_genre">ジャンル</string>
+    <string name="stream_details_description">説明</string>
+    <string name="stream_details_artwork_url">アートワークのURL</string>
+    <string name="stream_details_sample_rate">サンプルレート（Hz）</string>
+    <string name="stream_details_channels">チャンネル数</string>
+    <string name="stream_details_content_type">コンテンツの種類</string>
+    <string name="stream_details_embedded_artwork">埋め込みアートワークあり</string>
+    <string name="stream_details_redacted">非表示</string>
+    <string name="stream_details_unavailable_url">URLを利用できません</string>
 </resources>

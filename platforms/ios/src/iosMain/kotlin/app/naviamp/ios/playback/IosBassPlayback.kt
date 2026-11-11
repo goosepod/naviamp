@@ -4,6 +4,16 @@ package app.naviamp.ios.playback
 
 import app.naviamp.domain.bass.BassFilePosition
 import app.naviamp.ios.bass.native.BASS_StreamGetFilePosition
+import app.naviamp.domain.bass.bassStreamProperties
+import app.naviamp.ios.bass.native.BASS_ChannelGetTags
+import app.naviamp.ios.bass.native.BASS_TAG_ICY
+import app.naviamp.ios.bass.native.BASS_TAG_HTTP
+import app.naviamp.ios.bass.native.BASS_TAG_OGG
+import app.naviamp.ios.bass.native.BASS_TAG_APE
+import app.naviamp.ios.bass.native.BASS_TAG_MP4
+import app.naviamp.ios.bass.native.BASS_TAG_META
+import kotlinx.cinterop.get
+import kotlinx.cinterop.toKString
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassCodecPluginInventory
 import app.naviamp.domain.bass.BassPlaybackBufferPolicy
@@ -547,6 +557,22 @@ class IosBassAudioBackend : BassAudioBackend {
         }
         return Result.success(output)
     }
+
+    // BASS returns native NUL-separated UTF-8 tag arrays and a single ICY metadata block.
+    // Only pointer translation lives here; Core parses and presents the returned fields.
+    override fun streamMetadata(stream: BassStreamHandle): Map<String, String> = bassStreamProperties(buildList {
+        for (kind in listOf(BASS_TAG_ICY, BASS_TAG_HTTP, BASS_TAG_OGG, BASS_TAG_APE, BASS_TAG_MP4)) {
+            var cursor = BASS_ChannelGetTags(stream.uint, kind.toUInt())?.reinterpret<ByteVar>() ?: continue
+            while (cursor[0] != 0.toByte()) {
+                add(cursor.toKString())
+                var length = 0
+                while (cursor[length] != 0.toByte()) length++
+                cursor = (cursor + length + 1) ?: break
+            }
+        }
+        BASS_ChannelGetTags(stream.uint, BASS_TAG_META.toUInt())?.toKString()
+            ?.takeIf { it.isNotEmpty() }?.let(::add)
+    })
 
     override fun freeStream(stream: BassStreamHandle): Result<Unit> =
         bassResult("BASS_StreamFree failed") {
