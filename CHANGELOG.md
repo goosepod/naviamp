@@ -22,7 +22,7 @@ Naviamp 2.11.1 adds live Stream Details and improves internet-radio artwork, sta
 
 ### Improvements
 
-- Show per-song artwork when a radio stream supplies a supported image URL, and use official SomaFM catalogue logos for more stations. ([Issue #583](https://github.com/goosepod/naviamp/issues/583), [PR #585](https://github.com/goosepod/naviamp/pull/585))
+- Show per-song artwork when a radio stream supplies a supported image URL, and use official SomaFM catalog logos for more stations. ([Issue #583](https://github.com/goosepod/naviamp/issues/583), [PR #585](https://github.com/goosepod/naviamp/pull/585))
 - Show internet-radio codec and bitrate in Now Playing when the existing audio-information setting is enabled. Stream Details remains available with that setting off. ([Issue #583](https://github.com/goosepod/naviamp/issues/583), [PR #585](https://github.com/goosepod/naviamp/pull/585))
 
 ### Bug fixes
