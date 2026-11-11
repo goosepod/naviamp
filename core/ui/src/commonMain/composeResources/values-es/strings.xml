@@ -1250,4 +1250,18 @@
     <string name="discovery_hub_requests">Sigue las descargas y las incorporaciones a tu biblioteca.</string>
     <string name="discovery_hub_genres">Elige qué géneros excluir de las recomendaciones.</string>
     <string name="artwork_view_full_size">Ver imagen a tamaño completo</string>
+    <string name="stream_details">Detalles de la emisión</string>
+    <string name="stream_actions">Acciones de la emisión</string>
+    <string name="stream_details_station">Emisora</string>
+    <string name="stream_details_broadcast">Emisión actual</string>
+    <string name="stream_details_metadata">Metadatos de la emisión</string>
+    <string name="stream_details_genre">Género</string>
+    <string name="stream_details_description">Descripción</string>
+    <string name="stream_details_artwork_url">URL de la carátula</string>
+    <string name="stream_details_sample_rate">Frecuencia de muestreo (Hz)</string>
+    <string name="stream_details_channels">Canales</string>
+    <string name="stream_details_content_type">Tipo de contenido</string>
+    <string name="stream_details_embedded_artwork">Carátula integrada disponible</string>
+    <string name="stream_details_redacted">oculto</string>
+    <string name="stream_details_unavailable_url">URL no disponible</string>
 </resources>

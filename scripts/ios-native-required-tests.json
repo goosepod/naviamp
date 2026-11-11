@@ -28,6 +28,10 @@
     "bundledBassMixerAppliesCoreFivePointOneStereoMatrix"
   ],
   [
+    "app.naviamp.ios.playback.IosBassDecodeIntegrationTest",
+    "embeddedTagsReachSharedStreamDetails"
+  ],
+  [
     "app.naviamp.ios.playback.IosBassPluginIntegrationTest",
     "bundledCodecPluginsRegisterWithBass"
   ],

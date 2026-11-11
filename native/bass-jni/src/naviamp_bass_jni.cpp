@@ -1194,6 +1194,9 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeStreamTags(JNIEnv* env, j
     std::vector<std::string> tags;
     append_string_tags(tags, BASS_ChannelGetTags(static_cast<DWORD>(stream), BASS_TAG_ICY));
     append_string_tags(tags, BASS_ChannelGetTags(static_cast<DWORD>(stream), BASS_TAG_HTTP));
+    append_string_tags(tags, BASS_ChannelGetTags(static_cast<DWORD>(stream), BASS_TAG_OGG));
+    append_string_tags(tags, BASS_ChannelGetTags(static_cast<DWORD>(stream), BASS_TAG_APE));
+    append_string_tags(tags, BASS_ChannelGetTags(static_cast<DWORD>(stream), BASS_TAG_MP4));
     const char* meta = BASS_ChannelGetTags(static_cast<DWORD>(stream), BASS_TAG_META);
     if (meta != nullptr && meta[0] != '\0') {
         tags.emplace_back(std::string("StreamTitle=") + meta);
@@ -1602,6 +1605,9 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeStreamTags(JN
     std::vector<std::string> tags;
     append_string_tags(tags, BASS_ChannelGetTags(static_cast<DWORD>(stream), BASS_TAG_ICY));
     append_string_tags(tags, BASS_ChannelGetTags(static_cast<DWORD>(stream), BASS_TAG_HTTP));
+    append_string_tags(tags, BASS_ChannelGetTags(static_cast<DWORD>(stream), BASS_TAG_OGG));
+    append_string_tags(tags, BASS_ChannelGetTags(static_cast<DWORD>(stream), BASS_TAG_APE));
+    append_string_tags(tags, BASS_ChannelGetTags(static_cast<DWORD>(stream), BASS_TAG_MP4));
     const char* meta = BASS_ChannelGetTags(static_cast<DWORD>(stream), BASS_TAG_META);
     if (meta != nullptr && meta[0] != '\0') {
         tags.emplace_back(std::string("StreamTitle=") + meta);

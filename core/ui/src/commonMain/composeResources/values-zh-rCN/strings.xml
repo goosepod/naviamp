@@ -469,4 +469,18 @@
     <string name="discovery_hub_requests">跟踪下载和音乐库新增内容。</string>
     <string name="discovery_hub_genres">选择要从推荐中排除的流派。</string>
     <string name="artwork_view_full_size">查看完整尺寸封面</string>
+    <string name="stream_details">流媒体详情</string>
+    <string name="stream_actions">流媒体操作</string>
+    <string name="stream_details_station">电台</string>
+    <string name="stream_details_broadcast">当前广播</string>
+    <string name="stream_details_metadata">流媒体元数据</string>
+    <string name="stream_details_genre">流派</string>
+    <string name="stream_details_description">描述</string>
+    <string name="stream_details_artwork_url">封面网址</string>
+    <string name="stream_details_sample_rate">采样率（Hz）</string>
+    <string name="stream_details_channels">声道数</string>
+    <string name="stream_details_content_type">内容类型</string>
+    <string name="stream_details_embedded_artwork">提供内嵌封面</string>
+    <string name="stream_details_redacted">已隐藏</string>
+    <string name="stream_details_unavailable_url">网址不可用</string>
 </resources>

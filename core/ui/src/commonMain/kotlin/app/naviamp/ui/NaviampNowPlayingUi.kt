@@ -6,6 +6,7 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.selectable
@@ -893,7 +894,7 @@ private fun NowPlayingDetails(
     var actionMenuExpanded by remember { mutableStateOf(false) }
     var visualizerMenuExpanded by remember { mutableStateOf(false) }
     var radioDjMenuExpanded by remember { mutableStateOf(false) }
-    var trackDetailsOpen by remember { mutableStateOf(false) }
+    var trackDetailsOpen by remember(nowPlaying.id, nowPlaying.isLive) { mutableStateOf(false) }
     var sleepTimerDialogOpen by remember { mutableStateOf(false) }
     var emptyQueueDialogOpen by remember { mutableStateOf(false) }
     var volumeValue by remember { mutableFloatStateOf(nowPlaying.volumePercent.coerceIn(0, 100) / 100f) }
@@ -1356,7 +1357,7 @@ private fun NowPlayingDetails(
                         NaviampTransportIconButton(
                             enabled = nowPlayingActionMenuEnabled(nowPlaying) || fullscreenInMenu,
                             icon = NaviampTransportIcons.MoreVertical,
-                            contentDescription = "Track actions",
+                            contentDescription = if (nowPlaying.isLive) stringResource(Res.string.stream_actions) else "Track actions",
                             colors = colors,
                             buttonSize = bottomActionButtonSize,
                             iconSize = bottomActionIconSize,
@@ -1401,7 +1402,8 @@ private fun NowPlayingDetails(
                                 canStartRadio = nowPlaying.canStartRadio,
                                 visualizerAvailable = nowPlaying.visualizerAvailable,
                                 isLive = nowPlaying.isLive,
-                                hasDetails = nowPlaying.detailSections.isNotEmpty(),
+                                hasDetails = nowPlaying.detailSections.isNotEmpty() || nowPlaying.streamDetailSections.isNotEmpty(),
+                                detailsLabel = stringResource(if (nowPlaying.isLive) Res.string.stream_details else Res.string.playlist_item_details),
                                 canAddToPlaylist = nowPlaying.canAddToPlaylist && nowPlaying.canEditPlaylistMembership,
                                 canSaveQueueAsPlaylist = nowPlaying.canSaveQueueAsPlaylist,
                                 canEmptyQueue = nowPlaying.upNext.isNotEmpty(),
@@ -1469,9 +1471,10 @@ private fun NowPlayingDetails(
 
     if (trackDetailsOpen) {
         TrackDetailsDialog(
-            sections = nowPlaying.detailSections,
+            sections = if (nowPlaying.isLive) nowPlaying.streamDetailSections.localizedStreamDetailSections() else nowPlaying.detailSections,
             colors = colors,
             onDismissRequest = { trackDetailsOpen = false },
+            title = stringResource(if (nowPlaying.isLive) Res.string.stream_details else Res.string.playlist_item_details),
         )
     }
     if (sleepTimerDialogOpen) {
@@ -2873,37 +2876,41 @@ fun TrackDetailsDialog(
     sections: List<NaviampDetailSectionUi>,
     colors: NaviampColors,
     onDismissRequest: () -> Unit,
+    title: String = stringResource(Res.string.playlist_item_details),
 ) {
     NaviampPopupPresence()
     NaviampAlertDialog(
         onDismissRequest = onDismissRequest,
-        title = { Text("Track details", fontWeight = FontWeight.Bold) },
+        title = { Text(title, fontWeight = FontWeight.Bold) },
         text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .width(420.dp)
-                    .heightIn(max = 520.dp)
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                sections.forEach { section ->
-                    if (section.rows.isNotEmpty()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(section.title, color = colors.primaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            section.rows.forEach { (label, value) ->
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    verticalAlignment = Alignment.Top,
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Text(label, color = colors.secondaryText, fontSize = 12.sp, modifier = Modifier.width(96.dp))
-                                    Text(
-                                        value,
-                                        color = colors.primaryText.copy(alpha = 0.9f),
-                                        fontSize = 12.sp,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.weight(1f),
-                                    )
+            SelectionContainer {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .testTag("now-playing-details")
+                        .width(420.dp)
+                        .heightIn(max = 520.dp)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    sections.forEach { section ->
+                        if (section.rows.isNotEmpty()) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(section.title, color = colors.primaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                section.rows.forEach { (label, value) ->
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        verticalAlignment = Alignment.Top,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text(label, color = colors.secondaryText, fontSize = 12.sp, modifier = Modifier.width(96.dp))
+                                        Text(
+                                            value,
+                                            color = colors.primaryText.copy(alpha = 0.9f),
+                                            fontSize = 12.sp,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -2913,7 +2920,7 @@ fun TrackDetailsDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismissRequest) {
-                Text("Close")
+                Text(stringResource(Res.string.common_close))
             }
         },
     )

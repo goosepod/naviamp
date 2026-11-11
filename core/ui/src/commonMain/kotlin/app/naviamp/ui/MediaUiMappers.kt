@@ -1278,6 +1278,7 @@ data class NowPlayingRadioUiConfig(
     val canChangeVolume: Boolean = false,
     val radioStations: List<NaviampNowPlayingItemUi> = emptyList(),
     val audioInfo: String = "",
+    val streamMetadata: PlaybackStreamMetadata = PlaybackStreamMetadata(),
 )
 
 data class MiniNowPlayingUiConfig(
@@ -1503,7 +1504,8 @@ fun InternetRadioStation.toNowPlayingUi(config: NowPlayingRadioUiConfig): NowPla
         canRepeat = false,
         canStartRadio = false,
         canAddToPlaylist = false,
-        menuEnabled = false,
+        menuEnabled = true,
+        streamDetailSections = streamDetails(config.streamMetadata),
         radioStations = config.radioStations,
     )
 }
@@ -1523,6 +1525,7 @@ fun InternetRadioStation.toRadioNowPlayingUi(
         NowPlayingRadioUiConfig(
             streamTitle = streamMetadata.title,
             audioInfo = streamMetadata.internetRadioAudioInfo().nowPlayingLabel(),
+            streamMetadata = streamMetadata,
             coverArtUrl = radioArtworkUrl(this, streamMetadata.properties, trackArtworkUrl),
             stateLabel = playbackState.label(),
             volumePercent = volumePercent,
@@ -1804,7 +1807,7 @@ fun radioTrackArtworkMatch(tracks: List<Track>, streamTitle: String?): Track? {
     }
 }
 
-private fun streamMetadataArtworkUrl(properties: Map<String, String>): String? {
+internal fun streamMetadataArtworkUrl(properties: Map<String, String>): String? {
     val artworkKeys = setOf(
         "artwork",
         "artworkurl",

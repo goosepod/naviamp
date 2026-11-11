@@ -4,7 +4,7 @@ package app.naviamp.domain.playback
  * Produces a useful URL for diagnostics without retaining provider credentials or other request
  * values. Playback URLs are provider-controlled, so all query values are treated as sensitive.
  */
-internal fun String.sanitizedPlaybackDiagnosticUrl(): String =
+fun String.sanitizedPlaybackDiagnosticUrl(): String =
     runCatching {
         val withoutFragment = substringBefore('#')
         val rawBase = withoutFragment.substringBefore('?')
