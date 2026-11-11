@@ -225,6 +225,15 @@ class NaviampPlaybackQueueCoordinatorTest {
         assertTrue(restored.changed)
         assertEquals(initialQueue, playback.state.value.queue)
         assertEquals(null, playback.state.value.shuffledUpNextSnapshot)
+
+        val reshuffled = coordinator.toggleUpcomingShuffle()
+        assertTrue(reshuffled.changed)
+        assertTrue(reshuffled.queue.upNext() != upcoming)
+        assertTrue(reshuffled.queue.upNext() != shuffled.queue.upNext())
+        assertEquals(first, playback.state.value.queue.current)
+        assertEquals(upcoming, playback.state.value.shuffledUpNextSnapshot)
+        coordinator.toggleUpcomingShuffle()
+        assertEquals(initialQueue, playback.state.value.queue)
     }
 
     @Test

@@ -3,8 +3,11 @@ package app.naviamp.domain.playback
 import app.naviamp.domain.Track
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.PlaybackQueueGroup
+import app.naviamp.domain.queue.UpcomingShufflePolicy
 
-class PlaybackQueueMutationManager {
+class PlaybackQueueMutationManager(
+    private val upcomingShuffle: UpcomingShufflePolicy = UpcomingShufflePolicy(),
+) {
     fun appendTracks(
         currentQueue: PlaybackQueue,
         tracksToAdd: List<Track>,
@@ -140,7 +143,7 @@ class PlaybackQueueMutationManager {
         currentQueue: PlaybackQueue,
         shuffledSnapshot: List<Track>?,
     ): PlaybackShuffleUpdate {
-        val toggle = currentQueue.toggleUpcomingShuffle(shuffledSnapshot)
+        val toggle = currentQueue.toggleUpcomingShuffle(shuffledSnapshot, upcomingShuffle)
             ?: return PlaybackShuffleUpdate(
                 queue = currentQueue,
                 shuffledSnapshot = shuffledSnapshot,
