@@ -198,7 +198,7 @@ fun genreMixRadioRequest(genres: List<Genre>): RadioRequest {
     val distinctGenres = genres.distinctBy { it.name.lowercase() }
     val label = genreMixRadioLabel(distinctGenres)
     val recentStream = distinctGenres.firstOrNull()
-        ?.let { genreRecentRadioStream(it).copy(id = "genre-mix:${distinctGenres.joinToString(":") { genre -> genre.name }}", label = label) }
+        ?.let { genreRecentRadioStream(it).copy(id = "genre-mix:${distinctGenres.joinToString(":") { genre -> genre.name }}", label = label, stationSeedIds = distinctGenres.map { genre -> genre.name }) }
         ?: libraryRecentRadioStream()
     return RadioRequest(
         label = label,
@@ -264,7 +264,7 @@ fun artistMixSeededRadioRequest(
     val distinctArtists = artists.distinctBy { it.id }
     val label = artistMixRadioLabel(distinctArtists)
     val recentStream = distinctArtists.firstOrNull()
-        ?.let { artistRecentRadioStream(it).copy(id = "artist-mix:${distinctArtists.joinToString(":") { artist -> artist.id.value }}", label = label) }
+        ?.let { artistRecentRadioStream(it).copy(id = "artist-mix:${distinctArtists.joinToString(":") { artist -> artist.id.value }}", label = label, stationSeedIds = distinctArtists.map { artist -> artist.id.value }) }
         ?: libraryRecentRadioStream()
     return SeededRadioRequest(
         label = label,
@@ -303,7 +303,7 @@ fun albumMixSeededRadioRequest(
     val distinctAlbums = albums.distinctBy { it.id }
     val label = albumMixRadioLabel(distinctAlbums)
     val recentStream = distinctAlbums.firstOrNull()
-        ?.let { albumRecentRadioStream(it).copy(id = "album-mix:${distinctAlbums.joinToString(":") { album -> album.id.value }}", label = label) }
+        ?.let { albumRecentRadioStream(it).copy(id = "album-mix:${distinctAlbums.joinToString(":") { album -> album.id.value }}", label = label, stationSeedIds = distinctAlbums.map { album -> album.id.value }) }
         ?: libraryRecentRadioStream()
     return SeededRadioRequest(
         label = label,
@@ -333,7 +333,7 @@ fun popularTracksRadioRequest(
     return SeededRadioRequest(
         label = "${seedTrack.artistName} popular tracks radio",
         seedTrack = seedTrack,
-        recentRadioStream = popularTracksRecentRadioStream(seedTrack),
+        recentRadioStream = popularTracksRecentRadioStream(seedTrack).copy(stationSeedIds = popularTracks.map { it.id.value }),
         loadRest = { radioService ->
             coroutineScope {
                 val radioTracks = popularTracks

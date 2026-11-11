@@ -15,7 +15,7 @@ const val MaxRecentRadioStreams = 50
 fun recentRadioStreamsForSource(
     streams: List<RecentRadioStream>,
     sourceId: String?,
-): List<RecentRadioStream> = streams.filter { stream ->
+): List<RecentRadioStream> = reconciledRecentRadioStreams(streams).filter { stream ->
     stream.sourceId == null || stream.sourceId == sourceId
 }
 
@@ -30,7 +30,7 @@ fun recentRadioStreamsWith(
     limit: Int = MaxRecentRadioStreams,
 ): List<RecentRadioStream> =
     // This list is persisted newest-last-played first, so trimming its tail removes the oldest stations.
-    (listOf(stream) + recentStreams.filterNot { it.id == stream.id }).take(limit)
+    reconciledRecentRadioStreams(listOf(stream) + recentStreams, limit)
 
 fun RecentRadioStream.withRadioCoverArtIds(tracks: List<Track>, limit: Int = 4): RecentRadioStream {
     val albumCovers = tracks

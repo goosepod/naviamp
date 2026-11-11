@@ -103,9 +103,12 @@ internal fun naviampCoreSettingsValueCatalogWithoutMigration(
             loadVisualizer = { read(values, json, KeyVisualizer, VisualizerSettings()) },
             saveVisualizer = { write(values, json, KeyVisualizer, it) },
             loadRecentRadioStreams = {
-                read(values, json, KeyRecentRadio, emptyList<RecentRadioStream>())
+                val stored = read(values, json, KeyRecentRadio, emptyList<RecentRadioStream>())
+                val reconciled = app.naviamp.domain.radio.reconciledRecentRadioStreams(stored)
+                if (stored != reconciled) write(values, json, KeyRecentRadio, reconciled)
+                reconciled
             },
-            saveRecentRadioStreams = { write(values, json, KeyRecentRadio, it.take(MaxRecentRadioStreams)) },
+            saveRecentRadioStreams = { write(values, json, KeyRecentRadio, app.naviamp.domain.radio.reconciledRecentRadioStreams(it)) },
             loadRecentInternetRadioStations = {
                 read(values, json, KeyRecentInternetRadio, emptyList<SavedInternetRadioStation>())
             },

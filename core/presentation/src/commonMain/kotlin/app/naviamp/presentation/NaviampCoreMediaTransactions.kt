@@ -44,6 +44,7 @@ import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.withRecentRadioStreams
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
 
 fun interface NaviampCoreExternalUriPort {
     fun open(uri: String)
@@ -164,6 +165,12 @@ class NaviampCoreMediaTransactions(
         if (!queuePlayback.play(tracks, index, shuffle)) publish("No tracks are available.")
     }
 
+    suspend fun replayRecentRadio(stream: RecentRadioStream) {
+        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        if (!queuePlayback.play(stream.sessionTracks.map { it.toTrack() })) return
+        publishRecentRadio(recentRadioStreams.remember(stream))
+    }
+
     fun playAlbum(album: Album, tracks: List<Track>, shuffle: Boolean = false, index: Int = 0) {
         if (!queuePlayback.play(
                 tracks = tracks,
@@ -218,7 +225,7 @@ class NaviampCoreMediaTransactions(
         }
     }
 
-    suspend fun startAlbumRadio(album: Album) {
+    suspend fun startAlbumRadio(album: Album, recentStream: RecentRadioStream? = null) {
         val cachedTracks = registry.albumDetails?.takeIf { it.album.id == album.id }?.tracks.orEmpty()
             .ifEmpty { registry.tracks().filter { it.albumId == album.id } }
         val loadedTracks = if (cachedTracks.isNotEmpty()) {
@@ -231,7 +238,8 @@ class NaviampCoreMediaTransactions(
         }
         val seed = selectRadioSeed(loadedTracks)
         if (seed != null) {
-            startSeededMix(albumSeededRadioRequest(album, seed, loadedTracks))
+            val request = albumSeededRadioRequest(album, seed, loadedTracks)
+            startSeededMix(if (recentStream == null) request else request.copy(recentRadioStream = recentStream))
         } else {
             publish("${album.title} has no tracks to play.")
         }
@@ -523,11 +531,13 @@ class NaviampCoreMediaTransactions(
         )
         fun currentRadioSettings() = stateStore.state.value.shell.playback.settings.let {
             it.radioSimilarityMethod() == radioSettings.radioSimilarityMethod() &&
-                it.radioMinimumTracks == radioSettings.radioMinimumTracks
+                it.radioMinimumTracks == radioSettings.radioMinimumTracks &&
+                it.radioTuning == radioSettings.radioTuning
         }
         stateStore.update { it.copy(overlays = it.overlays.copy(radioNotice = null)) }
         when (val result = seededRadioBuildResult(request, radioService)) {
             is SeededRadioBuildResult.Ready -> {
+                kotlinx.coroutines.currentCoroutineContext().ensureActive()
                 val stillPlayingSeed = playback.state.value.currentTrack?.id == request.seedTrack.id &&
                     playback.state.value.queue.current?.id == request.seedTrack.id
                 if (!stillPlayingSeed || sourceId != activeSourceId() || !providerSource.isCurrent(provider) || !currentRadioSettings()) return
@@ -546,7 +556,13 @@ class NaviampCoreMediaTransactions(
                     effects.applyQueue(update.queue, update.clearPreparedNext)
                     publishNowPlaying()
                 }
-                rememberRecentRadio(result.recentRadioStream, result.queue)
+                rememberRecentRadio(result.recentRadioStream?.copy(
+                    generationOptions = app.naviamp.domain.radio.RecentRadioGenerationOptions(
+                        minimumTracks = radioSettings.radioMinimumTracks,
+                        tuning = radioSettings.radioTuning,
+                        sonicSimilarity = radioSettings.radioSimilarityMethod() == app.naviamp.domain.radio.RadioSimilarityMethod.SonicSimilarity,
+                    ).normalized(),
+                ), result.queue, sourceId)
                 onStarted()
                 recordRadioDiagnostics(diagnostics?.takeUnless { it.outcome == app.naviamp.domain.radio.RadioBuildOutcome.Empty })
                 publish("Playing ${request.label}.")
@@ -571,9 +587,13 @@ class NaviampCoreMediaTransactions(
         ) }
     }
 
-    private fun rememberRecentRadio(stream: RecentRadioStream?, tracks: List<Track>) {
+    private suspend fun rememberRecentRadio(stream: RecentRadioStream?, tracks: List<Track>, sourceId: String?) {
         if (stream == null) return
-        val updated = recentRadioStreams.remember(stream.withRadioCoverArtIds(tracks), tracks)
+        val updated = recentRadioStreams.remember(stream.withRadioCoverArtIds(tracks), tracks, sourceId)
+        publishRecentRadio(updated)
+    }
+
+    private fun publishRecentRadio(updated: List<RecentRadioStream>) {
         val provider = providerSource.current()
         stateStore.updateShell { shell ->
             val recentItems = updated.map { recent ->
