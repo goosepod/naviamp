@@ -5,8 +5,10 @@ Create one file named after the exact release tag, such as `v2.5.0.md`, by copyi
 
 The tag workflow publishes this file verbatim as the GitHub Release body. If the versioned file is
 absent, it generates a draft from labeled merged pull requests using `.github/release.yml`, then
-uses the matching `CHANGELOG.md` section only as a final compatibility fallback. GitHub forwards the
-published release through the project's Discord announcements webhook.
+uses the matching `CHANGELOG.md` section only as a final compatibility fallback. The Release
+announcement workflow sends the matching `vX.Y.Z-announcement.md` plain-list copy
+to Discord on publication, using the existing channel webhook. Keep the legacy native GitHub
+release webhook inactive to avoid duplicate or incorrectly formatted announcements.
 
 Do not add a versioned file until its release contents and links are known. Remove all template
 instructions and unused sections before publication.

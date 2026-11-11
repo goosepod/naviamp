@@ -1,0 +1,31 @@
+name: Release announcement
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-announcement-${{ github.event.release.id }}
+  cancel-in-progress: false
+
+jobs:
+  discord:
+    if: github.event.release.prerelease == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out published release source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - name: Send the reviewed plain-list announcement
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+          NAVIAMP_RELEASE_DISCORD_WEBHOOK: ${{ secrets.NAVIAMP_RELEASE_DISCORD_WEBHOOK }}
+        run: |
+          python3 scripts/send-release-announcement.py \
+            --notes ".github/releases/${RELEASE_TAG}-announcement.md" \
+            --release-url "$RELEASE_URL"

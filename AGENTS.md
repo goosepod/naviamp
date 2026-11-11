@@ -61,6 +61,15 @@ Order announcement content by product significance. Major launches lead the summ
 highlights; GitHub release names retain the exact format above. Improvements and fixes to
 previously released behavior follow.
 
+## Release Documentation Audit
+
+Every release must include an audit of README.md and the public Naviamp website, including
+related feature, compatibility, download, and installation pages. Verify claims against the
+accepted release source and actual distribution status. Correct stale versions, links, feature
+coverage, platform requirements, and known limitations; do not advertise unreleased behavior or
+store availability based only on submission. Record the audit, corrections, and verification in
+the release readiness document before publication.
+
 ## Release Contributor Acknowledgments
 
 For each GitHub release-note change involving a community contributor, credit the contributor by
