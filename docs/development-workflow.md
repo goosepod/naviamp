@@ -55,7 +55,13 @@ integration branch, large late merge conflicts, and fixes that exist only in one
    to an issue and pull request when substantive.
 5. Merge each release fix back into `main` immediately, or fix `main` first and cherry-pick it.
 6. Run the complete release verification matrix against the release branch.
-7. Create `.github/releases/vX.Y.Z.md` from `.github/RELEASE_TEMPLATE.md`.
+7. Create `.github/releases/vX.Y.Z.md` from `.github/RELEASE_TEMPLATE.md`. Audit `README.md`
+   and the public Naviamp website (including feature, compatibility, download and installation
+   pages) against the accepted source and live distribution status. Correct stale information and
+   record source/publication links, checks and remaining limitations in the release readiness
+   document. This audit is required for every release before publication; pending releases must
+   not be presented as already available. Update and render-verify the shared About changelog and
+   run all changelog/About regression suites before tagging.
 8. Tag the accepted commit. The tag workflow builds all artifacts and creates a draft GitHub Release.
 9. Review the draft and verify its name is exactly `Naviamp vX.Y.Z`, with no descriptive suffix.
    Publish it, verify the published name, then create an Announcements Discussion linking to the release.
@@ -104,13 +110,16 @@ in the release body or announcement text.
 Create `.github/releases/vX.Y.Z.md` from [`.github/RELEASE_TEMPLATE.md`](../.github/RELEASE_TEMPLATE.md)
 for the GitHub Release body. The tag workflow uses that versioned file verbatim when it exists. If
 it is absent, GitHub generates a draft from labeled merged pull requests before the workflow uses
-the matching `CHANGELOG.md` section as a compatibility fallback. The project's existing Discord
-**announcements** webhook forwards published GitHub releases. That existing delivery does not by
-itself satisfy the owner's separate-format requirement: before publishing notes with detailed
-GitHub references and credits, ensure Discord delivery uses the plain bulleted announcement plus
-Thanks. A template edit alone does not change webhook formatting. Do not send a second announcement
-without accounting for the existing webhook, and do not claim delivery formatting is implemented
-until that integration has been verified.
+the matching `CHANGELOG.md` section as a compatibility fallback. Discord publication uses
+`.github/workflows/release-announcement.yml` and the versioned
+`.github/releases/vX.Y.Z-announcement.md` plain-list copy, preserving Thanks without detailed
+per-change GitHub references. The existing Discord channel webhook is reused through the
+`NAVIAMP_RELEASE_DISCORD_WEBHOOK` Actions secret; its legacy native GitHub release hook must be
+inactive before publication so each release is announced once. Verify this configuration and a
+`send-release-announcement.py --dry-run` result in release readiness. The published-event workflow
+checks out the immutable release tag. Require a matching versioned announcement and keep it within
+the single-message description limit. A failed or uncertain POST is not retried automatically;
+inspect channel delivery before retrying. A template edit alone does not configure delivery.
 
 - Begin with a plain-language summary followed by no more than three highlights. The beginning must
   remain useful if a notification surface shows only part of the body.

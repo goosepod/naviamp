@@ -43,11 +43,11 @@ class NaviampChangelogRenderedUiTest {
         val lastEntry = onNodeWithText(entries.last()).fetchSemanticsNode().boundsInRoot
         val viewport = onRoot().fetchSemanticsNode().boundsInRoot
         assertTrue(lastEntry.top >= viewport.top && lastEntry.bottom <= viewport.bottom,
-            "The complete final acknowledgment must be reachable inside the changelog viewport")
+            "The complete final entry must be reachable inside the changelog viewport")
         System.getenv("NAVIAMP_CHANGELOG_CAPTURE")?.let { directory ->
             java.io.File(directory).mkdirs()
             javax.imageio.ImageIO.write(onRoot().captureToImage().toAwtImage(), "png", java.io.File(directory, "about-changelog-end.png"))
-            onNodeWithText(entries.single { it.contains("final paused playback position") }).performScrollTo().assertIsDisplayed()
+            onNodeWithText(entries.single { it.contains("fresh queue order") }).performScrollTo().assertIsDisplayed()
             javax.imageio.ImageIO.write(onRoot().captureToImage().toAwtImage(), "png", java.io.File(directory, "about-changelog-playback.png"))
             onNodeWithText(entries.first()).performScrollTo()
             javax.imageio.ImageIO.write(onRoot().captureToImage().toAwtImage(), "png", java.io.File(directory, "about-changelog-start.png"))

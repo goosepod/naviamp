@@ -17,4 +17,11 @@ if [[ "$tag" != "$version" ]]; then
   exit 1
 fi
 
-echo "Release tag matches VERSION: $tag"
+if [[ -f "$repo_root/scripts/send-release-announcement.py" ]]; then
+  "${PYTHON:-python3}" "$repo_root/scripts/send-release-announcement.py" \
+    --notes "$repo_root/.github/releases/${tag}-announcement.md" \
+    --release-url "https://github.com/goosepod/naviamp/releases/tag/${tag}" \
+    --dry-run >/dev/null
+fi
+
+echo "Release tag matches VERSION and announcement: $tag"
