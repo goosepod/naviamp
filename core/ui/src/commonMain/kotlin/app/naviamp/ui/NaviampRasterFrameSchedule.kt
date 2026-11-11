@@ -14,7 +14,7 @@ internal fun naviampRasterMotionDelay(
 
 internal fun naviampRasterFrameDelay(
     layers: List<NaviampRasterLayer>, width: Float, elapsedMillis: Long,
-    available: Boolean, needsUpdate: Boolean,
+    available: Boolean = true, needsUpdate: Boolean = false,
 ): Long? {
     if (!available || layers.isEmpty()) return null
     if (needsUpdate) return 0L

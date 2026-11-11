@@ -21,6 +21,8 @@ import app.naviamp.ui.NaviampNowPlayingContentInput
 import app.naviamp.ui.nowPlayingTrackCapabilities
 import app.naviamp.ui.toNaviampSleepTimerUi
 import app.naviamp.ui.toNowPlayingUi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 data class NaviampCoreNowPlayingDisplayState(
     val lyricsVisible: Boolean = false,
@@ -42,6 +44,9 @@ class NaviampCoreNowPlayingPresenter(
     private val network: NaviampCoreMobileNetworkPort = NaviampCoreMobileNetworkPort { false },
     private val internetRadioStations: () -> List<InternetRadioStation> = { emptyList() },
 ) {
+    private val mutableVisualizerFrame = MutableStateFlow(sidecars.snapshot().visualizerFrame)
+    /** Sampled by the renderer without invalidating the application presentation graph. */
+    val visualizerFrame = mutableVisualizerFrame.asStateFlow()
     private val publishing = AtomicBoolean(false)
     private val pendingDisplay = AtomicReference<NaviampCoreNowPlayingDisplayState?>(null)
 
@@ -51,6 +56,7 @@ class NaviampCoreNowPlayingPresenter(
 
     fun updateVisualizerFrame(frame: PlaybackVisualizerFrame?) {
         sidecars.updateVisualizerFrame(frame)
+        mutableVisualizerFrame.value = frame
     }
 
     fun publish(display: NaviampCoreNowPlayingDisplayState = NaviampCoreNowPlayingDisplayState()) {
@@ -158,7 +164,6 @@ class NaviampCoreNowPlayingPresenter(
                 playlistChoices = shell.playlistChoices,
                 playlistActionStatus = display.playlistActionStatus,
             ).toNowPlayingUi().copy(
-                visualizerFrame = sidecar.visualizerFrame,
                 canEditPlaylistMembership = provider != null && track?.id?.isDiscoveryPreview() != true,
                 queueManagementActionsOnly = track?.id?.isDiscoveryPreview() == true,
             )

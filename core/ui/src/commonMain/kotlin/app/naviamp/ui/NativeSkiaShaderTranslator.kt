@@ -24,7 +24,7 @@ internal object NativeSkiaShaderTranslator {
             .replace("void main() {", "half4 main(float2 coord) {")
             .replace(Regex("""\boutColor\s*=\s*float4\s*\("""), "return half4(")
 
-        return CommonShaderHeader + NativeAnalysisUniforms + body.trim() + "\n"
+        return CommonShaderHeader + NativeAnalysisUniforms + FrequencyTextureSampling + body.trim() + "\n"
     }
 
     private fun String.replaceGlslTokens(): String {
@@ -62,7 +62,7 @@ internal object NativeSkiaShaderTranslator {
             }
             val args = substring(openParen + 1, closeParen).splitTopLevelComma()
             if (args.size == 2 && args[0].trim() == "u_frequencyTexture") {
-                output.append("float4(bandAt((")
+                output.append("float4(sampleFrequencyTexture((")
                     .append(args[1].trim())
                     .append(").x))")
             } else {
@@ -125,4 +125,14 @@ private const val NativeAnalysisUniforms = """
 uniform float2 iAnalysis;
 uniform float iRenderScale;
 uniform int iMaxRaymarchSteps;
+"""
+
+// Match the native 32-texel, linear-filtered, clamp-to-edge frequency texture. Keep this
+// separate from bandAt: the custom runtime effects intentionally select individual bands.
+private const val FrequencyTextureSampling = """
+float sampleFrequencyTexture(float x) {
+    float position = clamp(x * 32.0 - 0.5, 0.0, 31.0);
+    int left = int(floor(position));
+    return mix(bandAtIndex(left), bandAtIndex(left + 1), fract(position));
+}
 """

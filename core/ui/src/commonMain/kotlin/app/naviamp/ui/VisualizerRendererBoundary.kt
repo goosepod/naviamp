@@ -107,6 +107,7 @@ internal fun selectedVisualizerRendererMode(
 
 internal fun NaviampVisualizer.nativeVisualizerRenderScale(renderPolicy: VisualizerRenderPolicy): Float =
     when (this) {
+        NaviampVisualizer.LyricMirrorTunnel -> 1f
         NaviampVisualizer.OceanHorizon -> when (renderPolicy.tier) {
             VisualizerRenderTier.Full -> 0.82f
             VisualizerRenderTier.Balanced -> 0.62f
@@ -123,6 +124,19 @@ internal fun NaviampVisualizer.nativeVisualizerRenderScale(renderPolicy: Visuali
             VisualizerRenderTier.Constrained -> 0.65f
         }
     }
+
+/** One shader and quality contract for native backends; adapters only upload its values. */
+internal data class NativeVisualizerShaderSpec(
+    val fragmentSource: String,
+    val renderScale: Float,
+    val maxRaymarchSteps: Int,
+)
+
+internal fun NaviampVisualizer.nativeShaderSpec(policy: VisualizerRenderPolicy) = NativeVisualizerShaderSpec(
+    fragmentSource = nativeShaderDefinition?.fragmentSource ?: NativeGlslShaderSources.FluidicNebulae,
+    renderScale = nativeVisualizerRenderScale(policy),
+    maxRaymarchSteps = nativeVisualizerMaxRaymarchSteps(policy),
+)
 
 internal fun NaviampVisualizer.nativeVisualizerMaxRaymarchSteps(renderPolicy: VisualizerRenderPolicy): Int =
     when (this) {

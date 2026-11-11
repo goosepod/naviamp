@@ -45,6 +45,19 @@ class NaviampCoreActionGraphTest {
         assertEquals(NaviampCoreCommand.Detail.RefreshArtistPlaylists("artist"), handler.dispatched[1])
     }
     @Test
+    fun visibleVisualizerDemandUsesTheSharedCommandGraph() {
+        val handler = RecordingCoreCommandHandler()
+        val actions = createNaviampCoreActions(handler).shell.nowPlayingActions
+        val owner = Any()
+        actions.onVisualizerFrameDemand(owner, true)
+        actions.onVisualizerFrameDemand(owner, false)
+        assertEquals(listOf<NaviampCoreCommand>(
+            NaviampCoreCommand.NowPlaying.VisualizerFrameDemand(owner, true),
+            NaviampCoreCommand.NowPlaying.VisualizerFrameDemand(owner, false),
+        ), handler.dispatched)
+    }
+
+    @Test
     fun routesProductActionsFromEveryMajorAreaIntoCore() {
         val handler = RecordingCoreCommandHandler()
         val actions = createNaviampCoreActions(handler).shell

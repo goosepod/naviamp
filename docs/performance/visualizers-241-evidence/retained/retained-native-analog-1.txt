@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=retained-native-analog-1 pid=31289 cpu=26.132076657298573 compilation_ms=283 surface=parent:1000x712 visible=true iconified=false frames=764 observer_attached=true physical_captures=true/true

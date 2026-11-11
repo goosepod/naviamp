@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=baseline-paused-sphere-2 pid=96239 cpu=1.0409420697460807 compilation_ms=38 surface=parent:1000x712 visible=true iconified=false frames=0 observer_attached=true physical_captures=true/true

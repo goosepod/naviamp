@@ -1,8 +1,9 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 val composeVersion = libs.versions.compose.get()
+val visualizerProbe = providers.gradleProperty("naviamp.visualizerProbe").orNull == "true"
 val visualizerMountProbe = providers.gradleProperty("naviamp.visualizerMountProbe").orNull == "true"
-val animationProbe = providers.gradleProperty("naviamp.animationProbe").orNull == "true" || visualizerMountProbe
+val animationProbe = providers.gradleProperty("naviamp.animationProbe").orNull == "true" || visualizerProbe || visualizerMountProbe
 
 plugins {
     alias(libs.plugins.android.library)
@@ -57,7 +58,12 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtime.compose)
         }
         commonTest.dependencies {
+            implementation(libs.kotlinx.coroutines.test)
             implementation(kotlin("test"))
+        }
+        jvmMain.dependencies {
+            // Desktop's native presentation operations run on the Swing event thread.
+            implementation(libs.kotlinx.coroutines.swing)
         }
         jvmTest.dependencies {
             implementation(compose.desktop.currentOs)
@@ -91,13 +97,19 @@ android {
         // Keep the standalone native-boundary fixture on the pre-enforced-edge-to-edge model.
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        if (visualizerMountProbe) {
+        if (visualizerProbe) {
+            testApplicationId = "app.naviamp.ui.visualizer241.test"
+            testInstrumentationRunnerArguments["class"] = "app.naviamp.ui.AndroidVisualizerProbeTest"
+        } else if (visualizerMountProbe) {
             testApplicationId = "app.naviamp.ui.mount544.test"
             testInstrumentationRunnerArguments["class"] = "app.naviamp.ui.AndroidVisualizerMountTest"
         } else if (animationProbe) {
             testInstrumentationRunnerArguments["class"] = listOf(
                 "app.naviamp.ui.AndroidAnimationProbeTest",
                 "app.naviamp.ui.AndroidRasterPlacementTest",
+                "app.naviamp.ui.NaviampGpuVisualizerMountTest",
+                "app.naviamp.ui.NaviampVisualizerProgressSubscriptionTest",
+                "app.naviamp.ui.NaviampRasterLayerScheduleTest",
                 "app.naviamp.ui.AndroidVisualizerMountTest",
                 "app.naviamp.ui.NaviampMenuAttachmentTest",
                 "app.naviamp.ui.NaviampDialogInitialFocusTest",
@@ -187,5 +199,25 @@ tasks.register<JavaExec>("playerAnimationProbe") {
             providers.environmentVariable("NAVIAMP_PROBE_VERIFY").orNull == "true")) {
         dependsOn(buildAnimationCompositorProbe)
         systemProperty("naviamp.probe.compositor.library", compositorProbeLibrary.get().asFile.absolutePath)
+    }
+}
+
+// Test-only, visible-window probe of the production visualizer surface and rendering backends.
+tasks.register<JavaExec>("visualizerPerformanceProbe") {
+    group = "verification"
+    description = "Runs visualizers in a visible Mac performance fixture."
+    dependsOn("jvmTestClasses")
+    classpath = tasks.named<Test>("jvmTest").get().classpath
+    mainClass.set("app.naviamp.ui.NaviampVisualizerPerformanceProbeKt")
+    systemProperty("skiko.renderApi", "METAL")
+    providers.environmentVariable("NAVIAMP_VISUALIZER_PROBE_NATIVE").orNull?.let {
+        systemProperty("naviamp.visualizer.macosMetal", it)
+    }
+    providers.environmentVariable("NAVIAMP_VISUALIZER_METAL_DIR").orNull?.let {
+        systemProperty("naviamp.visualizer.metal.dir", it)
+    }
+    providers.environmentVariable("NAVIAMP_VISUALIZER_PROBE_AGENT").orNull?.let { jvmArgs("-javaagent:$it") }
+    providers.environmentVariable("NAVIAMP_VISUALIZER_PROBE_GUARD").orNull?.let {
+        systemProperty("naviamp.probe.macWindowGuard", it)
     }
 }

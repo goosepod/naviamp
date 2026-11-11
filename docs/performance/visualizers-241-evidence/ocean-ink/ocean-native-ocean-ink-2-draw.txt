@@ -1,0 +1,1 @@
+phase=native-ocean-ink draws=1324 mean_draw_ms=6.589795 intervals=1323 p50_interval_ms=26.102709 p95_interval_ms=27.964

@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=sphere-visible-repeat-1 pid=88337 cpu=15.363456887492045 compilation_ms=37 surface=parent:1000x712 visible=true iconified=false frames=767 observer_attached=true physical_captures=true/true

@@ -60,6 +60,9 @@ public final class FullAppObserver {
     private static Path output;
     private static final long startedNanos = System.nanoTime();
 
+    /** Hosts with java.instrument can use UI/lifecycle commands without the optional JVMTI bridge. */
+    public static void premain(String directory) { start(directory); }
+
     public static void start(String directory) {
         output = Path.of(directory);
         Thread observer = new Thread(() -> {
@@ -161,11 +164,17 @@ public final class FullAppObserver {
             switch (command[1]) {
                 case "dump":
                     dump(w.getAccessibleContext(), "root", result, 0);
-                    for (Window owned : w.getOwnedWindows()) if (owned.isShowing()) result.append("OWNED name=")
-                        .append(owned.getName()).append(" focusable=").append(owned.isFocusableWindow()).append('\n');
+                    for (Window owned : Window.getWindows()) if (owned != w && owned.isShowing() && ownedBy(owned, w))
+                        dump(owned.getAccessibleContext(), "owned", result, 0);
                     break;
                 case "action":
                     AccessibleContext action = find(w.getAccessibleContext(), command[2]);
+                    if (action == null) for (Window owned : Window.getWindows()) {
+                        if (owned != w && owned.isShowing() && ownedBy(owned, w)) {
+                            action = find(owned.getAccessibleContext(), command[2]);
+                            if (action != null) break;
+                        }
+                    }
                     if (action == null || action.getAccessibleAction() == null) throw new IllegalStateException("No action: " + command[2]);
                     result.append("ACTION ").append(command[2]).append(' ')
                         .append(action.getAccessibleAction().doAccessibleAction(command.length > 3 ? Integer.parseInt(command[3]) : 0));
@@ -177,12 +186,39 @@ public final class FullAppObserver {
                     result.append("FOCUS requested ").append(command[2]);
                     break;
                 case "minimize": ((Frame) w).setExtendedState(Frame.ICONIFIED); result.append("minimized"); break;
-                case "restore": ((Frame) w).setExtendedState(Frame.NORMAL); w.toFront(); result.append("restored"); break;
-                case "resize": w.setBounds(60, 40, 1040, 760); result.append("resized"); break;
+                case "restore":
+                    ((Frame) w).setExtendedState(Frame.NORMAL);
+                    if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.APP_REQUEST_FOREGROUND))
+                        Desktop.getDesktop().requestForeground(true);
+                    w.toFront(); w.requestFocus(); result.append("restored"); break;
+                case "move": w.setLocation(Integer.parseInt(command[2]), Integer.parseInt(command[3])); result.append("moved"); break;
+                case "screens":
+                    for (GraphicsDevice screen : GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices())
+                        result.append(screen.getDefaultConfiguration().getBounds()).append(" scale=")
+                            .append(screen.getDefaultConfiguration().getDefaultTransform().getScaleX())
+                            .append(" refresh=").append(screen.getDisplayMode().getRefreshRate()).append('\n');
+                    break;
+                case "action-path":
+                    AccessibleContext target = w.getAccessibleContext();
+                    for (String index : command[2].replaceFirst("^root/", "").split("/"))
+                        target = target.getAccessibleChild(Integer.parseInt(index)).getAccessibleContext();
+                    if (target.getAccessibleAction() == null) throw new IllegalStateException("No action at supplied path");
+                    result.append("ACTION_PATH ").append(target.getAccessibleAction().doAccessibleAction(0));
+                    break;
+                case "resize":
+                    if (command.length > 3) w.setSize(Integer.parseInt(command[2]), Integer.parseInt(command[3]));
+                    else w.setBounds(60, 40, 1040, 760);
+                    result.append("resized"); break;
                 default: throw new IllegalArgumentException(command[1]);
             }
         });
         return result.toString();
+    }
+
+    private static boolean ownedBy(Window candidate, Window owner) {
+        for (Window parent = candidate.getOwner(); parent != null; parent = parent.getOwner())
+            if (parent == owner) return true;
+        return false;
     }
 
     private static AccessibleContext find(AccessibleContext context, String name) {

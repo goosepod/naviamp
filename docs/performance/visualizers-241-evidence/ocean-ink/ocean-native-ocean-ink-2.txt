@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=ocean-native-ocean-ink-2 pid=94192 cpu=24.33269778540219 compilation_ms=402 surface=parent:1000x712 visible=true iconified=false frames=763 observer_attached=true physical_captures=true/true

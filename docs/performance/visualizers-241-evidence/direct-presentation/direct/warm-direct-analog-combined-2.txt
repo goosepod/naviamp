@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=warm-direct-analog-combined-2 pid=27288 cpu=5.988546793488005 compilation_ms=25 surface=parent:1000x712 visible=true iconified=false frames=0 observer_attached=true physical_captures=true/true

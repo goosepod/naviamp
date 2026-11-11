@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=continuous-native-analog-2 pid=67840 cpu=26.201424041211816 compilation_ms=428 surface=parent:1000x712 visible=true iconified=false frames=753 observer_attached=true physical_captures=true/true

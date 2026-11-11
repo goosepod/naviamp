@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=cap60-native-analog-2 pid=79503 cpu=23.611811744581296 compilation_ms=236 surface=parent:1000x712 visible=true iconified=false frames=763 observer_attached=true physical_captures=true/true

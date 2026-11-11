@@ -1,0 +1,22 @@
+phase,cpu_percent_one_core,jvm_compilation_ms,parent_frames,physical_captures,acceptance
+resume-large-analog,4.1278,4,0,true/true,visible
+resume-large-artwork-progress,1.6761,27,0,true/true,visible
+resume-large-ocean-warm,9.9148,301,0,true/true,visible
+resume-large-ocean,7.5921,69,0,true/true,visible
+resume-large-sphere-paused,0.3562,0,0,true/true,excluded: track ended before pause action
+resume-large-sphere,4.2747,17,0,true/true,visible
+resume-long-artwork-combined,2.4462,5,0,true/true,visible
+resume-long-artwork-paused-warm,0.7562,0,0,true/true,visible
+resume-long-artwork-paused,3.1941,12,2,true/true,visible
+resume-long-ocean-combined,7.1617,0,0,true/true,visible
+resume-ocean-after-resize-repeat,6.8632,0,0,true/true,visible
+resume-ocean-after-resize,7.003,25,0,true/false,excluded: physical capture failed
+resume-wide-artwork,2.1628,13,0,true/true,visible
+resume-wide-ocean-minimized,0.9615,0,0,false/false,hidden: captures intentionally unavailable
+resume-wide-ocean-paused-restored,0.7173,0,0,true/true,visible
+resume-wide-ocean-paused,0.6955,0,0,true/true,visible
+resume-wide-ocean-playing-restored,7.323,37,0,true/true,visible
+resume-wide-ocean,7.0272,10,0,true/true,visible
+resume-wide-sphere-paused-verified,0.7147,0,0,true/true,visible
+resume-wide-sphere-settled,7.3747,15,0,true/true,visible
+resume-wide-sphere,9.1219,25,2,true/true,visible

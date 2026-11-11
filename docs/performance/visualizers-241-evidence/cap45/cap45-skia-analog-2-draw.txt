@@ -1,0 +1,1 @@
+phase=skia-analog draws=1365 mean_draw_ms=0.078549 intervals=1364 p50_interval_ms=26.038459 p95_interval_ms=27.871042

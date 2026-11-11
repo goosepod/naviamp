@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=screen-direct-sphere-1 pid=39634 cpu=7.877159347146517 compilation_ms=34 surface=parent:1280x932 visible=true iconified=false frames=0 observer_attached=true physical_captures=true/true

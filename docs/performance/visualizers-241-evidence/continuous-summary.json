@@ -1,0 +1,28 @@
+{
+  "native-analog": {
+    "median_cpu_percent": 24.014083229223658,
+    "median_parent_frames_10s": 747.0,
+    "all_captures_valid": true
+  },
+  "paused-analog": {
+    "median_cpu_percent": 0.9531331679211932,
+    "median_parent_frames_10s": 0.0,
+    "all_captures_valid": true
+  },
+  "skia-analog": {
+    "median_cpu_percent": 14.899316760699094,
+    "median_parent_frames_10s": 764.0,
+    "all_captures_valid": true,
+    "samples": "isolated-skia-analog-1/2; early continuous-skia-analog samples excluded from this median"
+  },
+  "skia-analog-combined": {
+    "median_cpu_percent": 20.960202895090347,
+    "median_parent_frames_10s": 762.0,
+    "all_captures_valid": true
+  },
+  "static": {
+    "median_cpu_percent": 0.7069167080393164,
+    "median_parent_frames_10s": 0.0,
+    "all_captures_valid": true
+  }
+}

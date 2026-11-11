@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=fixed-direct45-ocean-ink-1 pid=39634 cpu=10.578255258558741 compilation_ms=359 surface=parent:1280x932 visible=true iconified=false frames=0 observer_attached=true physical_captures=true/false

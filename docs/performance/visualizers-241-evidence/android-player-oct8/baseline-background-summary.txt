@@ -1,0 +1,24 @@
+"thread","cpu_seconds"
+"AudioTrack",0.246979
+"droid.benchmark",0.161212
+"DefaultDispatch",0.023554
+"DefaultDispatch",0.021972
+"DefaultDispatch",0.016416
+"DefaultDispatch",0.011949
+"DefaultDispatch",0.009747
+"DefaultExecutor",0.007934
+"DefaultDispatch",0.004150
+"Jit thread pool",0.003085
+"DefaultDispatch",0.000924
+"DefaultDispatch",0.000794
+"DefaultDispatch",0.000625
+"DefaultDispatch",0.000566
+"DefaultDispatch",0.000438
+"DefaultDispatch",0.000350
+"DefaultDispatch",0.000309
+"FinalizerWatchd",0.000299
+"binder:29470_4",0.000120
+
+"interval_bucket_ms","frames"
+
+"thread","operation","calls","mean_ms","max_ms"

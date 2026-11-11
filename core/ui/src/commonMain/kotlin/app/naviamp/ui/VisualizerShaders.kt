@@ -215,8 +215,8 @@ half4 main(float2 coord) {
     float shimmer = (hash21(float2(floor(angle * 42.0), floor(radius * 42.0)) + iTime) - 0.5) * highs * 0.026;
     float sphereRadius = 0.36 + bass * 0.16 + band * 0.11 + wave + shimmer;
     float shell = 1.0 - smoothstep(0.0, 0.045, abs(radius - sphereRadius));
-    float surface = smoothstep(sphereRadius, sphereRadius - 0.22, radius);
-    float body = surface * smoothstep(sphereRadius + 0.018, sphereRadius - 0.018, radius);
+    float surface = 1.0 - smoothstep(sphereRadius - 0.22, sphereRadius, radius);
+    float body = surface * (1.0 - smoothstep(sphereRadius - 0.018, sphereRadius + 0.018, radius));
     float glow = (1.0 - smoothstep(0.0, 0.10 + bass * 0.10, abs(radius - sphereRadius))) * (0.16 + bass * 0.22);
     float3 normalColor = palette(fract((angle / 6.2831853) + 0.5 + highs * 0.18 + band * 0.12));
     float highlight = pow(max(0.0, 1.0 - length(uv - float2(-0.12, -0.16)) * 2.2), 3.0);

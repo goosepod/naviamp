@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=candidate-skia-analog-combined-3 pid=14168 cpu=16.584577173413066 compilation_ms=70 surface=parent:1000x712 visible=true iconified=false frames=757 observer_attached=true physical_captures=true/true

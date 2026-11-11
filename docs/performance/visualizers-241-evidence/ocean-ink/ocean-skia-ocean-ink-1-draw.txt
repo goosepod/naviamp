@@ -1,0 +1,1 @@
+phase=skia-ocean-ink draws=874 mean_draw_ms=0.115639 intervals=873 p50_interval_ms=25.654375 p95_interval_ms=28.03275

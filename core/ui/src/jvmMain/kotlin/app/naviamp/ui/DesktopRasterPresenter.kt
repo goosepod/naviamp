@@ -13,6 +13,7 @@ import java.awt.Container
 import java.awt.EventQueue
 import java.awt.Toolkit
 import java.awt.Window
+import kotlinx.coroutines.flow.MutableStateFlow
 import java.awt.event.AWTEventListener
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
@@ -48,7 +49,8 @@ fun NaviampDesktopRasterHost(window: Window, windowState: WindowState, content: 
         else if (linux && LinuxRasterPresenter.libraryAvailable()) LinuxRasterPresenter(window)
         else null
     }
-    var visible by remember(window) { mutableStateOf(window.isShowing) }
+    val visibility = remember(window) { MutableStateFlow(window.isShowing) }
+    val visible by visibility.collectAsState()
     var overlay by remember(window) { mutableStateOf(false) }
     SideEffect {
         if (presentation.contentAttached(window.isShowing && !windowState.isMinimized)) {
@@ -57,8 +59,9 @@ fun NaviampDesktopRasterHost(window: Window, windowState: WindowState, content: 
     }
     DisposableEffect(window) {
         fun update() {
-            visible = window.isShowing
-            if (presentation.visibilityChanged(visible && !windowState.isMinimized)) {
+            visibility.value = window.isShowing &&
+                ((window as? java.awt.Frame)?.extendedState?.and(java.awt.Frame.ICONIFIED) ?: 0) == 0
+            if (presentation.visibilityChanged(visibility.value && !windowState.isMinimized)) {
                 requestNaviampDesktopSurfaceFrame(window)
             }
             fun hasOverlay(owner: Window): Boolean = owner.ownedWindows.any {
@@ -81,10 +84,17 @@ fun NaviampDesktopRasterHost(window: Window, windowState: WindowState, content: 
     }
     // AWT does not always emit a deiconify event for programmatic Frame state changes.
     // Compose Desktop's native WindowState reports those transitions as well as WM input.
+    val gpuPresenter = remember(window) {
+        if (System.getProperty("os.name").contains("Mac") && NativeMetalVisualizerHost.libraryAvailable())
+            DesktopGpuVisualizerPresenter(window) else null
+    }
     val dialogSurface = remember(window) { DesktopOwnedDialogSurface(window) }
-    androidx.compose.runtime.CompositionLocalProvider(LocalNaviampOwnedDialogSurface provides dialogSurface) {
+    CompositionLocalProvider(
+        LocalNaviampOwnedDialogSurface provides dialogSurface,
+        LocalNaviampGpuVisualizerPresenter provides gpuPresenter,
+    ) {
         NaviampRasterEnvironment(presenter, visible && !windowState.isMinimized, overlay,
-            System.getProperty("compose.layers.type") == "WINDOW", content)
+            System.getProperty("compose.layers.type") == "WINDOW", visibility, content)
     }
 }
 

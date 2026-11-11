@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=static-visible-repeat-3 pid=88337 cpu=0.2863656629068024 compilation_ms=0 surface=parent:1000x712 visible=true iconified=false frames=0 observer_attached=true physical_captures=true/true

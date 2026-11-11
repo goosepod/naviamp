@@ -1,0 +1,1 @@
+phase=skia-sphere draws=865 mean_draw_ms=0.118302 intervals=864 p50_interval_ms=25.97375 p95_interval_ms=27.992917

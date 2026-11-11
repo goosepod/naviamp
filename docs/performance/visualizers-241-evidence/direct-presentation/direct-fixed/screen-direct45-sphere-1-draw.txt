@@ -1,0 +1,1 @@
+phase=direct45-sphere draws=1014 mean_draw_ms=0.03703 intervals=1013 p50_interval_ms=22.076 p95_interval_ms=26.336917

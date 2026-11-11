@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=screen-direct45-analog-1 pid=39634 cpu=7.41355936316071 compilation_ms=58 surface=parent:1280x932 visible=true iconified=false frames=0 observer_attached=true physical_captures=true/true

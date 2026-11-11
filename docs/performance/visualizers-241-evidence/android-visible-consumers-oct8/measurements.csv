@@ -1,0 +1,13 @@
+phase,seconds,cpu_percent_one_core,parent_frames,thermal_status
+live-long-combined,30.030568,11.1822,1,0
+live-long-paused,15.016121,4.0546,0,0
+live-long-background,15.015354,3.9023,0,0
+live-short-plain,15.016372,7.2248,0,0
+live-short-warm,30.031214,5.0076,0,0
+live-short-background,15.016177,3.4773,0,0
+live-analog-active,15.015559,27.7642,0,0
+live-analog-background,15.016157,3.8637,0,0
+live-analog-restored,15.015605,26.4017,0,0
+live-analog-paused,15.015629,0.3155,0,0
+live-ocean-active,15.015498,17.5477,0,0
+live-ocean-restored,15.016095,17.1177,0,0

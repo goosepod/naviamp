@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=baseline-analog-combined-1 pid=96239 cpu=10.166019275283839 compilation_ms=28 surface=parent:1000x712 visible=true iconified=false frames=745 observer_attached=true physical_captures=true/true

@@ -1,0 +1,19 @@
+"thread","cpu_seconds"
+"DefaultDispatch",0.099613
+"AudioTrack",0.071540
+"DefaultExecutor",0.037413
+"HeapTaskDaemon",0.033947
+"Jit thread pool",0.016715
+"droid.benchmark",0.010377
+"DefaultDispatch",0.008076
+"DefaultDispatch",0.001025
+"ReferenceQueueD",0.000975
+"FinalizerDaemon",0.000313
+"FinalizerWatchd",0.000290
+"DefaultDispatch",0.000118
+
+"interval_bucket_ms","frames"
+
+"thread","operation","calls","mean_ms","max_ms"
+
+"thread","operation","calls","total_wall_ms"

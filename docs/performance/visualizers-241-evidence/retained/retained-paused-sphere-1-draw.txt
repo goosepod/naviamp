@@ -1,0 +1,1 @@
+phase=paused-sphere draws=1 mean_draw_ms=0.067125 intervals=0 p50_interval_ms=null p95_interval_ms=null

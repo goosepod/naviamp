@@ -26,26 +26,27 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.flow.MutableStateFlow
 
 /** Android publishes only its visible lifecycle and hardware-compositor presentation boundary. */
 @Composable
 fun NaviampAndroidRasterHost(content: @Composable () -> Unit) {
     val activity = LocalContext.current as? Activity
     val lifecycle = (activity as? LifecycleOwner)?.lifecycle
+    val gpu = remember(activity) { activity?.let(::AndroidGpuVisualizerPresenter) }
     val presenter = remember(activity) {
         activity?.takeIf { Build.VERSION.SDK_INT >= 29 }?.let(::AndroidRasterPresenter)
     }
-    var visible by remember(lifecycle) {
-        mutableStateOf(lifecycle?.currentState?.isAtLeast(Lifecycle.State.STARTED) == true)
+    val visibility = remember(lifecycle) {
+        MutableStateFlow(lifecycle?.currentState?.isAtLeast(Lifecycle.State.STARTED) == true)
     }
-    CompositionLocalProvider(
-        LocalNaviampRasterPresenter provides presenter,
-        LocalNaviampAnimationVisible provides visible,
-        content = content,
-    )
+    val visible by visibility.collectAsState()
+    CompositionLocalProvider(LocalNaviampGpuVisualizerPresenter provides gpu) {
+        NaviampRasterEnvironment(presenter, visible, false, false, visibility, content)
+    }
     DisposableEffect(lifecycle, presenter) {
         val observer = LifecycleEventObserver { _, _ ->
-            visible = lifecycle?.currentState?.isAtLeast(Lifecycle.State.STARTED) == true
+            visibility.value = lifecycle?.currentState?.isAtLeast(Lifecycle.State.STARTED) == true
         }
         lifecycle?.addObserver(observer)
         onDispose { lifecycle?.removeObserver(observer); presenter?.close() }
@@ -71,7 +72,7 @@ private class AndroidRasterPresenter(private val activity: Activity) : NaviampRa
     private fun scheduleFrame() {
         val now = SystemClock.uptimeMillis()
         frameDelays.clear()
-        regions.forEach { it.frameDelay(now)?.let(frameDelays::add) }
+        regions.forEach { it.nextFrameDelay(now)?.let(frameDelays::add) }
         when (val request = frameSchedule.request(frameDelays, now)) {
             NaviampRasterFrameRequest.Unchanged -> Unit
             NaviampRasterFrameRequest.Cancel -> Choreographer.getInstance().removeFrameCallback(this)
@@ -113,9 +114,10 @@ private class AndroidRasterRegion(
         var bufferChanged: Boolean = false,
         val source: AndroidRect = AndroidRect(),
         val destination: AndroidRect = AndroidRect(),
-        val frame: NaviampRasterFrame = NaviampRasterFrame(),
+        val cropState: NaviampRasterPixelCropState = NaviampRasterPixelCropState(),
         var visible: Boolean = false,
         var ordered: Boolean = false,
+        var translation: androidx.compose.ui.geometry.Offset? = null,
     )
 
     val root = FrameLayout(activity).apply {
@@ -143,6 +145,8 @@ private class AndroidRasterRegion(
     private var bounds = Rect.Zero
     private var clip = Rect.Zero
     private var needsUpdate = false
+    private var viewportControl: SurfaceControl? = null
+    private var viewportCrop: androidx.compose.ui.unit.IntRect? = null
 
     init {
         host.holder.addCallback(object : SurfaceHolder.Callback {
@@ -210,6 +214,12 @@ private class AndroidRasterRegion(
 
     private fun updateBuffers() {
         if (!hostReady) return
+        // A bufferless parent supplies a fixed native crop. Children can then translate without
+        // re-cropping/rescaling the cached bitmap on every frame (SurfaceControl crop API 33).
+        if (Build.VERSION.SDK_INT >= 33 && viewportControl == null) {
+            viewportControl = SurfaceControl.Builder().setName("Naviamp raster viewport")
+                .setParent(host.surfaceControl).build()
+        }
         if (layers.size == requestedLayers.size && layers.zip(requestedLayers).all { (old, new) -> old.spec.image === new.image }) {
             layers.zip(requestedLayers).forEach { (old, new) -> old.spec = new }
             return
@@ -226,7 +236,7 @@ private class AndroidRasterRegion(
                 return@mapIndexed reusable
             }
             val control = SurfaceControl.Builder().setName("Naviamp cached raster")
-                .setParent(host.surfaceControl)
+                .setParent(viewportControl ?: host.surfaceControl)
                 .setBufferSize(bitmap.width.coerceAtLeast(1), bitmap.height.coerceAtLeast(1))
                 .setFormat(PixelFormat.TRANSLUCENT).build()
             val layer = PresentedLayer(
@@ -271,9 +281,15 @@ private class AndroidRasterRegion(
         }
         retiredLayers.clear()
         layers = emptyList()
+        viewportControl?.let {
+            SurfaceControl.Transaction().use { transaction -> transaction.reparent(it, null).apply() }
+            it.release()
+        }
+        viewportControl = null
+        viewportCrop = null
     }
 
-    fun frameDelay(nowMillis: Long): Long? = naviampRasterFrameDelay(
+    fun nextFrameDelay(nowMillis: Long): Long? = naviampRasterFrameDelay(
         requestedLayers, bounds.width, nowMillis - startedAt,
         available = attached && hostReady && layers.isNotEmpty(), needsUpdate = needsUpdate,
     )
@@ -289,6 +305,15 @@ private class AndroidRasterRegion(
     private fun updateSurfaces(transaction: SurfaceControl.Transaction, elapsed: Long): Boolean {
         if (Build.VERSION.SDK_INT < 29) return false
         var changed = retiredLayers.isNotEmpty()
+        val viewport = naviampRasterTranslation(bounds, clip, androidx.compose.ui.geometry.Offset.Zero, 0f)?.viewport
+        viewportControl?.let { control ->
+            if (viewport != null && viewportCrop != viewport) {
+                transaction.setCrop(control, AndroidRect(viewport.left, viewport.top, viewport.right, viewport.bottom))
+                    .setLayer(control, 1).setVisibility(control, true)
+                viewportCrop = viewport
+                changed = true
+            }
+        }
         retiredLayers.forEach {
             if (it.control.isValid) transaction.reparent(it.control, null)
             it.surface?.release()
@@ -298,9 +323,29 @@ private class AndroidRasterRegion(
         retiredLayers.clear()
         layers.forEachIndexed { index, layer ->
                 if (!layer.control.isValid) return@forEachIndexed
-                val frame = layer.frame
-                val geometryChanged = frame.update(layer.spec, bounds, clip, elapsed)
-                if (!frame.visible) {
+                val spec = layer.spec
+                if (Build.VERSION.SDK_INT >= 33 && spec.translation != null) {
+                    val placement = naviampRasterTranslation(spec, bounds, clip, elapsed) ?: return@forEachIndexed
+                    if (layer.translation == placement.position && !layer.bufferChanged && layer.ordered) return@forEachIndexed
+                    if (layer.translation == null) {
+                        transaction.setCrop(layer.control, null).setScale(layer.control, 1f, 1f)
+                    }
+                    transaction.setPosition(layer.control, placement.position.x, placement.position.y)
+                    if (!layer.visible) { transaction.setVisibility(layer.control, true); layer.visible = true }
+                    if (!layer.ordered) { transaction.setLayer(layer.control, index + 1); layer.ordered = true }
+                    if (Build.VERSION.SDK_INT >= 34 && layer.bufferChanged) {
+                        transaction.setBuffer(layer.control, requireNotNull(layer.hardwareBitmap).hardwareBuffer)
+                        layer.bufferChanged = false
+                    }
+                    layer.translation = placement.position
+                    changed = true
+                    return@forEachIndexed
+                }
+                val wasTranslated = layer.translation != null
+                layer.translation = null
+                val crop = naviampRasterPixelCrop(spec, bounds, clip, elapsed)
+                if (!layer.cropState.update(crop, force = layer.bufferChanged || !layer.ordered || wasTranslated)) return@forEachIndexed
+                if (crop == null) {
                     if (layer.visible) {
                         transaction.setVisibility(layer.control, false)
                         layer.visible = false
@@ -308,6 +353,12 @@ private class AndroidRasterRegion(
                     }
                     return@forEachIndexed
                 }
+                layer.source.set(
+                    crop.source.left, crop.source.top, crop.source.right, crop.source.bottom,
+                )
+                layer.destination.set(
+                    crop.destination.left, crop.destination.top, crop.destination.right, crop.destination.bottom,
+                )
                 if (!layer.visible) {
                     transaction.setVisibility(layer.control, true)
                     layer.visible = true
@@ -328,17 +379,12 @@ private class AndroidRasterRegion(
                     layer.bufferChanged = false
                     changed = true
                 }
-                if (!geometryChanged) return@forEachIndexed
                 if (Build.VERSION.SDK_INT >= 33) {
-                    if (frame.sourceChanged) {
-                        layer.source.set(frame.sourceLeft, frame.sourceTop, frame.sourceRight, frame.sourceBottom)
-                        transaction.setCrop(layer.control, layer.source)
-                    }
-                    if (frame.scaleChanged) transaction.setScale(layer.control, frame.scaleX, frame.scaleY)
-                    if (frame.positionChanged) transaction.setPosition(layer.control, frame.positionX, frame.positionY)
+                    transaction.setCrop(layer.control, layer.source)
+                        .setBufferTransform(layer.control, SurfaceControl.BUFFER_TRANSFORM_IDENTITY)
+                        .setScale(layer.control, crop.scaleX, crop.scaleY)
+                        .setPosition(layer.control, crop.positionX, crop.positionY)
                 } else {
-                    layer.source.set(frame.sourceLeft, frame.sourceTop, frame.sourceRight, frame.sourceBottom)
-                    layer.destination.set(frame.destinationLeft, frame.destinationTop, frame.destinationRight, frame.destinationBottom)
                     @Suppress("DEPRECATION")
                     transaction.setGeometry(layer.control, layer.source, layer.destination,
                         SurfaceControl.BUFFER_TRANSFORM_IDENTITY)

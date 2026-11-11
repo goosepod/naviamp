@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=ocean-skia-ocean-ink-2 pid=94192 cpu=20.596961886505014 compilation_ms=627 surface=parent:1000x712 visible=true iconified=false frames=751 observer_attached=true physical_captures=true/true
