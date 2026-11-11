@@ -15,7 +15,7 @@ class RadioTrackArtworkMatchTest {
             name = "Groove Salad",
             streamUrl = "https://ice.somafm.com/groovesalad",
         )
-        val logo = "https://somafm.com/img3/groovesalad-400.png"
+        val logo = "https://api.somafm.com/logos/512/groovesalad512.png"
 
         assertEquals(logo, station.toInternetRadioStationUi().item.coverArtUrl)
         assertEquals(logo, station.defaultRadioArtworkUrl())
