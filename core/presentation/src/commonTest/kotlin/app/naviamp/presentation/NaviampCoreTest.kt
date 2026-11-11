@@ -478,6 +478,7 @@ class NaviampCoreTest {
 
     @Test
     fun generatedRadioRecentsReplayAndPersistThroughCore() = runTest {
+        var now = 10L
         val candidate = coreTrack("radio-candidate")
         val provider = FakeCoreMediaProvider(additionalLibraryTracks = listOf(candidate))
         val effects = FakeCorePlaybackEffects()
@@ -486,6 +487,7 @@ class NaviampCoreTest {
         val core = NaviampCore.create(
             scope = this,
             services = defaults.copy(
+                clockEpochMillis = { now },
                 playback = defaults.playback.copy(effects = effects),
                 radio = defaults.radio.copy(
                     generatedRecents = NaviampCoreGeneratedRadioRecentsPort(
@@ -505,13 +507,12 @@ class NaviampCoreTest {
         val playedIds = effects.appliedQueues.last().tracks.map { it.id.value }
         assertEquals(setOf(provider.track.id.value, candidate.id.value), playedIds.toSet())
         assertEquals(listOf(playedIds.first()), effects.selections.single().tracks.map { it.id.value })
-        assertEquals(2, persisted.size)
+        assertEquals(1, persisted.size)
         val savedSession = persisted.first()
-        assertTrue(savedSession.id.startsWith("library:session:"))
+        assertEquals("library", savedSession.id)
         assertEquals(playedIds, savedSession.sessionTracks.map { it.id })
-        assertEquals("library", persisted.last().id)
         assertEquals(
-            listOf(savedSession.id, "library"),
+            listOf(savedSession.id),
             core.state.value.shell.home.content.recentRadioStreams.map { it.id },
         )
         val section = core.state.value.shell.home.content.collectionSections
@@ -528,7 +529,17 @@ class NaviampCoreTest {
 
         assertEquals(2, effects.selections.size)
         assertEquals(playedIds, effects.selections.last().tracks.map { it.id.value })
-        assertEquals(2, persisted.size)
+        assertEquals(1, persisted.size)
+        repeat(5) {
+            now++
+            core.execute(NaviampCoreCommand.Home.SelectRecentRadio(
+                SharedMediaItemUi(savedSession.id, savedSession.label, "2 tracks"),
+            ))
+            assertEquals(1, persisted.size)
+            assertEquals(savedSession.id, persisted.single().id)
+            assertEquals(now, persisted.single().startedAtEpochMillis)
+            assertEquals(listOf(savedSession.id), core.state.value.shell.home.content.recentRadioStreams.map { it.id })
+        }
     }
 
     @Test

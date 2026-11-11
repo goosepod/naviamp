@@ -469,4 +469,18 @@
     <string name="discovery_hub_requests">Pantau unduhan dan penambahan ke pustaka Anda.</string>
     <string name="discovery_hub_genres">Pilih genre yang dikecualikan dari rekomendasi.</string>
     <string name="artwork_view_full_size">Lihat gambar ukuran penuh</string>
+    <string name="stream_details">Detail siaran</string>
+    <string name="stream_actions">Tindakan siaran</string>
+    <string name="stream_details_station">Stasiun</string>
+    <string name="stream_details_broadcast">Siaran saat ini</string>
+    <string name="stream_details_metadata">Metadata siaran</string>
+    <string name="stream_details_genre">Genre</string>
+    <string name="stream_details_description">Deskripsi</string>
+    <string name="stream_details_artwork_url">URL sampul</string>
+    <string name="stream_details_sample_rate">Laju sampel (Hz)</string>
+    <string name="stream_details_channels">Kanal</string>
+    <string name="stream_details_content_type">Jenis konten</string>
+    <string name="stream_details_embedded_artwork">Sampul tertanam tersedia</string>
+    <string name="stream_details_redacted">disamarkan</string>
+    <string name="stream_details_unavailable_url">URL tidak tersedia</string>
 </resources>

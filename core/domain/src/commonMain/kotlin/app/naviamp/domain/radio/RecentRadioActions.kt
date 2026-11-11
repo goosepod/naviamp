@@ -22,7 +22,9 @@ sealed class RecentRadioAction {
 }
 
 fun recentRadioAction(stream: RecentRadioStream): RecentRadioAction? =
-    when (stream.kind) {
+    if (stream.id.startsWith("artist-mix:") || stream.id.startsWith("album-mix:") ||
+        stream.id.startsWith("genre-mix:") || stream.id.startsWith("popular:")) null
+    else when (stream.kind) {
         RecentRadioKind.Library -> RecentRadioAction.PlayLibrary
         RecentRadioKind.RandomAlbum ->
             stream.album

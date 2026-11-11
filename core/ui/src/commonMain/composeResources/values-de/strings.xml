@@ -1246,4 +1246,18 @@
     <string name="discovery_hub_requests">Downloads und Ergänzungen deiner Mediathek verfolgen.</string>
     <string name="discovery_hub_genres">Genres aus Empfehlungen ausschließen.</string>
     <string name="artwork_view_full_size">Bild in voller Größe anzeigen</string>
+    <string name="stream_details">Streamdetails</string>
+    <string name="stream_actions">Streamaktionen</string>
+    <string name="stream_details_station">Sender</string>
+    <string name="stream_details_broadcast">Aktuelle Sendung</string>
+    <string name="stream_details_metadata">Stream-Metadaten</string>
+    <string name="stream_details_genre">Genre</string>
+    <string name="stream_details_description">Beschreibung</string>
+    <string name="stream_details_artwork_url">Cover-URL</string>
+    <string name="stream_details_sample_rate">Abtastrate (Hz)</string>
+    <string name="stream_details_channels">Kanäle</string>
+    <string name="stream_details_content_type">Inhaltstyp</string>
+    <string name="stream_details_embedded_artwork">Eingebettetes Cover vorhanden</string>
+    <string name="stream_details_redacted">ausgeblendet</string>
+    <string name="stream_details_unavailable_url">URL nicht verfügbar</string>
 </resources>

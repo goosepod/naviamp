@@ -34,6 +34,7 @@ import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.resolvePreferTrack
 import app.naviamp.domain.radio.sessionSubtitle
+import app.naviamp.domain.radio.internetRadioAudioInfo
 import app.naviamp.domain.settings.HomeSectionIds
 import app.naviamp.domain.settings.homeSectionPresentation
 import app.naviamp.domain.settings.resolvedHomeSectionOrder
@@ -1276,6 +1277,8 @@ data class NowPlayingRadioUiConfig(
     val canPlayPause: Boolean = true,
     val canChangeVolume: Boolean = false,
     val radioStations: List<NaviampNowPlayingItemUi> = emptyList(),
+    val audioInfo: String = "",
+    val streamMetadata: PlaybackStreamMetadata = PlaybackStreamMetadata(),
 )
 
 data class MiniNowPlayingUiConfig(
@@ -1489,6 +1492,7 @@ fun InternetRadioStation.toNowPlayingUi(config: NowPlayingRadioUiConfig): NowPla
         stateLabel = config.stateLabel,
         coverArtUrl = config.coverArtUrl,
         isLive = true,
+        audioInfo = config.audioInfo,
         volumePercent = config.volumePercent,
         isPlaying = config.isPlaying,
         isPaused = config.isPaused,
@@ -1500,7 +1504,8 @@ fun InternetRadioStation.toNowPlayingUi(config: NowPlayingRadioUiConfig): NowPla
         canRepeat = false,
         canStartRadio = false,
         canAddToPlaylist = false,
-        menuEnabled = false,
+        menuEnabled = true,
+        streamDetailSections = streamDetails(config.streamMetadata),
         radioStations = config.radioStations,
     )
 }
@@ -1519,6 +1524,8 @@ fun InternetRadioStation.toRadioNowPlayingUi(
     return toNowPlayingUi(
         NowPlayingRadioUiConfig(
             streamTitle = streamMetadata.title,
+            audioInfo = streamMetadata.internetRadioAudioInfo().nowPlayingLabel(),
+            streamMetadata = streamMetadata,
             coverArtUrl = radioArtworkUrl(this, streamMetadata.properties, trackArtworkUrl),
             stateLabel = playbackState.label(),
             volumePercent = volumePercent,
@@ -1800,7 +1807,7 @@ fun radioTrackArtworkMatch(tracks: List<Track>, streamTitle: String?): Track? {
     }
 }
 
-private fun streamMetadataArtworkUrl(properties: Map<String, String>): String? {
+internal fun streamMetadataArtworkUrl(properties: Map<String, String>): String? {
     val artworkKeys = setOf(
         "artwork",
         "artworkurl",
@@ -1814,11 +1821,28 @@ private fun streamMetadataArtworkUrl(properties: Map<String, String>): String? {
         "picture",
         "pictureurl",
     )
-    return properties.entries.firstNotNullOfOrNull { (key, value) ->
+    val explicitArtwork = properties.entries.firstNotNullOfOrNull { (key, value) ->
         value.trim()
             .takeIf { key.lowercase().filter(Char::isLetterOrDigit) in artworkKeys }
             ?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
     }
+    return explicitArtwork ?: properties.entries.firstNotNullOfOrNull { (key, value) ->
+        value.trim().takeIf {
+            key.equals("StreamUrl", ignoreCase = true) && isRadioStreamImageUrl(it)
+        }
+    }
+}
+
+// StreamUrl normally links to a station webpage. Only image-shaped HTTP(S) URLs
+// are artwork; keep normal pages out of the image loader and preserve logo fallback.
+private fun isRadioStreamImageUrl(value: String): Boolean {
+    val path = value.substringBefore('?').substringBefore('#')
+    if (!value.startsWith("http://", ignoreCase = true) &&
+        !value.startsWith("https://", ignoreCase = true)) return false
+    val authority = path.substringAfter("://").substringBefore('/')
+    if (authority.isBlank() || '@' in authority || value.any(Char::isWhitespace)) return false
+    return path.substringAfterLast('/', "").substringAfterLast('.', "").lowercase() in
+        setOf("jpg", "jpeg", "png", "webp", "gif", "avif")
 }
 
 private fun radioStationArtworkUrl(station: InternetRadioStation): String =
@@ -1827,31 +1851,8 @@ private fun radioStationArtworkUrl(station: InternetRadioStation): String =
         ?: station.homePageUrl?.let(::faviconUrl)
         ?: generatedRadioTileUrl(station.name)
 
-private fun knownRadioStationArtworkUrl(station: InternetRadioStation): String? {
-    val haystack = listOf(station.name, station.streamUrl, station.homePageUrl.orEmpty())
-        .joinToString(" ")
-        .lowercase()
-    return when {
-        "somafm" in haystack || "soma.fm" in haystack -> {
-            val slug = somaFmStationSlug(station.name)
-            "https://somafm.com/img3/$slug-400.png"
-        }
-        else -> null
-    }
-}
-
-private fun somaFmStationSlug(name: String): String =
-    when (name.trim().lowercase()) {
-        "deep space one" -> "deepspaceone"
-        "drone zone" -> "dronezone"
-        "groove salad" -> "groovesalad"
-        "groove salad classic" -> "gsclassic"
-        "idm tranceponder" -> "idm"
-        "space station soma" -> "spacestation"
-        "synphaera" -> "synphaera"
-        "the trip" -> "thetrip"
-        else -> name.lowercase().filter(Char::isLetterOrDigit).ifBlank { "somafm" }
-    }
+private fun knownRadioStationArtworkUrl(station: InternetRadioStation): String? =
+    somaFmStationArtworkUrl(station)
 
 private fun faviconUrl(url: String): String? {
     val host = url.removePrefix("https://")

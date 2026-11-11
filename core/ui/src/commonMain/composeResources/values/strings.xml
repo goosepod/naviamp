@@ -1275,4 +1275,18 @@
     <string name="discovery_hub_requests">Follow downloads and additions to your library.</string>
     <string name="discovery_hub_genres">Choose which genres to exclude from recommendations.</string>
     <string name="artwork_view_full_size">View full-size artwork</string>
+    <string name="stream_details">Stream Details</string>
+    <string name="stream_actions">Stream actions</string>
+    <string name="stream_details_station">Station</string>
+    <string name="stream_details_broadcast">Current broadcast</string>
+    <string name="stream_details_metadata">Stream metadata</string>
+    <string name="stream_details_genre">Genre</string>
+    <string name="stream_details_description">Description</string>
+    <string name="stream_details_artwork_url">Artwork URL</string>
+    <string name="stream_details_sample_rate">Sample rate (Hz)</string>
+    <string name="stream_details_channels">Channels</string>
+    <string name="stream_details_content_type">Content type</string>
+    <string name="stream_details_embedded_artwork">Embedded artwork provided</string>
+    <string name="stream_details_redacted">redacted</string>
+    <string name="stream_details_unavailable_url">Unavailable URL</string>
 </resources>

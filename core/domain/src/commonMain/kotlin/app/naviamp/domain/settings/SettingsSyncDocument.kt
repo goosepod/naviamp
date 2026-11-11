@@ -120,7 +120,7 @@ data class SettingsSyncPreferences(
         copy(
             interfaceSettings = interfaceSettings.normalized(),
             playback = playback.normalized(),
-            recentRadioStreams = recentRadioStreams.take(MaxSyncedRecentItems),
+            recentRadioStreams = app.naviamp.domain.radio.reconciledRecentRadioStreams(recentRadioStreams, MaxSyncedRecentItems),
             recentInternetRadioStations = recentInternetRadioStations.take(MaxSyncedRecentItems),
         )
 }

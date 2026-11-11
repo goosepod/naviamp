@@ -469,4 +469,18 @@
     <string name="discovery_hub_requests">İndirmeleri ve kitaplığınıza eklenenleri takip edin.</string>
     <string name="discovery_hub_genres">Önerilerden çıkarılacak türleri seçin.</string>
     <string name="artwork_view_full_size">Görseli tam boyutta görüntüle</string>
+    <string name="stream_details">Akış ayrıntıları</string>
+    <string name="stream_actions">Akış işlemleri</string>
+    <string name="stream_details_station">İstasyon</string>
+    <string name="stream_details_broadcast">Geçerli yayın</string>
+    <string name="stream_details_metadata">Akış meta verileri</string>
+    <string name="stream_details_genre">Tür</string>
+    <string name="stream_details_description">Açıklama</string>
+    <string name="stream_details_artwork_url">Kapak URL’si</string>
+    <string name="stream_details_sample_rate">Örnekleme hızı (Hz)</string>
+    <string name="stream_details_channels">Kanallar</string>
+    <string name="stream_details_content_type">İçerik türü</string>
+    <string name="stream_details_embedded_artwork">Gömülü kapak mevcut</string>
+    <string name="stream_details_redacted">gizlendi</string>
+    <string name="stream_details_unavailable_url">URL kullanılamıyor</string>
 </resources>

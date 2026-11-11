@@ -1576,7 +1576,7 @@ internal fun TelevisionNowPlaying(
                                 modifier = Modifier.testTag("tv-now-playing-queue-context"),
                             )
                         }
-                        if (nowPlaying.audioInfo.isNotBlank()) {
+                        if (displaySettings.showAudioInfo && nowPlaying.audioInfo.isNotBlank()) {
                             Text(nowPlaying.audioInfo, color = colors.mutedText, fontSize = 15.sp)
                         }
                     }
