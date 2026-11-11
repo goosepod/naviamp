@@ -469,4 +469,18 @@
     <string name="discovery_hub_requests">Volg downloads en toevoegingen aan je bibliotheek.</string>
     <string name="discovery_hub_genres">Kies welke genres je uitsluit van aanbevelingen.</string>
     <string name="artwork_view_full_size">Afbeelding op volledig formaat bekijken</string>
+    <string name="stream_details">Streamdetails</string>
+    <string name="stream_actions">Streamacties</string>
+    <string name="stream_details_station">Zender</string>
+    <string name="stream_details_broadcast">Huidige uitzending</string>
+    <string name="stream_details_metadata">Streammetadata</string>
+    <string name="stream_details_genre">Genre</string>
+    <string name="stream_details_description">Beschrijving</string>
+    <string name="stream_details_artwork_url">Hoesafbeeldings-URL</string>
+    <string name="stream_details_sample_rate">Samplefrequentie (Hz)</string>
+    <string name="stream_details_channels">Kanalen</string>
+    <string name="stream_details_content_type">Inhoudstype</string>
+    <string name="stream_details_embedded_artwork">Ingesloten hoesafbeelding beschikbaar</string>
+    <string name="stream_details_redacted">afgeschermd</string>
+    <string name="stream_details_unavailable_url">URL niet beschikbaar</string>
 </resources>

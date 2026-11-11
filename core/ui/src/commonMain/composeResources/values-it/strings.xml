@@ -469,4 +469,18 @@
     <string name="discovery_hub_requests">Segui download e aggiunte alla tua libreria.</string>
     <string name="discovery_hub_genres">Scegli i generi da escludere dai consigli.</string>
     <string name="artwork_view_full_size">Visualizza immagine a grandezza intera</string>
+    <string name="stream_details">Dettagli dello streaming</string>
+    <string name="stream_actions">Azioni dello streaming</string>
+    <string name="stream_details_station">Stazione</string>
+    <string name="stream_details_broadcast">Trasmissione attuale</string>
+    <string name="stream_details_metadata">Metadati dello streaming</string>
+    <string name="stream_details_genre">Genere</string>
+    <string name="stream_details_description">Descrizione</string>
+    <string name="stream_details_artwork_url">URL della copertina</string>
+    <string name="stream_details_sample_rate">Frequenza di campionamento (Hz)</string>
+    <string name="stream_details_channels">Canali</string>
+    <string name="stream_details_content_type">Tipo di contenuto</string>
+    <string name="stream_details_embedded_artwork">Copertina incorporata disponibile</string>
+    <string name="stream_details_redacted">oscurato</string>
+    <string name="stream_details_unavailable_url">URL non disponibile</string>
 </resources>

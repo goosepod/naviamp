@@ -469,4 +469,18 @@
     <string name="discovery_hub_requests">다운로드와 라이브러리 추가를 확인하세요.</string>
     <string name="discovery_hub_genres">추천에서 제외할 장르를 선택하세요.</string>
     <string name="artwork_view_full_size">원본 크기로 이미지 보기</string>
+    <string name="stream_details">스트림 세부 정보</string>
+    <string name="stream_actions">스트림 작업</string>
+    <string name="stream_details_station">방송국</string>
+    <string name="stream_details_broadcast">현재 방송</string>
+    <string name="stream_details_metadata">스트림 메타데이터</string>
+    <string name="stream_details_genre">장르</string>
+    <string name="stream_details_description">설명</string>
+    <string name="stream_details_artwork_url">앨범 이미지 URL</string>
+    <string name="stream_details_sample_rate">샘플 레이트(Hz)</string>
+    <string name="stream_details_channels">채널</string>
+    <string name="stream_details_content_type">콘텐츠 유형</string>
+    <string name="stream_details_embedded_artwork">내장 앨범 이미지 제공됨</string>
+    <string name="stream_details_redacted">숨김</string>
+    <string name="stream_details_unavailable_url">URL을 사용할 수 없음</string>
 </resources>
