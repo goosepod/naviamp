@@ -426,6 +426,22 @@ fun HomeContent.toSharedHomeUi(
     )
 }
 
+/** Refresh recent listening without rebuilding unrelated Home sections or their transient state. */
+fun SharedHomeUi.withRecentlyPlayedTracks(
+    tracks: List<Track>,
+    coverArtUrl: (String?) -> String?,
+    interfaceSettings: InterfaceSettings,
+): SharedHomeUi {
+    val recent = HomeContent(recentlyPlayedTracks = tracks).toSharedHomeUi(
+        coverArtUrl = coverArtUrl, interfaceSettings = interfaceSettings)
+    val sections = collectionSections.filterNot { it.id == HomeSectionIds.RecentlyPlayed } +
+        recent.collectionSections.filter { it.id == HomeSectionIds.RecentlyPlayed }
+    val order = interfaceSettings.resolvedHomeSectionOrder(sections.map { it.id })
+        .withIndex().associate { it.value to it.index }
+    return copy(recentlyPlayedTracks = recent.recentlyPlayedTracks,
+        collectionSections = sections.sortedBy { order[it.id] ?: Int.MAX_VALUE })
+}
+
 fun SharedHomeUi.withRecentRadioStreams(
     streams: List<SharedMediaItemUi>,
     interfaceSettings: InterfaceSettings,

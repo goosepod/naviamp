@@ -426,7 +426,7 @@ class NaviampCoreExternalPlaybackBridgeTest {
         val playable = bridge.browseChildren(NaviampExternalRecentTracksId).single()
         assertTrue(bridge.playMediaId(playable.mediaId))
 
-        val command = assertIs<NaviampCoreCommand.Media.TrackAction>(commands.single())
+        val command = assertIs<NaviampCoreCommand.Home.RecentTrackAction>(commands.single())
         assertEquals("recent", command.request.track.id)
         assertEquals(app.naviamp.ui.SharedTrackRowAction.Select, command.request.action)
     }
@@ -458,7 +458,7 @@ class NaviampCoreExternalPlaybackBridgeTest {
 
         assertTrue(bridge.playSearch("Recent"))
         assertFalse(bridge.playSearch("Missing"))
-        assertIs<NaviampCoreCommand.Media.TrackAction>(commands.single())
+        assertIs<NaviampCoreCommand.Home.RecentTrackAction>(commands.single())
     }
 
     @Test

@@ -267,3 +267,46 @@ Radio remains immediately left of Favorite. Captures are local:
 `/private/tmp/naviamp-350-repeat-current.png`, `naviamp-350-repeat-state-1.png`,
 `naviamp-350-repeat-state-2.png`, and `naviamp-350-repeat-state-off.png`.
 Projection reconnection resumed the previously paused track; paused it again during the check.
+
+### Follow-up: stale Recently Played tracks
+
+Owner found only two old tracks in Auto's Recently Played tab. The common external browse bridge
+read Home's recent tracks, populated from imported library-index `last_played_at_iso8601` metadata.
+The active Core playback path never recorded actual plays in the existing playback-history store,
+so current listening could not enter the list. Home also only republished recents after a full load.
+
+The common playback controller now records a source-scoped library track when it actually reaches
+Playing. It deduplicates repeated progress/pause/resume observations and excludes Internet Radio
+and discovery previews. The common Home controller serializes persistence/readback away from the
+UI thread, guards source changes, updates the shared media registry, Home rows/section/open page,
+and consequently Auto's browse catalog. A revision guard prevents slow Home loading from restoring
+an older history snapshot. History persistence uses the existing table; only SQL queries changed,
+with no schema migration. Recent results are unique by track, newest first, and limited after
+deduplication. Clearing/resyncing the library catalog does not fabricate or discard listening events.
+
+Earlier plays missing from the active history path cannot be reconstructed reliably from the queue;
+no historical plays are invented. The corrected list repopulates through actual listening.
+
+All implementation remains in shared Domain, Presentation, UI, and Storage. No Android, Desktop,
+or iOS production source changes are needed for this follow-up. The first 104 selected tests passed
+(51 playback, 14 Home, 25 external bridge, 14 storage), with shared Android/JVM/iOS simulator
+compilation. Log: `/private/tmp/naviamp-350-recents-verified.log` (4m 6s). APK/architecture build
+passed (`/private/tmp/naviamp-350-recents-device.log`, 1m 32s). Installed APK SHA-256:
+`a0a36ce1b8da5e76e813cfefde8379198abbe72451720797546906c72ee4d726`.
+
+Owner tested active playback and confirmed that the new list correctly tracks what was played.
+During the same test, owner found that selecting a recent item did not replay it. The bridge used
+`Media.TrackAction`, whose controller resolves only Search results, instead of
+`Home.RecentTrackAction`. Corrected both tapped and voice-selected history results to use the
+existing Home history transaction. The regression test now executes that command through the real
+shared track-action controller with empty Search results and checks the resulting queue, current
+track and playback-effect selection. All 130 selected Presentation tests passed (51 playback, 14
+Home, 25 external bridge and 40 Now Playing/transaction cases), alongside the earlier 14 passing
+storage tests. Android, JVM/Desktop and iOS simulator shared compilation passed. Logs:
+`/private/tmp/naviamp-350-recents-selection.log` (1m 29s) and
+`/private/tmp/naviamp-350-recents-selection-device.log` (APK/architecture, 35s).
+
+Installed final APK SHA-256: `5f91221afa105c45837c50c6397feac438d88a63f309022bf9e428577871bc2b`.
+Owner controlled the live playback check (agent stopped concurrent taps). Owner confirmed that the
+new list correctly tracks listening, then confirmed that tapping a recent track starts playback after
+installing the final replay fix. Both live history and replay have physical-phone acceptance.

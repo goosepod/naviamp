@@ -412,7 +412,10 @@ interface LocalLibraryIndexRepository : ArtistPopularTracksRepository, FavoriteA
 
     fun searchLibrary(sourceId: String, query: String, limit: Long = 50, offset: Long = 0): LibrarySnapshot
 
+    /** Actual listening history, independent of stale provider catalog play-date metadata. */
     fun recentlyPlayedLibraryTracks(sourceId: String, limit: Long = 50): List<Track> = emptyList()
+
+    fun recordLibraryTrackPlayed(sourceId: String, track: Track, playedAtEpochMillis: Long) = Unit
 
     fun randomLibraryTrackForAlbum(sourceId: String, albumId: AlbumId): Track?
 

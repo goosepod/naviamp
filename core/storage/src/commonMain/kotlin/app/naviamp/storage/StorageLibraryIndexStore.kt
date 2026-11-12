@@ -32,6 +32,7 @@ class StorageLibraryIndexStore(
     private val mediaSources: StorageMediaSourceStore,
     private val nowMillis: () -> Long,
 ) : LocalLibraryIndexRepository {
+    private val recentPlayback = StoragePlaybackHistoryStore(queries)
     override val albumCatalog = object : AlbumCatalogRepository {
         private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
 
@@ -308,7 +309,10 @@ class StorageLibraryIndexStore(
     }
 
     override fun recentlyPlayedLibraryTracks(sourceId: String, limit: Long): List<Track> =
-        queries.selectRecentlyPlayedLibraryTracks(sourceId, limit).executeAsList().map { it.toTrack() }
+        recentPlayback.recentlyPlayedTracks(sourceId, limit)
+
+    override fun recordLibraryTrackPlayed(sourceId: String, track: Track, playedAtEpochMillis: Long) =
+        recentPlayback.recordPlaybackHistory(sourceId, track, playedAtEpochMillis)
 
     override fun reconcileFavoriteArtists(
         sourceId: String,
@@ -627,43 +631,6 @@ private fun Library_track.toTrack(): Track =
         playCount = play_count?.toInt(),
         lastPlayedAtIso8601 = last_played_at_iso8601,
         musicFolderId = music_folder_id,
-    )
-
-private fun SelectRecentlyPlayedLibraryTracks.toTrack(): Track =
-    Track(
-        id = TrackId(remote_track_id),
-        title = title,
-        artistId = remote_artist_id?.let { ArtistId(it) },
-        artistName = artist_name,
-        albumId = remote_album_id?.let { AlbumId(it) },
-        albumTitle = album_title,
-        albumReleaseYear = album_release_year?.toInt(),
-        originalReleaseYear = original_release_year?.toInt(),
-        discNumber = disc_number?.toInt(),
-        trackNumber = track_number?.toInt(),
-        discTitle = disc_title,
-        discCoverArtId = disc_cover_art_id,
-        durationSeconds = duration_seconds?.toInt(),
-        coverArtId = cover_art_id,
-        audioInfo = AudioInfo(
-            codec = audio_codec,
-            bitrateKbps = audio_bitrate_kbps?.toInt(),
-            contentType = audio_content_type,
-            bitDepth = audio_bit_depth?.toInt(),
-            samplingRateHz = audio_sampling_rate_hz?.toInt(),
-        ).takeIf {
-            it.codec != null ||
-                it.bitrateKbps != null ||
-                it.contentType != null ||
-                it.bitDepth != null ||
-                it.samplingRateHz != null
-        },
-        replayGain = null,
-        genres = genre_names.toGenreNames(),
-        favoritedAtIso8601 = favorited_at_iso8601,
-        userRating = user_rating?.toInt(),
-        playCount = play_count?.toInt(),
-        lastPlayedAtIso8601 = last_played_at_iso8601,
     )
 
 private fun SelectArtistPopularTracks.toPopularTrackMatch(): ArtistPopularTrackMatch =

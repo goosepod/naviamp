@@ -50,6 +50,7 @@ import app.naviamp.ui.NowPlayingItemActionRequest
 import app.naviamp.ui.NowPlayingItemTarget
 import app.naviamp.ui.NowPlayingSelectionAction
 import app.naviamp.ui.NowPlayingSelectionActionRequest
+import app.naviamp.ui.toSharedHomeUi
 import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CompletableDeferred
@@ -69,6 +70,32 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreNowPlayingMediaControllerTest {
+    @Test fun automotiveRecentTrackTapAndVoiceSearchPlayHistoryWithEmptySearchResults() = runTest {
+        val fixture = mediaFixture(this)
+        val tracks = listOf(nowPlayingTrack("recent-first"), nowPlayingTrack("recent-second"))
+        val history = app.naviamp.domain.home.HomeContent(recentlyPlayedTracks = tracks)
+        val registry = NaviampCoreMediaRegistry().also {
+            it.updateHome(history, app.naviamp.domain.sonichome.SonicHomeDiscoveryRows())
+        }
+        fixture.store.updateShell { it.copy(home = it.home.copy(content =
+            history.toSharedHomeUi(coverArtUrl = { null }))) }
+        val commands = mutableListOf<NaviampCoreCommand>()
+        val bridge = NaviampCoreExternalPlaybackBridge(fixture.store.state, commands::add)
+        val controller = NaviampCoreTrackActionController(registry, fixture.transactions, {})
+        assertTrue(registry.search.tracks.isEmpty())
+        assertTrue(bridge.playMediaId(bridge.browseChildren(NaviampExternalRecentTracksId)[1].mediaId))
+        controller.execute(commands.removeAt(0))
+        assertEquals("recent-second", fixture.live.state.value.currentTrack?.id?.value)
+        assertEquals(tracks, fixture.live.state.value.queue.tracks)
+        assertEquals("recent-second:1", fixture.effects.selections.last())
+        // Exercise the history search result rather than the higher-priority existing queue.
+        fixture.store.updateShell { it.copy(nowPlaying = null) }
+        assertTrue(bridge.playSearch("recent-first"))
+        controller.execute(commands.single())
+        assertEquals("recent-first", fixture.live.state.value.currentTrack?.id?.value)
+        assertEquals("recent-first:0", fixture.effects.selections.last())
+    }
+
     @Test
     fun delayedLoadingPresentationCannotOverwriteNewerPlayingState() {
         for (alreadyPlaying in listOf(false, true)) {

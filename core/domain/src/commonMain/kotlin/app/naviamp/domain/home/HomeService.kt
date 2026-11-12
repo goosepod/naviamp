@@ -125,6 +125,8 @@ interface HomeLibraryRepository : FavoriteArtistActivityRepository {
     fun albumYears(sourceId: String): List<HomeAlbumYear>
 
     fun recentlyPlayedTracks(sourceId: String, limit: Long = 12): List<Track> = emptyList()
+
+    fun recordPlayedTrack(sourceId: String, track: Track, playedAtEpochMillis: Long) = Unit
 }
 
 data class HomeAlbumYear(

@@ -469,6 +469,9 @@ class NaviampCore private constructor(
                 services.playback.sessions,
                 nowPlayingPresenter,
                 services.clockEpochMillis,
+                onTrackPlayed = { sourceId, track, playedAt ->
+                    scope.launch { home.recordPlayedTrack(sourceId, track, playedAt) }
+                },
             )
             notifyPlaybackSettingsChanged = playback::playbackSettingsChanged
             val generatedRadioRecents = NaviampRecentRadioStreamController(

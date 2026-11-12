@@ -499,7 +499,7 @@ class NaviampCoreExternalPlaybackBridge internal constructor(
                 .findByMediaId(mediaId, RecentTrackMediaIdPrefix, SharedTrackRowUi::id)
                 ?.let { track ->
                     dispatch(
-                        NaviampCoreCommand.Media.TrackAction(
+                        NaviampCoreCommand.Home.RecentTrackAction(
                             SharedTrackRowActionRequest(track, SharedTrackRowAction.Select),
                         ),
                     )

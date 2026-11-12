@@ -63,6 +63,7 @@ class NaviampCorePlaybackController(
     private val sessions: NaviampPlaybackSessionController,
     private val presenter: NaviampCoreNowPlayingPresenter,
     private val nowEpochMillis: () -> Long,
+    private val onTrackPlayed: (String, app.naviamp.domain.Track, Long) -> Unit = { _, _, _ -> },
 ) : NaviampCoreCommandController {
     private var display = NaviampCoreNowPlayingDisplayState()
     private val commands = NaviampPlaybackCommandController(effects, playback)
@@ -82,6 +83,7 @@ class NaviampCorePlaybackController(
     private val listenReporting = app.naviamp.app.NaviampListenReporting()
     private var listenReportJob: Job? = null
     private var reportingSessionId = 0L
+    private var lastHistoryTrack: Pair<String, app.naviamp.domain.TrackId>? = null
     private var reportingTrackId: app.naviamp.domain.TrackId? = null
     private var sidecarTrackId: app.naviamp.domain.TrackId? = null
     private var sidecarLoadJob: Job? = null
@@ -354,6 +356,7 @@ class NaviampCorePlaybackController(
         playback.observe { live ->
             if (live.currentTrack?.id != observedPlaybackTrackId) {
                 observedPlaybackTrackId = live.currentTrack?.id
+                lastHistoryTrack = null
                 // Invalidate synchronously when leaving a track, even if the next track never
                 // reaches Playing or its queued sidecar load is cancelled before starting.
                 sidecarLoadJob?.cancel()
@@ -648,6 +651,13 @@ class NaviampCorePlaybackController(
             reportingSessionId += 1
         }
         val now = nowEpochMillis()
+        val sourceId = stateStore.state.value.shell.connectionSettings.currentSourceId
+        val historyTrack = sourceId?.let { it to track.id }
+        if (state == PlaybackState.Playing && historyTrack != null && historyTrack != lastHistoryTrack &&
+            !track.isInternetRadioTrack() && !track.id.isDiscoveryPreview()) {
+            lastHistoryTrack = historyTrack
+            onTrackPlayed(historyTrack.first, track, now)
+        }
         val presenceReport = reporting.stateReport(
             NaviampPlaybackStateReportRequest(
                 sessionId = reportingSessionId,

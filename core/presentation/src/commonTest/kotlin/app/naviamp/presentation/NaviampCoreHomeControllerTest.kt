@@ -40,6 +40,63 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NaviampCoreHomeControllerTest {
+    @Test fun realListeningUpdatesRecentRowsRegistryAndRefreshWithoutUsingOldIndexMetadata() = runTest {
+        val store = NaviampCoreStateStore()
+        store.updateShell { it.copy(connectionSettings = it.connectionSettings.copy(currentSourceId = "source")) }
+        store.updateShell { it.copy(playback = it.playback.copy(settings = it.playback.settings.copy(sonicSimilarityEnabled = true))) }
+        val provider = HomeTestProvider(supportsSonicSimilarity = true)
+        var blockRefresh = false
+        val refreshEntered = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val refreshGate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val registry = NaviampCoreMediaRegistry()
+        val tracks = mutableListOf<Track>()
+        var failHistoryWrite = false
+        val repository = object : app.naviamp.domain.home.HomeLibraryRepository {
+            override fun albumYears(sourceId: String) = emptyList<app.naviamp.domain.home.HomeAlbumYear>()
+            override fun recentlyPlayedTracks(sourceId: String, limit: Long) = tracks.toList()
+            override fun recordPlayedTrack(sourceId: String, track: Track, playedAtEpochMillis: Long) {
+                check(!failHistoryWrite)
+                tracks.removeAll { it.id == track.id }; tracks.add(0, track)
+            }
+        }
+        val controller = NaviampCoreHomeController(store, NaviampCoreMediaProviderSource { provider },
+            NaviampCoreNavigationController(NaviampNavigationController(), store, NaviampCoreArtistNavigator {}),
+            NaviampCoreHomeDateSource { HomeDate(2026, 100) },
+            supplementSource = NaviampCoreHomeSupplementSource { NaviampCoreHomeSupplement(sourceId = "source") },
+            libraryRepository = repository, mediaRegistry = registry,
+            sonicDiscoverySource = NaviampCoreSonicHomeDiscoverySource { _, _ ->
+                if (blockRefresh) { refreshEntered.complete(Unit); refreshGate.await() }
+                SonicHomeDiscoveryRows()
+            })
+        val first = Track(TrackId("first"), "First", artistName = "Artist", albumTitle = "Album", durationSeconds = 180, coverArtId = null, audioInfo = null, replayGain = null)
+        val second = first.copy(id = TrackId("second"), title = "Second")
+        controller.recordPlayedTrack("source", first, 100L)
+        store.updateShell { it.copy(home = it.home.copy(collectionPage = app.naviamp.ui.SharedHomeCollectionPageUi(
+            it.home.content.collectionSections.single { section -> section.id == app.naviamp.domain.settings.HomeSectionIds.RecentlyPlayed }))) }
+        controller.recordPlayedTrack("source", second, 200L)
+        assertEquals(listOf("second", "first"), store.state.value.shell.home.content.recentlyPlayedTracks.map { it.id })
+        assertEquals(listOf(second, first), registry.home.recentlyPlayedTracks)
+        assertEquals(listOf("second", "first"), store.state.value.shell.home.content.collectionSections
+            .single { it.id == app.naviamp.domain.settings.HomeSectionIds.RecentlyPlayed }.items.map { it.mediaItem.id })
+
+        controller.execute(NaviampCoreCommand.Home.Refresh)
+        assertEquals(listOf("second", "first"), store.state.value.shell.home.content.recentlyPlayedTracks.map { it.id })
+        assertEquals(listOf("second", "first"), store.state.value.shell.home.collectionPage!!.section.items.map { it.mediaItem.id })
+        blockRefresh = true
+        val pendingRefresh = launch { controller.execute(NaviampCoreCommand.Home.Refresh) }
+        refreshEntered.await()
+        controller.recordPlayedTrack("source", first, 300L)
+        refreshGate.complete(Unit)
+        pendingRefresh.join()
+        assertEquals(listOf("first", "second"), store.state.value.shell.home.content.recentlyPlayedTracks.map { it.id })
+        assertEquals(listOf(first, second), registry.home.recentlyPlayedTracks)
+        controller.recordPlayedTrack("inactive-source", second, 400L)
+        failHistoryWrite = true
+        controller.recordPlayedTrack("source", second, 500L)
+        assertEquals(listOf(first, second), tracks)
+        assertEquals(listOf("first", "second"), store.state.value.shell.home.content.recentlyPlayedTracks.map { it.id })
+    }
+
     @Test fun rejectedRequestsPermitExplicitRetryButConflictsAndUncertainResultsStayBlocked() = runTest {
         for (status in listOf(ProviderDiscoveryOperationStatus.Rejected,
             ProviderDiscoveryOperationStatus.Conflict, ProviderDiscoveryOperationStatus.Uncertain)) {
