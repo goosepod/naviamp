@@ -310,3 +310,38 @@ Installed final APK SHA-256: `5f91221afa105c45837c50c6397feac438d88a63f309022bf9
 Owner controlled the live playback check (agent stopped concurrent taps). Owner confirmed that the
 new list correctly tracks listening, then confirmed that tapping a recent track starts playback after
 installing the final replay fix. Both live history and replay have physical-phone acceptance.
+
+
+## Resumed acceptance walkthrough
+
+Owner reported the changed functionality was working and requested remaining testing or completion.
+The final production commit `fd715a14d` was rechecked on the connected Pixel without clearing data.
+
+| Check | Result and limits |
+| --- | --- |
+| Compact touch display | Google `default_6in.ini`, 800×480 with margins: playlists, persisted recent tracks, full saved Radio catalog and controls painted correctly. |
+| Wide display | 1280×720 derived from Google's rotary profile: artwork/transport remained legible, Radio stayed immediately left of Favorite. |
+| Day/night | Actual sensor switching changed the wide map's theme; media controls remained legible in both modes. |
+| Hardware transport | Official DHU media-pause command paused playback and held the saved position. |
+| Rotary | Focus was visibly drawn on the transport/dock, but a complete rotary-only browse/activation walkthrough was not established. Do not mark full rotary acceptance passed. |
+| Cold/background launch | Stopped both test app and Auto processes, reconnected with the compact profile, and opened Media. The app process/MediaSession reappeared, restored the saved queue and loaded browse content without opening the phone activity. The phone's top resumed activity was Auto's GhostActivity. |
+| History after process recreation | Recent tracks persisted and showed current listening (All That Matters, then SOCO), rather than the old two imported catalog records. |
+| Saved stations after cold launch | Complete saved catalog was available immediately in Radio, including never-recent stations. |
+| Physical vehicle | Not exercised; emulator/Pixel tests do not establish parked head-unit, real Bluetooth/interruption or Assistant/Gemini acceptance. |
+
+Local captures are `naviamp-350-acceptance-*` in `/private/tmp`. Maps in wide captures contain
+location imagery; keep these local rather than publishing screenshots indiscriminately. Emulator
+profiles and commands follow the official DHU guide:
+https://developer.android.com/training/cars/testing/dhu .
+
+The first reconnect met a stale projection-protocol framing error. Restarting Auto's process (no
+data clear) restored the session. This emulator recovery is not recorded as a Naviamp defect.
+
+CI run 43315605811 caught a remaining legacy `MediaUiMappersTest` expectation: it required external
+album-information artwork to replace the server cover. The intended quality policy now keeps the
+server Hero cover primary and uses the information image as fallback. Updated that existing test to
+assert Hero priority and independent information/artist visibility. The complete local shared UI suite
+passed: 751 tests, zero failures/errors/skips (`/private/tmp/naviamp-350-full-ui.log`, 2m 25s).
+No production behavior was changed to satisfy the outdated assertion. The same source's required
+Desktop macOS/Windows/Linux and Android API30/API35 native CI jobs passed; the final CI rerun must
+include this corrected test before the work is marked complete.
