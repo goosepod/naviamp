@@ -483,4 +483,13 @@
     <string name="stream_details_embedded_artwork">एम्बेड किया गया कवर चित्र उपलब्ध है</string>
     <string name="stream_details_redacted">छिपाया गया</string>
     <string name="stream_details_unavailable_url">URL उपलब्ध नहीं है</string>
+    <string name="player_queue">कतार</string>
+    <string name="common_enabled">सक्षम</string>
+    <string name="common_off">बंद</string>
+    <string name="transport_shuffle">शफ़ल</string>
+    <string name="tv_favorite">पसंदीदा</string>
+    <string name="tv_repeat_off">दोहराना बंद</string>
+    <string name="tv_repeat_all">सभी दोहराएँ</string>
+    <string name="tv_repeat_one">ट्रैक दोहराएँ</string>
+    <string name="tv_start_radio">रेडियो शुरू करें</string>
 </resources>

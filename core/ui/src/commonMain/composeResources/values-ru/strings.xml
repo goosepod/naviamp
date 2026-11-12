@@ -483,4 +483,13 @@
     <string name="stream_details_embedded_artwork">Встроенная обложка доступна</string>
     <string name="stream_details_redacted">скрыто</string>
     <string name="stream_details_unavailable_url">URL недоступен</string>
+    <string name="player_queue">Очередь</string>
+    <string name="common_enabled">Включено</string>
+    <string name="common_off">Выключено</string>
+    <string name="transport_shuffle">Перемешать</string>
+    <string name="tv_favorite">В избранное</string>
+    <string name="tv_repeat_off">Повтор выключен</string>
+    <string name="tv_repeat_all">Повторять всё</string>
+    <string name="tv_repeat_one">Повторять трек</string>
+    <string name="tv_start_radio">Включить радио</string>
 </resources>

@@ -181,6 +181,12 @@ class NaviampCoreNowPlayingMediaController(
 
     private suspend fun currentTrack(request: NowPlayingCurrentTrackUiActionRequest) {
         val track = currentTrackOrPublish() ?: return
+        request.target?.let { target ->
+            if (target.trackId != track.id.value ||
+                target.sourceId != stateStore.state.value.shell.connectionSettings.currentSourceId ||
+                stateStore.state.value.shell.connect.remotePlaybackAuthorityActive ||
+                target.queue?.let { it != playback.state.value.queue } == true) return
+        }
         when (request.action) {
             NowPlayingCurrentTrackAction.StartRadio -> generatedRadio.startTrackRadio(track)
             NowPlayingCurrentTrackAction.AddToPlaylist -> request.playlistChoice?.id?.let { addToPlaylist(track, it) }

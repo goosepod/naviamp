@@ -743,6 +743,13 @@ data class NowPlayingCurrentTrackActionRequest(
     val artistName: String? = null,
 )
 
+/** Optional acceptance-time binding for delayed external controls. */
+data class NowPlayingCurrentTrackTarget(
+    val trackId: String,
+    val sourceId: String?,
+    val queue: PlaybackQueue?,
+)
+
 data class NowPlayingCurrentTrackUiActionRequest(
     val action: NowPlayingCurrentTrackAction,
     val playlistChoice: NaviampPlaylistChoiceUi? = null,
@@ -750,6 +757,7 @@ data class NowPlayingCurrentTrackUiActionRequest(
     val rating: Int? = null,
     val artistId: String? = null,
     val artistName: String? = null,
+    val target: NowPlayingCurrentTrackTarget? = null,
 )
 
 enum class NowPlayingPlaybackAction {

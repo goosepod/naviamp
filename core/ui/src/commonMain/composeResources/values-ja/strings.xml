@@ -483,4 +483,13 @@
     <string name="stream_details_embedded_artwork">埋め込みアートワークあり</string>
     <string name="stream_details_redacted">非表示</string>
     <string name="stream_details_unavailable_url">URLを利用できません</string>
+    <string name="player_queue">キュー</string>
+    <string name="common_enabled">有効</string>
+    <string name="common_off">オフ</string>
+    <string name="transport_shuffle">シャッフル</string>
+    <string name="tv_favorite">お気に入り</string>
+    <string name="tv_repeat_off">リピートオフ</string>
+    <string name="tv_repeat_all">全曲リピート</string>
+    <string name="tv_repeat_one">1曲リピート</string>
+    <string name="tv_start_radio">ラジオを開始</string>
 </resources>

@@ -483,4 +483,13 @@
     <string name="stream_details_embedded_artwork">Gömülü kapak mevcut</string>
     <string name="stream_details_redacted">gizlendi</string>
     <string name="stream_details_unavailable_url">URL kullanılamıyor</string>
+    <string name="player_queue">Sıra</string>
+    <string name="common_enabled">Etkin</string>
+    <string name="common_off">Kapalı</string>
+    <string name="transport_shuffle">Karıştır</string>
+    <string name="tv_favorite">Favori</string>
+    <string name="tv_repeat_off">Tekrarlama kapalı</string>
+    <string name="tv_repeat_all">Tümünü tekrarla</string>
+    <string name="tv_repeat_one">Parçayı tekrarla</string>
+    <string name="tv_start_radio">Radyo başlat</string>
 </resources>

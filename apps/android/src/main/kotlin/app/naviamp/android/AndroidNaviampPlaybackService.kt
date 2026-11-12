@@ -24,6 +24,7 @@ import app.naviamp.presentation.NaviampExternalPlaybackSnapshot
 import app.naviamp.presentation.NaviampExternalPlaybackPublicationPlanner
 import app.naviamp.presentation.NaviampPlaybackServicePresentationCoordinator
 import app.naviamp.presentation.NaviampExternalPlaybackState
+import app.naviamp.presentation.NaviampExternalTransportAction
 import app.naviamp.presentation.NaviampExternalQueueId
 import app.naviamp.presentation.NaviampExternalPlaylistsId
 import app.naviamp.presentation.NaviampExternalRadioId
@@ -31,6 +32,9 @@ import app.naviamp.presentation.NaviampExternalRecentAlbumsId
 import app.naviamp.presentation.NaviampExternalRecentTracksId
 import app.naviamp.presentation.automotiveQueue
 import app.naviamp.ui.NaviampRepeatMode
+import app.naviamp.ui.NaviampExternalPlaybackAction
+import app.naviamp.ui.NaviampExternalPlaybackLabels
+import app.naviamp.ui.loadNaviampExternalPlaybackLabels
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -46,6 +50,7 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
     private var bridge: NaviampCoreExternalPlaybackBridge? = null
     private var snapshot = NaviampExternalPlaybackSnapshot()
     private var snapshotJob: Job? = null
+    private var labels: NaviampExternalPlaybackLabels? = null
     private val publicationPlanner = NaviampExternalPlaybackPublicationPlanner()
     private val presentation = NaviampPlaybackServicePresentationCoordinator(
         establish = { startForeground(NotificationId, notification(it)) },
@@ -62,6 +67,11 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
         }
         sessionToken = session.sessionToken
         attachBridge()
+        scope.launch {
+            labels = loadNaviampExternalPlaybackLabels()
+            publishSessionContent(snapshot)
+            publishPlaybackState(snapshot)
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -186,7 +196,7 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
         session.setQueue(value.automotiveQueue().mapIndexed { index, item ->
             MediaSessionCompat.QueueItem(item.description(), item.queueIndex?.toLong() ?: index.toLong())
         })
-        session.setQueueTitle("Queue")
+        session.setQueueTitle(labels?.queueTitle)
     }
 
     private fun publishPlaybackState(value: NaviampExternalPlaybackSnapshot) {
@@ -206,34 +216,13 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
 
     private fun playbackState(value: NaviampExternalPlaybackSnapshot): PlaybackStateCompat =
         PlaybackStateCompat.Builder()
-            .setActions(
-                PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE or
-                    PlaybackStateCompat.ACTION_PLAY_PAUSE or PlaybackStateCompat.ACTION_STOP or
-                    PlaybackStateCompat.ACTION_REWIND or PlaybackStateCompat.ACTION_FAST_FORWARD or
-                    PlaybackStateCompat.ACTION_SEEK_TO or PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
-                    PlaybackStateCompat.ACTION_SKIP_TO_NEXT or PlaybackStateCompat.ACTION_SKIP_TO_QUEUE_ITEM or
-                    PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID or PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH or
-                    PlaybackStateCompat.ACTION_SET_SHUFFLE_MODE or PlaybackStateCompat.ACTION_SET_REPEAT_MODE,
-            )
-            .addCustomAction(
-                CustomActionFavorite,
-                if (value.favorite) "Unfavorite" else "Favorite",
-                if (value.favorite) R.drawable.ic_favorite_filled_24 else R.drawable.ic_favorite_24,
-            )
-            .addCustomAction(
-                CustomActionShuffle,
-                if (value.shuffleActive) "Shuffle on" else "Shuffle off",
-                R.drawable.ic_shuffle_24,
-            )
-            .addCustomAction(
-                CustomActionRepeat,
-                when (value.repeatMode) {
-                    NaviampRepeatMode.Off -> "Repeat off"
-                    NaviampRepeatMode.Queue -> "Repeat queue"
-                    NaviampRepeatMode.Track -> "Repeat track"
-                },
-                R.drawable.ic_repeat_24,
-            )
+            .setActions(value.androidPlaybackActions())
+            .apply {
+                value.customActions.forEach { action ->
+                    val label = labels?.actions?.get(action) ?: return@forEach
+                    addCustomAction(action.androidCustomActionId(), label, action.androidCustomActionIcon())
+                }
+            }
             .setState(
                 when (value.state) {
                     NaviampExternalPlaybackState.Idle -> PlaybackStateCompat.STATE_STOPPED
@@ -272,6 +261,7 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
         }
         override fun onCustomAction(action: String, extras: Bundle?) {
             when (action) {
+                CustomActionRadio -> bridge?.startRadio()
                 CustomActionFavorite -> bridge?.toggleFavorite()
                 CustomActionShuffle -> bridge?.toggleShuffle()
                 CustomActionRepeat -> bridge?.cycleRepeatMode()
@@ -420,9 +410,10 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
         private const val NotificationChannelId = "naviamp-playback-v2"
         private const val NotificationId = 2001
         private const val MediaSessionTag = "NaviampCorePlayback"
-        private const val CustomActionFavorite = "app.naviamp.action.FAVORITE"
-        private const val CustomActionShuffle = "app.naviamp.action.SHUFFLE"
-        private const val CustomActionRepeat = "app.naviamp.action.REPEAT"
+        internal const val CustomActionRadio = "app.naviamp.action.START_RADIO"
+        internal const val CustomActionFavorite = "app.naviamp.action.FAVORITE"
+        internal const val CustomActionShuffle = "app.naviamp.action.SHUFFLE"
+        internal const val CustomActionRepeat = "app.naviamp.action.REPEAT"
 
         fun refreshIntent(context: Context): Intent = context.naviampPlaybackServiceIntent(ActionRefresh)
         fun foregroundStartIntent(context: Context): Intent =
@@ -430,4 +421,35 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
         fun releaseForegroundIntent(context: Context): Intent =
             context.naviampPlaybackServiceIntent(ActionReleaseForeground)
     }
+}
+
+/** Only Android's MediaSession ABI constants belong here; availability/priority are in Core. */
+internal fun NaviampExternalPlaybackSnapshot.androidPlaybackActions(): Long = transportActions.fold(0L) { flags, action ->
+    flags or when (action) {
+        NaviampExternalTransportAction.PlayFromMediaId -> PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID
+        NaviampExternalTransportAction.PlayFromSearch -> PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH
+        NaviampExternalTransportAction.PlayPause -> PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE or PlaybackStateCompat.ACTION_PLAY_PAUSE
+        NaviampExternalTransportAction.Stop -> PlaybackStateCompat.ACTION_STOP
+        NaviampExternalTransportAction.Seek -> PlaybackStateCompat.ACTION_SEEK_TO or PlaybackStateCompat.ACTION_REWIND or PlaybackStateCompat.ACTION_FAST_FORWARD
+        NaviampExternalTransportAction.Previous -> PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+        NaviampExternalTransportAction.Next -> PlaybackStateCompat.ACTION_SKIP_TO_NEXT
+        NaviampExternalTransportAction.SelectQueueItem -> PlaybackStateCompat.ACTION_SKIP_TO_QUEUE_ITEM
+        NaviampExternalTransportAction.Shuffle -> PlaybackStateCompat.ACTION_SET_SHUFFLE_MODE
+        NaviampExternalTransportAction.Repeat -> PlaybackStateCompat.ACTION_SET_REPEAT_MODE
+    }
+}
+
+internal fun NaviampExternalPlaybackAction.androidCustomActionId(): String = when (this) {
+    NaviampExternalPlaybackAction.StartRadio -> AndroidNaviampPlaybackService.CustomActionRadio
+    NaviampExternalPlaybackAction.Favorite, NaviampExternalPlaybackAction.Unfavorite -> AndroidNaviampPlaybackService.CustomActionFavorite
+    NaviampExternalPlaybackAction.ShuffleOn, NaviampExternalPlaybackAction.ShuffleOff -> AndroidNaviampPlaybackService.CustomActionShuffle
+    NaviampExternalPlaybackAction.RepeatOff, NaviampExternalPlaybackAction.RepeatQueue, NaviampExternalPlaybackAction.RepeatTrack -> AndroidNaviampPlaybackService.CustomActionRepeat
+}
+
+internal fun NaviampExternalPlaybackAction.androidCustomActionIcon(): Int = when (this) {
+    NaviampExternalPlaybackAction.StartRadio -> R.drawable.ic_radio_24
+    NaviampExternalPlaybackAction.Favorite -> R.drawable.ic_favorite_24
+    NaviampExternalPlaybackAction.Unfavorite -> R.drawable.ic_favorite_filled_24
+    NaviampExternalPlaybackAction.ShuffleOn, NaviampExternalPlaybackAction.ShuffleOff -> R.drawable.ic_shuffle_24
+    NaviampExternalPlaybackAction.RepeatOff, NaviampExternalPlaybackAction.RepeatQueue, NaviampExternalPlaybackAction.RepeatTrack -> R.drawable.ic_repeat_24
 }

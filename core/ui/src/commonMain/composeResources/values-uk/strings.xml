@@ -483,4 +483,13 @@
     <string name="stream_details_embedded_artwork">Вбудована обкладинка доступна</string>
     <string name="stream_details_redacted">приховано</string>
     <string name="stream_details_unavailable_url">URL недоступна</string>
+    <string name="player_queue">Черга</string>
+    <string name="common_enabled">Увімкнено</string>
+    <string name="common_off">Вимкнено</string>
+    <string name="transport_shuffle">Перемішати</string>
+    <string name="tv_favorite">Улюблене</string>
+    <string name="tv_repeat_off">Повторення вимкнено</string>
+    <string name="tv_repeat_all">Повторювати все</string>
+    <string name="tv_repeat_one">Повторювати трек</string>
+    <string name="tv_start_radio">Увімкнути радіо</string>
 </resources>

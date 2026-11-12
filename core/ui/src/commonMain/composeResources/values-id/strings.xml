@@ -483,4 +483,13 @@
     <string name="stream_details_embedded_artwork">Sampul tertanam tersedia</string>
     <string name="stream_details_redacted">disamarkan</string>
     <string name="stream_details_unavailable_url">URL tidak tersedia</string>
+    <string name="player_queue">Antrean</string>
+    <string name="common_enabled">Aktif</string>
+    <string name="common_off">Nonaktif</string>
+    <string name="transport_shuffle">Acak</string>
+    <string name="tv_favorite">Favorit</string>
+    <string name="tv_repeat_off">Pengulangan nonaktif</string>
+    <string name="tv_repeat_all">Ulangi semua</string>
+    <string name="tv_repeat_one">Ulangi lagu</string>
+    <string name="tv_start_radio">Mulai radio</string>
 </resources>

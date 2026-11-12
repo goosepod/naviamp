@@ -9,6 +9,12 @@ import app.naviamp.ui.NowPlayingPlaybackAction
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.SharedHomeUi
 import app.naviamp.ui.SharedTrackRowUi
+import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.SharedHomeStationUi
+import app.naviamp.ui.NaviampInternetRadioStationUi
+import app.naviamp.ui.NaviampInternetRadioScreenUi
+import app.naviamp.ui.NaviampExternalPlaybackAction
+import app.naviamp.ui.NowPlayingCurrentTrackAction
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.toList
@@ -25,6 +31,118 @@ import kotlin.test.assertTrue
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCoreExternalPlaybackBridgeTest {
+    @Test
+    fun radioHasFirstCustomActionPriorityAndBindsToTheAcceptedCurrentTrack() {
+        val commands = mutableListOf<NaviampCoreCommand>()
+        val current = NowPlayingUi(id = "seed", title = "Seed", subtitle = "Artist", stateLabel = "Playing",
+            canStartRadio = true, canFavorite = true, shuffleEnabled = true, canRepeat = true)
+        val state = MutableStateFlow(NaviampCoreState(shell = NaviampAppShellUiState(nowPlaying = current)))
+        val bridge = NaviampCoreExternalPlaybackBridge(state, commands::add)
+        assertEquals(listOf(NaviampExternalPlaybackAction.StartRadio, NaviampExternalPlaybackAction.Favorite,
+            NaviampExternalPlaybackAction.ShuffleOff, NaviampExternalPlaybackAction.RepeatOff), bridge.snapshot().customActions)
+        bridge.startRadio()
+        val request = assertIs<NaviampCoreCommand.NowPlaying.CurrentTrack>(commands.single()).request
+        assertEquals(NowPlayingCurrentTrackAction.StartRadio, request.action)
+        assertEquals("seed", request.target?.trackId)
+        assertEquals(state.value.shell.connectionSettings.currentSourceId, request.target?.sourceId)
+        commands.clear()
+        val planner = NaviampExternalPlaybackPublicationPlanner()
+        planner.plan(bridge.snapshot())
+        state.value = state.value.copy(shell = state.value.shell.copy(nowPlaying = current.copy(canStartRadio = false)))
+        assertTrue(planner.plan(bridge.snapshot()).playbackState)
+        bridge.startRadio()
+        assertTrue(commands.isEmpty())
+        state.value = state.value.copy(shell = state.value.shell.copy(nowPlaying = current,
+            connect = state.value.shell.connect.copy(remotePlaybackAuthorityActive = true)))
+        assertFalse(bridge.snapshot().canStartRadio)
+        bridge.startRadio()
+        assertTrue(commands.isEmpty())
+    }
+
+    @Test
+    fun liveRadioOmitsTrackControlsAndDurationEvenWithStaleQueueCapabilities() {
+        val commands = mutableListOf<NaviampCoreCommand>()
+        val live = NowPlayingUi(id = "station", title = "Live", subtitle = "Station", stateLabel = "Playing",
+            isLive = true, canStartRadio = true, canFavorite = true, shuffleEnabled = true, canRepeat = true,
+            hasPrevious = true, hasNext = true, durationSeconds = 0.0)
+        val state = MutableStateFlow(NaviampCoreState(shell = NaviampAppShellUiState(nowPlaying = live)))
+        val bridge = NaviampCoreExternalPlaybackBridge(state, commands::add)
+        val snapshot = bridge.snapshot()
+        assertTrue(snapshot.customActions.isEmpty())
+        assertFalse(NaviampExternalTransportAction.Seek in snapshot.transportActions)
+        assertFalse(NaviampExternalTransportAction.Previous in snapshot.transportActions)
+        assertFalse(NaviampExternalTransportAction.Next in snapshot.transportActions)
+        assertNull(snapshot.durationMillis)
+        bridge.startRadio()
+        bridge.toggleFavorite()
+        bridge.toggleShuffle()
+        bridge.cycleRepeatMode()
+        assertTrue(commands.isEmpty())
+    }
+
+    @Test
+    fun carBrowsePrioritizesPlaylistsAndUsesTheSavedStationCatalogBeforeAnyRadioWasPlayed() {
+        val playlist = SharedMediaItemUi("favorites-smart", "My favorites", "Smart playlist")
+        val saved = SharedMediaItemUi("rp", "Radio Paradise", "Station", coverArtUrl = "https://example.test/logo.jpg")
+        val commands = mutableListOf<NaviampCoreCommand>()
+        val state = MutableStateFlow(NaviampCoreState(shell = NaviampAppShellUiState(
+            home = NaviampHomeScreenUi(SharedHomeUi(
+                playlists = listOf(playlist),
+                recentlyPlayedTracks = listOf(SharedTrackRowUi("track", "Recent", "Artist")),
+                recentAlbums = listOf(SharedMediaItemUi("album", "Album", "Artist")),
+                // This deleted/old recent station must not leak back into the saved catalog.
+                radioStations = listOf(SharedMediaItemUi("old", "Old station", "")),
+                stations = listOf(
+                    SharedHomeStationUi("library", "Library Radio", ""),
+                    SharedHomeStationUi("random-album", "Random Album", ""),
+                    SharedHomeStationUi("genre:House", "House Radio", ""),
+                    SharedHomeStationUi("decade:1990:1999", "1990s Radio", ""),
+                ),
+            )),
+            radio = NaviampInternetRadioScreenUi(stations = listOf(
+                NaviampInternetRadioStationUi(saved, "https://example.test/stream"),
+            )),
+        )))
+        val bridge = NaviampCoreExternalPlaybackBridge(state, commands::add)
+
+        assertEquals(listOf(NaviampExternalPlaylistsId, NaviampExternalRecentTracksId,
+            NaviampExternalRadioId, NaviampExternalRecentAlbumsId),
+            bridge.browseChildren(NaviampExternalMediaRootId).map { it.mediaId })
+        val radio = bridge.browseChildren(NaviampExternalRadioId)
+        assertEquals(listOf("Radio Paradise", "Library Radio"), radio.map { it.title })
+        assertEquals(saved.coverArtUrl, radio.first().artworkUrl)
+        assertTrue(bridge.playMediaId(radio.first().mediaId))
+        assertEquals(saved, assertIs<NaviampCoreCommand.Home.SelectInternetRadio>(commands.single()).item)
+        commands.clear()
+        assertFalse(bridge.playMediaId("naviamp:station:genre:House"))
+        assertFalse(bridge.playMediaId("naviamp:station:random-album"))
+        assertFalse(bridge.playMediaId("naviamp:internet-radio:old"))
+        assertTrue(commands.isEmpty())
+        assertTrue(bridge.search("House Radio").isEmpty())
+    }
+
+    @Test
+    fun catalogChangesWhileIdleInvalidateBrowseWithoutRepublishingPlaybackSurfaces() {
+        val state = MutableStateFlow(NaviampCoreState())
+        val bridge = NaviampCoreExternalPlaybackBridge(state, dispatch = {})
+        val planner = NaviampExternalPlaybackPublicationPlanner()
+        planner.plan(bridge.snapshot())
+        state.value = state.value.copy(shell = state.value.shell.copy(
+            radio = NaviampInternetRadioScreenUi(stations = listOf(NaviampInternetRadioStationUi(
+                SharedMediaItemUi("station", "Station", ""), "https://example.test/stream",
+            ))),
+        ))
+        val added = planner.plan(bridge.snapshot())
+        assertTrue(added.browseCatalog)
+        assertFalse(added.sessionContent)
+        assertFalse(added.playbackState)
+        assertFalse(added.notification)
+        assertEquals(listOf(NaviampExternalRadioId), bridge.browseChildren(NaviampExternalMediaRootId).map { it.mediaId })
+        state.value = NaviampCoreState()
+        assertTrue(planner.plan(bridge.snapshot()).browseCatalog)
+        assertTrue(bridge.browseChildren(NaviampExternalMediaRootId).isEmpty())
+    }
+
     @Test
     fun externalToggleUsesCurrentCoreStateWhenTheNativePublicationIsStale() {
         val commands = mutableListOf<NaviampCoreCommand>()
@@ -398,6 +516,9 @@ private fun bridge(
         durationSeconds = 180.0,
         hasPrevious = true,
         hasNext = true,
+        shuffleEnabled = true,
+        canRepeat = true,
+        canStartRadio = true,
         backTo = listOf(NaviampNowPlayingItemUi("earlier", "Earlier", "Artist")),
         upNext = listOf(NaviampNowPlayingItemUi("later", "Later", "Artist")),
     )
