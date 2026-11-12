@@ -190,3 +190,28 @@ Navidrome app listing, the owner proposes a multiplatform hero image showing sev
 followed by individual screenshots from different operating systems. Capture actual finished
 release-candidate interfaces. This is a release-preparation requirement/proposal, not a claim that
 new artwork, captures, or listing updates have been completed during the Android Auto audit.
+
+## Follow-up: stable Radio placement beside Favorite
+
+The owner requested Radio immediately left of the Favorite heart, then observed that the first
+track had put it in the unavailable Previous slot. Android Auto documents that custom actions can
+fill unavailable transport slots unless the MediaSession reserves them.
+
+Common snapshot policy now reserves previous/next positions for non-live playback with a current
+item. It uses the explicit live-media flag, not duration availability, so an unknown-duration library
+track keeps the same layout. Live radio and empty playback do not reserve those spaces. Android's
+existing service only translates this policy into the two `MediaConstants` reservation extras.
+
+All 25 shared external-playback tests pass, including first/middle/last/single-track boundaries and
+layout-policy publication changes. Shared Android/JVM/iOS arm64/simulator compilation passes
+(`/private/tmp/naviamp-350-slot-common.log`, 3m 47s). Both Android mapping tests, the architecture
+check, and APK packaging pass (`naviamp-350-slot-device.log`, 47s).
+Installed test APK SHA-256: `e371803397ba77d408727cedd95c100d74f5072d84861a127f8aac3313b5383c`.
+
+Visible Pixel → DHU verification: selecting Favorites started its first song, **Pardon Me — Incubus**,
+with Previous unavailable and Radio immediately left of the heart. The owner confirmed “now it sin
+the right spot.” Tapping Next advanced to **Criminal — Fiona Apple**; Previous became available,
+while Radio and the heart stayed in the same positions. Local captures:
+`naviamp-auto-slot-first-track.png` and `naviamp-auto-slot-second-track.png` under `/private/tmp`.
+Only `AndroidNaviampPlaybackService.kt` changed in platform production code for this follow-up;
+its concrete boundary is Android `MediaSessionCompat.setExtras` and `Bundle`/`MediaConstants` keys.

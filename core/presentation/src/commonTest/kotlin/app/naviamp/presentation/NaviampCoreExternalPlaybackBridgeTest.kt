@@ -32,6 +32,22 @@ import kotlin.test.assertTrue
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCoreExternalPlaybackBridgeTest {
     @Test
+    fun libraryControlsKeepRadioBesideFavoriteAtEveryQueueBoundary() {
+        val library = bridge().snapshot().copy(canFavorite = true, durationMillis = null)
+        for ((previous, next) in listOf(false to true, true to true, true to false, false to false)) {
+            val boundary = library.copy(hasPrevious = previous, hasNext = next)
+            assertTrue(boundary.reserveTransportSlots)
+            assertEquals(listOf(NaviampExternalPlaybackAction.StartRadio, NaviampExternalPlaybackAction.Favorite),
+                boundary.customActions.take(2))
+        }
+        assertFalse(library.copy(isLive = true).reserveTransportSlots)
+        assertFalse(NaviampExternalPlaybackSnapshot().reserveTransportSlots)
+        val planner = NaviampExternalPlaybackPublicationPlanner()
+        planner.plan(library)
+        assertTrue(planner.plan(library.copy(isLive = true)).playbackState)
+    }
+
+    @Test
     fun radioHasFirstCustomActionPriorityAndBindsToTheAcceptedCurrentTrack() {
         val commands = mutableListOf<NaviampCoreCommand>()
         val current = NowPlayingUi(id = "seed", title = "Seed", subtitle = "Artist", stateLabel = "Playing",

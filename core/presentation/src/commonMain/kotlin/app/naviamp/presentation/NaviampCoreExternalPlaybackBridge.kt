@@ -96,7 +96,12 @@ data class NaviampExternalPlaybackSnapshot(
     val canStartRadio: Boolean = false,
     val canShuffle: Boolean = false,
     val canRepeat: Boolean = false,
+    val isLive: Boolean = false,
 ) {
+    /** Keep custom controls together when previous/next become unavailable at queue boundaries. */
+    val reserveTransportSlots: Boolean
+        get() = current != null && !isLive
+
     /** Priority is product policy; compact car layouts may move later actions into overflow. */
     val customActions: List<NaviampExternalPlaybackAction>
         get() = buildList {
@@ -197,6 +202,7 @@ class NaviampExternalPlaybackPublicationPlanner(
             prior.canStartRadio != next.canStartRadio ||
             prior.canShuffle != next.canShuffle ||
             prior.canRepeat != next.canRepeat ||
+            prior.reserveTransportSlots != next.reserveTransportSlots ||
             prior.shuffleActive != next.shuffleActive ||
             prior.repeatMode != next.repeatMode
         val positionDiscontinuity = when {
@@ -669,6 +675,7 @@ internal fun NaviampCoreState.toExternalPlaybackSnapshot(
         canStartRadio = nowPlaying.canStartRadio && !nowPlaying.isLive && !shell.connect.remotePlaybackAuthorityActive,
         canShuffle = nowPlaying.shuffleEnabled && !nowPlaying.isLive,
         canRepeat = nowPlaying.canRepeat && !nowPlaying.isLive,
+        isLive = nowPlaying.isLive,
     )
 }
 

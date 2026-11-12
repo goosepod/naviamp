@@ -200,6 +200,10 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
     }
 
     private fun publishPlaybackState(value: NaviampExternalPlaybackSnapshot) {
+        session.setExtras(Bundle().apply {
+            putBoolean(MediaConstants.SESSION_EXTRAS_KEY_SLOT_RESERVATION_SKIP_TO_PREV, value.reserveTransportSlots)
+            putBoolean(MediaConstants.SESSION_EXTRAS_KEY_SLOT_RESERVATION_SKIP_TO_NEXT, value.reserveTransportSlots)
+        })
         session.setPlaybackState(playbackState(value))
         session.setShuffleMode(
             if (value.shuffleActive) PlaybackStateCompat.SHUFFLE_MODE_ALL else PlaybackStateCompat.SHUFFLE_MODE_NONE,
