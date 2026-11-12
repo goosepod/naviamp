@@ -21,6 +21,9 @@ class StoragePlaybackHistoryStore(
             StoragePlaybackHistoryItem(row.toTrack(), row.played_at_epoch_millis)
         }
 
+    fun recentlyPlayedTracks(sourceId: String, limit: Long): List<Track> =
+        queries.selectRecentDistinctPlaybackTracks(sourceId, limit).executeAsList().map { it.toTrack() }
+
     override fun recordPlaybackHistory(sourceId: String, track: Track, playedAtEpochMillis: Long) {
         queries.upsertPlaybackHistory(
             source_id = sourceId,

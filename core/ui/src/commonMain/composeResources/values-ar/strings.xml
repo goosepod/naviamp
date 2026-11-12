@@ -483,4 +483,13 @@
     <string name="stream_details_embedded_artwork">تتوفر صورة مضمنة</string>
     <string name="stream_details_redacted">محجوب</string>
     <string name="stream_details_unavailable_url">الرابط غير متاح</string>
+    <string name="player_queue">قائمة الانتظار</string>
+    <string name="common_enabled">مفعّل</string>
+    <string name="common_off">إيقاف</string>
+    <string name="transport_shuffle">تشغيل عشوائي</string>
+    <string name="tv_favorite">مفضلة</string>
+    <string name="tv_repeat_off">التكرار متوقف</string>
+    <string name="tv_repeat_all">تكرار الكل</string>
+    <string name="tv_repeat_one">تكرار المقطع</string>
+    <string name="tv_start_radio">بدء الراديو</string>
 </resources>

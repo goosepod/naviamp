@@ -483,4 +483,13 @@
     <string name="stream_details_embedded_artwork">提供内嵌封面</string>
     <string name="stream_details_redacted">已隐藏</string>
     <string name="stream_details_unavailable_url">网址不可用</string>
+    <string name="player_queue">队列</string>
+    <string name="common_enabled">已启用</string>
+    <string name="common_off">关闭</string>
+    <string name="transport_shuffle">随机播放</string>
+    <string name="tv_favorite">收藏</string>
+    <string name="tv_repeat_off">关闭循环</string>
+    <string name="tv_repeat_all">全部循环</string>
+    <string name="tv_repeat_one">单曲循环</string>
+    <string name="tv_start_radio">开始电台</string>
 </resources>

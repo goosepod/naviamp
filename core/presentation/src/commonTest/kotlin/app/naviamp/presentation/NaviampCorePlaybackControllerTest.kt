@@ -61,6 +61,34 @@ import kotlin.test.assertTrue
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackControllerTest {
+    @Test fun recentHistoryRecordsActualPlayingOnceAndFollowsTrackAndSourceChanges() = runTest {
+        val recorded = mutableListOf<String>()
+        val fixture = playbackFixture(this, onTrackPlayed = { source, track, _ -> recorded += "$source:${track.id.value}" })
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Loading)
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Paused)
+        assertTrue(recorded.isEmpty())
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        fixture.effects.observer!!.onProgressChanged(PlaybackProgress(30.0, 180.0))
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Paused)
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        assertEquals(listOf("source:two"), recorded)
+        fixture.live.updateCurrentTrack(playbackTrack("three"))
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Loading)
+        assertEquals(1, recorded.size)
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        fixture.store.updateShell { it.copy(connectionSettings = it.connectionSettings.copy(currentSourceId = "other")) }
+        fixture.effects.observer!!.onProgressChanged(PlaybackProgress(31.0, 180.0))
+        assertEquals(listOf("source:two", "source:three", "other:three"), recorded)
+        fixture.live.updateCurrentTrack(playbackTrack("discovery-preview:42"))
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        fixture.live.updateCurrentTrack(app.naviamp.domain.radio.internetRadioTrack(
+            app.naviamp.domain.InternetRadioStation("station", "Station", "https://radio.example")))
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        assertEquals(3, recorded.size)
+
+    }
+
     @Test
     fun finalPausedProgressSurvivesImmediateAndDelayedRestoreInsideTheSaveThrottle() = runTest {
         for (terminationDelayMillis in listOf(0L, 2_000L)) {
@@ -1220,6 +1248,7 @@ private fun playbackFixture(
     supportsSonicSimilarity: Boolean = true,
     recreateProviderWrapper: Boolean = false,
     nowEpochMillis: () -> Long = { 10_000L },
+    onTrackPlayed: (String, Track, Long) -> Unit = { _, _, _ -> },
 ): PlaybackFixture {
     val tracks = listOf(
         playbackTrack("one"),
@@ -1269,6 +1298,7 @@ private fun playbackFixture(
         sessions = NaviampPlaybackSessionController(sessionRepository),
         presenter = presenter,
         nowEpochMillis = nowEpochMillis,
+        onTrackPlayed = onTrackPlayed,
     )
     presenter.publish()
     return PlaybackFixture(store, provider, live, effects, sidecars, sessionRepository, controller, saved)

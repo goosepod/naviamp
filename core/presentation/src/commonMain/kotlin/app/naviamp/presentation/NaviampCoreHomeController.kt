@@ -35,6 +35,11 @@ import app.naviamp.domain.provider.ProviderDiscoveryArtist
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import app.naviamp.ui.withRecentlyPlayedTracks
 
 fun interface NaviampCoreHomeDateSource {
     fun current(): HomeDate
@@ -89,6 +94,9 @@ fun localLibraryHomeRepository(
 
     override fun recentlyPlayedTracks(sourceId: String, limit: Long): List<Track> =
         libraryIndex.recentlyPlayedLibraryTracks(sourceId, limit)
+
+    override fun recordPlayedTrack(sourceId: String, track: Track, playedAtEpochMillis: Long) =
+        libraryIndex.recordLibraryTrackPlayed(sourceId, track, playedAtEpochMillis)
 
     override fun reconcileFavoriteArtists(
         sourceId: String,
@@ -146,6 +154,37 @@ class NaviampCoreHomeController(
     acquisitionRepository: app.naviamp.domain.provider.DiscoveryAcquisitionRepository = app.naviamp.domain.provider.MemoryDiscoveryAcquisitionRepository(),
     nowMillis: () -> Long = { 0L },
 ) : NaviampCoreCommandController {
+    private val recentHistoryMutex = Mutex()
+    private var recentHistoryRevision = 0L
+
+    /** A real local play refreshes Home and external browsing without a provider/catalog reload. */
+    suspend fun recordPlayedTrack(sourceId: String, track: Track, playedAtEpochMillis: Long): Unit = recentHistoryMutex.withLock {
+        val repository = libraryRepository ?: return@withLock
+        val provider = providerSource.current() ?: return@withLock
+        if (stateStore.state.value.shell.connectionSettings.currentSourceId != sourceId) return@withLock
+        val tracks = try {
+            withContext(Dispatchers.Default) {
+                repository.recordPlayedTrack(sourceId, track, playedAtEpochMillis)
+                repository.recentlyPlayedTracks(sourceId, 12)
+            }
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { return@withLock }
+        if (!providerSource.isCurrent(provider) ||
+            stateStore.state.value.shell.connectionSettings.currentSourceId != sourceId) return@withLock
+        recentHistoryRevision++
+        mediaRegistry.updateHome(mediaRegistry.home.copy(recentlyPlayedTracks = tracks), mediaRegistry.sonicRows)
+        stateStore.updateShell { shell ->
+            val content = shell.home.content.withRecentlyPlayedTracks(tracks,
+                coverArtUrl = { id -> id?.let(provider::coverArtUrl) },
+                interfaceSettings = shell.general.interfaceSettings)
+            val page = shell.home.collectionPage?.let { page ->
+                if (page.section.id != app.naviamp.domain.settings.HomeSectionIds.RecentlyPlayed) page else
+                    content.collectionSections.firstOrNull { it.id == page.section.id }?.let { page.copy(section = it) }
+            }
+            shell.copy(home = shell.home.copy(content = content, collectionPage = page))
+        }
+    }
+
     private var refreshGeneration = 0L
     private var discoveryFeedGeneration = 0L
     private val discoveryController = NaviampCoreDiscoveryController(
@@ -201,6 +240,7 @@ class NaviampCoreHomeController(
 
     private suspend fun refresh(forceRefreshRecentlyAdded: Boolean = false) = coroutineScope {
         val generation = ++refreshGeneration
+        val historyRevision = recentHistoryRevision
         val provider = providerSource.current()
         if (provider == null) {
             stateStore.updateShell { it.copy(home = it.home.copy(providerDiscovery = null)) }
@@ -233,8 +273,11 @@ class NaviampCoreHomeController(
                 SonicHomeDiscoveryRows()
             }
             content to sonicRows
-        }.onSuccess { (content, sonicRows) ->
+        }.onSuccess { (loadedContent, sonicRows) ->
             if (generation != refreshGeneration || !providerSource.isCurrent(provider)) return@onSuccess
+            // A network/sidecar refresh started before a play must not restore older history.
+            val content = if (recentHistoryRevision == historyRevision) loadedContent else
+                loadedContent.copy(recentlyPlayedTracks = mediaRegistry.home.recentlyPlayedTracks)
             mediaRegistry.updateHome(content, sonicRows)
             val sonicEnabled = stateStore.state.value.shell.playback.settings.effectiveSonicSimilarityEnabled() &&
                 provider.capabilities.supportsSonicSimilarity

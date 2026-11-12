@@ -426,6 +426,22 @@ fun HomeContent.toSharedHomeUi(
     )
 }
 
+/** Refresh recent listening without rebuilding unrelated Home sections or their transient state. */
+fun SharedHomeUi.withRecentlyPlayedTracks(
+    tracks: List<Track>,
+    coverArtUrl: (String?) -> String?,
+    interfaceSettings: InterfaceSettings,
+): SharedHomeUi {
+    val recent = HomeContent(recentlyPlayedTracks = tracks).toSharedHomeUi(
+        coverArtUrl = coverArtUrl, interfaceSettings = interfaceSettings)
+    val sections = collectionSections.filterNot { it.id == HomeSectionIds.RecentlyPlayed } +
+        recent.collectionSections.filter { it.id == HomeSectionIds.RecentlyPlayed }
+    val order = interfaceSettings.resolvedHomeSectionOrder(sections.map { it.id })
+        .withIndex().associate { it.value to it.index }
+    return copy(recentlyPlayedTracks = recent.recentlyPlayedTracks,
+        collectionSections = sections.sortedBy { order[it.id] ?: Int.MAX_VALUE })
+}
+
 fun SharedHomeUi.withRecentRadioStreams(
     streams: List<SharedMediaItemUi>,
     interfaceSettings: InterfaceSettings,
@@ -743,6 +759,13 @@ data class NowPlayingCurrentTrackActionRequest(
     val artistName: String? = null,
 )
 
+/** Optional acceptance-time binding for delayed external controls. */
+data class NowPlayingCurrentTrackTarget(
+    val trackId: String,
+    val sourceId: String?,
+    val queue: PlaybackQueue?,
+)
+
 data class NowPlayingCurrentTrackUiActionRequest(
     val action: NowPlayingCurrentTrackAction,
     val playlistChoice: NaviampPlaylistChoiceUi? = null,
@@ -750,6 +773,7 @@ data class NowPlayingCurrentTrackUiActionRequest(
     val rating: Int? = null,
     val artistId: String? = null,
     val artistName: String? = null,
+    val target: NowPlayingCurrentTrackTarget? = null,
 )
 
 enum class NowPlayingPlaybackAction {
@@ -1606,6 +1630,7 @@ fun AlbumDetails.toSharedAlbumDetailUi(
     canFavoriteAlbum: Boolean = false,
     showAlbumInformation: Boolean = true,
     supportsTrackRadio: Boolean = false,
+    heroCoverArtUrl: (String?) -> String? = coverArtUrl,
 ): SharedAlbumDetailUi {
     val sections = tracks.albumDiscSections().map { section ->
         SharedAlbumDiscSectionUi(
@@ -1635,13 +1660,13 @@ fun AlbumDetails.toSharedAlbumDetailUi(
         } ?: nameOnlyArtistCredit(credit.name).toSharedMediaItemUi()
     }
     return SharedAlbumDetailUi(
-        album = album.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbum).let { item ->
+        album = album.toSharedMediaItemUi(heroCoverArtUrl, canFavoriteAlbum).let { item ->
             val informationImageUrl = info?.largeImageUrl
                     ?: info?.mediumImageUrl
                     ?: info?.smallImageUrl
             if (!showAlbumInformation || informationImageUrl == null) item else item.copy(
-                coverArtUrl = informationImageUrl,
-                fallbackCoverArtUrl = item.coverArtUrl.takeIf { it != informationImageUrl },
+                coverArtUrl = item.coverArtUrl ?: informationImageUrl,
+                fallbackCoverArtUrl = informationImageUrl.takeIf { it != item.coverArtUrl },
             )
         },
         tracks = sections.flatMap { it.tracks },

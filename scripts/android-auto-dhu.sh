@@ -21,9 +21,12 @@ fi
 
 usage() {
     cat <<EOF
-Usage: $(basename "$0") [run|start|install|logs|status|stop]
+Usage: $(basename "$0") [usb|run|start|install|logs|status|stop] [DHU options for usb]
 
 Commands:
+  usb      Launch DHU over USB accessory mode using the phone's installed app (no rebuild).
+           Does not require the Android Auto developer head unit server or an ADB port forward.
+           Additional options are passed to DHU, for example: usb -i hybrid
   run      Build/install debug APK, start Android Auto head unit server, forward 5277, launch DHU.
   start    Start Android Auto head unit server, forward 5277, launch DHU.
   install  Build and install the debug APK.
@@ -33,7 +36,7 @@ Commands:
 
 Environment:
   ANDROID_HOME  Android SDK root. Falls back to ANDROID_SDK_ROOT or local.properties.
-  DEVICE        Optional adb serial, for example emulator-5556.
+  DEVICE        Optional device serial; usb uses this to select the connected physical phone.
   ADB           Optional adb path.
   DHU           Optional desktop-head-unit path.
 EOF
@@ -82,6 +85,14 @@ launch_dhu() {
     exec "$DHU"
 }
 
+launch_usb_dhu() {
+    if [[ -n "$DEVICE" ]]; then
+        exec "$DHU" "--usb=$DEVICE" "$@"
+    else
+        exec "$DHU" --usb "$@"
+    fi
+}
+
 show_status() {
     "$ADB" devices -l
     wait_for_device
@@ -118,6 +129,10 @@ stop_head_unit_server() {
 
 command="${1:-run}"
 case "$command" in
+    usb)
+        require_tooling
+        launch_usb_dhu "${@:2}"
+        ;;
     run)
         require_tooling
         install_debug

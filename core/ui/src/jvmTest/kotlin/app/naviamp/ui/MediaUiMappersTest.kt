@@ -538,6 +538,7 @@ class MediaUiMappersTest {
             listOf(false, true).forEach { showAlbum ->
                 val albumUi = albumDetails.toSharedAlbumDetailUi(
                     coverArtUrl = { "cover://$it" },
+                    heroCoverArtUrl = { "hero://$it" },
                     showAlbumInformation = showAlbum,
                 )
                 val artistUi = artistDetails.toSharedArtistDetailUi(
@@ -549,10 +550,10 @@ class MediaUiMappersTest {
                 assertEquals("artist-1", albumUi.artist?.id)
                 assertEquals("Artist", albumUi.artist?.title)
                 assertEquals(
-                    if (showAlbum) "https://images.test/album.jpg" else "cover://cover-1",
+                    "hero://cover-1",
                     albumUi.album.coverArtUrl,
                 )
-                assertEquals(if (showAlbum) "cover://cover-1" else null, albumUi.album.fallbackCoverArtUrl)
+                assertEquals(if (showAlbum) "https://images.test/album.jpg" else null, albumUi.album.fallbackCoverArtUrl)
                 assertEquals(if (showArtist) "Artist biography" else null, artistUi.biography)
                 assertEquals(
                     if (showArtist) "https://images.test/artist.jpg" else "cover://artist-1",

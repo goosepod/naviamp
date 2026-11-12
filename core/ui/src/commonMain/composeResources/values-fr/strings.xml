@@ -483,4 +483,13 @@
     <string name="stream_details_embedded_artwork">Pochette intégrée disponible</string>
     <string name="stream_details_redacted">masqué</string>
     <string name="stream_details_unavailable_url">URL indisponible</string>
+    <string name="player_queue">File d’attente</string>
+    <string name="common_enabled">Activé</string>
+    <string name="common_off">Désactivé</string>
+    <string name="transport_shuffle">Lecture aléatoire</string>
+    <string name="tv_favorite">Favori</string>
+    <string name="tv_repeat_off">Répétition désactivée</string>
+    <string name="tv_repeat_all">Tout répéter</string>
+    <string name="tv_repeat_one">Répéter le titre</string>
+    <string name="tv_start_radio">Démarrer la radio</string>
 </resources>

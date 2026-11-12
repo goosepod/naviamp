@@ -483,4 +483,13 @@
     <string name="stream_details_embedded_artwork">Copertina incorporata disponibile</string>
     <string name="stream_details_redacted">oscurato</string>
     <string name="stream_details_unavailable_url">URL non disponibile</string>
+    <string name="player_queue">Coda</string>
+    <string name="common_enabled">Attivato</string>
+    <string name="common_off">Disattivato</string>
+    <string name="transport_shuffle">Riproduzione casuale</string>
+    <string name="tv_favorite">Preferito</string>
+    <string name="tv_repeat_off">Ripetizione disattivata</string>
+    <string name="tv_repeat_all">Ripeti tutto</string>
+    <string name="tv_repeat_one">Ripeti brano</string>
+    <string name="tv_start_radio">Avvia radio</string>
 </resources>

@@ -191,6 +191,9 @@ class StorageCriticalStoresTest {
         assertEquals(track, store.librarySnapshot(fixture.sourceId, 10, 0).tracks.single())
         assertEquals(album, store.librarySnapshot(fixture.sourceId, 10, 0).albums.single())
         assertEquals("track", store.searchLibrary(fixture.sourceId, "behav", 10, 0).tracks.single().id.value)
+        assertTrue(store.recentlyPlayedLibraryTracks(fixture.sourceId, 10).isEmpty(),
+            "Catalog last-played metadata is not an actual local listening event")
+        store.recordLibraryTrackPlayed(fixture.sourceId, track, 100L)
         assertEquals("track", store.recentlyPlayedLibraryTracks(fixture.sourceId, 10).single().id.value)
         assertEquals(listOf(1993), store.libraryAlbumYears(fixture.sourceId).map { it.year })
         assertEquals(1L, store.libraryIndexStats(fixture.sourceId).trackCount)
@@ -262,7 +265,15 @@ class StorageCriticalStoresTest {
         history.recordPlaybackHistory(fixture.sourceId, track, 100L)
         history.recordPlaybackHistory(fixture.sourceId, track.copy(title = "History Again"), 200L)
 
-        val rows = history.playbackHistory(fixture.sourceId, 10)
+        history.recordPlaybackHistory(fixture.sourceId, track.copy(id = app.naviamp.domain.TrackId("newest")), 300L)
+        // Import/write completion order must not override the actual play timestamp.
+        history.recordPlaybackHistory(fixture.sourceId, track.copy(title = "Earlier"), 50L)
+        assertEquals(listOf("newest", "history"), history.recentlyPlayedTracks(fixture.sourceId, 10).map { it.id.value })
+        assertEquals("History Again", history.recentlyPlayedTracks(fixture.sourceId, 10).last().title)
+        assertEquals(listOf("newest"), history.recentlyPlayedTracks(fixture.sourceId, 1).map { it.id.value })
+        assertTrue(history.recentlyPlayedTracks("another-source", 10).isEmpty())
+
+        val rows = history.playbackHistory(fixture.sourceId, 10).filter { it.track.id == track.id && it.playedAtEpochMillis >= 100L }
         assertEquals(listOf(200L, 100L), rows.map { it.playedAtEpochMillis })
         assertEquals("History Again", rows.first().track.title)
         assertEquals("flac", rows.first().track.audioInfo?.codec)

@@ -951,14 +951,6 @@ WHERE source_id = ?
 ORDER BY search_title
 LIMIT ? OFFSET ?;
 
-selectRecentlyPlayedLibraryTracks:
-SELECT *
-FROM library_track
-WHERE source_id = ?
-AND last_played_at_iso8601 IS NOT NULL
-ORDER BY last_played_at_iso8601 DESC, search_title
-LIMIT ?;
-
 selectLibraryTrackById:
 SELECT *
 FROM library_track
@@ -1466,6 +1458,16 @@ FROM playback_history
 WHERE source_id = ?
 ORDER BY played_at_epoch_millis DESC
 LIMIT ?;
+
+selectRecentDistinctPlaybackTracks:
+SELECT * FROM playback_history AS history
+WHERE source_id = :sourceId
+AND played_at_epoch_millis = (
+  SELECT MAX(recent.played_at_epoch_millis) FROM playback_history AS recent
+  WHERE recent.source_id = history.source_id AND recent.remote_track_id = history.remote_track_id
+)
+ORDER BY played_at_epoch_millis DESC, remote_track_id
+LIMIT :limit;
 
 upsertPlaybackHistory:
 INSERT OR REPLACE INTO playback_history(

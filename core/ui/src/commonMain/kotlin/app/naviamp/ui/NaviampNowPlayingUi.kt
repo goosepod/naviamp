@@ -15,6 +15,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -350,6 +351,37 @@ fun NaviampNowPlayingPanel(
     selectedVisualizer: NaviampVisualizer = NaviampVisualizer.AudioSphere,
     visualizerColors: NaviampPlayerColors = NaviampPlayerColors.fallback(colors),
     panelLayout: NaviampPlayerPanelLayout = NaviampPlayerPanelLayout.Adaptive,
+    contentInsets: WindowInsets = WindowInsets(0),
+) {
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        val wide = maxWidth >= 780.dp && panelLayout != NaviampPlayerPanelLayout.Standalone
+        val filled = useFilledNowPlayingArtwork(displaySettings.fillArtworkArea,
+            nowPlaying.visualizerVisible && nowPlaying.visualizerAvailable,
+            nowPlaying.lyricsVisible && !nowPlaying.isLive, wide, panelLayout)
+        NaviampNowPlayingPanelContent(
+            nowPlaying, playbackProgress, colors, actions, displaySettings,
+            Modifier.fillMaxSize().then(if (filled) Modifier else
+                Modifier.naviampContentInsets(contentInsets, WindowInsets(0))),
+            visualizerBandsProvider, selectedVisualizer, visualizerColors, panelLayout,
+            filled, contentInsets,
+        )
+    }
+}
+
+@Composable
+private fun NaviampNowPlayingPanelContent(
+    nowPlaying: NowPlayingUi,
+    playbackProgress: StateFlow<PlaybackProgress>? = null,
+    colors: NaviampColors,
+    actions: NaviampNowPlayingActions,
+    displaySettings: NowPlayingDisplaySettings = NowPlayingDisplaySettings(),
+    modifier: Modifier = Modifier,
+    visualizerBandsProvider: () -> List<Float> = { nowPlaying.visualizerFrame?.bands.orEmpty() },
+    selectedVisualizer: NaviampVisualizer = NaviampVisualizer.AudioSphere,
+    visualizerColors: NaviampPlayerColors = NaviampPlayerColors.fallback(colors),
+    panelLayout: NaviampPlayerPanelLayout = NaviampPlayerPanelLayout.Adaptive,
+    filled: Boolean,
+    contentInsets: WindowInsets,
 ) {
     var selectedTab by remember(nowPlaying.id, nowPlaying.isLive) { mutableStateOf(NaviampNowPlayingTab.UpNext) }
     var saveQueueDialogOpen by remember { mutableStateOf(false) }
@@ -407,9 +439,7 @@ fun NaviampNowPlayingPanel(
             Dp.Unspecified
         }
 
-        if (useFilledNowPlayingArtwork(displaySettings.fillArtworkArea,
-                nowPlaying.visualizerVisible && nowPlaying.visualizerAvailable,
-                nowPlaying.lyricsVisible && !showStationList, wideLayout, panelLayout)) {
+        if (filled) {
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 NaviampFilledNowPlayingArtwork(
@@ -420,7 +450,8 @@ fun NaviampNowPlayingPanel(
                         { actions.display(NowPlayingDisplayAction.ToggleVisualizer) }
                     } else null,
                 ) {
-                    BoxWithConstraints(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
+                    BoxWithConstraints(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                        .naviampContentInsets(contentInsets, WindowInsets(0))) {
                         NowPlayingDetails(
                             nowPlaying = progressStableNowPlaying, playbackProgress = playbackProgress,
                             colors = colors, playerColors = visualizerColors, actions = actions,

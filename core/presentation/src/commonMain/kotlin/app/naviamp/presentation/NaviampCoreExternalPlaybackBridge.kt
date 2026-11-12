@@ -2,6 +2,9 @@ package app.naviamp.presentation
 
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.ui.NaviampNowPlayingItemUi
+import app.naviamp.ui.NaviampAppShellUiState
+import app.naviamp.ui.NaviampExternalPlaybackAction
+import app.naviamp.ui.NowPlayingCurrentTrackTarget
 import app.naviamp.ui.NaviampMediaItemActionRequest
 import app.naviamp.ui.NaviampMediaItemCommand
 import app.naviamp.ui.NaviampPlaylistDetailCommand
@@ -33,6 +36,24 @@ enum class NaviampExternalPlaybackState {
     Playing,
     Paused,
 }
+
+/** The car catalog is independent of playback and of Home's recent-station subset. */
+data class NaviampExternalBrowseCatalog(
+    val playlists: List<SharedMediaItemUi> = emptyList(),
+    val recentTracks: List<SharedTrackRowUi> = emptyList(),
+    val recentAlbums: List<SharedMediaItemUi> = emptyList(),
+    val internetRadio: List<SharedMediaItemUi> = emptyList(),
+    val stations: List<SharedHomeStationUi> = emptyList(),
+)
+
+private fun NaviampAppShellUiState.externalBrowseCatalog() = NaviampExternalBrowseCatalog(
+    playlists = playlists.playlists.ifEmpty { home.content.playlists },
+    recentTracks = home.content.recentlyPlayedTracks,
+    recentAlbums = home.content.recentAlbums,
+    internetRadio = radio.stations.map { it.item },
+    // Keep one immediate library-wide choice; station builders belong on the phone.
+    stations = home.content.stations.filter { it.id == app.naviamp.domain.home.HomeStationLibrary },
+)
 
 data class NaviampExternalMediaItem(
     val mediaId: String,
@@ -71,12 +92,51 @@ data class NaviampExternalPlaybackSnapshot(
     val canFavorite: Boolean = false,
     val shuffleActive: Boolean = false,
     val repeatMode: NaviampRepeatMode = NaviampRepeatMode.Off,
+    val browseCatalog: NaviampExternalBrowseCatalog = NaviampExternalBrowseCatalog(),
+    val canStartRadio: Boolean = false,
+    val canShuffle: Boolean = false,
+    val canRepeat: Boolean = false,
+    val isLive: Boolean = false,
 ) {
+    /** Keep custom controls together when previous/next become unavailable at queue boundaries. */
+    val reserveTransportSlots: Boolean
+        get() = current != null && !isLive
+
+    /** Priority is product policy; compact car layouts may move later actions into overflow. */
+    val customActions: List<NaviampExternalPlaybackAction>
+        get() = buildList {
+            if (canStartRadio) add(NaviampExternalPlaybackAction.StartRadio)
+            if (canFavorite) add(if (favorite) NaviampExternalPlaybackAction.Unfavorite else NaviampExternalPlaybackAction.Favorite)
+            if (canShuffle) add(if (shuffleActive) NaviampExternalPlaybackAction.ShuffleOn else NaviampExternalPlaybackAction.ShuffleOff)
+            if (canRepeat) add(when (repeatMode) {
+                NaviampRepeatMode.Off -> NaviampExternalPlaybackAction.RepeatOff
+                NaviampRepeatMode.Queue -> NaviampExternalPlaybackAction.RepeatQueue
+                NaviampRepeatMode.Track -> NaviampExternalPlaybackAction.RepeatTrack
+            })
+        }
+
+    val transportActions: Set<NaviampExternalTransportAction>
+        get() = buildSet {
+            add(NaviampExternalTransportAction.PlayFromMediaId)
+            add(NaviampExternalTransportAction.PlayFromSearch)
+            if (canPlayPause) add(NaviampExternalTransportAction.PlayPause)
+            if (canControl) add(NaviampExternalTransportAction.Stop)
+            if (canSeek) add(NaviampExternalTransportAction.Seek)
+            if (hasPrevious) add(NaviampExternalTransportAction.Previous)
+            if (hasNext) add(NaviampExternalTransportAction.Next)
+            if (queue.isNotEmpty()) add(NaviampExternalTransportAction.SelectQueueItem)
+            if (canShuffle) add(NaviampExternalTransportAction.Shuffle)
+            if (canRepeat) add(NaviampExternalTransportAction.Repeat)
+        }
     val canControl: Boolean
         get() = canPlayPause || canSeek || canChangeVolume || hasPrevious || hasNext
 
     val shouldRetainPlaybackService: Boolean
         get() = current != null && state != NaviampExternalPlaybackState.Idle
+}
+
+enum class NaviampExternalTransportAction {
+    PlayFromMediaId, PlayFromSearch, PlayPause, Stop, Seek, Previous, Next, SelectQueueItem, Shuffle, Repeat,
 }
 
 /**
@@ -139,6 +199,10 @@ class NaviampExternalPlaybackPublicationPlanner(
             prior.hasNext != next.hasNext ||
             prior.favorite != next.favorite ||
             prior.canFavorite != next.canFavorite ||
+            prior.canStartRadio != next.canStartRadio ||
+            prior.canShuffle != next.canShuffle ||
+            prior.canRepeat != next.canRepeat ||
+            prior.reserveTransportSlots != next.reserveTransportSlots ||
             prior.shuffleActive != next.shuffleActive ||
             prior.repeatMode != next.repeatMode
         val positionDiscontinuity = when {
@@ -153,6 +217,7 @@ class NaviampExternalPlaybackPublicationPlanner(
         }
         val playbackState = semanticPlaybackChange || positionDiscontinuity
         val browseCatalog = prior == null ||
+            prior.browseCatalog != next.browseCatalog ||
             prior.current?.mediaId != next.current?.mediaId ||
             prior.queue != next.queue
         val notification = prior == null ||
@@ -256,8 +321,8 @@ class NaviampCoreExternalPlaybackBridge internal constructor(
     override fun next() { if (snapshot().hasNext) playback(NowPlayingPlaybackAction.Next) }
     fun rewind() = seekBy(-ExternalPlaybackSeekStepMillis)
     fun fastForward() = seekBy(ExternalPlaybackSeekStepMillis)
-    fun toggleShuffle() = playback(NowPlayingPlaybackAction.ToggleShuffle)
-    fun cycleRepeatMode() = playback(NowPlayingPlaybackAction.CycleRepeatMode)
+    fun toggleShuffle() { if (snapshot().canShuffle) playback(NowPlayingPlaybackAction.ToggleShuffle) }
+    fun cycleRepeatMode() { if (snapshot().canRepeat) playback(NowPlayingPlaybackAction.CycleRepeatMode) }
 
     override fun setVolumePercent(percent: Int) {
         if (!snapshot().canChangeVolume) return
@@ -272,11 +337,11 @@ class NaviampCoreExternalPlaybackBridge internal constructor(
     }
 
     override fun setShuffleActive(active: Boolean) {
-        if (snapshot().canControl && snapshot().shuffleActive != active) toggleShuffle()
+        if (snapshot().canShuffle && snapshot().shuffleActive != active) toggleShuffle()
     }
 
     override fun setRepeatMode(mode: NaviampRepeatMode) {
-        if (!snapshot().canControl) return
+        if (!snapshot().canRepeat) return
         val modes = NaviampRepeatMode.entries
         val currentIndex = modes.indexOf(snapshot().repeatMode)
         val targetIndex = modes.indexOf(mode)
@@ -343,36 +408,49 @@ class NaviampCoreExternalPlaybackBridge internal constructor(
         )
     }
 
-    fun browseChildren(parentId: String): List<NaviampExternalMediaItem> {
+    fun startRadio() {
         val shell = state.value.shell
-        val home = shell.home.content
+        val nowPlaying = shell.nowPlaying ?: return
+        if (!nowPlaying.canStartRadio || nowPlaying.isLive || shell.connect.remotePlaybackAuthorityActive) return
+        dispatch(NaviampCoreCommand.NowPlaying.CurrentTrack(NowPlayingCurrentTrackUiActionRequest(
+            action = NowPlayingCurrentTrackAction.StartRadio,
+            target = NowPlayingCurrentTrackTarget(
+                trackId = nowPlaying.id,
+                sourceId = shell.connectionSettings.currentSourceId,
+                queue = nowPlaying.queueSnapshot,
+            ),
+        )))
+    }
+
+    fun browseChildren(parentId: String): List<NaviampExternalMediaItem> {
+        val playback = snapshot()
+        val catalog = playback.browseCatalog
         return when (parentId) {
             NaviampExternalMediaRootId -> buildList {
-                if (snapshot().current != null) {
-                    add(section(NaviampExternalNowPlayingId, "Now Playing", "Current playback", playable = true))
-                }
-                if (snapshot().queue.isNotEmpty()) {
-                    add(section(NaviampExternalQueueId, "Queue", "${snapshot().queue.size} tracks"))
-                }
-                if (home.recentlyPlayedTracks.isNotEmpty()) {
-                    add(section(NaviampExternalRecentTracksId, "Recently Played", "Recent tracks"))
-                }
-                if (home.recentAlbums.isNotEmpty()) {
-                    add(section(NaviampExternalRecentAlbumsId, "Recent Albums", "Recently played albums"))
-                }
-                val playlists = shell.playlists.playlists.ifEmpty { home.playlists }
-                if (playlists.isNotEmpty()) {
+                if (catalog.playlists.isNotEmpty()) {
                     add(section(NaviampExternalPlaylistsId, "Playlists", "Saved playlists"))
                 }
-                if (home.radioStations.isNotEmpty() || home.stations.isNotEmpty()) {
+                if (catalog.recentTracks.isNotEmpty()) {
+                    add(section(NaviampExternalRecentTracksId, "Recently Played", "Recent tracks"))
+                }
+                if (catalog.internetRadio.isNotEmpty() || catalog.stations.isNotEmpty()) {
                     add(section(NaviampExternalRadioId, "Radio", "Stations"))
                 }
+                if (catalog.recentAlbums.isNotEmpty()) {
+                    add(section(NaviampExternalRecentAlbumsId, "Recent Albums", "Recently played albums"))
+                }
+                if (playback.queue.isNotEmpty()) {
+                    add(section(NaviampExternalQueueId, "Queue", "${playback.queue.size} tracks"))
+                }
+                if (playback.current != null) {
+                    add(section(NaviampExternalNowPlayingId, "Now Playing", "Current playback", playable = true))
+                }
             }
-            NaviampExternalQueueId -> snapshot().automotiveQueue()
-            NaviampExternalRecentTracksId -> home.recentlyPlayedTracks.map(::externalTrack)
-            NaviampExternalRecentAlbumsId -> home.recentAlbums.map(::externalAlbum)
-            NaviampExternalPlaylistsId -> shell.playlists.playlists.ifEmpty { home.playlists }.map(::externalPlaylist)
-            NaviampExternalRadioId -> home.radioStations.map(::externalInternetRadio) + home.stations.map(::externalStation)
+            NaviampExternalQueueId -> playback.automotiveQueue()
+            NaviampExternalRecentTracksId -> catalog.recentTracks.map(::externalTrack)
+            NaviampExternalRecentAlbumsId -> catalog.recentAlbums.map(::externalAlbum)
+            NaviampExternalPlaylistsId -> catalog.playlists.map(::externalPlaylist)
+            NaviampExternalRadioId -> catalog.internetRadio.map(::externalInternetRadio) + catalog.stations.map(::externalStation)
             else -> emptyList()
         }
     }
@@ -415,12 +493,13 @@ class NaviampCoreExternalPlaybackBridge internal constructor(
             }
         val shell = state.value.shell
         val home = shell.home.content
+        val catalog = shell.externalBrowseCatalog()
         return when {
             mediaId.startsWith(RecentTrackMediaIdPrefix) -> home.recentlyPlayedTracks
                 .findByMediaId(mediaId, RecentTrackMediaIdPrefix, SharedTrackRowUi::id)
                 ?.let { track ->
                     dispatch(
-                        NaviampCoreCommand.Media.TrackAction(
+                        NaviampCoreCommand.Home.RecentTrackAction(
                             SharedTrackRowActionRequest(track, SharedTrackRowAction.Select),
                         ),
                     )
@@ -453,13 +532,13 @@ class NaviampCoreExternalPlaybackBridge internal constructor(
                     )
                     true
                 } ?: false
-            mediaId.startsWith(InternetRadioMediaIdPrefix) -> home.radioStations
+            mediaId.startsWith(InternetRadioMediaIdPrefix) -> catalog.internetRadio
                 .findByMediaId(mediaId, InternetRadioMediaIdPrefix, SharedMediaItemUi::id)
                 ?.let { station ->
                     dispatch(NaviampCoreCommand.Home.SelectInternetRadio(station))
                     true
                 } ?: false
-            mediaId.startsWith(StationMediaIdPrefix) -> home.stations
+            mediaId.startsWith(StationMediaIdPrefix) -> catalog.stations
                 .findByMediaId(mediaId, StationMediaIdPrefix, SharedHomeStationUi::id)
                 ?.let { station ->
                     dispatch(NaviampCoreCommand.Home.SelectStation(station))
@@ -546,7 +625,8 @@ fun NaviampCoreExternalPlaybackBridge.lifecycleCoordinator(): NaviampExternalPla
 internal fun NaviampCoreState.toExternalPlaybackSnapshot(
     progress: PlaybackProgress? = null,
 ): NaviampExternalPlaybackSnapshot {
-    val nowPlaying = shell.nowPlaying ?: return NaviampExternalPlaybackSnapshot()
+    val catalog = shell.externalBrowseCatalog()
+    val nowPlaying = shell.nowPlaying ?: return NaviampExternalPlaybackSnapshot(browseCatalog = catalog)
     val queueRows = nowPlaying.backTo + NaviampNowPlayingItemUi(
         id = nowPlaying.id,
         title = nowPlaying.title,
@@ -574,23 +654,28 @@ internal fun NaviampCoreState.toExternalPlaybackSnapshot(
         else -> NaviampExternalPlaybackState.Idle
     }
     return NaviampExternalPlaybackSnapshot(
+        browseCatalog = catalog,
         state = state,
         current = queue.getOrNull(currentIndex),
         queue = queue,
         currentQueueIndex = currentIndex,
         seekGeneration = progress?.seekGeneration ?: 0L,
         positionMillis = (progress?.positionSeconds ?: nowPlaying.positionSeconds)?.times(1_000.0)?.toLong(),
-        durationMillis = (progress?.durationSeconds ?: nowPlaying.durationSeconds)?.times(1_000.0)?.toLong(),
+        durationMillis = if (nowPlaying.isLive) null else (progress?.durationSeconds ?: nowPlaying.durationSeconds)?.times(1_000.0)?.toLong(),
         canPlayPause = nowPlaying.canPlayPause,
         canSeek = nowPlaying.canSeek && !nowPlaying.isLive && nowPlaying.durationSeconds != null,
         canChangeVolume = nowPlaying.canChangeVolume,
         volumePercent = nowPlaying.volumePercent.coerceIn(0, 100),
-        hasPrevious = nowPlaying.hasPrevious,
-        hasNext = nowPlaying.hasNext,
+        hasPrevious = nowPlaying.hasPrevious && !nowPlaying.isLive,
+        hasNext = nowPlaying.hasNext && !nowPlaying.isLive,
         favorite = nowPlaying.favoriteActive,
-        canFavorite = nowPlaying.canFavorite,
+        canFavorite = nowPlaying.canFavorite && !nowPlaying.isLive,
         shuffleActive = nowPlaying.shuffleActive,
         repeatMode = nowPlaying.repeatMode,
+        canStartRadio = nowPlaying.canStartRadio && !nowPlaying.isLive && !shell.connect.remotePlaybackAuthorityActive,
+        canShuffle = nowPlaying.shuffleEnabled && !nowPlaying.isLive,
+        canRepeat = nowPlaying.canRepeat && !nowPlaying.isLive,
+        isLive = nowPlaying.isLive,
     )
 }
 

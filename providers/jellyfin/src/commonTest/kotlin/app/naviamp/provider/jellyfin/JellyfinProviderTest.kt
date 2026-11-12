@@ -23,6 +23,13 @@ import kotlin.test.assertTrue
 import kotlin.test.assertFailsWith
 
 class JellyfinProviderTest {
+    @Test fun artworkResolutionDependsOnItsPresentation() {
+        val provider = fixture().provider
+        assertTrue(provider.coverArtUrl("cover").contains("maxWidth=512"))
+        assertTrue(provider.coverArtUrl("cover", app.naviamp.domain.provider.CoverArtSize.Hero)
+            .contains("maxWidth=2048"))
+    }
+
     @Test fun creatorOwnershipUsesOwnerOnlyEndpointAndDoesNotTreatFailuresAsOwnership() = runTest {
         val playlist = app.naviamp.domain.Playlist("playlist", "Playlist", 0)
         val owner = fixture(responses = mapOf("/Playlists/playlist/Users" to "[]"))

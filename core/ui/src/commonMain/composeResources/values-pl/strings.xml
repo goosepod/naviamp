@@ -588,4 +588,11 @@
     <string name="stream_details_embedded_artwork">Dostępna osadzona okładka</string>
     <string name="stream_details_redacted">ukryto</string>
     <string name="stream_details_unavailable_url">Adres URL niedostępny</string>
+    <string name="player_queue">Kolejka</string>
+    <string name="transport_shuffle">Odtwarzanie losowe</string>
+    <string name="tv_favorite">Ulubione</string>
+    <string name="tv_repeat_off">Powtarzanie wyłączone</string>
+    <string name="tv_repeat_all">Powtarzaj wszystko</string>
+    <string name="tv_repeat_one">Powtarzaj utwór</string>
+    <string name="tv_start_radio">Uruchom radio</string>
 </resources>

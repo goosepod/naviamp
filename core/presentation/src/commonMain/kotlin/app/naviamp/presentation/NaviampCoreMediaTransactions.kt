@@ -45,6 +45,7 @@ import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.withRecentRadioStreams
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Mutex
 
 fun interface NaviampCoreExternalUriPort {
     fun open(uri: String)
@@ -161,6 +162,7 @@ class NaviampCoreMediaTransactions(
     private val onFavoriteArtistActivityChanged: () -> Unit = {},
     private val onAlbumUpdated: (app.naviamp.domain.provider.MediaProvider, Album) -> Unit = { _, _ -> },
 ) : NaviampCoreTrackRadioTransactions {
+    private val trackRadioBuild = Mutex()
     fun play(tracks: List<Track>, index: Int = 0, shuffle: Boolean = false) {
         if (!queuePlayback.play(tracks, index, shuffle)) publish("No tracks are available.")
     }
@@ -205,11 +207,17 @@ class NaviampCoreMediaTransactions(
     )
 
     override suspend fun startTrackRadio(seed: Track) {
-        val settings = stateStore.state.value.shell.playback.settings
-        startSeededMix(
-            trackRadioRequest(seed, settings.effectiveSonicSimilarityEnabled()),
-            preserveCurrentSeed = true,
-        ) { recordTrackArtistRadioPlayed(seed) }
+        if (stateStore.state.value.shell.connect.remotePlaybackAuthorityActive) return
+        if (!trackRadioBuild.tryLock()) return
+        try {
+            val settings = stateStore.state.value.shell.playback.settings
+            startSeededMix(
+                trackRadioRequest(seed, settings.effectiveSonicSimilarityEnabled()),
+                preserveCurrentSeed = true,
+            ) { recordTrackArtistRadioPlayed(seed) }
+        } finally {
+            trackRadioBuild.unlock()
+        }
     }
 
     override suspend fun addTrackRadio(seed: Track, playNext: Boolean) {
@@ -514,6 +522,7 @@ class NaviampCoreMediaTransactions(
     ) {
         val provider = providerOrPublish() ?: return
         val sourceId = activeSourceId()
+        val remoteAuthority = stateStore.state.value.shell.connect.remotePlaybackAuthorityActive
         val currentPlayback = playback.state.value
         val retainCurrent = preserveCurrentSeed &&
             currentPlayback.playbackState in setOf(PlaybackState.Playing, PlaybackState.Paused, PlaybackState.Loading) &&
@@ -529,7 +538,8 @@ class NaviampCoreMediaTransactions(
             similarityMethod = radioSettings.radioSimilarityMethod(),
             onSimilarityResult = { result -> result.radioDiagnostics()?.let { diagnostics = it } },
         )
-        fun currentRadioSettings() = stateStore.state.value.shell.playback.settings.let {
+        fun currentRadioSettings() = stateStore.state.value.shell.connect.remotePlaybackAuthorityActive == remoteAuthority &&
+            stateStore.state.value.shell.playback.settings.let {
             it.radioSimilarityMethod() == radioSettings.radioSimilarityMethod() &&
                 it.radioMinimumTracks == radioSettings.radioMinimumTracks &&
                 it.radioTuning == radioSettings.radioTuning
@@ -539,7 +549,8 @@ class NaviampCoreMediaTransactions(
             is SeededRadioBuildResult.Ready -> {
                 kotlinx.coroutines.currentCoroutineContext().ensureActive()
                 val stillPlayingSeed = playback.state.value.currentTrack?.id == request.seedTrack.id &&
-                    playback.state.value.queue.current?.id == request.seedTrack.id
+                    playback.state.value.queue.current?.id == request.seedTrack.id &&
+                    (!retainCurrent || playback.state.value.queue === currentPlayback.queue)
                 if (!stillPlayingSeed || sourceId != activeSourceId() || !providerSource.isCurrent(provider) || !currentRadioSettings()) return
                 if (result.queue.size <= 1) {
                     recordRadioDiagnostics(diagnostics ?: app.naviamp.domain.radio.RadioBuildDiagnostics(
@@ -570,7 +581,8 @@ class NaviampCoreMediaTransactions(
             is SeededRadioBuildResult.Failed -> {
                 if (result.error is CancellationException) throw result.error
                 if (sourceId == activeSourceId() && providerSource.isCurrent(provider) && currentRadioSettings() &&
-                    playback.state.value.currentTrack?.id == request.seedTrack.id) {
+                    playback.state.value.currentTrack?.id == request.seedTrack.id &&
+                    (!retainCurrent || playback.state.value.queue === currentPlayback.queue)) {
                     recordRadioDiagnostics(diagnostics ?: app.naviamp.domain.radio.RadioBuildDiagnostics(
                         app.naviamp.domain.radio.RadioBuildOutcome.Failed,
                     ))

@@ -271,7 +271,7 @@ enum class PlaybackReportState(val providerValue: String) {
 
 enum class CoverArtSize(val pixels: Int) {
     Thumbnail(512),
-    Hero(1024),
+    Hero(2048),
 }
 
 data class MediaSearchResults(

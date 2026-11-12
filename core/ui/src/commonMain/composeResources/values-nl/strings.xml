@@ -483,4 +483,13 @@
     <string name="stream_details_embedded_artwork">Ingesloten hoesafbeelding beschikbaar</string>
     <string name="stream_details_redacted">afgeschermd</string>
     <string name="stream_details_unavailable_url">URL niet beschikbaar</string>
+    <string name="player_queue">Wachtrij</string>
+    <string name="common_enabled">Ingeschakeld</string>
+    <string name="common_off">Uit</string>
+    <string name="transport_shuffle">Willekeurig</string>
+    <string name="tv_favorite">Favoriet</string>
+    <string name="tv_repeat_off">Herhalen uit</string>
+    <string name="tv_repeat_all">Alles herhalen</string>
+    <string name="tv_repeat_one">Nummer herhalen</string>
+    <string name="tv_start_radio">Radio starten</string>
 </resources>
