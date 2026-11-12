@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+"""Opt-in, isolated measurements of the actual optimized unsigned iOS archive."""
+import argparse
+import hashlib
+import importlib.util
+import json
+import os
+from pathlib import Path
+import subprocess
+import time
+
+ROOT = Path(__file__).resolve().parents[1]
+SPEC = importlib.util.spec_from_file_location('ios_cache', ROOT / 'scripts/ios-ci-cache.py')
+CACHE = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(CACHE)
+
+
+def identity(root):
+    source = CACHE.command('git', '-C', str(root), 'rev-parse', 'HEAD')
+    dirty = bool(CACHE.command('git', '-C', str(root), 'status', '--porcelain', '--untracked-files=normal'))
+    inputs, prefix = CACHE.compatibility(root, CACHE.platform.machine(), CACHE.command('xcodebuild', '-version'),
+        CACHE.command('xcrun', '--sdk', 'iphonesimulator', '--show-sdk-build-version'),
+        CACHE.command('xcrun', '--sdk', 'iphoneos', '--show-sdk-build-version'))
+    java = subprocess.run(['java', '-version'], check=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.strip()
+    return dict(source=source, dirty=dirty, compatibility=inputs, prefix=prefix, java=java,
+                configuration='Release', architecture='arm64', archiveHeapGiB=6)
+
+
+def prepare(root, cache_root, report):
+    cache_root, report = cache_root.resolve(), report.resolve()
+    # Instrument only an explicitly isolated cache; never modify a developer's normal Gradle home.
+    forbidden = {Path.home() / '.gradle', Path.home() / '.konan', root, Path('/')}
+    if cache_root in forbidden or cache_root == report or cache_root in report.parents or report in cache_root.parents:
+        raise ValueError('Cache and measurement directories must be separate isolated paths')
+    home, native = CACHE.configure_homes(cache_root)
+    props = home / 'gradle.properties'
+    props.write_text(props.read_text() + 'org.gradle.caching=true\n')
+    init = home / 'init.d'
+    init.mkdir(exist_ok=True)
+    for name in ('ios-ci-cache.init.gradle.kts', 'ios-release-profile.init.gradle.kts'):
+        (init / name).write_bytes((root / 'scripts' / name).read_bytes())
+    report.mkdir(parents=True, exist_ok=False)
+    return dict(GRADLE_USER_HOME=str(home), NAVIAMP_KONAN_HOME=str(native),
+                NAVIAMP_IOS_ARCHIVE_REPORT_DIR=str(report))
+
+
+def event(report, name, state):
+    with (report / 'phases.jsonl').open('a') as output:
+        output.write(json.dumps(dict(phase=name, state=state, monotonicNs=time.monotonic_ns(),
+                                     epochSeconds=time.time())) + '\n')
+
+
+def phase_durations(events):
+    pending, durations = {}, {}
+    for item in events:
+        phase = item['phase']
+        if item['state'] == 'start':
+            if phase in pending or phase in durations:
+                raise ValueError('Duplicate phase: ' + phase)
+            pending[phase] = item['monotonicNs']
+        elif item['state'] == 'end':
+            if phase not in pending:
+                raise ValueError('Phase ended without a start: ' + phase)
+            duration = item['monotonicNs'] - pending.pop(phase)
+            if duration < 0:
+                raise ValueError('Invalid phase clock: ' + phase)
+            durations[phase] = duration / 1e9
+        else:
+            raise ValueError('Unknown phase state')
+    return durations, sorted(pending)
+
+
+def summarize(report, workload, elapsed, code, stable=True):
+    events = [json.loads(line) for line in (report / 'phases.jsonl').read_text().splitlines()] \
+        if (report / 'phases.jsonl').exists() else []
+    phases, incomplete = phase_durations(events)
+    tasks = []
+    for path in sorted((report / 'tasks').glob('gradle-*.json')):
+        tasks.extend(json.loads(path.read_text()))
+    links = [item for item in tasks if 'linkReleaseFrameworkIosArm64' in item['task']]
+    # A fast command which never produced/validated an archive is not a successful benchmark.
+    validated = stable and code == 0 and not incomplete and all(name in phases for name in ('archive', 'validation', 'packaging')) and bool(links) and not any(task['outcome'] == 'FAILED' for task in tasks)
+    summary = dict(workload=workload, totalSeconds=elapsed, exitCode=code, phases=phases,
+                   incompletePhases=incomplete, releaseLinks=links, tasks=tasks, validated=validated, sourceStable=stable)
+    (report / 'archive.json').write_text(json.dumps(summary, indent=2))
+    return summary
+
+
+def compare(cold, warm):
+    for value in (cold, warm):
+        if not value['validated'] or value['exitCode'] or value['workload']['dirty']:
+            raise ValueError('Both archives must be successful, validated clean-source builds')
+    if cold['workload'] != warm['workload']:
+        raise ValueError('Source, toolchain and Release workload must match')
+    before, after = cold['totalSeconds'], warm['totalSeconds']
+    if before <= 0 or after < 0:
+        raise ValueError('Invalid archive durations')
+    return dict(coldArchiveSeconds=before, warmArchiveSeconds=after,
+                archiveImprovementPercent=(before - after) * 100 / before,
+                warmReleaseLinkOutcomes=[link['outcome'] for link in warm['releaseLinks']],
+                hostedNetImprovementEstablished=False,
+                note='Archive-only comparison; hosted restore/save/setup/upload overhead must be included separately.')
+
+
+def archive(root, cache_root, report):
+    workload = identity(root)
+    if workload['dirty']:
+        raise ValueError('Commit local changes before recording a matched archive workload')
+    env = os.environ.copy()
+    env.update(prepare(root, cache_root, report))
+    started = time.monotonic()
+    with (report / 'archive.log').open('w') as output:
+        process = subprocess.Popen(['bash', 'scripts/build-ios-unsigned-ipa.sh'], cwd=root, env=env,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        for line in process.stdout:
+            print(line, end='', flush=True)
+            output.write(line)
+            output.flush()
+        code = process.wait()
+    result = summarize(report, workload, time.monotonic() - started, code, stable=identity(root) == workload)
+    if not result['validated'] and not code:
+        raise ValueError('Archive lacks complete phase or optimized-link measurement evidence')
+    return code
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest='command', required=True)
+    build = commands.add_parser('archive')
+    build.add_argument('--cache-root', type=Path, required=True)
+    build.add_argument('--report', type=Path, required=True)
+    mark = commands.add_parser('event')
+    mark.add_argument('--phase', required=True)
+    mark.add_argument('--state', choices=('start', 'end'), required=True)
+    report = commands.add_parser('compare')
+    report.add_argument('--cold', type=Path, required=True)
+    report.add_argument('--warm', type=Path, required=True)
+    args = parser.parse_args()
+    if args.command == 'event':
+        event(Path(os.environ['NAVIAMP_IOS_ARCHIVE_REPORT_DIR']), args.phase, args.state)
+    elif args.command == 'archive':
+        raise SystemExit(archive(ROOT, args.cache_root, args.report))
+    else:
+        print(json.dumps(compare(json.loads(args.cold.read_text()), json.loads(args.warm.read_text())), indent=2))
+
+
+if __name__ == '__main__':
+    main()

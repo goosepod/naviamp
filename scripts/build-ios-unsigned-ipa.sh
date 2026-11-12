@@ -31,13 +31,23 @@ mkdir -p "$distribution_dir"
 # this override local to the archive process so device builds are reliable on clean CI workers.
 export GRADLE_OPTS="-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx6g"
 
+# Measurements are opt-in and live outside the cleaned archive directory.
+mark_phase() {
+    if [[ -n "${NAVIAMP_IOS_ARCHIVE_REPORT_DIR:-}" ]]; then
+        python3 "$script_dir/ios-release-archive.py" event --phase "$1" --state "$2"
+    fi
+}
+
+mark_phase archive start
 xcodebuild \
+    -showBuildTimingSummary \
     -project "$repo_root/apps/ios/Naviamp.xcodeproj" \
     -scheme Naviamp \
     -configuration Release \
     -sdk iphoneos \
     -destination "generic/platform=iOS" \
     -archivePath "$archive_path" \
+    -derivedDataPath "$build_root/DerivedData" \
     CODE_SIGNING_ALLOWED=NO \
     CODE_SIGNING_REQUIRED=NO \
     CODE_SIGN_IDENTITY= \
@@ -45,7 +55,9 @@ xcodebuild \
     MARKETING_VERSION="$marketing_version" \
     CURRENT_PROJECT_VERSION="$build_number" \
     archive
+mark_phase archive end
 
+mark_phase validation start
 if [[ ! -d "$app_path" ]]; then
     echo "Expected archived app was not produced: $app_path" >&2
     exit 1
@@ -90,6 +102,9 @@ for sdk in bass bassmidi; do
     test "$(plutil -extract NSPrivacyAccessedAPITypes.1.NSPrivacyAccessedAPITypeReasons.0 raw "$sdk_manifest")" = "35F9.1"
 done
 
+mark_phase validation end
+
+mark_phase packaging start
 mkdir -p "$package_root/Payload"
 ditto "$app_path" "$package_root/Payload/Naviamp.app"
 (
@@ -99,6 +114,8 @@ ditto "$app_path" "$package_root/Payload/Naviamp.app"
 
 /usr/bin/unzip -tq "$ipa_path"
 cp "$repo_root/docs/ios-sideloading.md" "$distribution_dir/Naviamp-iOS-Sideloading.md"
+
+mark_phase packaging end
 
 echo "Created unsigned iOS device package: $ipa_path"
 echo "This IPA must be signed by the person installing it; it is not directly installable as downloaded."
