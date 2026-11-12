@@ -486,6 +486,15 @@ class NaviampCoreNowPlayingMediaControllerTest {
     }
 
     @Test
+    fun presenterRequestsHeroArtworkForTheCurrentTrack() = runTest {
+        val fixture = mediaFixture(this)
+        fixture.presenter.publish()
+        assertTrue(fixture.provider.heroArtworkRequests.contains("current"))
+        assertFalse(fixture.provider.heroArtworkRequests.contains("next"))
+        assertFalse(fixture.provider.heroArtworkRequests.contains("past"))
+    }
+
+    @Test
     fun presenterPublishesCompleteQueueRelatedAndCapabilityState() = runTest {
         val fixture = mediaFixture(this)
         fixture.presenter.publish()
@@ -1281,6 +1290,11 @@ private class NowPlayingTestProvider : MediaProvider {
     override suspend fun setTrackFavorite(trackId: TrackId, favorite: Boolean) { favorites += "${trackId.value}:$favorite" }
     override suspend fun setTrackRating(trackId: TrackId, rating: Int?) { ratings += "${trackId.value}:$rating" }
     override suspend fun streamUrl(request: StreamRequest) = "https://stream.example"
+    val heroArtworkRequests = mutableListOf<String>()
+    override fun coverArtUrl(id: String, size: app.naviamp.domain.provider.CoverArtSize): String {
+        if (size == app.naviamp.domain.provider.CoverArtSize.Hero) heroArtworkRequests += id
+        return coverArtUrl(id)
+    }
     override fun coverArtUrl(coverArtId: String) = "https://art.example/$coverArtId"
 }
 

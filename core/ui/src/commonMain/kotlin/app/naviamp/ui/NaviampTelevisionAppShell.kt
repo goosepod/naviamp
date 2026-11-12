@@ -281,209 +281,211 @@ private fun NaviampTelevisionAppShellContent(
                 playerColors = backgroundPlayerColors,
             )
             TelevisionReadingSurface(colors)
-            when {
-                connection.restoringConnection && !connection.editingConnection -> TelevisionStatusScreen(
-                    title = stringResource(Res.string.tv_restoring_naviamp_tv),
-                    message = connection.status.orEmpty(),
-                    colors = colors,
-                )
-                !connection.connected || connection.editingConnection -> TelevisionConnectionScreen(
-                    uiState = uiState,
-                    settingsSync = settingsSync,
-                    actions = actions,
-                    syncActions = syncActions,
-                    colors = colors,
-                )
-                else -> {
-                    val transientContentOpen = uiState.shellChrome.nowPlayingOpen ||
-                        settingsOpen ||
-                        uiState.home.collectionPage != null ||
-                        uiState.albumDetail.selectedAlbum != null ||
-                        uiState.artistDetail.selectedArtist != null ||
-                        uiState.playlistDetail.selectedPlaylist != null
-                    val albumDetailOpen = uiState.albumDetail.selectedAlbum != null
-                    val artistDetailOpen = uiState.artistDetail.selectedArtist != null
-                    val playlistDetailOpen = uiState.playlistDetail.selectedPlaylist != null
-                    val homeCollectionOpen = uiState.home.collectionPage != null
-                    NaviampSystemBackHandler(
-                        enabled = returnToNowPlayingFromSearch || nowPlayingPreview ||
-                            albumDetailOpen || artistDetailOpen || playlistDetailOpen || homeCollectionOpen ||
-                            (!transientContentOpen && !navigationFocused),
-                    ) {
-                        if (
-                            returnToNowPlayingFromSearch &&
-                            uiState.shellChrome.selectedRoute == SharedRoute.Search &&
-                            !albumDetailOpen && !artistDetailOpen && !playlistDetailOpen
+            Box(Modifier.fillMaxSize().naviampContentInsets()) {
+                when {
+                    connection.restoringConnection && !connection.editingConnection -> TelevisionStatusScreen(
+                        title = stringResource(Res.string.tv_restoring_naviamp_tv),
+                        message = connection.status.orEmpty(),
+                        colors = colors,
+                    )
+                    !connection.connected || connection.editingConnection -> TelevisionConnectionScreen(
+                        uiState = uiState,
+                        settingsSync = settingsSync,
+                        actions = actions,
+                        syncActions = syncActions,
+                        colors = colors,
+                    )
+                    else -> {
+                        val transientContentOpen = uiState.shellChrome.nowPlayingOpen ||
+                            settingsOpen ||
+                            uiState.home.collectionPage != null ||
+                            uiState.albumDetail.selectedAlbum != null ||
+                            uiState.artistDetail.selectedArtist != null ||
+                            uiState.playlistDetail.selectedPlaylist != null
+                        val albumDetailOpen = uiState.albumDetail.selectedAlbum != null
+                        val artistDetailOpen = uiState.artistDetail.selectedArtist != null
+                        val playlistDetailOpen = uiState.playlistDetail.selectedPlaylist != null
+                        val homeCollectionOpen = uiState.home.collectionPage != null
+                        NaviampSystemBackHandler(
+                            enabled = returnToNowPlayingFromSearch || nowPlayingPreview ||
+                                albumDetailOpen || artistDetailOpen || playlistDetailOpen || homeCollectionOpen ||
+                                (!transientContentOpen && !navigationFocused),
                         ) {
-                            returnToNowPlayingFromSearch = false
-                            nowPlayingPreview = false
-                            actions.navigationActions.onOpenNowPlaying()
-                        } else if (nowPlayingPreview) {
-                            nowPlayingPreview = false
-                            val underlyingDestination = televisionDestinations.firstOrNull {
-                                it.route == uiState.shellChrome.selectedRoute
-                            } ?: NaviampTelevisionDestination.Home
-                            navigationFocusRequesters.getValue(underlyingDestination).requestFocus()
-                        } else {
-                            when {
-                                albumDetailOpen -> actions.albumDetailActions.onBack()
-                                artistDetailOpen -> actions.artistDetailActions.onBack()
-                                playlistDetailOpen -> actions.playlistDetailActions.onBack()
-                                homeCollectionOpen -> actions.homeActions.onCollectionBack()
-                                else -> focusNavigation()
-                            }
-                        }
-                    }
-                    val fullScreenNowPlaying = uiState.shellChrome.nowPlayingOpen && nowPlaying != null
-                    val enterNavigationDestination: (NaviampTelevisionDestination) -> Unit = { destination ->
-                        suppressedFocusActivation = null
-                        returnToNowPlayingFromSearch = false
-                        if (destination == NaviampTelevisionDestination.NowPlaying) {
-                            contentEntryDestination = null
-                            nowPlayingPreview = true
-                            actions.navigationActions.onOpenNowPlaying()
-                        } else {
-                            nowPlayingPreview = false
-                            actions.navigationActions.onCloseNowPlaying()
-                            destination.route?.let(actions.navigationActions.onRouteSelected)
-                            contentEntryDestination = destination
-                            contentEntryGeneration += 1
-                        }
-                    }
-                    AnimatedContent(
-                        targetState = fullScreenNowPlaying,
-                        transitionSpec = {
-                            (fadeIn(tween(520, easing = FastOutSlowInEasing)) +
-                                scaleIn(tween(520, easing = FastOutSlowInEasing), initialScale = 0.94f) +
-                                slideInVertically(tween(520, easing = FastOutSlowInEasing)) { it / 10 })
-                                .togetherWith(
-                                    fadeOut(tween(440, easing = FastOutSlowInEasing)) +
-                                        scaleOut(tween(440, easing = FastOutSlowInEasing), targetScale = 1.04f) +
-                                        slideOutVertically(tween(440, easing = FastOutSlowInEasing)) { -it / 14 },
-                                )
-                        },
-                        label = "TV Now Playing fullscreen transition",
-                    ) { fullscreen ->
-                        if (fullscreen && nowPlaying != null) {
-                            NaviampFontSizeScope(interfaceSettings.nowPlayingFontSize, interfaceSettings.generalFontSize) {
-                                TelevisionNowPlaying(
-                                    nowPlaying = nowPlaying,
-                                    playbackProgress = playbackProgress,
-                                    colors = colors,
-                                    playerColors = backgroundPlayerColors,
-                                    actions = actions.nowPlayingActions,
-                                    onClose = {
-                                        nowPlayingPreview = true
-                                        suppressedFocusActivation = NaviampTelevisionDestination.NowPlaying
-                                        actions.navigationActions.onCloseNowPlaying()
-                                    },
-                                    onOpenSettings = { settingsOpen = true },
-                                    displaySettings = interfaceSettings.nowPlaying,
-                                )
-                            }
-                        } else Column(modifier = Modifier.fillMaxSize()) {
-                            TelevisionNavigationBar(
-                                destinations = televisionDestinations,
-                                focusDestination = navigationFocusDestination,
-                                navigationFocused = navigationFocused,
-                                colors = colors,
-                                focusRequesters = navigationFocusRequesters,
-                                onFocusChanged = { navigationFocused = it },
-                                onFocused = { destination ->
-                                    if (suppressedFocusActivation == destination) return@TelevisionNavigationBar
-                                    suppressedFocusActivation = null
-                                    if (destination != NaviampTelevisionDestination.Search) {
-                                        returnToNowPlayingFromSearch = false
-                                    }
-                                    if (destination == NaviampTelevisionDestination.NowPlaying) {
-                                        nowPlayingPreview = true
-                                    } else {
-                                        nowPlayingPreview = false
-                                        actions.navigationActions.onCloseNowPlaying()
-                                        destination.route
-                                            ?.takeIf { televisionNavigationFocusChangesRoute(it, uiState.shellChrome.selectedRoute) }
-                                            ?.let(actions.navigationActions.onRouteSelected)
-                                    }
-                                },
-                                onClicked = enterNavigationDestination,
-                                onEnterContent = enterNavigationDestination,
-                                onSettingsSelected = {
-                                    contentEntryDestination = null
-                                    returnToNowPlayingFromSearch = false
-                                    settingsOpen = true
-                                },
-                                account = connection.savedConnections.firstOrNull { it.current },
-                                accountFocusRequester = accountFocusRequester,
-                                restoreAccountFocus = restoreAccountFocus,
-                                onAccountsSelected = {
-                                    settingsOpen = false
-                                    actions.connectionActions.onOpenAccounts()
-                                },
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 36.dp, vertical = 18.dp),
+                            if (
+                                returnToNowPlayingFromSearch &&
+                                uiState.shellChrome.selectedRoute == SharedRoute.Search &&
+                                !albumDetailOpen && !artistDetailOpen && !playlistDetailOpen
                             ) {
-                                if (nowPlayingPreview && nowPlaying != null) {
-                                    NaviampFontSizeScope(interfaceSettings.nowPlayingFontSize, interfaceSettings.generalFontSize) {
-                                        TelevisionNowPlaying(
-                                            nowPlaying = nowPlaying,
-                                            playbackProgress = playbackProgress,
+                                returnToNowPlayingFromSearch = false
+                                nowPlayingPreview = false
+                                actions.navigationActions.onOpenNowPlaying()
+                            } else if (nowPlayingPreview) {
+                                nowPlayingPreview = false
+                                val underlyingDestination = televisionDestinations.firstOrNull {
+                                    it.route == uiState.shellChrome.selectedRoute
+                                } ?: NaviampTelevisionDestination.Home
+                                navigationFocusRequesters.getValue(underlyingDestination).requestFocus()
+                            } else {
+                                when {
+                                    albumDetailOpen -> actions.albumDetailActions.onBack()
+                                    artistDetailOpen -> actions.artistDetailActions.onBack()
+                                    playlistDetailOpen -> actions.playlistDetailActions.onBack()
+                                    homeCollectionOpen -> actions.homeActions.onCollectionBack()
+                                    else -> focusNavigation()
+                                }
+                            }
+                        }
+                        val fullScreenNowPlaying = uiState.shellChrome.nowPlayingOpen && nowPlaying != null
+                        val enterNavigationDestination: (NaviampTelevisionDestination) -> Unit = { destination ->
+                            suppressedFocusActivation = null
+                            returnToNowPlayingFromSearch = false
+                            if (destination == NaviampTelevisionDestination.NowPlaying) {
+                                contentEntryDestination = null
+                                nowPlayingPreview = true
+                                actions.navigationActions.onOpenNowPlaying()
+                            } else {
+                                nowPlayingPreview = false
+                                actions.navigationActions.onCloseNowPlaying()
+                                destination.route?.let(actions.navigationActions.onRouteSelected)
+                                contentEntryDestination = destination
+                                contentEntryGeneration += 1
+                            }
+                        }
+                        AnimatedContent(
+                            targetState = fullScreenNowPlaying,
+                            transitionSpec = {
+                                (fadeIn(tween(520, easing = FastOutSlowInEasing)) +
+                                    scaleIn(tween(520, easing = FastOutSlowInEasing), initialScale = 0.94f) +
+                                    slideInVertically(tween(520, easing = FastOutSlowInEasing)) { it / 10 })
+                                    .togetherWith(
+                                        fadeOut(tween(440, easing = FastOutSlowInEasing)) +
+                                            scaleOut(tween(440, easing = FastOutSlowInEasing), targetScale = 1.04f) +
+                                            slideOutVertically(tween(440, easing = FastOutSlowInEasing)) { -it / 14 },
+                                    )
+                            },
+                            label = "TV Now Playing fullscreen transition",
+                        ) { fullscreen ->
+                            if (fullscreen && nowPlaying != null) {
+                                NaviampFontSizeScope(interfaceSettings.nowPlayingFontSize, interfaceSettings.generalFontSize) {
+                                    TelevisionNowPlaying(
+                                        nowPlaying = nowPlaying,
+                                        playbackProgress = playbackProgress,
+                                        colors = colors,
+                                        playerColors = backgroundPlayerColors,
+                                        actions = actions.nowPlayingActions,
+                                        onClose = {
+                                            nowPlayingPreview = true
+                                            suppressedFocusActivation = NaviampTelevisionDestination.NowPlaying
+                                            actions.navigationActions.onCloseNowPlaying()
+                                        },
+                                        onOpenSettings = { settingsOpen = true },
+                                        displaySettings = interfaceSettings.nowPlaying,
+                                    )
+                                }
+                            } else Column(modifier = Modifier.fillMaxSize()) {
+                                TelevisionNavigationBar(
+                                    destinations = televisionDestinations,
+                                    focusDestination = navigationFocusDestination,
+                                    navigationFocused = navigationFocused,
+                                    colors = colors,
+                                    focusRequesters = navigationFocusRequesters,
+                                    onFocusChanged = { navigationFocused = it },
+                                    onFocused = { destination ->
+                                        if (suppressedFocusActivation == destination) return@TelevisionNavigationBar
+                                        suppressedFocusActivation = null
+                                        if (destination != NaviampTelevisionDestination.Search) {
+                                            returnToNowPlayingFromSearch = false
+                                        }
+                                        if (destination == NaviampTelevisionDestination.NowPlaying) {
+                                            nowPlayingPreview = true
+                                        } else {
+                                            nowPlayingPreview = false
+                                            actions.navigationActions.onCloseNowPlaying()
+                                            destination.route
+                                                ?.takeIf { televisionNavigationFocusChangesRoute(it, uiState.shellChrome.selectedRoute) }
+                                                ?.let(actions.navigationActions.onRouteSelected)
+                                        }
+                                    },
+                                    onClicked = enterNavigationDestination,
+                                    onEnterContent = enterNavigationDestination,
+                                    onSettingsSelected = {
+                                        contentEntryDestination = null
+                                        returnToNowPlayingFromSearch = false
+                                        settingsOpen = true
+                                    },
+                                    account = connection.savedConnections.firstOrNull { it.current },
+                                    accountFocusRequester = accountFocusRequester,
+                                    restoreAccountFocus = restoreAccountFocus,
+                                    onAccountsSelected = {
+                                        settingsOpen = false
+                                        actions.connectionActions.onOpenAccounts()
+                                    },
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 36.dp, vertical = 18.dp),
+                                ) {
+                                    if (nowPlayingPreview && nowPlaying != null) {
+                                        NaviampFontSizeScope(interfaceSettings.nowPlayingFontSize, interfaceSettings.generalFontSize) {
+                                            TelevisionNowPlaying(
+                                                nowPlaying = nowPlaying,
+                                                playbackProgress = playbackProgress,
+                                                colors = colors,
+                                                actions = actions.nowPlayingActions,
+                                                interactive = false,
+                                                onClose = { nowPlayingPreview = false },
+                                                onOpenSettings = { settingsOpen = true },
+                                                displaySettings = interfaceSettings.nowPlaying,
+                                            )
+                                        }
+                                    } else {
+                                        TelevisionConnectedContent(
                                             colors = colors,
-                                            actions = actions.nowPlayingActions,
-                                            interactive = false,
-                                            onClose = { nowPlayingPreview = false },
-                                            onOpenSettings = { settingsOpen = true },
-                                            displaySettings = interfaceSettings.nowPlaying,
+                                            uiState = uiState,
+                                            playbackProgress = playbackProgress,
+                                            visualizerBandsProvider = visualizerBandsProvider,
+                                            settingsSync = settingsSync,
+                                            actions = actions,
+                                            syncActions = syncActions,
+                                            libraryViewport = libraryViewport,
+                                            onNavigationActivationSuppressed = { suppressedFocusActivation = it },
+                                            topNavigationFocusRequester = navigationFocusRequesters.getValue(
+                                                navigationFocusDestination,
+                                            ),
+                                            contentEntryDestination = contentEntryDestination,
+                                            contentEntryGeneration = contentEntryGeneration,
+                                            onContentEntryHandled = { generation ->
+                                                if (generation == contentEntryGeneration) {
+                                                    contentEntryDestination = null
+                                                }
+                                            },
                                         )
                                     }
-                                } else {
-                                    TelevisionConnectedContent(
-                                        colors = colors,
-                                        uiState = uiState,
-                                        playbackProgress = playbackProgress,
-                                        visualizerBandsProvider = visualizerBandsProvider,
-                                        settingsSync = settingsSync,
-                                        actions = actions,
-                                        syncActions = syncActions,
-                                        libraryViewport = libraryViewport,
-                                        onNavigationActivationSuppressed = { suppressedFocusActivation = it },
-                                        topNavigationFocusRequester = navigationFocusRequesters.getValue(
-                                            navigationFocusDestination,
-                                        ),
-                                        contentEntryDestination = contentEntryDestination,
-                                        contentEntryGeneration = contentEntryGeneration,
-                                        onContentEntryHandled = { generation ->
-                                            if (generation == contentEntryGeneration) {
-                                                contentEntryDestination = null
-                                            }
-                                        },
-                                    )
                                 }
-                            }
-                            if (nowPlaying != null && !nowPlayingPreview) {
-                                NaviampFontSizeScope(interfaceSettings.nowPlayingFontSize, interfaceSettings.generalFontSize) {
-                                    TelevisionMiniPlayer(
-                                        nowPlaying = nowPlaying,
-                                        colors = colors,
-                                        modifier = Modifier.padding(horizontal = 36.dp, vertical = 4.dp),
-                                    )
+                                if (nowPlaying != null && !nowPlayingPreview) {
+                                    NaviampFontSizeScope(interfaceSettings.nowPlayingFontSize, interfaceSettings.generalFontSize) {
+                                        TelevisionMiniPlayer(
+                                            nowPlaying = nowPlaying,
+                                            colors = colors,
+                                            modifier = Modifier.padding(horizontal = 36.dp, vertical = 4.dp),
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
-                    if (settingsOpen) {
-                        TelevisionSettingsSheet(
-                            uiState = uiState,
-                            colors = colors,
-                            actions = actions,
-                            onDismiss = {
-                                settingsOpen = false
-                                restoreSettingsFocus = !uiState.shellChrome.nowPlayingOpen
-                            },
-                        )
+                        if (settingsOpen) {
+                            TelevisionSettingsSheet(
+                                uiState = uiState,
+                                colors = colors,
+                                actions = actions,
+                                onDismiss = {
+                                    settingsOpen = false
+                                    restoreSettingsFocus = !uiState.shellChrome.nowPlayingOpen
+                                },
+                            )
+                        }
                     }
                 }
             }

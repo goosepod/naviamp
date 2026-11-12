@@ -215,3 +215,55 @@ while Radio and the heart stayed in the same positions. Local captures:
 `naviamp-auto-slot-first-track.png` and `naviamp-auto-slot-second-track.png` under `/private/tmp`.
 Only `AndroidNaviampPlaybackService.kt` changed in platform production code for this follow-up;
 its concrete boundary is Android `MediaSessionCompat.setExtras` and `Bundle`/`MediaConstants` keys.
+
+### Follow-up: full-window backgrounds, artwork resolution, Repeat glyphs
+
+Owner reported white status/navigation bands in the development phone app and clarified that the
+background itself must extend across the full window. History identifies the Core-level
+`naviampContentInsets()` introduced with #483 as the point where the entire shell, including its
+background, was constrained. A solid dark outer backing removed white but did not restore the
+intended presentation; that intermediate approach was discarded. Shared shells now paint their
+background before applying content insets. Filled Now Playing keeps one full-window cached artwork
+layer and applies system-bar insets to its foreground controls; non-filled layouts inset their
+foreground normally. Keyboard insets remain consumed once by the shell.
+
+Large current-track and album-header artwork now requests `CoverArtSize.Hero` at 2048 pixels.
+Queue/list artwork continues using 512-pixel thumbnails. The shared decoder's maximum follows the
+Hero size; decoded images have a 64 MiB LRU budget as well as the existing 240-entry limit. Album
+information images are fallbacks rather than replacements for available server artwork. Separate
+resolution URLs retain distinct cache keys, so old thumbnail bytes cannot satisfy a Hero request.
+Source artwork smaller than the requested resolution is not enlarged during decoding.
+
+Android Auto custom Repeat actions now use the shared rounded loop/return glyph: dim Off, plain
+loop for Queue, centered 1 for Track. The only native production change is
+`AndroidNaviampPlaybackService.kt`: it maps shared Repeat states to Android drawable resource IDs
+required by `PlaybackStateCompat.CustomAction`. The vector XML assets contain matching paths, with
+a path-level alpha for Off so host icon tint does not erase the state. Native mapping tests compare
+the Android vector paths with the shared ImageVectors.
+
+Shared checks passed: 178 selected tests (9 layout/cache/header cases, 39 Now Playing cases,
+130 Navidrome cases), with Android, JVM/Desktop and iOS simulator compilation. Follow-up checks
+passed: 6 decode/transition/continuity cases, one Jellyfin resolution case, three Android action/vector
+mapping cases, Core-first architecture guard and APK assembly. Logs:
+`/private/tmp/naviamp-350-edge-quality-common.log` (5m 20s) and
+`/private/tmp/naviamp-350-edge-quality-device.log` (1m 37s).
+
+Installed APK SHA-256: `0cdddc7a7c9d9fd0e815f385c657dcfff1d77c104c42f708354eef5021a0f89a`.
+Visible physical Pixel verification confirmed artwork behind the status bar and continuing to the
+bottom edge, with foreground controls safely inset. Owner confirmed the result. Separately switched
+through Aurora, Album Blur (28dp) and Single Color (#32253F): Home and Settings showed the intended
+background continuing through both system-bar areas, without white bands. Restored Aurora/Balanced
+and the original filled Now Playing presentation after the checks.
+
+The currently paused Metallica track uses the Apple Music ’90s compilation cover. Both the old
+thumbnail response and the newly requested Hero response contain the same 500×500 source image;
+requesting 2048 cannot add detail absent from that server artwork. This is a source-resolution
+limitation, separate from the fixed request/decoder limits. No authentication URLs were logged.
+
+CI for preceding Radio-position commit `f278ec4ca` passed the full platform matrix, including API35
+raster tests (run 43300922718). New follow-up CI is pending until pushed. Visible DHU check after refreshing Android Auto's resource cache confirmed all three Repeat states:
+Off is dim, Queue is a bright plain loop, and Track adds a centered 1. Returned to Off after cycling.
+Radio remains immediately left of Favorite. Captures are local:
+`/private/tmp/naviamp-350-repeat-current.png`, `naviamp-350-repeat-state-1.png`,
+`naviamp-350-repeat-state-2.png`, and `naviamp-350-repeat-state-off.png`.
+Projection reconnection resumed the previously paused track; paused it again during the check.

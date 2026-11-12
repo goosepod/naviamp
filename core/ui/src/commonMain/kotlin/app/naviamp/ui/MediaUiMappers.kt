@@ -1614,6 +1614,7 @@ fun AlbumDetails.toSharedAlbumDetailUi(
     canFavoriteAlbum: Boolean = false,
     showAlbumInformation: Boolean = true,
     supportsTrackRadio: Boolean = false,
+    heroCoverArtUrl: (String?) -> String? = coverArtUrl,
 ): SharedAlbumDetailUi {
     val sections = tracks.albumDiscSections().map { section ->
         SharedAlbumDiscSectionUi(
@@ -1643,13 +1644,13 @@ fun AlbumDetails.toSharedAlbumDetailUi(
         } ?: nameOnlyArtistCredit(credit.name).toSharedMediaItemUi()
     }
     return SharedAlbumDetailUi(
-        album = album.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbum).let { item ->
+        album = album.toSharedMediaItemUi(heroCoverArtUrl, canFavoriteAlbum).let { item ->
             val informationImageUrl = info?.largeImageUrl
                     ?: info?.mediumImageUrl
                     ?: info?.smallImageUrl
             if (!showAlbumInformation || informationImageUrl == null) item else item.copy(
-                coverArtUrl = informationImageUrl,
-                fallbackCoverArtUrl = item.coverArtUrl.takeIf { it != informationImageUrl },
+                coverArtUrl = item.coverArtUrl ?: informationImageUrl,
+                fallbackCoverArtUrl = informationImageUrl.takeIf { it != item.coverArtUrl },
             )
         },
         tracks = sections.flatMap { it.tracks },

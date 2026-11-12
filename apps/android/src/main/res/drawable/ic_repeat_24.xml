@@ -3,7 +3,19 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+    <!-- Android resource form of the shared NaviampTransportIcons.Repeat. -->
     <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M7,7h11v3l4,-4 -4,-4v3H5v6h2V7zM17,17H6v-3l-4,4 4,4v-3h13v-6h-2v4z" />
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.9"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M7.5,18L6.4,18C4.52,18 3,16.48 3,14.6L3,8.4C3,6.52 4.52,5 6.4,5L17.6,5C19.48,5 21,6.52 21,8.4L21,14.6C21,16.48 19.48,18 17.6,18L12,18" />
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.9"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M15,15L12,18L15,21" />
 </vector>

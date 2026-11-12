@@ -276,6 +276,7 @@ class NaviampCoreMediaDetailController(
         val provider = providerSource.current() ?: return
         stateStore.updateShell { shell ->
             val coverArtUrl = { id: String? -> id?.let(provider::coverArtUrl) }
+            val heroCoverArtUrl = { id: String? -> id?.let { provider.coverArtUrl(it, app.naviamp.domain.provider.CoverArtSize.Hero) } }
             val albumDetail = mediaRegistry.albumDetails
                 ?.takeIf { shell.albumDetail.selectedAlbum != null }
                 ?.let { details ->
@@ -285,11 +286,12 @@ class NaviampCoreMediaDetailController(
                     .mapTo(mutableSetOf()) { it.id }
                 shell.albumDetail.copy(
                     selectedAlbum = details.album.toSharedMediaItemUi(
-                        coverArtUrl = coverArtUrl,
+                        coverArtUrl = heroCoverArtUrl,
                         canFavorite = provider.capabilities.supportsAlbumFavorites,
                     ),
                     detail = details.toSharedAlbumDetailUi(
                         coverArtUrl = coverArtUrl,
+                        heroCoverArtUrl = heroCoverArtUrl,
                         popularTrackIds = popularTrackIds,
                         canFavoriteAlbum = provider.capabilities.supportsAlbumFavorites,
                         supportsTrackRadio = provider.capabilities.supportsTrackRadio,
@@ -416,6 +418,7 @@ class NaviampCoreMediaDetailController(
             return
         }
         val coverArtUrl = { id: String? -> id?.let(provider::coverArtUrl) }
+        val heroCoverArtUrl = { id: String? -> id?.let { provider.coverArtUrl(it, app.naviamp.domain.provider.CoverArtSize.Hero) } }
         val albumId = AlbumId(item.id)
         runCatching { provider.album(albumId) }
             .onSuccess { detail ->
@@ -429,11 +432,12 @@ class NaviampCoreMediaDetailController(
                     shell.copy(
                         albumDetail = shell.albumDetail.copy(
                             selectedAlbum = detail.album.toSharedMediaItemUi(
-                                coverArtUrl = coverArtUrl,
+                                coverArtUrl = heroCoverArtUrl,
                                 canFavorite = provider.capabilities.supportsAlbumFavorites,
                             ),
                             detail = detail.toSharedAlbumDetailUi(
                                 coverArtUrl = coverArtUrl,
+                                heroCoverArtUrl = heroCoverArtUrl,
                                 popularTrackIds = emptySet(),
                                 canFavoriteAlbum = provider.capabilities.supportsAlbumFavorites,
                                 supportsTrackRadio = provider.capabilities.supportsTrackRadio,
@@ -462,6 +466,7 @@ class NaviampCoreMediaDetailController(
                                 albumDetail = shell.albumDetail.copy(
                                     detail = enrichedDetail.toSharedAlbumDetailUi(
                                         coverArtUrl = coverArtUrl,
+                                        heroCoverArtUrl = heroCoverArtUrl,
                                         popularTrackIds = popularTrackIds,
                                         canFavoriteAlbum = provider.capabilities.supportsAlbumFavorites,
                                         supportsTrackRadio = provider.capabilities.supportsTrackRadio,
@@ -488,6 +493,7 @@ class NaviampCoreMediaDetailController(
                         albumDetail = shell.albumDetail.copy(
                             detail = latestDetail.toSharedAlbumDetailUi(
                                 coverArtUrl = coverArtUrl,
+                                heroCoverArtUrl = heroCoverArtUrl,
                                 popularTrackIds = popularTrackIds,
                                 canFavoriteAlbum = provider.capabilities.supportsAlbumFavorites,
                                 supportsTrackRadio = provider.capabilities.supportsTrackRadio,

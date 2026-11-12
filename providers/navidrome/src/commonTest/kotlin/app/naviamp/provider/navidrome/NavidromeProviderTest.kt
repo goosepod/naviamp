@@ -398,13 +398,20 @@ class NavidromeProviderTest {
     }
 
     @Test
-    fun heroCoverArtUrlRequestsA1024PixelImage() {
+    fun thumbnailAndHeroArtworkNeverShareACacheKey() {
+        val provider = NavidromeProvider(connection("https://music.example.test"))
+        assertFalse(provider.artworkCacheKey(provider.coverArtUrl("cover-1")) ==
+            provider.artworkCacheKey(provider.coverArtUrl("cover-1", CoverArtSize.Hero)))
+    }
+
+    @Test
+    fun heroCoverArtUrlRequestsA2048PixelImage() {
         val provider = NavidromeProvider(connection("https://music.example.test"))
 
         val url = provider.coverArtUrl("cover-1", CoverArtSize.Hero)
 
         assertEquals(
-            "https://music.example.test/rest/getCoverArt.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=cover-1&size=1024",
+            "https://music.example.test/rest/getCoverArt.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=cover-1&size=2048",
             url,
         )
     }

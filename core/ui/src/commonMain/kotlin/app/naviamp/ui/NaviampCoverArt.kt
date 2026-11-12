@@ -17,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmapConfig
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -61,7 +62,7 @@ fun NaviampCoverArt(
     mediaKind: SharedMediaItemKind,
 ) {
     val targetSidePx = with(LocalDensity.current) {
-        ceil(decodeSize.toPx()).toInt().coerceIn(MinCoverArtSidePx, MaxCoverArtSidePx)
+        naviampCoverArtDecodeSidePx(decodeSize.toPx())
     }
     // Keep the displayed bitmap while a new URL or decode size is loading. Resetting this
     // state by size exposes the placeholder again after the incoming cover has faded in.
@@ -133,8 +134,7 @@ fun NaviampExpandedMediaImage(
     fallbackUrl: String? = null,
 ) {
     val targetSidePx = with(LocalDensity.current) {
-        ceil(maxOf(maxWidth.toPx(), maxHeight.toPx())).toInt()
-            .coerceIn(MinCoverArtSidePx, MaxCoverArtSidePx)
+        naviampCoverArtDecodeSidePx(maxOf(maxWidth.toPx(), maxHeight.toPx()))
     }
     var image by remember { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(url, fallbackUrl, targetSidePx) {
@@ -225,7 +225,15 @@ private object NaviampCoverArtCache {
     private const val MaxImages = 240
     private const val MaxPalettes = 240
     private const val MaxConcurrentLoads = 4
-    private val images = linkedMapOf<String, ImageBitmap>()
+    private val images = NaviampArtworkMemoryCache<ImageBitmap>(64L * 1024 * 1024, MaxImages) { image ->
+        val bytesPerPixel = when (image.config) {
+            ImageBitmapConfig.Argb8888 -> 4
+            ImageBitmapConfig.Rgb565 -> 2
+            ImageBitmapConfig.Alpha8 -> 1
+            else -> 8 // F16 and unknown native formats.
+        }
+        image.width.toLong() * image.height * bytesPerPixel
+    }
     private val palettes = linkedMapOf<String, List<NaviampRgbSample>>()
     private val mutex = Mutex()
     private val loadPermits = Semaphore(MaxConcurrentLoads)
@@ -270,7 +278,7 @@ private object NaviampCoverArtCache {
                         }
                     } ?: return@withPermit null
                     mutex.withLock {
-                        putBounded(images, cacheKey, decoded.image, MaxImages)
+                        images.put(cacheKey, decoded.image)
                         putBounded(palettes, url, decoded.rgbSamples, MaxPalettes)
                     }
                     decoded.image
@@ -285,7 +293,7 @@ private object NaviampCoverArtCache {
         }
     }
 
-    private fun touchImage(key: String): ImageBitmap? = images.remove(key)?.also { images[key] = it }
+    private fun touchImage(key: String): ImageBitmap? = images[key]
 
     suspend fun playerColors(url: String, colors: NaviampColors): NaviampPlayerColors {
         if (mutex.withLock { palettes[url] } == null) image(url, PaletteCoverArtSidePx)
@@ -308,5 +316,8 @@ private const val CoverArtTransitionMillis = 280
 private const val CurrentMediaEmptyGraceMillis = 750L
 
 private const val MinCoverArtSidePx = 128
-private const val MaxCoverArtSidePx = 1024
+private val MaxCoverArtSidePx = app.naviamp.domain.provider.CoverArtSize.Hero.pixels
 private const val PaletteCoverArtSidePx = 128
+
+internal fun naviampCoverArtDecodeSidePx(requestedPixels: Float): Int =
+    ceil(requestedPixels).toInt().coerceIn(MinCoverArtSidePx, MaxCoverArtSidePx)

@@ -455,5 +455,7 @@ internal fun NaviampExternalPlaybackAction.androidCustomActionIcon(): Int = when
     NaviampExternalPlaybackAction.Favorite -> R.drawable.ic_favorite_24
     NaviampExternalPlaybackAction.Unfavorite -> R.drawable.ic_favorite_filled_24
     NaviampExternalPlaybackAction.ShuffleOn, NaviampExternalPlaybackAction.ShuffleOff -> R.drawable.ic_shuffle_24
-    NaviampExternalPlaybackAction.RepeatOff, NaviampExternalPlaybackAction.RepeatQueue, NaviampExternalPlaybackAction.RepeatTrack -> R.drawable.ic_repeat_24
+    NaviampExternalPlaybackAction.RepeatOff -> R.drawable.ic_repeat_off_24
+    NaviampExternalPlaybackAction.RepeatQueue -> R.drawable.ic_repeat_24
+    NaviampExternalPlaybackAction.RepeatTrack -> R.drawable.ic_repeat_one_24
 }
