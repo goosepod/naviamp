@@ -19,6 +19,47 @@ def valid(seconds=100):
 
 
 class ReleaseArchiveEvidenceTest(unittest.TestCase):
+    def toolchain_pair(self):
+        baseline, candidate = valid(100), valid(30)
+        for result, source, version, millis in ((baseline, 'baseline', '2.3.21', 80_000),
+                                                 (candidate, 'candidate', '2.4.21', 20_000)):
+            result['workload'].update(source=source, coldCompile=True, profilePhases=False, compilerBuildReports=True)
+            result['workload']['compatibility']['kotlin'] = version
+            result['releaseLinks'] = [dict(outcome='EXECUTED', durationMillis=millis)]
+            result['tasks'] = [dict(task=':apps:ios:compileKotlinIosArm64', outcome='EXECUTED')]
+        return baseline, candidate
+
+    def toolchain_sources(self):
+        return ['gradle/libs.versions.toml', 'kotlin = "2.3.21"', 'kotlin = "2.4.21"',
+                'kotlin.native.binary.gc=pmcs', 'classpath("com.android.tools:r8:9.1.57")']
+
+    def test_toolchain_comparison_isolates_compiler_with_gc_and_optimizer_held_constant(self):
+        with patch.object(ARCHIVE.CACHE, 'command', side_effect=self.toolchain_sources()):
+            result = ARCHIVE.compare_toolchain(ROOT, *self.toolchain_pair())
+        self.assertEqual(75, result['linkImprovementPercent'])
+        self.assertEqual('pmcs', result['configuredNativeGc'])
+        self.assertEqual('9.1.57', result['configuredR8'])
+        self.assertFalse(result['hostedImprovementEstablished'])
+
+    def test_toolchain_comparison_rejects_changed_runtime_policy_or_additional_source_changes(self):
+        for index, replacement in [(0, 'core/ui/Changed.kt'), (2, 'kotlin = "2.4.21"\ncompose = "other"'),
+                                   (3, ''), (3, 'kotlin.native.binary.gc=cms'),
+                                   (4, 'classpath("com.android.tools:r8:8.13.19")')]:
+            sources = self.toolchain_sources(); sources[index] = replacement
+            with self.subTest(index=index, value=replacement), patch.object(ARCHIVE.CACHE, 'command', side_effect=sources), self.assertRaises(ValueError):
+                ARCHIVE.compare_toolchain(ROOT, *self.toolchain_pair())
+
+    def test_toolchain_comparison_rejects_cached_compilation_and_mismatched_measurement_flags(self):
+        for mutation in ('cache', 'uptodate', 'profile', 'heap', 'sdk'):
+            baseline, candidate = self.toolchain_pair()
+            if mutation == 'cache': candidate['tasks'][0]['outcome'] = 'FROM-CACHE'
+            if mutation == 'uptodate': candidate['tasks'][0]['outcome'] = 'UP-TO-DATE'
+            if mutation == 'profile': candidate['workload']['profilePhases'] = True
+            if mutation == 'heap': candidate['workload']['archiveHeapGiB'] = 8
+            if mutation == 'sdk': candidate['workload']['compatibility']['sdk'] = 'other'
+            with self.subTest(mutation=mutation), self.assertRaises(ValueError):
+                ARCHIVE.compare_toolchain(ROOT, baseline, candidate)
+
     def cold_pair(self):
         baseline, candidate = valid(100), valid(30)
         for result, source, millis in ((baseline, 'baseline', 80_000), (candidate, 'candidate', 20_000)):

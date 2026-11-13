@@ -5,6 +5,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import time
@@ -161,6 +162,55 @@ def compare_cold(root, baseline, candidate):
                 note='Controlled local cold compilation with downloaded dependencies; hosted evidence remains required.')
 
 
+def compare_toolchain(root, baseline, candidate):
+    for result in (baseline, candidate):
+        workload = result['workload']
+        if not result['validated'] or result['exitCode'] or workload['dirty'] or not workload.get('coldCompile'):
+            raise ValueError('Both toolchains must produce validated clean-source cold archives')
+        if workload['configuration'] != 'Release' or workload['archiveHeapGiB'] != 6 or workload.get('profilePhases') or not workload.get('compilerBuildReports'):
+            raise ValueError('Use the same optimized 6 GiB workload and low-volume file reports')
+        if len(result['releaseLinks']) != 1 or result['releaseLinks'][0]['outcome'] != 'EXECUTED':
+            raise ValueError('Both optimized links must execute')
+        compiles = [task for task in result['tasks'] if task['task'].endswith(':compileKotlinIosArm64')]
+        if not compiles or any(task['outcome'] != 'EXECUTED' for task in compiles):
+            raise ValueError('Product native sources must compile from fresh outputs')
+        if any(task['outcome'] in ('FROM-CACHE', 'FAILED') for task in result['tasks']):
+            raise ValueError('Cached or failed tasks invalidate the cold comparison')
+    before, after = baseline['workload'], candidate['workload']
+    ignored = {'source', 'compatibility', 'prefix'}
+    if {k: v for k, v in before.items() if k not in ignored} != {k: v for k, v in after.items() if k not in ignored}:
+        raise ValueError('Host, Java and workload controls must match')
+    if {k: v for k, v in before['compatibility'].items() if k != 'kotlin'} != {k: v for k, v in after['compatibility'].items() if k != 'kotlin'}:
+        raise ValueError('Wrapper, architecture, Xcode and SDK controls must match')
+    path = 'gradle/libs.versions.toml'
+    if CACHE.command('git', '-C', str(root), 'diff', '--name-only', before['source'], after['source']) != path:
+        raise ValueError('Only the Kotlin version may differ in this controlled toolchain pair')
+    original = CACHE.command('git', '-C', str(root), 'show', before['source'] + ':' + path)
+    updated = CACHE.command('git', '-C', str(root), 'show', after['source'] + ':' + path)
+    old, new = before['compatibility']['kotlin'], after['compatibility']['kotlin']
+    if old == new or original.replace('kotlin = "' + old + '"', 'kotlin = "' + new + '"', 1) != updated:
+        raise ValueError('Catalog difference must only change the recorded compiler version')
+    props = CACHE.command('git', '-C', str(root), 'show', before['source'] + ':gradle.properties')
+    if re.findall(r'^kotlin\.native\.binary\.gc\s*=\s*(\S+)\s*$', props, re.M) != ['pmcs']:
+        raise ValueError('Both sources must explicitly preserve the existing PMCS runtime policy')
+    script = CACHE.command('git', '-C', str(root), 'show', before['source'] + ':build.gradle.kts')
+    optimizer = re.search(r'com\.android\.tools:r8:(\d+)\.(\d+)\.(\d+)', script)
+    if not optimizer or tuple(map(int, optimizer.groups())) < (9, 1, 29):
+        raise ValueError('Both sources need the same Kotlin 2.4-compatible Android optimizer')
+    seconds = [result['releaseLinks'][0]['durationMillis'] / 1000 for result in (baseline, candidate)]
+    if min(*seconds, baseline['totalSeconds'], candidate['totalSeconds']) <= 0:
+        raise ValueError('Invalid compiler timing evidence')
+    return dict(baselineSource=before['source'], candidateSource=after['source'],
+                baselineKotlin=old, candidateKotlin=new, configuredNativeGc='pmcs',
+                configuredR8='.'.join(optimizer.groups()),
+                baselineLinkSeconds=seconds[0], candidateLinkSeconds=seconds[1],
+                linkImprovementPercent=(seconds[0] - seconds[1]) * 100 / seconds[0],
+                baselineArchiveSeconds=baseline['totalSeconds'], candidateArchiveSeconds=candidate['totalSeconds'],
+                archiveImprovementPercent=(baseline['totalSeconds'] - candidate['totalSeconds']) * 100 / baseline['totalSeconds'],
+                hostedImprovementEstablished=False,
+                note='Controlled local compiler comparison; runtime/Android checks and matched hosted validation remain required.')
+
+
 def archive(root, cache_root, report, profile_phases=False, cold_compile=False):
     workload = identity(root, profile_phases, cold_compile)
     if workload['dirty']:
@@ -202,13 +252,17 @@ def main():
     cold = commands.add_parser('compare-cold')
     cold.add_argument('--baseline', type=Path, required=True)
     cold.add_argument('--candidate', type=Path, required=True)
+    toolchain = commands.add_parser('compare-toolchain')
+    toolchain.add_argument('--baseline', type=Path, required=True)
+    toolchain.add_argument('--candidate', type=Path, required=True)
     args = parser.parse_args()
     if args.command == 'event':
         event(Path(os.environ['NAVIAMP_IOS_ARCHIVE_REPORT_DIR']), args.phase, args.state)
     elif args.command == 'archive':
         raise SystemExit(archive(ROOT, args.cache_root, args.report, args.profile_phases, args.cold_compile))
-    elif args.command == 'compare-cold':
-        print(json.dumps(compare_cold(ROOT, json.loads(args.baseline.read_text()),
+    elif args.command in ('compare-cold', 'compare-toolchain'):
+        comparison = compare_cold if args.command == 'compare-cold' else compare_toolchain
+        print(json.dumps(comparison(ROOT, json.loads(args.baseline.read_text()),
                                       json.loads(args.candidate.read_text())), indent=2))
     else:
         print(json.dumps(compare(json.loads(args.cold.read_text()), json.loads(args.warm.read_text())), indent=2))
