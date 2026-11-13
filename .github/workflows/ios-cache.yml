@@ -22,8 +22,12 @@ on:
       mode:
         description: Populate, compare fresh hosted cold/warm stages, or run focused native diagnostics
         type: choice
-        options: [populate, benchmark, native]
+        options: [populate, benchmark, native, cold-compiler-benchmark]
         default: populate
+      baseline_sha:
+        description: Immutable old-compiler commit for cold-compiler-benchmark; otherwise unused
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -37,9 +41,93 @@ env:
   TZ: America/Los_Angeles
 
 jobs:
+  cold-compiler:
+    name: iOS cold compiler (${{ matrix.variant }})
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'cold-compiler-benchmark'
+    runs-on: macos-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [baseline, candidate]
+    steps:
+      - name: Require an immutable baseline
+        env:
+          BASELINE_SHA: ${{ inputs.baseline_sha }}
+        run: '[[ "$BASELINE_SHA" =~ ^[0-9a-f]{40}$ ]]'
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ matrix.variant == 'baseline' && inputs.baseline_sha || github.sha }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+      # Fresh runner and stores; neither production cache reads nor writes belong in this trial.
+      - name: Compile and validate a cold Release archive
+        run: >-
+          python3 scripts/ios-release-archive.py archive --cold-compile
+          --cache-root "$RUNNER_TEMP/ios-cold-compiler"
+          --report "$RUNNER_TEMP/ios-cold-report"
+      - name: Upload validated IPA
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-cold-${{ matrix.variant }}-ipa
+          path: build/ios-unsigned/distributions/*.ipa
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+      - name: Upload compiler evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-cold-${{ matrix.variant }}-report
+          path: ${{ runner.temp }}/ios-cold-report/**
+          retention-days: 3
+          if-no-files-found: error
+
+  cold-compiler-comparison:
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'cold-compiler-benchmark'
+    needs: cold-compiler
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v7
+        with:
+          name: ios-cold-baseline-report
+          path: build/compiler-comparison/baseline
+      - uses: actions/download-artifact@v7
+        with:
+          name: ios-cold-candidate-report
+          path: build/compiler-comparison/candidate
+      - name: Compare source, toolchains and complete job durations
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          gh api --paginate "repos/$GH_REPO/actions/runs/$RUN_ID/jobs?per_page=100" --jq '.jobs[]' | jq -s . > build/compiler-comparison/jobs.json
+          python3 scripts/ios-release-archive.py compare-toolchain --baseline build/compiler-comparison/baseline/archive.json --candidate build/compiler-comparison/candidate/archive.json --jobs build/compiler-comparison/jobs.json > build/compiler-comparison/result.json
+          cat build/compiler-comparison/result.json >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ios-cold-compiler-comparison
+          path: build/compiler-comparison/**
+          if-no-files-found: error
+
   populate:
     # No PR code or non-default branch may populate caches consumed by Verify.
-    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && inputs.mode != 'cold-compiler-benchmark'
     runs-on: macos-latest
     timeout-minutes: 60
     steps:

@@ -13,6 +13,9 @@ kotlin {
             baseName = "NaviampShared"
             isStatic = true
             export(project(":core:storage"))
+            if (providers.gradleProperty("naviamp.ios.profilePhases").orNull == "true") {
+                freeCompilerArgs += listOf("-Xprofile-phases")
+            }
         }
     }
 
