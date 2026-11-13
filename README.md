@@ -29,8 +29,8 @@ and share feedback.
 ### Linux Flatpak
 
 Install the official Linux x86_64 Flatpak from Naviamp's signed GitHub Pages repository.
-The signed package currently contains v2.10.0, including Java, and runs on X11 or XWayland.
-Newer Flatpak updates await signing; use the direct Linux downloads for the latest application release.
+The signed package contains v2.11.2, including Java, and runs on X11 or XWayland.
+Existing Flatpak installations can update through the same signed remote.
 [Bundles, checksums and release information](https://github.com/goosepod/naviamp-flatpak/releases)
 are hosted on GitHub Releases. A Flathub listing is not required; Flathub supplies the
 Freedesktop runtime. Linux DEB, RPM, and portable ZIP downloads remain on
