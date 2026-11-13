@@ -85,6 +85,14 @@ class ReleaseArchiveEvidenceTest(unittest.TestCase):
             self.assertNotIn('binary.', props)
             self.assertNotIn('jvmargs', props)
 
+    def test_cold_compilation_never_restores_task_outputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            env = ARCHIVE.prepare(ROOT, root / 'cache', root / 'report', cold_compile=True)
+            props = (Path(env['GRADLE_USER_HOME']) / 'gradle.properties').read_text()
+            self.assertIn('org.gradle.caching=false\n', props)
+            self.assertNotIn('org.gradle.caching=true', props)
+
     def test_success_without_link_timing_or_completed_validation_is_not_accepted(self):
         with tempfile.TemporaryDirectory() as directory:
             report = Path(directory)

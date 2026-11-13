@@ -15,7 +15,7 @@ CACHE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(CACHE)
 
 
-def identity(root, profile_phases=False):
+def identity(root, profile_phases=False, cold_compile=False):
     source = CACHE.command('git', '-C', str(root), 'rev-parse', 'HEAD')
     dirty = bool(CACHE.command('git', '-C', str(root), 'status', '--porcelain', '--untracked-files=normal'))
     inputs, prefix = CACHE.compatibility(root, CACHE.platform.machine(), CACHE.command('xcodebuild', '-version'),
@@ -27,10 +27,11 @@ def identity(root, profile_phases=False):
     java = subprocess.run(['java', '-version'], check=True, text=True, env=java_env,
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.strip()
     return dict(source=source, dirty=dirty, compatibility=inputs, prefix=prefix, java=java,
-                configuration='Release', architecture='arm64', archiveHeapGiB=6, profilePhases=profile_phases)
+                configuration='Release', architecture='arm64', archiveHeapGiB=6,
+                profilePhases=profile_phases, coldCompile=cold_compile)
 
 
-def prepare(root, cache_root, report, profile_phases=False):
+def prepare(root, cache_root, report, profile_phases=False, cold_compile=False):
     cache_root, report = cache_root.resolve(), report.resolve()
     # Instrument only an explicitly isolated cache; never modify a developer's normal Gradle home.
     forbidden = {Path.home() / '.gradle', Path.home() / '.konan', root, Path('/')}
@@ -38,7 +39,7 @@ def prepare(root, cache_root, report, profile_phases=False):
         raise ValueError('Cache and measurement directories must be separate isolated paths')
     home, native = CACHE.configure_homes(cache_root)
     props = home / 'gradle.properties'
-    props.write_text(props.read_text() + 'org.gradle.caching=true\n')
+    props.write_text(props.read_text() + 'org.gradle.caching=' + ('false' if cold_compile else 'true') + '\n')
     if profile_phases:
         with props.open('a') as output:
             output.write('naviamp.ios.profilePhases=true\n')
@@ -121,12 +122,12 @@ def framework_inventory(root):
                 staticLibraryBytes=library.stat().st_size)
 
 
-def archive(root, cache_root, report, profile_phases=False):
-    workload = identity(root, profile_phases)
+def archive(root, cache_root, report, profile_phases=False, cold_compile=False):
+    workload = identity(root, profile_phases, cold_compile)
     if workload['dirty']:
         raise ValueError('Commit local changes before recording a matched archive workload')
     env = os.environ.copy()
-    env.update(prepare(root, cache_root, report, profile_phases))
+    env.update(prepare(root, cache_root, report, profile_phases, cold_compile))
     started = time.monotonic()
     with (report / 'archive.log').open('w') as output:
         process = subprocess.Popen(['bash', 'scripts/build-ios-unsigned-ipa.sh'], cwd=root, env=env,
@@ -136,7 +137,8 @@ def archive(root, cache_root, report, profile_phases=False):
             output.write(line)
             output.flush()
         code = process.wait()
-    result = summarize(report, workload, time.monotonic() - started, code, stable=identity(root, profile_phases) == workload)
+    result = summarize(report, workload, time.monotonic() - started, code,
+                       stable=identity(root, profile_phases, cold_compile) == workload)
     result['frameworkApi'] = framework_inventory(root)
     (report / 'archive.json').write_text(json.dumps(result, indent=2))
     if not result['validated'] and not code:
@@ -151,6 +153,7 @@ def main():
     build.add_argument('--cache-root', type=Path, required=True)
     build.add_argument('--report', type=Path, required=True)
     build.add_argument('--profile-phases', action='store_true', help='Record Kotlin/Native backend phase timings without changing optimization')
+    build.add_argument('--cold-compile', action='store_true', help='Disable task-output caching for fresh compilation with downloaded dependencies')
     mark = commands.add_parser('event')
     mark.add_argument('--phase', required=True)
     mark.add_argument('--state', choices=('start', 'end'), required=True)
@@ -161,7 +164,7 @@ def main():
     if args.command == 'event':
         event(Path(os.environ['NAVIAMP_IOS_ARCHIVE_REPORT_DIR']), args.phase, args.state)
     elif args.command == 'archive':
-        raise SystemExit(archive(ROOT, args.cache_root, args.report, args.profile_phases))
+        raise SystemExit(archive(ROOT, args.cache_root, args.report, args.profile_phases, args.cold_compile))
     else:
         print(json.dumps(compare(json.loads(args.cold.read_text()), json.loads(args.warm.read_text())), indent=2))
 

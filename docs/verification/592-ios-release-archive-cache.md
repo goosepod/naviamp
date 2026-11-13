@@ -98,3 +98,15 @@ Before accepting this candidate, compile the shared contract for Android/JVM/dev
 run existing credential-persistence regressions, build and validate a fresh Release IPA, confirm
 the unchanged Swift host compiles, inspect the generated API and binary size, and run matched
 phase-profiled baseline/candidate archives. Keep iterations local until ready for final CI.
+
+Local shared verification passed all four compilation targets, the architecture guard and nine
+`StorageMediaSourceStoreTest` cases, with zero failures/errors/skips. The first fresh candidate
+archive failed during SQLDelight dependency resolution because Maven's hostname could not be
+resolved. It never reached the optimized link and is excluded from performance results.
+
+For the controlled cold-compiler experiment, seed both isolated homes with the same already
+downloaded `modules-2`, wrapper and Kotlin/Native distribution/dependencies. Do not transfer
+Gradle task-output caches or project outputs. `--cold-compile` disables Gradle output caching for
+the nested Xcode invocation, so compilation still executes from fresh source outputs. This measures
+cold compilation with downloaded tools/dependencies; it is not an empty-download-cache benchmark.
+Run the two archives sequentially on the same host to avoid simultaneous compiler contention.
