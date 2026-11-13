@@ -12,13 +12,18 @@ kotlin {
         binaries.framework {
             baseName = "NaviampShared"
             isStatic = true
-            export(project(":core:storage"))
+            // Swift implements only this credential effect; storage/query APIs stay internal.
+            export(project(":core:storage-api"))
+            if (providers.gradleProperty("naviamp.ios.profilePhases").orNull == "true") {
+                freeCompilerArgs += listOf("-Xprofile-phases")
+            }
         }
     }
 
     sourceSets {
         iosMain.dependencies {
-            api(project(":core:storage"))
+            api(project(":core:storage-api"))
+            implementation(project(":core:storage"))
             implementation(project(":core:presentation"))
             implementation(project(":core:ui"))
             implementation(project(":platforms:ios"))

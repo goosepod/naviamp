@@ -18,15 +18,6 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 
-/** Protects persisted credential values without exposing a platform security API to shared storage. */
-interface StorageCredentialProtector {
-    fun protect(value: String?): String?
-
-    fun reveal(value: String?): String?
-
-    fun isProtected(value: String?): Boolean
-}
-
 /** Explicit fallback for hosts that do not yet provide secure credential storage. */
 object PassthroughStorageCredentialProtector : StorageCredentialProtector {
     override fun protect(value: String?): String? = value

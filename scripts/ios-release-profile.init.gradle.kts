@@ -44,7 +44,7 @@ abstract class NaviampArchiveTimings : BuildService<NaviampArchiveTimings.Parame
 abstract class NaviampArchiveTimingPlugin : Plugin<Project> {
     @get:Inject abstract val events: BuildEventsListenerRegistry
     override fun apply(project: Project) {
-        val directory = project.providers.environmentVariable("NAVIAMP_IOS_ARCHIVE_REPORT_DIR").get()
+        val directory = project.providers.environmentVariable("NAVIAMP_IOS_ARCHIVE_REPORT_DIR").orNull ?: return
         val service = project.gradle.sharedServices.registerIfAbsent("naviampArchiveTimings", NaviampArchiveTimings::class.java) {
             parameters.directory.set(project.file("$directory/tasks"))
         }

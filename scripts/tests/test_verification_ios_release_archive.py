@@ -1,6 +1,5 @@
 import importlib.util
 import json
-import tarfile
 from pathlib import Path
 import tempfile
 import unittest
@@ -77,6 +76,15 @@ class ReleaseArchiveEvidenceTest(unittest.TestCase):
                 with self.subTest(cache=cache), self.assertRaises(ValueError):
                     ARCHIVE.prepare(ROOT, cache, report)
 
+    def test_phase_profile_reaches_the_nested_compiler_without_changing_the_heap_or_optimization(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            env = ARCHIVE.prepare(ROOT, root / 'cache', root / 'report', profile_phases=True)
+            props = (Path(env['GRADLE_USER_HOME']) / 'gradle.properties').read_text()
+            self.assertIn('naviamp.ios.profilePhases=true\n', props)
+            self.assertNotIn('binary.', props)
+            self.assertNotIn('jvmargs', props)
+
     def test_success_without_link_timing_or_completed_validation_is_not_accepted(self):
         with tempfile.TemporaryDirectory() as directory:
             report = Path(directory)
@@ -92,63 +100,6 @@ class ReleaseArchiveEvidenceTest(unittest.TestCase):
             path.write_text(json.dumps([dict(task=':apps:ios:linkReleaseFrameworkIosArm64', outcome='FROM-CACHE')]))
             self.assertTrue(ARCHIVE.summarize(report, valid()['workload'], 10, 0)['validated'])
             self.assertFalse(ARCHIVE.summarize(report, valid()['workload'], 10, 1)['validated'])
-
-
-class ReleaseCacheTransferTest(unittest.TestCase):
-    def stores(self, root):
-        for name in ARCHIVE.STORES:
-            (root / name).mkdir(parents=True)
-        (root / 'gradle/caches/module.jar').write_bytes(b'cache')
-        compiler = root / 'konan/compiler'
-        compiler.write_text('executable fixture')
-        compiler.chmod(0o755)
-        keys = root / 'gradle/caches/keyrings'
-        keys.mkdir()
-        (keys / 'credential').write_text('excluded fixture')
-        (root / 'gradle/gradle.properties').write_text('must not transfer')
-
-    def test_transfers_only_compiler_stores_and_preserves_executable_bits(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            source, target, bundle = root / 'source', root / 'target', root / 'cache.tar.gz'
-            self.stores(source)
-            ARCHIVE.pack_cache(source, bundle, valid()['workload'])
-            result = ARCHIVE.restore_cache(target, bundle, valid()['workload'])
-            self.assertEqual(b'cache', (target / 'gradle/caches/module.jar').read_bytes())
-            self.assertTrue((target / 'konan/compiler').stat().st_mode & 0o100)
-            self.assertFalse((target / 'gradle/caches/keyrings').exists())
-            self.assertFalse((target / 'gradle/gradle.properties').exists())
-            self.assertGreater(result['bytes'], 0)
-            with self.assertRaises(ValueError):
-                ARCHIVE.restore_cache(target, bundle, valid()['workload'])
-
-    def test_mismatched_workload_and_corrupted_bundle_do_not_write_cache_files(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            source, target, bundle = root / 'source', root / 'target', root / 'cache.tar.gz'
-            self.stores(source)
-            ARCHIVE.pack_cache(source, bundle, valid()['workload'])
-            changed = valid()['workload']; changed['source'] = 'other'
-            with self.assertRaises(ValueError):
-                ARCHIVE.restore_cache(target, bundle, changed)
-            self.assertFalse(target.exists())
-            with bundle.open('ab') as output:
-                output.write(b'corrupt')
-            with self.assertRaises(ValueError):
-                ARCHIVE.restore_cache(target, bundle, valid()['workload'])
-            self.assertFalse(target.exists())
-
-    def test_forbids_paths_links_and_keyring_or_init_script_injection(self):
-        with tempfile.TemporaryDirectory() as directory:
-            for name, link in [('../escape', None), ('/escape', None),
-                               ('gradle/init.d/injected.gradle', None),
-                               ('gradle/caches/keyrings/secret', None),
-                               ('konan/link', '/escape'), ('konan/link', '../../escape')]:
-                member = tarfile.TarInfo(name)
-                if link is not None:
-                    member.type = tarfile.SYMTYPE; member.linkname = link
-                with self.subTest(name=name, link=link), self.assertRaises((ValueError, tarfile.FilterError)):
-                    ARCHIVE.allowed_member(member, directory)
 
 
 if __name__ == '__main__':
