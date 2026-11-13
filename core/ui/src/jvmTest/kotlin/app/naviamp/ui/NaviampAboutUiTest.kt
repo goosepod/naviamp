@@ -57,7 +57,8 @@ class NaviampAboutUiTest {
         var rendered: androidx.compose.ui.graphics.ImageBitmap? = null
         waitUntil(timeoutMillis = 5_000) {
             val image = roots[roots.fetchSemanticsNodes().lastIndex].captureToImage()
-            if (changelogBodyHasPainted(image)) {
+            val body = onNodeWithText(NaviampAboutUi().changelog.first().entries.single()).captureToImage()
+            if (changelogBodyHasPainted(body)) {
                 rendered = image
                 true
             } else false
@@ -72,8 +73,8 @@ private fun changelogBodyHasPainted(image: androidx.compose.ui.graphics.ImageBit
     val pixels = image.toPixelMap()
     var paintedPixels = 0
     // Semantics can update before the desktop frame paints. Require real text pixels
-    // in the lower body, beyond the header and first changelog entry.
-    for (y in pixels.height / 2 until pixels.height) for (x in 0 until pixels.width) {
+    // in the actual fix entry, independent of how many changes this release contains.
+    for (y in 0 until pixels.height) for (x in 0 until pixels.width) {
         val pixel = pixels[x, y]
         if (pixel.alpha > 0.5f && maxOf(pixel.red, pixel.green, pixel.blue) > 0.2f) {
             if (++paintedPixels >= 100) return true
