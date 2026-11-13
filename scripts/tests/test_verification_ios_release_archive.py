@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = importlib.util.spec_from_file_location('release_archive', ROOT / 'scripts/ios-release-archive.py')
@@ -18,6 +19,37 @@ def valid(seconds=100):
 
 
 class ReleaseArchiveEvidenceTest(unittest.TestCase):
+    def cold_pair(self):
+        baseline, candidate = valid(100), valid(30)
+        for result, source, millis in ((baseline, 'baseline', 80_000), (candidate, 'candidate', 20_000)):
+            result['workload'].update(source=source, coldCompile=True, profilePhases=True)
+            result['releaseLinks'] = [dict(outcome='EXECUTED', durationMillis=millis)]
+            result['tasks'] = [dict(outcome='EXECUTED')]
+        return baseline, candidate
+
+    def test_cold_comparison_accepts_only_the_reviewed_storage_export_difference(self):
+        baseline, candidate = self.cold_pair()
+        original = 'plugins {}\n            export(project(":core:storage"))\n            api(project(":core:storage"))\n'
+        narrowed = 'plugins {}\n            implementation(project(":core:storage"))\n'
+        with patch.object(ARCHIVE.CACHE, 'command', side_effect=['apps/ios/build.gradle.kts', original, narrowed]):
+            result = ARCHIVE.compare_cold(ROOT, baseline, candidate)
+        self.assertEqual(75, result['linkImprovementPercent'])
+        self.assertEqual(70, result['archiveImprovementPercent'])
+        self.assertFalse(result['hostedImprovementEstablished'])
+        for responses in (['core/ui/Changed.kt'], ['apps/ios/build.gradle.kts', original, narrowed + 'other change']):
+            with patch.object(ARCHIVE.CACHE, 'command', side_effect=responses), self.assertRaises(ValueError):
+                ARCHIVE.compare_cold(ROOT, baseline, candidate)
+
+    def test_cold_comparison_rejects_cached_or_changed_compiler_workloads(self):
+        for mutation in ('link', 'task', 'heap', 'cold'):
+            baseline, candidate = self.cold_pair()
+            if mutation == 'link': candidate['releaseLinks'][0]['outcome'] = 'UP-TO-DATE'
+            if mutation == 'task': candidate['tasks'][0]['outcome'] = 'FROM-CACHE'
+            if mutation == 'heap': candidate['workload']['archiveHeapGiB'] = 8
+            if mutation == 'cold': candidate['workload']['coldCompile'] = False
+            with self.subTest(mutation=mutation), self.assertRaises(ValueError):
+                ARCHIVE.compare_cold(ROOT, baseline, candidate)
+
     def test_comparison_requires_same_source_toolchain_and_optimized_workload(self):
         before = valid()
         for key, value in [('source', 'different'), ('compatibility', {'sdk': 'different'}),

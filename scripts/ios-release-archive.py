@@ -122,6 +122,41 @@ def framework_inventory(root):
                 staticLibraryBytes=library.stat().st_size)
 
 
+def compare_cold(root, baseline, candidate):
+    for result in (baseline, candidate):
+        workload = result['workload']
+        if not result['validated'] or result['exitCode'] or workload['dirty'] or not workload.get('coldCompile'):
+            raise ValueError('Both measurements must be validated clean-source cold compilations')
+        if len(result['releaseLinks']) != 1 or result['releaseLinks'][0]['outcome'] != 'EXECUTED':
+            raise ValueError('Both optimized framework links must execute')
+        if any(task['outcome'] == 'FROM-CACHE' for task in result['tasks']):
+            raise ValueError('Cold compilation must not restore task outputs')
+    before, after = baseline['workload'], candidate['workload']
+    if {key: value for key, value in before.items() if key != 'source'} != {key: value for key, value in after.items() if key != 'source'}:
+        raise ValueError('Compiler, SDK, architecture, heap and measurement flags must match')
+    path = 'apps/ios/build.gradle.kts'
+    changed = CACHE.command('git', '-C', str(root), 'diff', '--name-only', before['source'], after['source'])
+    if changed != path:
+        raise ValueError('Only the framework export configuration may differ')
+    original = CACHE.command('git', '-C', str(root), 'show', before['source'] + ':' + path)
+    narrowed = CACHE.command('git', '-C', str(root), 'show', after['source'] + ':' + path)
+    export = '            export(project(":core:storage"))\n'
+    dependency = '            api(project(":core:storage"))'
+    if export not in original or dependency not in original or original.replace(export, '').replace(dependency, '            implementation(project(":core:storage"))') != narrowed:
+        raise ValueError('The controlled source difference must only narrow storage exports')
+    before_link, after_link = (value['releaseLinks'][0]['durationMillis'] / 1000 for value in (baseline, candidate))
+    if min(before_link, after_link, baseline['totalSeconds'], candidate['totalSeconds']) <= 0:
+        raise ValueError('Invalid compilation duration')
+    return dict(baselineSource=before['source'], candidateSource=after['source'],
+                baselineArchiveSeconds=baseline['totalSeconds'], candidateArchiveSeconds=candidate['totalSeconds'],
+                baselineLinkSeconds=before_link, candidateLinkSeconds=after_link,
+                linkImprovementPercent=(before_link - after_link) * 100 / before_link,
+                archiveImprovementPercent=(baseline['totalSeconds'] - candidate['totalSeconds']) * 100 / baseline['totalSeconds'],
+                baselineApi=baseline.get('frameworkApi'), candidateApi=candidate.get('frameworkApi'),
+                hostedImprovementEstablished=False,
+                note='Controlled local cold compilation with downloaded dependencies; hosted evidence remains required.')
+
+
 def archive(root, cache_root, report, profile_phases=False, cold_compile=False):
     workload = identity(root, profile_phases, cold_compile)
     if workload['dirty']:
@@ -160,11 +195,17 @@ def main():
     report = commands.add_parser('compare')
     report.add_argument('--cold', type=Path, required=True)
     report.add_argument('--warm', type=Path, required=True)
+    cold = commands.add_parser('compare-cold')
+    cold.add_argument('--baseline', type=Path, required=True)
+    cold.add_argument('--candidate', type=Path, required=True)
     args = parser.parse_args()
     if args.command == 'event':
         event(Path(os.environ['NAVIAMP_IOS_ARCHIVE_REPORT_DIR']), args.phase, args.state)
     elif args.command == 'archive':
         raise SystemExit(archive(ROOT, args.cache_root, args.report, args.profile_phases, args.cold_compile))
+    elif args.command == 'compare-cold':
+        print(json.dumps(compare_cold(ROOT, json.loads(args.baseline.read_text()),
+                                      json.loads(args.candidate.read_text())), indent=2))
     else:
         print(json.dumps(compare(json.loads(args.cold.read_text()), json.loads(args.warm.read_text())), indent=2))
 
