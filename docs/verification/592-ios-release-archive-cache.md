@@ -236,3 +236,9 @@ workload flags and executed native compilation before comparing complete job dur
 Whole-job timing includes setup, dependency downloads, validation and uploads; queue wait is
 excluded. Do not declare hosted improvement or close #592 before this evidence and full Verify
 pass. No experimental cache or production release workflow changes are required.
+
+The first hosted attempt stopped before compilation: importing the Python helper generated
+untracked bytecode caches, which the clean-source guard correctly rejected. A local global Git
+ignore had hidden them during development. Add `__pycache__/` to the repository ignore rules and
+verify cleanliness with global excludes disabled; preserve the guard. That attempt provides no
+performance result. The corrected old/new checkpoints include the same repository ignore rule.
