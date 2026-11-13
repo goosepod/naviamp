@@ -93,7 +93,10 @@ class ReleaseArchiveEvidenceTest(unittest.TestCase):
             root = Path(directory).resolve()
             env = ARCHIVE.prepare(ROOT, root / 'cache', root / 'report')
             home = Path(env['GRADLE_USER_HOME'])
-            self.assertEqual('konan.data.dir=' + str(root / 'cache/konan') + '\norg.gradle.caching=true\n',
+            self.assertEqual('konan.data.dir=' + str(root / 'cache/konan') + '\norg.gradle.caching=true\n' +
+                             'kotlin.build.report.output=file\n' +
+                             'kotlin.build.report.file.output_dir=' + str(root / 'report/kotlin-build') + '\n' +
+                             'kotlin.build.report.include_compiler_arguments=false\n',
                              (home / 'gradle.properties').read_text())
             self.assertEqual((ROOT / 'scripts/ios-ci-cache.init.gradle.kts').read_bytes(),
                              (home / 'init.d/ios-ci-cache.init.gradle.kts').read_bytes())

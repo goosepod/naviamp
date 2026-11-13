@@ -28,7 +28,7 @@ def identity(root, profile_phases=False, cold_compile=False):
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.strip()
     return dict(source=source, dirty=dirty, compatibility=inputs, prefix=prefix, java=java,
                 configuration='Release', architecture='arm64', archiveHeapGiB=6,
-                profilePhases=profile_phases, coldCompile=cold_compile)
+                profilePhases=profile_phases, coldCompile=cold_compile, compilerBuildReports=True)
 
 
 def prepare(root, cache_root, report, profile_phases=False, cold_compile=False):
@@ -40,6 +40,10 @@ def prepare(root, cache_root, report, profile_phases=False, cold_compile=False):
     home, native = CACHE.configure_homes(cache_root)
     props = home / 'gradle.properties'
     props.write_text(props.read_text() + 'org.gradle.caching=' + ('false' if cold_compile else 'true') + '\n')
+    with props.open('a') as output:
+        output.write('kotlin.build.report.output=file\n')
+        output.write('kotlin.build.report.file.output_dir=' + str(report / 'kotlin-build') + '\n')
+        output.write('kotlin.build.report.include_compiler_arguments=false\n')
     if profile_phases:
         with props.open('a') as output:
             output.write('naviamp.ios.profilePhases=true\n')
