@@ -19,7 +19,6 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            api(project(":core:storage-api"))
             implementation(project(":core:domain"))
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.sqldelight.runtime)

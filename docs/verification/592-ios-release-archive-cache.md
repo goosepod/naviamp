@@ -6,7 +6,9 @@ Issue: https://github.com/goosepod/naviamp/issues/592
 
 Measure the actual unsigned ARM64 Release archive, including its optimized framework link.
 Keep the existing 6 GiB heap and ARM64, unsigned-signature, version/build, privacy-manifest and
-ZIP validations. No compiler upgrade, experimental Release binary caches or reduced optimization.
+ZIP validations. The initial export experiment holds the compiler fixed. The owner subsequently
+authorized a separate compatible compiler/toolchain experiment. No experimental Release binary
+caches or reduced optimization.
 No platform production source changes are part of this investigation.
 
 The owner released v2.11.2 while this work was in progress. Its tag was merged into the local
@@ -119,3 +121,53 @@ Run the two archives sequentially on the same host to avoid simultaneous compile
 The local comparison helper accepts only that single build-file export difference and matching
 compiler/SDK/heap/profiling controls. It rejects cached optimized links, cached task outputs,
 failed archives and unrelated source changes. This produces local evidence, not a hosted result.
+
+### Completed export experiment: rejected
+
+Both profiled cold-compilation archives passed, with no task outputs restored. Control source
+`7d31c5ebe242a763de55ad0821df56dc8fb821af`; narrowed source
+`bfc5b4aef48e99d5e9537835fab5fe47e241477c`. The only source difference is the reviewed
+framework export configuration. Dependencies were already downloaded; source outputs were fresh.
+
+| Measurement | Full export | Narrow export |
+| --- | ---: | ---: |
+| Whole archive, seconds | 1531.002 | 2005.678 |
+| Release framework link, seconds | 1264.184 | 1797.168 |
+| LLVM module optimization, seconds | 153.753 | 611.433 |
+| LLVM LTO, seconds | 364.179 | 459.979 |
+| Static-initializer optimization, seconds | 125.756 | 177.426 |
+| Static framework bytes | 223444608 | 213990064 |
+
+The narrower export was 42.2% slower in the measured link and 31.0% slower overall. Smaller
+headers/binaries did not translate into faster compilation. The production candidate therefore
+restores the original storage contract location and full export, removing the extra shared module.
+Keep the frozen snapshots and evidence; do not ship this as a build-speed improvement. Detailed
+phase profiling has overhead; these matched profiled runs are not absolute production-build claims.
+
+### Authorized toolchain probe
+
+The owner selected testing a compatible compiler/toolchain upgrade under #592 on November 13.
+The initial isolated probe uses Kotlin 2.4.21, R8 9.1.57, the existing AGP 8.13.2 and Gradle 8.14.5.
+R8 9.1.57 is a published stable artifact meeting Android's Kotlin 2.4 minimum requirement.
+The old compiler's `KonanConfig.getDefaultGC()` was inspected and returns
+`PARALLEL_MARK_CONCURRENT_SWEEP`. Pin `kotlin.native.binary.gc=pmcs` in the probe to preserve
+that policy: Kotlin 2.4 changes the default to CMS. The heap remains 6 GiB.
+
+The probe passed shared credential-contract compilation for JVM, Android and both iOS targets,
+shared UI JVM compilation, architecture verification and credential-store regressions. A tiny
+optimized ARM64 framework also built, prefetching the new LLVM dependencies outside product
+measurements. Clean product outputs again before measuring an actual Release archive.
+The first upgrade archive retains the frozen narrow-export experiment for compiler investigation;
+it is not the final production configuration. A full-export upgrade measurement and quieter
+confirmation remain necessary before accepting a cold-build improvement.
+
+Use Kotlin's supported file build reports for confirmation runs; verbose `-Xprofile-phases` emits
+hundreds of thousands of lines and is reserved for phase investigation. Both runtime policy and
+optimization must match, and Android release shrinking/native/runtime checks must pass before
+adopting a cross-platform toolchain change.
+
+References: [Kotlin 2.4 native changes](https://kotlinlang.org/docs/whatsnew24.html#kotlin-native),
+[Android Kotlin/R8 compatibility](https://developer.android.com/build/kotlin-support),
+[Kotlin build reports](https://kotlinlang.org/docs/gradle-compilation-and-caches.html#build-reports).
+KT-84412's public issue metadata lists 2.3.20-RC as a fix version, so 2.3.21 already contains it;
+do not cite that regression as a missing fix addressed by this upgrade.
