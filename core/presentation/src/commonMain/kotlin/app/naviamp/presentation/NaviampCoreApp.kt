@@ -22,7 +22,6 @@ import app.naviamp.ui.NaviampBusyDialog
 import app.naviamp.ui.NaviampCastOutputUi
 import app.naviamp.ui.defaultNaviampApplicationUpdateChecker
 import app.naviamp.ui.NaviampDiagnosticsUi
-import app.naviamp.ui.naviampContentInsets
 import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampStatsForNerdsDialog
 import app.naviamp.ui.NaviampTelevisionAppShell
@@ -136,7 +135,7 @@ fun NaviampCoreApp(
                 ) {
                     when (applicationSurface) {
                         NaviampApplicationSurface.Standard -> NaviampSharedAppShell(
-                            modifier = modifier.naviampContentInsets(),
+                            modifier = modifier,
                             uiState = state.shell,
                             settingsSync = state.settingsSync,
                             playbackProgress = core.playbackProgress,
@@ -149,7 +148,7 @@ fun NaviampCoreApp(
                             onCastSelectLocal = core::selectLocalPlayback,
                         )
                         NaviampApplicationSurface.Television -> NaviampTelevisionAppShell(
-                            modifier = modifier.naviampContentInsets(),
+                            modifier = modifier,
                             uiState = state.shell,
                             settingsSync = state.settingsSync,
                             playbackProgress = core.playbackProgress,

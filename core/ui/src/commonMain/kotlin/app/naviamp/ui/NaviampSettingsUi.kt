@@ -2923,41 +2923,21 @@ private val DefaultNaviampLibraries = listOf(
 // Release notes stay in English and out of localized string resources.
 private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
-        title = "Features",
-        entries = listOf(
-            "Open Stream Details from the Now Playing menu for internet radio to inspect available station, broadcast, audio quality, artwork, and additional metadata. Details update while the stream plays and support copying text.",
-        ),
-    ),
-    NaviampChangelogSectionUi(
-        title = "Improvements",
-        entries = listOf(
-            "Show per-song artwork when a radio stream supplies a supported image URL, and use official SomaFM catalog logos for more stations.",
-            "Show internet-radio codec and bitrate in Now Playing when the existing audio-information setting is enabled. Stream Details remains available with that setting off.",
-        ),
-    ),
-    NaviampChangelogSectionUi(
         title = "Bug fixes",
         entries = listOf(
-            "Keep station logos visible when the music server returns a blank artwork identifier.",
-            "Save internet-radio homepage edits correctly, including clearing an existing homepage.",
-            "Choose a fresh queue order when shuffle is enabled again, while restoring the original upcoming order when shuffle is turned off.",
-            "Reuse equivalent generated Radio stations in Recently Played Radio, refresh recency on replay, and consolidate existing duplicate entries while preserving distinct stations.",
+            "Remove white bands above and below the Android app by extending the selected background and filled Now Playing artwork behind the system bars while keeping controls safely inset.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Upgrade notes",
         entries = listOf(
             "No special upgrade steps are required.",
-            "Existing generated Radio history is reconciled automatically. Historical tuning differences that were never saved cannot be reconstructed.",
-            "The signed Flatpak currently contains v2.10.0; newer updates await signing. Use the direct Linux downloads for this release. Store and beta channel versions may differ from GitHub.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Known issues",
         entries = listOf(
             "No new known issues. Existing playback, presentation, performance, and platform acceptance investigations continue.",
-            "Radio metadata, artwork, and reported audio quality depend on what the station supplies; some streams provide only a title or station information.",
-            "Android TV and Naviamp Connect remain beta. Direct GitHub Windows and macOS downloads are not publisher-signed; the iOS IPA requires signing for sideloading.",
         ),
     ),
 )

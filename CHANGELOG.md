@@ -6,6 +6,22 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 No changes yet.
 
+## v2.11.2
+
+Naviamp 2.11.2 fixes white bands at the top and bottom of the Android app.
+
+### Bug fixes
+
+- Extend the selected app background and filled Now Playing artwork behind Android system bars while keeping controls safely inset and preserving keyboard handling.
+
+### Upgrade notes
+
+- No special upgrade steps are required.
+
+### Known issues
+
+- No new known issues. Existing playback, presentation, performance, and platform acceptance investigations continue.
+
 ## v2.11.1
 
 Naviamp 2.11.1 adds live Stream Details and improves internet-radio artwork, station editing, and audio information. It also fixes repeated shuffle orders and duplicate generated stations in Recently Played Radio.
