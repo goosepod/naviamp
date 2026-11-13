@@ -492,4 +492,9 @@
     <string name="tv_repeat_all">تكرار الكل</string>
     <string name="tv_repeat_one">تكرار المقطع</string>
     <string name="tv_start_radio">بدء الراديو</string>
+    <string name="connection_aurral_companion">خدمة Aurral المرافقة</string>
+    <string name="connection_aurral_companion_guidance">استخدم Aurral لاكتشاف الموسيقى وطلبها. يظل خادم الموسيقى مسؤولًا عن المكتبة والتشغيل.</string>
+    <string name="connection_aurral_companion_invalid">أدخل عنوان خادم Aurral ببروتوكول HTTP أو HTTPS واسم المستخدم.</string>
+    <string name="discovery_find_in_aurral">البحث في Aurral</string>
+    <string name="connection_aurral_companion_save_failed">تعذّر حفظ خدمة Aurral المرافقة. لم يتغير اتصال الموسيقى.</string>
 </resources>

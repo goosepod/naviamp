@@ -598,7 +598,8 @@ class NaviampCoreMediaDetailController(
                                 canFavoriteArtist = provider.capabilities.supportsArtistFavorites && !nameOnlyCredit,
                                 canFavoriteAlbums = provider.capabilities.supportsAlbumFavorites,
                                 showArtistInformation = shell.general.interfaceSettings.showArtistInformation,
-                            ).copy(playlistsVisible = shell.general.interfaceSettings.showArtistPlaylists),
+                            ).copy(playlistsVisible = shell.general.interfaceSettings.showArtistPlaylists,
+                                aurralSourceId = shell.connectionSettings.currentSourceId.takeIf { provider.discovery != null }),
                             status = if (detail.albums.isEmpty()) {
                                 "No albums found for ${detail.artist.name}."
                             } else {

@@ -16,6 +16,7 @@ internal data class HomeScreenSectionOption(
 )
 
 internal val HomeScreenSectionOptions = listOf(
+    HomeScreenSectionOption(HomeSectionIds.Aurral, "", Res.string.connection_provider_aurral),
     HomeScreenSectionOption(HomeSectionIds.FavoriteArtists, "", Res.string.settings_favorite_artists),
     HomeScreenSectionOption(HomeSectionIds.MixesForYou, "Mixes for You", Res.string.tv_home_mixes_for_you),
     HomeScreenSectionOption(HomeSectionIds.NavibeatMixes, "NaviBeat Mixes", Res.string.tv_home_navibeat_mixes),
@@ -59,4 +60,17 @@ internal fun InterfaceSettings.withOrderedHomeScreenSections(
 internal fun <T> List<T>.moveHomeSectionItem(fromIndex: Int, toIndex: Int): List<T> {
     if (fromIndex !in indices || toIndex !in indices || fromIndex == toIndex) return this
     return toMutableList().apply { add(toIndex, removeAt(fromIndex)) }
+}
+
+/** A Home entry is either a real media collection or the existing Aurral service entry. */
+internal data class HomeScreenSlot(val id: String, val collection: SharedHomeCollectionSectionUi? = null)
+
+internal fun SharedHomeUi.homeScreenSlots(
+    discoveryAvailable: Boolean,
+    sections: List<SharedHomeCollectionSectionUi> = collectionSections,
+): List<HomeScreenSlot> {
+    val slots = sections.filter { it.visible }.map { HomeScreenSlot(it.id, it) }.toMutableList()
+    if (discoveryAvailable && aurralHomeVisible) slots.add(HomeScreenSlot(HomeSectionIds.Aurral))
+    val order = homeSectionOrder.withIndex().associate { it.value to it.index }
+    return slots.sortedBy { order[it.id] ?: Int.MAX_VALUE }
 }

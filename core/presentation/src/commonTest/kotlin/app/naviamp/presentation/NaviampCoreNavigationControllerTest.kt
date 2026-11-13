@@ -17,6 +17,27 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NaviampCoreNavigationControllerTest {
+    @Test fun discoveryFromRadioPreservesTheDockedSideBySidePlayer() {
+        val store = NaviampCoreStateStore()
+        val navigation = controller(NaviampNavigationController(), store)
+        navigation.openNowPlaying()
+        navigation.dispatch(NaviampCoreCommand.Navigation.SetPlayerDocked(true))
+        navigation.openDiscoveryPage()
+        assertTrue(store.state.value.shell.shellChrome.nowPlayingOpen)
+        assertTrue(store.state.value.shell.shellChrome.playerDocked)
+        assertEquals(SharedRoute.Home, store.state.value.shell.shellChrome.selectedRoute)
+    }
+
+    @Test fun discoveryFromRadioRevealsTheSearchInsteadOfLeavingTheExpandedPlayerAboveIt() {
+        val store = NaviampCoreStateStore()
+        val navigation = NaviampCoreNavigationController(NaviampNavigationController(), store, NaviampCoreArtistNavigator {})
+        navigation.openNowPlaying()
+        assertTrue(store.state.value.shell.shellChrome.nowPlayingOpen)
+        navigation.openDiscoveryPage()
+        assertFalse(store.state.value.shell.shellChrome.nowPlayingOpen)
+        assertEquals(SharedRoute.Home, store.state.value.shell.shellChrome.selectedRoute)
+    }
+
     @Test fun leavingDiscoveryStopsThePreviewAndClearsItsNestedDestinations() {
         val store = NaviampCoreStateStore()
         var stopped = 0

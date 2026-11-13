@@ -2,6 +2,9 @@ package app.naviamp.ui
 
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.*
+import androidx.compose.runtime.mutableStateOf
+import app.naviamp.domain.settings.HomeSectionIds
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.onNodeWithTag
@@ -14,6 +17,25 @@ import kotlin.test.assertEquals
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampTelevisionHomeCollectionTest {
+    @Test fun aurralHomeEntryMovesBetweenRailsAndRemainsRemoteReachable() = runDesktopComposeUiTest(1000, 900) {
+        val content = mutableStateOf(SharedHomeUi(collectionSections = listOf(section())))
+        setContent {
+            TelevisionHome(NaviampHomeScreenUi(content = content.value, providerDiscovery = SharedProviderDiscoveryUi(
+                app.naviamp.domain.provider.ProviderIdAurral, isCompanion = true)), NaviampColors.Dark,
+                homeActions(), mediaActions(), DiscoverySamplePlaybackUi(), entryFocusGeneration = 1)
+        }
+        onNodeWithText("Aurral companion").assertIsFocused()
+        onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        onNode(isFocused()).assert(hasAnyDescendant(hasText("Album")))
+        onRoot().performKeyInput { pressKey(Key.DirectionUp) }
+        onNodeWithText("Aurral companion").assertIsFocused()
+        runOnIdle { content.value = content.value.copy(homeSectionOrder = listOf(HomeSectionIds.RecentAlbums, HomeSectionIds.Aurral)) }
+        kotlin.test.assertTrue(onNodeWithText("Aurral companion").fetchSemanticsNode().boundsInRoot.top >
+            onNodeWithText("Album").fetchSemanticsNode().boundsInRoot.top)
+        runOnIdle { content.value = content.value.copy(aurralHomeVisible = false) }
+        onNodeWithText("Aurral companion").assertDoesNotExist()
+    }
+
     @Test
     fun homeRailExposesRemoteReachableViewAllAction() = runComposeUiTest {
         val opened = mutableListOf<String>()

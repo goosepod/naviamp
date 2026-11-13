@@ -45,7 +45,8 @@ CREATE TABLE media_source (
   provider_identity_probe_server_version TEXT,
   selected_music_folder_ids_json TEXT,
   password TEXT,
-  authentication_mode TEXT NOT NULL DEFAULT 'token'
+  authentication_mode TEXT NOT NULL DEFAULT 'token',
+  aurral_companion TEXT
 );
 
 CREATE TABLE library_artist (
@@ -2092,3 +2093,6 @@ WHERE source_id = ? AND account_key = ? AND request_key = ?;
 upsertDiscoveryAcquisition:
 INSERT OR REPLACE INTO discovery_acquisition(source_id, account_key, request_key, payload, created_at_epoch_millis)
 VALUES (?, ?, ?, ?, ?);
+
+updateAurralCompanion:
+UPDATE media_source SET aurral_companion = :payload WHERE id = :sourceId OR server_connection_key = :serverConnectionKey;

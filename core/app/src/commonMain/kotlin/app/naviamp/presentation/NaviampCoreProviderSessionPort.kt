@@ -65,6 +65,10 @@ interface NaviampCoreProviderSessionPort {
         plan: NaviampConnectionAttemptPlan,
     ): NaviampCoreConnectedSession
 
+    suspend fun saveAurralCompanion(sourceId: String, companion: app.naviamp.domain.source.AurralCompanion) {
+        error("Companion persistence is unavailable.")
+    }
+
     suspend fun editableConnection(id: String): NaviampCoreEditableConnection
 
     suspend fun currentProvisioningConnection(): NaviampCoreEditableConnection? =

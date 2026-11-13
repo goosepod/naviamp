@@ -1,6 +1,7 @@
 package app.naviamp.storage
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import app.naviamp.domain.settings.toSettingsSyncServerProfile
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.source.ConnectionHeaderDefinition
 import app.naviamp.domain.source.ConnectionSecondaryUrl
@@ -12,6 +13,85 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class StorageMediaSourceStoreTest {
+    @Test fun importingAnotherLibraryScopeRetainsTheCompanionSecretForTheSamePrimaryConnection() {
+        withDatabase { database ->
+            val store = StorageMediaSourceStore(database.naviampStorageQueries, { 42L }, ReversingCredentialProtector)
+            val first = store.upsertProviderMediaSource(providerConnection().copy(selectedMusicFolderIds = listOf("one")), "scope-one", "navidrome")
+            val companion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "companion-secret")
+            store.updateAurralCompanion(first.id, companion)
+            val profile = store.mediaSource(first.id)!!.toSettingsSyncServerProfile().copy(selectedMusicFolderIds = listOf("two"))
+            app.naviamp.domain.settings.importSettingsSyncServerProfiles(listOf(profile), store)
+            assertEquals(2, store.mediaSources().size)
+            assertTrue(store.mediaSources().all { it.aurralCompanion == companion })
+            assertEquals(providerConnection().token, store.mediaSource(first.id)!!.token)
+        }
+    }
+
+    @Test fun brokenOptionalCompanionPayloadsDoNotHideOrRewriteThePrimaryAccount() {
+        for (payload in listOf("broken-json", "unreadable")) withDatabase { database ->
+            val queries = database.naviampStorageQueries
+            val original = StorageMediaSourceStore(queries, { 42L })
+            val source = original.upsertProviderMediaSource(providerConnection(), "primary", "navidrome")
+            queries.updateAurralCompanion(payload, source.id, "__none__")
+            val protector = object : StorageCredentialProtector {
+                override fun protect(value: String?) = value
+                override fun reveal(value: String?) = value.takeUnless { it == "unreadable" }
+                override fun isProtected(value: String?) = true
+            }
+            val store = StorageMediaSourceStore(queries, { 43L }, protector)
+            val saved = store.mediaSources().single()
+            assertEquals(source.id, saved.id)
+            assertEquals(providerConnection().token, saved.token)
+            val companion = checkNotNull(saved.aurralCompanion)
+            assertTrue(companion.enabled)
+            assertEquals("", companion.baseUrl)
+            assertEquals(payload, queries.selectMediaSourceById(source.id).executeAsOne().aurral_companion)
+        }
+    }
+
+    @Test fun credentialProtectionMigrationCannotCopyACompanionIntoAnotherLegacyConnection() {
+        JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
+            NaviampStorageDatabase.Schema.create(driver)
+            val database = NaviampStorageDatabase(driver)
+            val old = StorageMediaSourceStore(database.naviampStorageQueries, { 42L })
+            val first = old.upsertProviderMediaSource(providerConnection(), "first", "navidrome")
+            val second = old.upsertProviderMediaSource(providerConnection().copy(username = "other-user"), "second", "navidrome")
+            driver.execute(null, "UPDATE media_source SET server_connection_key = ''", 0)
+            val companion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret")
+            old.updateAurralCompanion(first.id, companion)
+            val secured = StorageMediaSourceStore(database.naviampStorageQueries, { 43L }, ReversingCredentialProtector)
+            assertEquals(companion, secured.mediaSource(first.id)!!.aurralCompanion)
+            assertEquals(null, secured.mediaSource(second.id)!!.aurralCompanion)
+            assertEquals("other-user", secured.mediaSource(second.id)!!.username)
+        }
+    }
+
+    @Test fun companionSecretsSurviveReconnectAndPortableImportWithoutChangingThePrimaryIdentity() {
+        withDatabase { database ->
+            val store = StorageMediaSourceStore(database.naviampStorageQueries, { 42L }, ReversingCredentialProtector)
+            val primary = store.upsertProviderMediaSource(providerConnection(), "primary:cache", "navidrome")
+            val companion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "companion-user", "companion-secret")
+            store.updateAurralCompanion(primary.id, companion)
+            val raw = database.naviampStorageQueries.selectMediaSourceById(primary.id).executeAsOne()
+            assertTrue(raw.aurral_companion!!.startsWith("protected:"))
+            assertFalse(raw.aurral_companion.contains("companion-secret"))
+            val reopened = StorageMediaSourceStore(database.naviampStorageQueries, { 43L }, ReversingCredentialProtector)
+            assertEquals(companion, reopened.mediaSource(primary.id)!!.aurralCompanion)
+            reopened.upsertProviderMediaSource(providerConnection().copy(aurralCompanion = companion.withoutSecrets()),
+                "primary:cache", "navidrome", primary.id)
+            val exported = app.naviamp.domain.settings.buildSettingsSyncDocument(
+                app.naviamp.domain.settings.SettingsSyncLocalSnapshot(serverProfiles = reopened.mediaSources()), 43L, "device")
+            app.naviamp.domain.settings.importSettingsSyncServerProfiles(exported.serverProfiles, reopened)
+            val saved = reopened.mediaSource(primary.id)!!
+            assertEquals(companion, saved.aurralCompanion)
+            assertEquals("navidrome", saved.providerId)
+            assertEquals(providerConnection().token, saved.token)
+            assertEquals(1, reopened.mediaSources().size)
+            reopened.updateAurralCompanion(primary.id, companion.copy(username = "other", password = ""))
+            assertEquals("", reopened.mediaSource(primary.id)!!.aurralCompanion!!.password)
+        }
+    }
+
     @Test fun aurralReclassificationRetainsProtectedCredentialsAndCachedMediaAcrossStoreRecreation() {
         withDatabase { database ->
             val store = StorageMediaSourceStore(database.naviampStorageQueries, nowMillis = { 42L },

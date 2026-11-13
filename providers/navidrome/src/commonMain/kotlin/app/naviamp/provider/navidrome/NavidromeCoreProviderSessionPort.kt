@@ -51,7 +51,7 @@ fun interface NavidromeProviderSessionOpener {
 
 /** Provider-common implementation of Core's complete provider-session boundary. */
 class NavidromeCoreProviderSessionPort(
-    private val mediaSources: MediaSourceRepository,
+    internal val mediaSources: MediaSourceRepository,
     private val sessionOpener: NavidromeProviderSessionOpener,
     initialSource: SavedMediaSource? = null,
     private val applyTlsDefaults: (NavidromeConnection) -> Unit = {},
@@ -295,14 +295,14 @@ class NavidromeCoreProviderSessionPort(
 fun subsonicFamilyProviderSessionRouter(
     sessionPort: NavidromeCoreProviderSessionPort,
     additionalRoutes: List<NaviampCoreProviderSessionRoute> = emptyList(),
-): NaviampCoreProviderSessionPort = NaviampCoreProviderSessionRouter(
+): NaviampCoreProviderSessionPort = app.naviamp.provider.aurral.AurralCompanionSessionPort(NaviampCoreProviderSessionRouter(
     routes = listOf(
         NaviampCoreProviderSessionRoute(
             providerIds = setOf(ProviderIdNavidrome, ProviderIdSubsonic, ProviderIdBandcamp, app.naviamp.domain.provider.ProviderIdAurral),
             sessionPort = sessionPort,
         ),
     ) + additionalRoutes,
-)
+), sessionPort.mediaSources)
 
 private fun SavedMediaSource.supportsSubsonicSession(): Boolean = providerDescriptor(providerId).let { provider ->
     provider.selectable && provider.protocolFamily == ProviderProtocolFamily.Subsonic

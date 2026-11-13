@@ -492,4 +492,9 @@
     <string name="tv_repeat_all">全部循环</string>
     <string name="tv_repeat_one">单曲循环</string>
     <string name="tv_start_radio">开始电台</string>
+    <string name="connection_aurral_companion">Aurral 配套服务</string>
+    <string name="connection_aurral_companion_guidance">使用 Aurral 发现和请求音乐。音乐服务器继续管理曲库和播放。</string>
+    <string name="connection_aurral_companion_invalid">请输入 Aurral 的 HTTP 或 HTTPS 服务器地址及用户名。</string>
+    <string name="discovery_find_in_aurral">在 Aurral 中查找</string>
+    <string name="connection_aurral_companion_save_failed">无法保存 Aurral 配套服务。音乐服务器连接未更改。</string>
 </resources>

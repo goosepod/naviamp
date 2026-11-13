@@ -852,6 +852,7 @@ private fun TelevisionConnectionScreen(
                 form = connection.form,
                 colors = colors,
                 isReconnect = connection.editingSavedConnection,
+                saveWithoutReconnect = connection.saveWithoutReconnect,
                 isConnecting = connection.isConnecting,
                 connectionStatus = connection.status,
                 connectionStatusIsError = connection.statusIsError,

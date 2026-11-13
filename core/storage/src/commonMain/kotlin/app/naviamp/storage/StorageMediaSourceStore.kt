@@ -14,6 +14,7 @@ import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.source.normalizedMusicFolderIds
 import app.naviamp.domain.source.visibleServerConnections
 import app.naviamp.domain.source.stableMediaSourceId
+import app.naviamp.domain.source.effectiveServerConnectionKey
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
@@ -46,6 +47,21 @@ class StorageMediaSourceStore(
     private val identityMigrations = StorageProviderIdentityMigrationStore(queries, json)
     init {
         migrateStoredCredentials()
+    }
+
+    override fun updateAurralCompanion(sourceId: String, companion: app.naviamp.domain.source.AurralCompanion) {
+        val saved = requireNotNull(mediaSource(sourceId))
+        require(saved.providerId != app.naviamp.domain.provider.ProviderIdAurral)
+        val key = saved.effectiveServerConnectionKey()
+        val normalized = companion.normalized()
+        fun sameAccount(previous: app.naviamp.domain.source.AurralCompanion): Boolean =
+            previous.baseUrl == normalized.baseUrl && previous.username == normalized.username
+        val previous = saved.aurralCompanion?.normalized()?.takeIf(::sameAccount)
+            ?: mediaSources().asSequence().filter { it.effectiveServerConnectionKey() == key }
+                .mapNotNull { it.aurralCompanion?.normalized() }.firstOrNull(::sameAccount)
+        val value = normalized.retainingSecretsFrom(previous)
+        val payload = protectRequiredCredential(json.encodeToString(app.naviamp.domain.source.AurralCompanion.serializer(), value), "Aurral companion")
+        queries.updateAurralCompanion(payload, sourceId, key)
     }
 
     override fun latestMediaSource(): SavedMediaSource? =
@@ -96,7 +112,7 @@ class StorageMediaSourceStore(
         cacheNamespace: String,
         providerId: String,
         preferredSourceId: String?,
-    ): MediaSourceIdentity {
+    ): MediaSourceIdentity = queries.transactionWithResult {
         val now = nowMillis()
         val existingForNamespace = queries.selectMediaSourceByCacheNamespace(cacheNamespace).executeAsOneOrNull()
         val preferred = preferredSourceId?.let { sourceId ->
@@ -167,7 +183,8 @@ class StorageMediaSourceStore(
             last_library_scan_signature = existing?.last_library_scan_signature,
             last_library_scan_checked_at_epoch_millis = existing?.last_library_scan_checked_at_epoch_millis,
         )
-        return MediaSourceIdentity(
+        connection.aurralCompanion?.let { updateAurralCompanion(id, it) }
+        MediaSourceIdentity(
             id = id,
             cacheNamespace = cacheNamespace,
             displayName = connection.displayName,
@@ -314,9 +331,21 @@ class StorageMediaSourceStore(
             }.getOrDefault(emptyList())
         }.orEmpty()
 
+    /** A broken optional account must remain repairable without breaking the primary source. */
+    private fun decodeAurralCompanion(payload: String?): app.naviamp.domain.source.AurralCompanion? {
+        if (payload == null) return null
+        return try {
+            credentialProtector.reveal(payload)?.let {
+                json.decodeFromString(app.naviamp.domain.source.AurralCompanion.serializer(), it)
+            } ?: app.naviamp.domain.source.AurralCompanion(enabled = true)
+        } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (_: Exception) { app.naviamp.domain.source.AurralCompanion(enabled = true) }
+    }
+
     private fun Media_source.toSavedMediaSource(): SavedMediaSource =
         SavedMediaSource(
             id = id,
+            aurralCompanion = decodeAurralCompanion(aurral_companion),
             providerId = provider_id,
             cacheNamespace = cache_namespace,
             displayName = display_name.takeUnless { it == "Navidrome" } ?: base_url,
@@ -355,6 +384,11 @@ class StorageMediaSourceStore(
     private fun migrateStoredCredentials() {
         if (credentialProtector === PassthroughStorageCredentialProtector) return
         queries.selectMediaSources().executeAsList().forEach { source ->
+            source.aurral_companion?.takeIf { !credentialProtector.isProtected(it) }?.let { payload ->
+                queries.updateAurralCompanion(protectRequiredCredential(payload, "Aurral companion"), source.id,
+                    source.server_connection_key?.takeIf { it.isNotBlank() }
+                        ?: app.naviamp.domain.source.stableServerConnectionKey(source.provider_id, source.base_url, source.username))
+            }
             val customHeaders = source.custom_headers_json?.let {
                 runCatching {
                     json.decodeFromString(ListSerializer(ConnectionHeaderDefinition.serializer()), it)

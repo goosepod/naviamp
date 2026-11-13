@@ -53,8 +53,7 @@ class NaviampDiscoveryReleasePageTest {
                         else SharedHomeRoute(NaviampColors.Dark, home, callbacks, NaviampMediaActions({}, {}), DiscoverySamplePlaybackUi())
                     }
                 }
-                onNodeWithText("Deluxe edition", substring = true).performScrollTo().assertIsDisplayed()
-                onNodeWithText("Deluxe edition · 2026-02-03 · Official").assertDoesNotExist()
+                onNodeWithText("Deluxe edition", substring = true).assertDoesNotExist()
                 onNodeWithText("Disc 1").performScrollTo().assertIsDisplayed()
                 onNodeWithContentDescription("Play sample").performScrollTo().performClick()
                 runOnIdle { assertEquals(listOf("sample"), actions) }
@@ -66,6 +65,14 @@ class NaviampDiscoveryReleasePageTest {
                 onNodeWithText("Disc 2").performScrollTo().assertIsDisplayed()
                 onNodeWithText("Preview unavailable").performScrollTo().assertIsDisplayed()
                 onNodeWithText("1:10").assertIsDisplayed()
+                onNodeWithText("Editions").performScrollTo()
+                assertTrue(onNodeWithText("Editions").fetchSemanticsNode().boundsInRoot.top >
+                    onNodeWithText("1:10").fetchSemanticsNode().boundsInRoot.top)
+                onNodeWithText("Editions").performClick()
+                onNodeWithText("Deluxe edition", substring = true).performScrollTo().assertIsDisplayed()
+                onNodeWithText("Deluxe edition · 2026-02-03 · Official").assertDoesNotExist()
+                onNodeWithText("Editions").performClick()
+                onNodeWithText("Deluxe edition", substring = true).assertDoesNotExist()
                 System.getenv("NAVIAMP_DISCOVERY_RELEASE_CAPTURE")?.let { directory ->
                     java.io.File(directory).mkdirs()
                     javax.imageio.ImageIO.write(onRoot().captureToImage().toAwtImage(), "png",

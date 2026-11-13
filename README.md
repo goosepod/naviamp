@@ -125,7 +125,7 @@ Ask on Discord before uninstalling: uninstalling erases local app data.
 
 | Service | What Naviamp brings |
 | --- | --- |
-| **Aurral** | Connect directly for music discovery, samples that preserve your main queue, library requests and artist monitoring, subject to server capabilities and account permissions. |
+| **Aurral** | Connect directly, or enable an Aurral companion in another music server’s connection settings. Discovery, samples, requests and artist monitoring use Aurral; the primary server keeps its library and playback. Availability depends on server capabilities and account permissions. |
 | **Navidrome** | The fullest experience, including native authentication, smart playlists, ratings, favorites, rich OpenSubsonic features, and sonic discovery when enabled on the server. |
 | **Subsonic and OpenSubsonic** | Connect compatible self-hosted servers through the standard protocol. Naviamp detects advertised capabilities and shows only the features the server can provide. |
 | **Jellyfin** | Connect directly to Jellyfin music libraries for browsing, search, playback, downloads, playlists, lyrics, and favorites. |

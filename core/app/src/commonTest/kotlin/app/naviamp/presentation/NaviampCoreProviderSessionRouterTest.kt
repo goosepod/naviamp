@@ -12,6 +12,18 @@ import kotlin.test.assertSame
 import kotlin.test.assertNull
 
 class NaviampCoreProviderSessionRouterTest {
+    @Test fun nestedRoutersForwardCompanionEditsToTheSavedAccountsOwnerWithoutConnectingIt() = runTest {
+        val subsonic = RecordingSessionPort(inventory())
+        val jellyfin = RecordingSessionPort(inventory())
+        val inner = router(subsonic, jellyfin)
+        val outer = NaviampCoreProviderSessionRouter(listOf(NaviampCoreProviderSessionRoute(setOf("subsonic", "jellyfin"), inner)))
+        val companion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.test", "secondary")
+        outer.saveAurralCompanion("jellyfin-source", companion)
+        assertEquals(listOf("jellyfin-source" to companion), jellyfin.companions)
+        assertEquals(emptyList(), subsonic.companions)
+        assertEquals(emptyList(), subsonic.connections + jellyfin.connections)
+    }
+
     @Test fun importedProviderChangesRouteImmediatelyWithoutReplacingTheActiveSession() = runTest {
         val original = inventory().copy(currentSourceId = "subsonic-source")
         val subsonic = RecordingSessionPort(original)
@@ -197,6 +209,10 @@ private class RecordingSessionPort(
 ) : NaviampCoreProviderSessionPort {
     val provider = RecordingProvider(failReports = false)
     val connections = mutableListOf<String>()
+    val companions = mutableListOf<Pair<String, app.naviamp.domain.source.AurralCompanion>>()
+    override suspend fun saveAurralCompanion(sourceId: String, companion: app.naviamp.domain.source.AurralCompanion) {
+        companions += sourceId to companion
+    }
     var refreshCalls = 0
     var persistCalls = 0
     var editableCalls = 0

@@ -492,4 +492,9 @@
     <string name="tv_repeat_all">全曲リピート</string>
     <string name="tv_repeat_one">1曲リピート</string>
     <string name="tv_start_radio">ラジオを開始</string>
+    <string name="connection_aurral_companion">Aurral 連携</string>
+    <string name="connection_aurral_companion_guidance">Aurral で音楽の発見やリクエストができます。ライブラリと再生は引き続き音楽サーバーが管理します。</string>
+    <string name="connection_aurral_companion_invalid">Aurral の HTTP または HTTPS サーバー URL とユーザー名を入力してください。</string>
+    <string name="discovery_find_in_aurral">Aurral で検索</string>
+    <string name="connection_aurral_companion_save_failed">Aurral 連携を保存できませんでした。音楽サーバーへの接続は変更されていません。</string>
 </resources>

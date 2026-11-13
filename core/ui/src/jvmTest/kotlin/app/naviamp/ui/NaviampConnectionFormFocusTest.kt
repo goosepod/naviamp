@@ -16,11 +16,41 @@ import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.runDesktopComposeUiTest
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.graphics.toAwtImage
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampConnectionFormFocusTest {
+    @Test fun companionFieldsEditTheirOwnAccountAndKeepOnePrimarySaveButton() = runDesktopComposeUiTest(850, 1100) {
+        val form = mutableStateOf(ConnectionFormState(serverUrl = "https://primary.example", username = "primary",
+            aurralCompanion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret")))
+        setContent {
+            androidx.compose.material3.MaterialTheme(colorScheme = androidx.compose.material3.darkColorScheme()) {
+                NaviampConnectionForm(form.value, NaviampColors.Dark, true, saveWithoutReconnect = true,
+                    onFormChanged = { form.value = it }, onConnect = {}, onCancel = {})
+            }
+        }
+        onNodeWithTag("aurral-companion-" + ConnectionServerUrlFieldTestTag).performTextReplacement("https://new-aurral.example")
+        onNodeWithTag("aurral-companion-" + ConnectionUsernameFieldTestTag).performTextReplacement("new-secondary")
+        assertEquals("https://primary.example", form.value.serverUrl)
+        assertEquals("primary", form.value.username)
+        assertEquals("https://new-aurral.example", form.value.aurralCompanion!!.baseUrl)
+        assertEquals("new-secondary", form.value.aurralCompanion!!.username)
+        onNodeWithTag(ConnectionConnectButtonTestTag).assertExists()
+        onNodeWithText("Save").assertExists()
+        onNodeWithTag("aurral-companion-" + ConnectionConnectButtonTestTag).assertDoesNotExist()
+        assertEquals("", form.value.aurralCompanion!!.password)
+        System.getenv("NAVIAMP_COMPANION_CAPTURE_DIR")?.let { directory ->
+            val target = java.io.File(directory, "companion-connection.png").also { it.parentFile.mkdirs() }
+            javax.imageio.ImageIO.write(onRoot().captureToImage().toAwtImage(), "png", target)
+        }
+    }
+
     @Test
     fun editedConnectionCanExitByVisibleBackOrSystemBackWithoutConnecting() = runComposeUiTest {
         val open = mutableStateOf(true)

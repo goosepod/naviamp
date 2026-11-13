@@ -61,6 +61,7 @@ internal fun NaviampDiscoveryBrowserUi(discovery: SharedProviderDiscoveryUi, col
         }), colors, { send(DiscoveryBrowseAction.Close) }, backFocus, discovery.providerId,
             onRefresh = { send(DiscoveryBrowseAction.Refresh) }, refreshing = screen.loading,
             onRequests = actions.onDiscoveryRequests, entryFocusGeneration = entryFocusGeneration, onEntryFocusHandled = onEntryFocusHandled)
+        discovery.contextQuery?.let { DiscoveryText(it, Modifier.padding(12.dp), color = colors.primaryText) }
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
         val columns = if (maxWidth >= 1000.dp) 3 else if (maxWidth >= 660.dp) 2 else 1
         LazyColumn(Modifier.fillMaxSize().testTag("discovery-browser-list"), state = list, contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

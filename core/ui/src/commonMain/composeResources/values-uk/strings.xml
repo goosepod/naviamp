@@ -492,4 +492,9 @@
     <string name="tv_repeat_all">Повторювати все</string>
     <string name="tv_repeat_one">Повторювати трек</string>
     <string name="tv_start_radio">Увімкнути радіо</string>
+    <string name="connection_aurral_companion">Aurral як доповнення</string>
+    <string name="connection_aurral_companion_guidance">Використовуйте Aurral для відкриття музики та запитів. Музичний сервер і надалі керує медіатекою та відтворенням.</string>
+    <string name="connection_aurral_companion_invalid">Введіть HTTP- або HTTPS-адресу сервера Aurral та ім’я користувача.</string>
+    <string name="discovery_find_in_aurral">Знайти в Aurral</string>
+    <string name="connection_aurral_companion_save_failed">Не вдалося зберегти підключення Aurral. Підключення до музичного сервера не змінилося.</string>
 </resources>

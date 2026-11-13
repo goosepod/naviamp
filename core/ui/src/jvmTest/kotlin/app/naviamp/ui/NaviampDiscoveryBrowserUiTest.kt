@@ -15,6 +15,22 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampDiscoveryBrowserUiTest {
+    @Test fun companionRadioContextUsesReadableTextWithoutRepeatingConnectionGuidance() = runDesktopComposeUiTest(1100, 800) {
+        val context = "The Radiators - Zigzagging Through Ghostland"
+        val page = mutableStateOf(discoveryPageFixture().copy(isCompanion = true, artistPage = false, artistDetail = null,
+            contextQuery = context, browser = DiscoveryBrowserState(page = DiscoveryBrowsePage.Search)))
+        setContent {
+            MaterialTheme(colorScheme = androidx.compose.material3.lightColorScheme()) {
+                NaviampDiscoveryBrowserUi(page.value, NaviampColors.Dark, discoveryPageFixtureActions(page, mutableListOf()))
+            }
+        }
+        val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+        onNodeWithText(context).assertIsDisplayed().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        assertEquals(NaviampColors.Dark.primaryText, layouts.single().layoutInput.style.color)
+        onNodeWithText("Use Aurral for discovery and requests. Your music server keeps control of your library and playback.").assertDoesNotExist()
+        captureBrowser("companion-context", 1100)
+    }
+
     @Test fun televisionHubCardsSupportDirectionalActivationAndConsumeSystemBack() = runDesktopComposeUiTest(1280, 800) {
         val page = mutableStateOf(discoveryPageFixture().copy(artistPage = false, artistDetail = null,
             browser = DiscoveryBrowserState(page = DiscoveryBrowsePage.Hub)))
