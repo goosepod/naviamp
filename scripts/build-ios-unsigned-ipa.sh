@@ -40,6 +40,7 @@ mark_phase() {
 
 mark_phase archive start
 xcodebuild \
+    -hideShellScriptEnvironment \
     -showBuildTimingSummary \
     -project "$repo_root/apps/ios/Naviamp.xcodeproj" \
     -scheme Naviamp \
