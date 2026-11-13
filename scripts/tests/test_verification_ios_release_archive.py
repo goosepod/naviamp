@@ -19,6 +19,43 @@ def valid(seconds=100):
 
 
 class ReleaseArchiveEvidenceTest(unittest.TestCase):
+    def hosted_pair(self):
+        baseline, candidate = self.toolchain_pair()
+        for result in (baseline, candidate):
+            result['workload']['runner'] = dict(ImageVersion='same-image', logicalCpus=3, memoryBytes='same')
+        jobs = [dict(id=1, name='iOS cold compiler (baseline)', run_id=1, head_sha='candidate',
+                     conclusion='success', started_at='2026-11-13T00:00:00Z', completed_at='2026-11-13T00:02:30Z', steps=[]),
+                dict(id=2, name='iOS cold compiler (candidate)', run_id=1, head_sha='candidate',
+                     conclusion='success', started_at='2026-11-13T00:00:00Z', completed_at='2026-11-13T00:01:00Z', steps=[])]
+        return baseline, candidate, jobs
+
+    def test_hosted_compiler_result_uses_complete_jobs_including_setup_and_upload(self):
+        with patch.object(ARCHIVE.CACHE, 'command', side_effect=self.toolchain_sources()):
+            result = ARCHIVE.compare_hosted_toolchain(ROOT, *self.hosted_pair())
+        self.assertEqual(60, result['wholeJobImprovementPercent'])
+        self.assertEqual(75, result['linkImprovementPercent'])
+        self.assertTrue(result['hostedImprovementEstablished'])
+
+    def test_failed_or_mismatched_hosted_jobs_and_images_are_not_accepted(self):
+        for mutation in ('failed', 'workflow_source', 'run', 'missing', 'image', 'clock'):
+            baseline, candidate, jobs = self.hosted_pair()
+            if mutation == 'failed': jobs[0]['conclusion'] = 'failure'
+            if mutation == 'workflow_source': jobs[0]['head_sha'] = 'unrelated'
+            if mutation == 'run': jobs[0]['run_id'] = 2
+            if mutation == 'missing': jobs.pop()
+            if mutation == 'image': candidate['workload']['runner']['ImageVersion'] = 'different'
+            if mutation == 'clock': jobs[0]['completed_at'] = jobs[0]['started_at']
+            with self.subTest(mutation=mutation), patch.object(ARCHIVE.CACHE, 'command', side_effect=self.toolchain_sources()), self.assertRaises(ValueError):
+                ARCHIVE.compare_hosted_toolchain(ROOT, baseline, candidate, jobs)
+
+    def test_cold_benchmark_cannot_read_or_write_production_compiler_caches(self):
+        workflow = (ROOT / '.github/workflows/ios-cache.yml').read_text()
+        benchmark = workflow.split('  cold-compiler:', 1)[1].split('  populate:', 1)[0]
+        self.assertNotIn('actions/cache/', benchmark)
+        self.assertNotIn('uses: ./.github/actions/ios-cache', benchmark)
+        self.assertNotIn('secrets.', benchmark)
+        self.assertIn("inputs.mode != 'cold-compiler-benchmark'", workflow)
+
     def toolchain_pair(self):
         baseline, candidate = valid(100), valid(30)
         for result, source, version, millis in ((baseline, 'baseline', '2.3.21', 80_000),

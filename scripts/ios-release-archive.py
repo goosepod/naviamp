@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Opt-in, isolated measurements of the actual optimized unsigned iOS archive."""
 import argparse
+from datetime import datetime
 import hashlib
 import importlib.util
 import json
@@ -27,7 +28,10 @@ def identity(root, profile_phases=False, cold_compile=False):
         java_env.pop(key, None)
     java = subprocess.run(['java', '-version'], check=True, text=True, env=java_env,
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.strip()
-    return dict(source=source, dirty=dirty, compatibility=inputs, prefix=prefix, java=java,
+    runner = {key: os.environ.get(key) for key in ('ImageOS', 'ImageVersion', 'RUNNER_ARCH')}
+    runner.update(logicalCpus=os.cpu_count(), memoryBytes=CACHE.command('sysctl', '-n', 'hw.memsize'),
+                  cpuModel=CACHE.command('sysctl', '-n', 'machdep.cpu.brand_string'))
+    return dict(source=source, dirty=dirty, compatibility=inputs, prefix=prefix, java=java, runner=runner,
                 configuration='Release', architecture='arm64', archiveHeapGiB=6,
                 profilePhases=profile_phases, coldCompile=cold_compile, compilerBuildReports=True)
 
@@ -211,6 +215,38 @@ def compare_toolchain(root, baseline, candidate):
                 note='Controlled local compiler comparison; runtime/Android checks and matched hosted validation remain required.')
 
 
+def compare_hosted_toolchain(root, baseline, candidate, jobs):
+    result = compare_toolchain(root, baseline, candidate)
+    selected = {}
+    for job in jobs:
+        if job['name'] in ('iOS cold compiler (baseline)', 'iOS cold compiler (candidate)'):
+            if job['name'] in selected or job['conclusion'] != 'success' or job['head_sha'] != candidate['workload']['source']:
+                raise ValueError('Hosted source/run jobs must be successful and unambiguous')
+            selected[job['name']] = job
+    if len(selected) != 2 or len({job['run_id'] for job in selected.values()}) != 1:
+        raise ValueError('Need both compiler jobs from the same workflow run')
+    if not baseline['workload'].get('runner', {}).get('ImageVersion'):
+        raise ValueError('Hosted runner-image evidence is required')
+    def elapsed(start, end):
+        duration = (datetime.fromisoformat(end.replace('Z', '+00:00')) - datetime.fromisoformat(start.replace('Z', '+00:00'))).total_seconds()
+        if duration < 0:
+            raise ValueError('Invalid job clock')
+        return duration
+    durations = []
+    for variant, archive_result in (('baseline', baseline), ('candidate', candidate)):
+        job = selected['iOS cold compiler (' + variant + ')']
+        seconds = elapsed(job['started_at'], job['completed_at'])
+        if seconds < archive_result['totalSeconds']:
+            raise ValueError('Job duration cannot contain the measured archive')
+        durations.append(seconds)
+    improvement = (durations[0] - durations[1]) * 100 / durations[0]
+    result.update(baselineJobSeconds=durations[0], candidateJobSeconds=durations[1],
+                  wholeJobImprovementPercent=improvement, hostedImprovementEstablished=improvement > 0,
+                  jobs=[dict(id=job['id'], name=job['name'], steps=job['steps']) for job in selected.values()],
+                  note='Fresh hosted whole-job comparison includes setup, dependency downloads, archive validation and artifact uploads. Queue wait is excluded; no compiler caches are restored or saved.')
+    return result
+
+
 def archive(root, cache_root, report, profile_phases=False, cold_compile=False):
     workload = identity(root, profile_phases, cold_compile)
     if workload['dirty']:
@@ -255,12 +291,17 @@ def main():
     toolchain = commands.add_parser('compare-toolchain')
     toolchain.add_argument('--baseline', type=Path, required=True)
     toolchain.add_argument('--candidate', type=Path, required=True)
+    toolchain.add_argument('--jobs', type=Path, help='GitHub API jobs for a matched hosted whole-job result')
     args = parser.parse_args()
     if args.command == 'event':
         event(Path(os.environ['NAVIAMP_IOS_ARCHIVE_REPORT_DIR']), args.phase, args.state)
     elif args.command == 'archive':
         raise SystemExit(archive(ROOT, args.cache_root, args.report, args.profile_phases, args.cold_compile))
     elif args.command in ('compare-cold', 'compare-toolchain'):
+        if args.command == 'compare-toolchain' and args.jobs:
+            print(json.dumps(compare_hosted_toolchain(ROOT, json.loads(args.baseline.read_text()),
+                json.loads(args.candidate.read_text()), json.loads(args.jobs.read_text())), indent=2))
+            return
         comparison = compare_cold if args.command == 'compare-cold' else compare_toolchain
         print(json.dumps(comparison(ROOT, json.loads(args.baseline.read_text()),
                                       json.loads(args.candidate.read_text())), indent=2))
