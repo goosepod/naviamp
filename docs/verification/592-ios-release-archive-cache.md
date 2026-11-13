@@ -85,26 +85,24 @@ three-method `StorageCredentialProtector` contract. Its generated header has 9,8
 336 interface declarations and 79 protocol declarations. Those counts describe the original
 export surface, not independent app capabilities.
 
-The candidate moves the identical interface, retaining its package and methods, into the shared
-`core:storage-api` module. Storage exposes that dependency through `api`, so Kotlin consumers
-continue using the same contract. The iOS framework exports only `storage-api`; storage remains
-an implementation dependency. Swift source and native Keychain behavior are unchanged.
+The rejected prototype moved the identical interface, retaining its package and methods, into a
+shared `core:storage-api` module. Storage exposed that dependency through `api`, preserving the
+Kotlin contract. The framework exported only `storage-api`; storage remained an implementation
+dependency. Swift source and native Keychain behavior were unchanged.
 
 Kotlin's [binary export documentation](https://kotlinlang.org/docs/multiplatform/multiplatform-build-native-binaries.html#export-dependencies-to-binaries)
 explains that exporting a dependency retains its API and limits dead-code elimination, increasing
-compile time and binary size. Narrowing this surface is a measured candidate, not yet a claimed
-speedup. Release optimization remains enabled. No platform production Kotlin/Swift files change;
-the iOS build metadata controls the Objective-C framework export boundary.
+compile time and binary size. This motivated measuring the narrower surface. The completed
+experiment below rejected it. Release optimization remained enabled. No platform production
+Kotlin/Swift files changed; build metadata controlled the Objective-C framework export boundary.
 
-The candidate's generated header has 202 lines, 19 interface declarations and four protocol
-declarations. Its application initializer and all three credential methods retain their Swift
-names and signatures; storage/query implementation types are absent. These early API checks
-do not replace a completed Swift link and validated archive.
+The prototype's generated header had 202 lines, 19 interface declarations and four protocol
+declarations. Its application initializer and all three credential methods retained their Swift
+names and signatures; storage/query implementation types were absent.
 
-Before accepting this candidate, compile the shared contract for Android/JVM/device/simulator,
-run existing credential-persistence regressions, build and validate a fresh Release IPA, confirm
-the unchanged Swift host compiles, inspect the generated API and binary size, and run matched
-phase-profiled baseline/candidate archives. Keep iterations local until ready for final CI.
+Acceptance required shared contract compilation for Android/JVM/device/simulator, credential
+regressions, a validated fresh Release IPA with the unchanged Swift host, API/binary inspection,
+and matched phase-profiled archives. These checks ran locally before the prototype was rejected.
 
 Local shared verification passed all four compilation targets, the architecture guard and nine
 `StorageMediaSourceStoreTest` cases, with zero failures/errors/skips. The first fresh candidate
@@ -171,3 +169,70 @@ References: [Kotlin 2.4 native changes](https://kotlinlang.org/docs/whatsnew24.h
 [Kotlin build reports](https://kotlinlang.org/docs/gradle-compilation-and-caches.html#build-reports).
 KT-84412's public issue metadata lists 2.3.20-RC as a fix version, so 2.3.21 already contains it;
 do not cite that regression as a missing fix addressed by this upgrade.
+
+### Full-export compiler trials
+
+The full-export 2.4.21 trial spent longer than the old control in the optimized link and was
+intentionally interrupted. It has no validated archive and is excluded from completed timing
+comparisons. The public [KT-85168](https://youtrack.jetbrains.com/issue/KT-85168) metadata places
+the static-initializer IR refactor in 2.4.20-Beta1. This suggests testing the preceding stable
+2.4.10 compiler; it does not establish the cause of the observed slowdown.
+
+The full-export 2.4.10 trial passed compilation of shared storage for JVM, Android, iOS device and
+simulator, shared UI JVM compilation, nine credential-store tests and architecture verification.
+Its actual cold Release archive passed all existing validators and compiled the unchanged Swift
+host. The archive took 764.419 seconds, including 624.838 seconds for the optimized framework
+link. No task outputs were restored. The original 9,849-line export surface remains intact.
+
+The matching 2.3.21 control completed with identical PMCS, 6 GiB heap, R8 9.1.57, SDK,
+toolchain paths, fresh source outputs and quiet file reports. Frozen source
+`cf08475259d0ff43d85893fbb5fa035b9750b555` and candidate
+`1ea72bdad1de1865d5d1426e6c73e6f59678e459` differ only in the Kotlin version catalog entry.
+Both archives passed every packaging validator. The strict comparison helper accepted the pair.
+
+| Measurement | Kotlin 2.3.21 | Kotlin 2.4.10 | Reduction |
+| --- | ---: | ---: | ---: |
+| Whole archive, seconds | 1006.342 | 764.419 | 24.0% |
+| Optimized framework link, seconds | 866.882 | 624.838 | 27.9% |
+
+This is one sequential local pair with downloaded dependencies, not a hosted whole-job result.
+Normal host background activity was not controlled. The older verbose-profiled export trials
+must not be substituted for this quiet control to inflate the compiler improvement.
+
+The same candidate passed 2,947 shared UI, storage, domain, presentation, Navidrome and Jellyfin
+JVM tests on Windows, with zero failures, errors or skipped tests, plus the architecture guard.
+Local tooling verification passed all 117 script tests. Windows desktop native tests reported
+80 cases: 73 passed and seven existing platform/environment skips (two Linux MPRIS tests, one
+optional authenticated server test, and four requiring real audio output).
+
+Android release APK/AAB, JNI preservation, native symbols and optimization checks passed, as did
+all seven Debug and seven Release unit tests. The mapping confirms R8 9.1.57, and release DEX
+size is 12,387,048 bytes against the existing 20 MB limit. AGP's bundled lint analyzer reported
+incompatible Kotlin metadata despite a successful task exit; that run is not accepted as valid
+lint coverage. A separate full Android release lint run passed with lint 9.5.1, whose published
+analyzer contains Kotlin 2.4.20-dev-6724-for-lint. Pin that stable lint release through Google's
+[documented version override](https://googlesamples.github.io/android-custom-lint-rules/usage/newer-lint.md.html)
+without disabling checks or changing AGP. Its report confirms lint 9.5.1, zero errors and zero
+metadata compatibility errors. The 17 warnings include a new compile-SDK update advisory; SDK 36
+remains unchanged.
+
+From a clean checkout using one consistent Kotlin/Native installation, all 2,579 shared iOS
+simulator tests passed with zero failures, errors or skips. Device compilation also passed. The
+fresh native replay executed all 18 playback/TLS cases with zero failures, errors or skips and
+cleaned its owned simulator and fixture resources. No assertions or test selection changed.
+An earlier local test attempt relocated the native installation while retaining generated
+references to its old path; duplicate platform libraries caused compilation to fail before tests.
+The clean-checkout rerun resolved that setup error without relaxing library validation.
+
+### Final hosted confirmation
+
+At final readiness, push the completed branch once and open its #592-linked PR for full Verify.
+Keep an ancestor checkpoint with the same code, R8, lint, GC and measurement tools but Kotlin
+2.3.21; the candidate commit changes only the Kotlin version to 2.4.10. Dispatch the existing
+`ios-cache.yml` workflow on the candidate with mode `cold-compiler-benchmark` and that checkpoint
+as `baseline_sha`. Both fresh hosted jobs build validated Release archives without restoring or
+saving compiler caches. The collector checks the source delta, runner image and hardware,
+workload flags and executed native compilation before comparing complete job durations.
+Whole-job timing includes setup, dependency downloads, validation and uploads; queue wait is
+excluded. Do not declare hosted improvement or close #592 before this evidence and full Verify
+pass. No experimental cache or production release workflow changes are required.

@@ -1,3 +1,11 @@
+buildscript {
+    repositories { google() }
+    dependencies {
+        // Kotlin 2.4 metadata requires R8 >= 9.1.29; keep the compatible AGP host unchanged.
+        classpath("com.android.tools:r8:9.1.57")
+    }
+}
+
 plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.android.library) apply false
