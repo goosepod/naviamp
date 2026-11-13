@@ -94,6 +94,11 @@ compile time and binary size. Narrowing this surface is a measured candidate, no
 speedup. Release optimization remains enabled. No platform production Kotlin/Swift files change;
 the iOS build metadata controls the Objective-C framework export boundary.
 
+The candidate's generated header has 202 lines, 19 interface declarations and four protocol
+declarations. Its application initializer and all three credential methods retain their Swift
+names and signatures; storage/query implementation types are absent. These early API checks
+do not replace a completed Swift link and validated archive.
+
 Before accepting this candidate, compile the shared contract for Android/JVM/device/simulator,
 run existing credential-persistence regressions, build and validate a fresh Release IPA, confirm
 the unchanged Swift host compiles, inspect the generated API and binary size, and run matched
@@ -110,3 +115,7 @@ Gradle task-output caches or project outputs. `--cold-compile` disables Gradle o
 the nested Xcode invocation, so compilation still executes from fresh source outputs. This measures
 cold compilation with downloaded tools/dependencies; it is not an empty-download-cache benchmark.
 Run the two archives sequentially on the same host to avoid simultaneous compiler contention.
+
+The local comparison helper accepts only that single build-file export difference and matching
+compiler/SDK/heap/profiling controls. It rejects cached optimized links, cached task outputs,
+failed archives and unrelated source changes. This produces local evidence, not a hosted result.
