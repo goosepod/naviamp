@@ -33,6 +33,7 @@ internal class NaviampCoreOutputPlaybackEffects(
 ) : NaviampCorePlaybackEffectPort {
     var cast: NaviampCoreCastPlaybackRoute? = null
     var beforeStart: () -> Unit = {}
+    var onSelectionStarted: () -> Unit = {}
 
     private val castSelected: Boolean get() =
         (outputs.state.value as? NaviampPlaybackOutputSelection.Remote)?.target?.kind == NaviampRemoteOutputKind.Cast
@@ -95,6 +96,7 @@ internal class NaviampCoreOutputPlaybackEffects(
     }
 
     override fun playQueueSelection(queue: PlaybackQueue, index: Int) {
+        onSelectionStarted()
         beforeStart()
         if (castSelected) cast?.loadCurrent() else local.playQueueSelection(queue, index)
     }

@@ -21,6 +21,7 @@ import app.naviamp.presentation.NaviampCoreApp
 import app.naviamp.presentation.NaviampCoreEnvironment
 import app.naviamp.presentation.createNaviampCore
 import app.naviamp.presentation.externalPlaybackBridge
+import app.naviamp.presentation.vehicleBrowseController
 import app.naviamp.presentation.naviampCoreSettingsValueCatalog
 import app.naviamp.presentation.naviampCoreProviderIdentitySettingsMigrationRepository
 import app.naviamp.presentation.naviampCorePlaybackServiceCatalog
@@ -324,6 +325,14 @@ class NaviampIosApplication(
     fun releaseViewController(controller: UIViewController) {
         contentViewControllers.removeAll { it.get() == null || it.get() === controller }
     }
+
+    /** Swift ABI entry point; capabilities are read from Apple's connected template environment. */
+    fun vehicleBrowseSession(
+        maximumItems: Int,
+        maximumTabs: Int,
+        changed: (Long, List<NaviampIosVehicleBrowseTab>) -> Unit,
+    ): NaviampIosVehicleBrowseSession = NaviampIosVehicleBrowseSession(scope,
+        { core.vehicleBrowseController(scope, maximumItems, maximumTabs) }, changed)
 
     fun close() {
         resetIosPlatformCoverArtByteLoader()

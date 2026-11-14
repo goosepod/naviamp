@@ -279,6 +279,10 @@ class NaviampCore private constructor(
                     stateStore.updateShell { shell -> shell.copy(home = shell.home.copy(samplePlayback = sample)) }
                 }, prepareMain = routedPlaybackEffects::prepareForPreview)
             routedPlaybackEffects.beforeStart = samplePlayback::stop
+            val selectionStarted = {
+                stateStore.update { it.copy(playbackSelectionGeneration = it.playbackSelectionGeneration + 1L) }
+            }
+            routedPlaybackEffects.onSelectionStarted = selectionStarted
             val deferredArtistNavigator = DeferredArtistNavigator()
             val mediaRegistry = NaviampCoreMediaRegistry()
             val navigation = NaviampCoreNavigationController(
@@ -381,6 +385,7 @@ class NaviampCore private constructor(
                 services.radio.playback,
                 services.radio.recents,
                 onPlaybackStarted = { station ->
+                    selectionStarted()
                     samplePlayback.stop()
                     val track = app.naviamp.domain.radio.internetRadioTrack(station)
                     queue.startQueue(listOf(track), 0)
@@ -608,6 +613,7 @@ class NaviampCore private constructor(
                 initialState.connectionInventory,
                 certificateFiles = services.certificateFiles,
                   onSourceChanging = { previousSourceId, newSourceId ->
+                    stateStore.update { it.copy(sourceGeneration = it.sourceGeneration + 1L) }
                     similarity.resetForSourceChange()
                     stateStore.updateShell { shell -> shell.copy(playback = shell.playback.copy(
                         similarityTest = app.naviamp.ui.NaviampSimilarityTestUi(), radioDiagnostics = null,

@@ -369,6 +369,12 @@ class NaviampCorePlaybackController(
         }
         effects.attach(object : NaviampCorePlaybackObserver {
             override fun onStateChanged(state: PlaybackState) {
+                stateStore.update { current -> current.copy(
+                    readyPlaybackSelectionGeneration = if (state == PlaybackState.Playing)
+                        current.playbackSelectionGeneration else -1L,
+                    failedPlaybackSelectionGeneration = if (state is PlaybackState.Error)
+                        current.playbackSelectionGeneration else -1L,
+                ) }
                 if (state == PlaybackState.Playing) connectHandoffAwaitingStart = false
                 val repeatedFinished = state == PlaybackState.Finished &&
                     playback.state.value.playbackState == PlaybackState.Finished

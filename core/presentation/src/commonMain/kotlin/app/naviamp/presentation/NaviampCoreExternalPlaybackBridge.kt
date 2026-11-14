@@ -491,6 +491,13 @@ class NaviampCoreExternalPlaybackBridge internal constructor(
                 selectQueueItem(it)
                 return true
             }
+        val command = browsePlaybackCommand(mediaId) ?: return false
+        dispatch(command)
+        return true
+    }
+
+    /** Resolve against the current catalog, then let a shared vehicle session await execution. */
+    internal fun browsePlaybackCommand(mediaId: String): NaviampCoreCommand? {
         val shell = state.value.shell
         val home = shell.home.content
         val catalog = shell.externalBrowseCatalog()
@@ -498,53 +505,42 @@ class NaviampCoreExternalPlaybackBridge internal constructor(
             mediaId.startsWith(RecentTrackMediaIdPrefix) -> home.recentlyPlayedTracks
                 .findByMediaId(mediaId, RecentTrackMediaIdPrefix, SharedTrackRowUi::id)
                 ?.let { track ->
-                    dispatch(
-                        NaviampCoreCommand.Home.RecentTrackAction(
-                            SharedTrackRowActionRequest(track, SharedTrackRowAction.Select),
-                        ),
+                    NaviampCoreCommand.Home.RecentTrackAction(
+                        SharedTrackRowActionRequest(track, SharedTrackRowAction.Select),
                     )
-                    true
-                } ?: false
+                }
             mediaId.startsWith(AlbumMediaIdPrefix) -> home.recentAlbums
                 .findByMediaId(mediaId, AlbumMediaIdPrefix, SharedMediaItemUi::id)
                 ?.let { album ->
-                    dispatch(
-                        NaviampCoreCommand.Media.ItemAction(
-                            NaviampMediaItemActionRequest(album, NaviampMediaItemCommand.PlayAlbum),
-                        ),
+                    NaviampCoreCommand.Media.ItemAction(
+                        NaviampMediaItemActionRequest(album, NaviampMediaItemCommand.PlayAlbum),
                     )
-                    true
-                } ?: false
+                }
             mediaId.startsWith(PlaylistMediaIdPrefix) -> shell.playlists.playlists.ifEmpty { home.playlists }
                 .findByMediaId(mediaId, PlaylistMediaIdPrefix, SharedMediaItemUi::id)
                 ?.let { playlist ->
-                    dispatch(
-                        NaviampCoreCommand.Media.ItemAction(
-                            NaviampMediaItemActionRequest(
-                                playlist,
-                                NaviampMediaItemCommand.Playlist(
-                                    NaviampPlaylistMediaCommand.Detail(
-                                        NaviampPlaylistDetailCommand.Play(shuffle = false),
-                                    ),
+                    NaviampCoreCommand.Media.ItemAction(
+                        NaviampMediaItemActionRequest(
+                            playlist,
+                            NaviampMediaItemCommand.Playlist(
+                                NaviampPlaylistMediaCommand.Detail(
+                                    NaviampPlaylistDetailCommand.Play(shuffle = false),
                                 ),
                             ),
                         ),
                     )
-                    true
-                } ?: false
+                }
             mediaId.startsWith(InternetRadioMediaIdPrefix) -> catalog.internetRadio
                 .findByMediaId(mediaId, InternetRadioMediaIdPrefix, SharedMediaItemUi::id)
                 ?.let { station ->
-                    dispatch(NaviampCoreCommand.Home.SelectInternetRadio(station))
-                    true
-                } ?: false
+                    NaviampCoreCommand.Home.SelectInternetRadio(station)
+                }
             mediaId.startsWith(StationMediaIdPrefix) -> catalog.stations
                 .findByMediaId(mediaId, StationMediaIdPrefix, SharedHomeStationUi::id)
                 ?.let { station ->
-                    dispatch(NaviampCoreCommand.Home.SelectStation(station))
-                    true
-                } ?: false
-            else -> false
+                    NaviampCoreCommand.Home.SelectStation(station)
+                }
+            else -> null
         }
     }
 

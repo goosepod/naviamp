@@ -109,7 +109,7 @@ Only weak phone-controller references are retained for native document presentat
 not create a phone controller. CarPlay disconnect releases its own interface/controller references.
 Application termination disposes the shared owner and native resources.
 
-The initial CarPlay adapter installs Apple's shared Now Playing template, using the application's
+At that checkpoint, the initial CarPlay adapter installed Apple's shared Now Playing template, using the application's
 existing MediaPlayer integration rather than registering a second player or remote-command center.
 The scene manifest, Xcode source lists and audio entitlement build setting are wired. This remains
 an initial Now Playing/lifecycle surface: browsing, car-visible empty/connection/error presentation,
@@ -165,3 +165,73 @@ Evidence under `build/issue-43/`: `runtime-owner-ios.log`, `runtime-renewal-test
 
 Xcode/Gradle, scene-manifest and entitlement changes are build/native registration metadata. The
 new iOS test exercises the actual native application factory. No Desktop production file changed.
+
+## Home, Playlists and Radio implementation — November 14, 2026
+
+The scene now renders a native tab bar with Home, Playlists and Radio lists, replacing the initial
+Now-Playing-only root. The common `NaviampVehicleBrowseController` obtains its rows and playback
+commands from the same `NaviampCoreExternalPlaybackBridge` used by Android Auto. Home contains
+recent tracks and recent albums. Playlists and Radio use the existing shared saved catalogs;
+album/playlist selection starts collection playback, as on Android Auto. Collection detail pages,
+full-library search, vehicle artwork, Up Next integration and Downloads remain follow-on work.
+
+The common owner controls paging, runtime item/tab budgets, translated labels, empty/loading/error
+presentation, source-bound revisions, cancellation and selection completion. Pages include shared
+Previous/Next actions instead of silently losing rows beyond the native item budget. Playback
+progress and visualizer observations do not rebuild the browse projection. Existing maintained
+resource strings supply every label; no setting, persistence schema or translation entry was added.
+
+Core now records selection-start generations and authoritative engine-ready/error observations.
+A rejected/no-op collection request cannot succeed just because an old track remains playing.
+The scene completes each native row handler once and pushes Apple's shared Now Playing template
+only after the accepted selection reports ready audio. Source changes, scene detach, supersession,
+failure and a shared 30-second readiness timeout complete pending handlers safely. Scene detach
+retains the application runtime and any audio that has already started.
+
+### Validation and remaining interactive gate
+
+- Full shared presentation JVM suite: **634 tests**, zero failures/errors/skips. Android host
+  compilation and `verifyCoreFirstArchitecture` passed in the same run.
+- Affected JVM regressions passed again after the final status refinement: vehicle browsing,
+  existing external-playback bridge and shared output routing.
+- Native iOS regressions cover all three browse destinations through the real Core catalog,
+  command routing, queue transactions and engine-observer readiness. This uses a controlled
+  provider and playback-effect fixture, not a live Navidrome server or an audible native engine.
+- Native iOS affected regressions: **35 tests**, zero failures/errors/skips (seven vehicle-browse,
+  25 external-bridge and three output-routing tests). The real iOS application-owner test also
+  passed with the new native session: packaged translations and three ABI tab projections arrive
+  through Foundation's main run loop, invalid selection completes once, and repeated scene-session
+  close retains the application. Its first compile exposed a missing Foundation extension import;
+  the import was added and the test passed.
+- iOS device compilation and Xcode simulator app build passed. The installed app launches and
+  displays the normal first-run phone connection form on the dedicated simulator.
+- The simulator build's `Naviamp.app-Simulated.xcent` contains the CarPlay audio entitlement and
+  application identifier. The regular simulator codesign entitlement dictionary is empty; it must
+  not be confused with the simulator-embedded entitlement payload or distribution approval.
+- Interactive CarPlay acceptance is **not passed**. This Mac's Xcode 27 installation provides
+  `DeviceHub.app`; no `Simulator.app` or standalone CarPlay Simulator was found in the inspected
+  Xcode locations. Enabling external screen 3 through `simctl io ... screenConfig` and launching
+  `com.apple.CarPlayApp` produced a black surface, without a connected application template scene.
+  A black surface is not evidence that our template rendered. A request to activate a suitable
+  CarPlay-capable simulator is pending with the owner. No Mac accessibility permission or Apple
+  developer-account configuration was changed.
+
+Logs and captures: `build/issue-43/vehicle-common-tests.log`, `vehicle-regression-tests.log`,
+`vehicle-regression-summary.json`, `vehicle-final-common.log`, `vehicle-common-ios.log`,
+`vehicle-core-integration-ios.log`, `vehicle-core-final-ios.log`, `vehicle-final-native.log`,
+`vehicle-session-native.log`, `vehicle-xcode-build.log`, `vehicle-xcode-final.log`,
+`vehicle-phone-settled.png`, and `carplay-after-install.png`. The black CarPlay capture records the
+environment limitation only. Native test XML and DerivedData remain in the matching Mac worktree.
+
+### Native production-file audit for this slice
+
+| File | Concrete native boundary |
+| --- | --- |
+| `apps/ios/iosApp/NaviampCarPlaySceneDelegate.swift` | CarPlay scene callbacks, CPListTemplate/CPTabBarTemplate/CPInterfaceController and UIKit symbols render common state and translate native handler lifetimes. |
+| `apps/ios/src/iosMain/kotlin/app/naviamp/ios/NaviampIosApplication.kt` | The Swift/Objective-C factory ABI binds a scene callback to the existing native application's main-dispatcher scope. |
+| `apps/ios/src/iosMain/kotlin/app/naviamp/ios/NaviampIosVehicleBrowseSession.kt` | Objective-C-compatible DTOs and callback signatures translate Kotlin common models and release the native scene's observation lifetime. |
+
+No Android or Desktop production file changes in this slice. Product behavior remains in common
+Kotlin; Swift has no provider, catalog-loading, source-selection, paging or playback-readiness policy.
+The public-source interface comparison and design rationale are in
+[`43-carplay-interface-research.md`](43-carplay-interface-research.md).
