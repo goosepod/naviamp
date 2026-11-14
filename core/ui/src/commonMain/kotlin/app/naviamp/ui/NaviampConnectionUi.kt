@@ -149,6 +149,7 @@ fun NaviampConnectionForm(
     saveWithoutReconnect: Boolean = false,
 ) {
     val fieldTagPrefix = if (companionMode) "aurral-companion-" else ""
+    val hasCompanionSection = !companionMode && form.providerId != app.naviamp.domain.provider.ProviderIdAurral
     var advancedVisible by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
@@ -294,7 +295,7 @@ fun NaviampConnectionForm(
                 .focusRequester(advancedFocusRequester)
                 .onPreviewKeyEvent { event ->
                     if (!companionMode && !advancedVisible && event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
-                        if (companionMode) focusNext() else connectFocusRequester.requestFocus()
+                        if (hasCompanionSection) focusNext() else connectFocusRequester.requestFocus()
                         true
                     } else {
                         false
@@ -468,9 +469,16 @@ fun NaviampConnectionForm(
                 },
             )
         }
-        if (!companionMode && form.providerId != app.naviamp.domain.provider.ProviderIdAurral) {
+        if (hasCompanionSection) {
             val companion = form.aurralCompanion ?: app.naviamp.domain.source.AurralCompanion()
-            Row(modifier = Modifier.fillMaxWidth().toggleable(value = companion.enabled,
+            Row(modifier = Modifier.fillMaxWidth().onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) false
+                else when (event.key) {
+                    Key.DirectionDown -> { focusNext(); true }
+                    Key.DirectionUp -> { focusManager.moveFocus(FocusDirection.Previous); true }
+                    else -> false
+                }
+            }.toggleable(value = companion.enabled,
                 enabled = !isConnecting, role = Role.Checkbox,
                 onValueChange = { onFormChanged(form.copy(aurralCompanion = companion.copy(enabled = it))) }),
                 verticalAlignment = Alignment.CenterVertically) {
@@ -505,7 +513,8 @@ fun NaviampConnectionForm(
                     .focusRequester(connectFocusRequester)
                     .onPreviewKeyEvent { event ->
                         if (!advancedVisible && event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp) {
-                            advancedFocusRequester.requestFocus()
+                            if (hasCompanionSection) focusManager.moveFocus(FocusDirection.Previous)
+                            else advancedFocusRequester.requestFocus()
                             true
                         } else {
                             false

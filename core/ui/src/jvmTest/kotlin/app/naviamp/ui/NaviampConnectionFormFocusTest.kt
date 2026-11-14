@@ -26,6 +26,52 @@ import kotlin.test.assertEquals
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampConnectionFormFocusTest {
+    @Test
+    fun collapsedAdvancedReachesCompanionBeforeSaveInBothDirections() = runDesktopComposeUiTest(850, 1100) {
+        val form = mutableStateOf(ConnectionFormState())
+        var connections = 0
+        setContent {
+            androidx.compose.material3.MaterialTheme {
+                NaviampConnectionForm(form.value, NaviampColors.Dark, true, saveWithoutReconnect = true,
+                    onFormChanged = { form.value = it }, onConnect = { connections++ }, onCancel = null)
+            }
+        }
+        onNodeWithTag(ConnectionAdvancedActionTestTag)
+            .performSemanticsAction(SemanticsActions.RequestFocus)
+            .performKeyInput { pressKey(Key.DirectionDown) }
+        onNodeWithText("Aurral companion").assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionDown) }
+        onNodeWithTag(ConnectionConnectButtonTestTag).assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionUp) }
+        onNodeWithText("Aurral companion").assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionCenter) }
+        assertEquals(true, form.value.aurralCompanion?.enabled)
+        assertEquals(0, connections)
+        onNodeWithTag(ConnectionAdvancedActionTestTag)
+            .performSemanticsAction(SemanticsActions.RequestFocus)
+            .performKeyInput { pressKey(Key.DirectionDown) }
+        onNodeWithText("Aurral companion").assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionDown) }
+        onNodeWithTag("aurral-companion-" + ConnectionServerUrlFieldTestTag).assertIsFocused()
+    }
+
+    @Test
+    fun standaloneAurralKeepsCollapsedAdvancedToConnectTraversal() = runDesktopComposeUiTest(850, 1100) {
+        setContent {
+            androidx.compose.material3.MaterialTheme {
+                NaviampConnectionForm(ConnectionFormState(providerId = app.naviamp.domain.provider.ProviderIdAurral),
+                    NaviampColors.Dark, false, onFormChanged = {}, onConnect = {}, onCancel = null)
+            }
+        }
+        onNodeWithText("Aurral companion").assertDoesNotExist()
+        onNodeWithTag(ConnectionAdvancedActionTestTag)
+            .performSemanticsAction(SemanticsActions.RequestFocus)
+            .performKeyInput { pressKey(Key.DirectionDown) }
+        onNodeWithTag(ConnectionConnectButtonTestTag).assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionUp) }
+        onNodeWithTag(ConnectionAdvancedActionTestTag).assertIsFocused()
+    }
+
     @Test fun companionFieldsEditTheirOwnAccountAndKeepOnePrimarySaveButton() = runDesktopComposeUiTest(850, 1100) {
         val form = mutableStateOf(ConnectionFormState(serverUrl = "https://primary.example", username = "primary",
             aurralCompanion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret")))
@@ -118,6 +164,8 @@ class NaviampConnectionFormFocusTest {
         onNodeWithTag(ConnectionConnectButtonTestTag).assertIsFocused()
 
         onNodeWithTag(ConnectionConnectButtonTestTag).performKeyInput { pressKey(Key.DirectionUp) }
+        onNodeWithText("Aurral companion").assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionUp) }
         onNodeWithTag(ConnectionAdvancedActionTestTag).assertIsFocused()
     }
 

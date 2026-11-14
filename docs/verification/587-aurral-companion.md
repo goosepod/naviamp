@@ -214,3 +214,42 @@ Gradle init script; no production or tracked test sources were changed. Recheck 
 regression coverage and retest the remote path before removing draft status. At the final hosted
 check snapshot, shared/Android, API 30 emulator and iOS simulator checks were still running; none
 had reported failure. This acceptance does not claim screen-reader speech or audible output.
+
+## Directional focus correction and retest (2026-11-13)
+
+Resolved the preceding focus gate in shared `NaviampConnectionForm`. When the primary form includes
+a companion section, collapsed Show Advanced now advances to its checkbox, and Up from Save follows
+the preceding control rather than bypassing the section. The checkbox handles Up/Down in form order:
+Down reaches Save while disabled or the companion URL while enabled. Standalone Aurral retains its
+direct Advanced/Connect navigation. No Android, Desktop or iOS production adapter changed.
+
+Added permanent tests to `NaviampConnectionFormFocusTest` for the disabled/enabled compound form,
+reverse navigation, D-pad Center activation without submitting the connection, and standalone Aurral.
+Updated the existing reverse-focus assertion to include the companion. The new regression failed
+before the fix; all seven focus tests now pass. The full shared UI suite passes 761 cases with zero
+failures/errors/skips. Windows staging, Android debug assembly and architecture verification passed:
+
+```powershell
+.\gradlew.bat :core:ui:jvmTest :apps:desktop:stageLocalTestApp :apps:android:assembleDebug verifyCoreFirstArchitecture --max-workers=2 '-Pkotlin.native.enableKlibsCrossCompilation=false' '-Pnaviamp.bass.platform=windows-x64' --console=plain
+```
+
+Both `:core:ui:compileKotlinIosArm64` and `:core:ui:compileKotlinIosSimulatorArm64` passed on the Mac.
+Logs: `build/pr605-windows/focus-regression-before.log`, `focus-regression-after.log`,
+`focus-full-verification.log` and `focus-ios-final.log`.
+
+Visible Windows retest used the disposable profile: Tab from the primary password focused Show
+Advanced; Down then Enter toggled the companion. Up returned to Show Advanced, and Down/Enter
+reenabled the checkbox. A further Down focused the companion URL. Closed without saving.
+
+Physical onn Android TV retest used a backed-up profile and synthetic primary. Its native focus tree
+confirmed Show Advanced → Down → Aurral companion → Down → Save and connect → Up → Aurral companion.
+Center enabled the attachment and Down focused its URL (with the TV keyboard shown). No connection
+was submitted. Restored the original profile, verified all nine backed-up files byte-for-byte, removed
+the fixture reverse, stopped the fixture and returned the TV to Home. The Pixel was not modified.
+Tested APK SHA-256: `8DEF4188DE60F7ED1A2559B437DA42D109922A262B5320EA8D79DB9B297DDAE5`.
+
+Physical evidence is under `build/pr605-focus/`: `tv-collapsed-advanced-keyboard-focus.png/xml`,
+`tv-down-reaches-companion.png/xml`, `tv-down-to-save.png/xml`, `tv-up-to-companion.png/xml`,
+`tv-down-to-companion-url.png/xml`, `physical-tv-focus-result.json`, `ui-test-summary.json`,
+`focus-test-result.xml` and `restoration-result.json`. Profile archives remain private and local.
+The known focus blocker is resolved; hosted checks for the pushed fix remain the final CI gate.
