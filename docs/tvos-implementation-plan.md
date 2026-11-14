@@ -209,8 +209,8 @@ Apple focus model: https://developer.apple.com/documentation/uikit/about-focus-i
 - Research and implementation sequence written before target/product changes.
 - Actual public BASS archive inspected; complete add-on chain and license confirmation remain open.
 - Compose version mismatch identified; plugin not enabled in the production graph.
-- No app launch, playback,
-  signing, physical acceptance or build-performance acceptance is claimed yet.
+- No tvOS app launch, playback, signing, physical acceptance or build-performance acceptance is
+  claimed yet. Original-app upgrade acceptance is recorded separately below.
 
 ### Milestone 1 results
 
@@ -370,3 +370,9 @@ The detailed reproduction patch, plugin correction, original-app test results an
 are recorded in [the SDK 37 experiment report](verification/590-sdk37-compose-upgrade.md).
 The original-app upgrade remains isolated while performance acceptance is measured; the ordinary
 branch catalog has not been changed merely to make the community port resolve.
+
+The first cold/warm iOS archive comparison passed validation, with an 8.6% cold archive cost and
+fast up-to-date warm builds. The upgrade is **not accepted**: repeated Windows first-show captures
+remain blank until input/resize in some trials. Physical-display/capture interoperability must be
+resolved, and Pixel interaction still awaits unlock. All unproven rendering workarounds were
+removed. Continue with the specific original-app gate in the report before creating the tvOS host.

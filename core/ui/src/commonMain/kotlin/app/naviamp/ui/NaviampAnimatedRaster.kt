@@ -55,7 +55,10 @@ internal interface NaviampRasterRegion {
      * they mutate; a host-owned parent is only an attachment point.
      */
     fun present(layers: List<NaviampRasterLayer>, bounds: Rect, clip: Rect, cornerRadius: Float): Boolean
-    /** Notify the shared owner when an asynchronous native attachment can replace its fallback. */
+    /**
+     * Notify the shared owner after native attachment commits. This also requests one parent
+     * refresh when attachment changes its presentation, even if [present] already returned true.
+     */
     fun whenReady(callback: () -> Unit) {}
     /** Commit prepared native changes; only drawing-dependent regions defer this to a draw pass. */
     fun synchronizeDraw() {}
