@@ -16,6 +16,8 @@ import app.naviamp.ui.NaviampLibrarySourcePickerError
 import app.naviamp.ui.NaviampAccountSwitcherUi
 import app.naviamp.ui.NaviampAccountSwitcherError
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
@@ -26,6 +28,17 @@ class NaviampCoreProviderSessionLifecycle(
     private val refreshIntervalMillis: Long = ProviderSessionRefreshIntervalMillis,
     private val waitForNextRefresh: suspend (Long) -> Unit = { delay(it) },
 ) {
+    private var maintenanceJob: Job? = null
+
+    /** Runtime ownership keeps renewal alive when a phone or external scene disconnects. */
+    fun start(scope: CoroutineScope): Job = maintenanceJob?.takeIf { it.isActive }
+        ?: scope.launch { maintainWhileMounted() }.also { maintenanceJob = it }
+
+    fun close() {
+        maintenanceJob?.cancel()
+        maintenanceJob = null
+    }
+
     suspend fun refreshNow() {
         runCatching { sessionPort.refreshActiveSession() }
     }

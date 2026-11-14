@@ -99,6 +99,7 @@ class NaviampCore private constructor(
     private val nowPlayingController: NaviampCoreNowPlayingMediaController,
     private val nowPlayingPresenter: NaviampCoreNowPlayingPresenter,
     private val providerSessionLifecycle: NaviampCoreProviderSessionLifecycle,
+    private val runtimeScope: CoroutineScope,
     private val homeController: NaviampCoreHomeController,
     private val providerSource: NaviampCoreMediaProviderSource,
     private val sidecars: NaviampCoreNowPlayingSidecarPort,
@@ -211,6 +212,7 @@ class NaviampCore private constructor(
     fun close() {
         if (closed) return
         closed = true
+        providerSessionLifecycle.close()
         samplePlayback.close()
         castPicker?.close()
         castController?.close()
@@ -227,9 +229,14 @@ class NaviampCore private constructor(
 
     fun selectLocalPlayback() { if (castPicker != null) castPicker.selectLocal() else castController?.selectLocal() }
 
-    /** Runs the shared sliding-session heartbeat until the mounted Core application is disposed. */
+    /** Starts runtime-owned work once, including when an external surface launches without phone UI. */
+    fun startRuntimeServices() {
+        if (!closed) providerSessionLifecycle.start(runtimeScope)
+    }
+
+    /** A mounted surface may await renewal without owning or cancelling the runtime's job. */
     suspend fun maintainProviderSession() {
-        providerSessionLifecycle.maintainWhileMounted()
+        if (!closed) providerSessionLifecycle.start(runtimeScope).join()
     }
     suspend fun maintainDiscoveryAcquisitions() = homeController.maintainDiscoveryAcquisitions()
 
@@ -813,6 +820,7 @@ class NaviampCore private constructor(
                 nowPlayingController = nowPlaying,
                 nowPlayingPresenter = nowPlayingPresenter,
                 providerSessionLifecycle = providerSessionLifecycle,
+                runtimeScope = scope,
                 homeController = home,
                 providerSource = providerSource,
                 sidecars = services.playback.sidecars,

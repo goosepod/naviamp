@@ -18,6 +18,27 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 
 class NaviampCoreConnectionControllerTest {
+    @Test
+    fun runtimeRenewalIsSharedAndSurvivesSceneWaiterCancellation() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        val lifecycle = NaviampCoreProviderSessionLifecycle(fixture.port, refreshIntervalMillis = 100L)
+        val runtime = lifecycle.start(backgroundScope)
+        kotlin.test.assertSame(runtime, lifecycle.start(backgroundScope))
+        val scene = launch { runtime.join() }
+        runCurrent()
+        scene.cancelAndJoin()
+        advanceTimeBy(100L)
+        runCurrent()
+        assertEquals(1, fixture.port.refreshCalls)
+        assertTrue(runtime.isActive)
+        lifecycle.close()
+        runtime.join()
+        advanceTimeBy(200L)
+        runCurrent()
+        assertEquals(1, fixture.port.refreshCalls)
+        assertFalse(runtime.isActive)
+    }
+
     @Test fun provisioningAnAlreadyConnectedPrimaryStillSavesItsCompanionWithoutReconnecting() = kotlinx.coroutines.test.runTest {
         var changes = 0
         val f = fixture(onCompanionChanged = { changes++ })

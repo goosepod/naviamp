@@ -16,7 +16,6 @@ import app.naviamp.ui.defaultNaviampApplicationUpdateChecker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 
 /**
  * Process-owned Android resource graph. The Activity renders this Core instance and the playback
@@ -48,9 +47,7 @@ class AndroidNaviampApplicationRuntime private constructor(context: Context) {
 
     init {
         AndroidNaviampPlaybackRuntime.install(externalPlayback)
-        if (core.state.value.shell.connectionSettings.currentSourceId != null) {
-            scope.launch { core.maintainProviderSession() }
-        }
+        core.startRuntimeServices()
     }
 
     private fun isMobileData(): Boolean {

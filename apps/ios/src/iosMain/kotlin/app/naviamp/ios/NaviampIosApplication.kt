@@ -69,11 +69,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import platform.UIKit.UIViewController
+import kotlin.native.ref.WeakReference
 
 /**
  * Process-level iOS owner for native database lifetime and the shared Core environment.
  * Product state, actions, navigation, provider policy, and UI remain in common code.
  */
+@OptIn(kotlin.experimental.ExperimentalNativeApi::class)
 class NaviampIosApplication(
     applicationSupportDirectory: String,
     credentialProtector: StorageCredentialProtector,
@@ -86,10 +88,11 @@ class NaviampIosApplication(
     private val database = NaviampStorageDatabase(driver)
     private val settingsValueStore = IosCoreSettingsValueStore()
     private val settings = naviampCoreSettingsValueCatalog(settingsValueStore)
-    private var contentViewController: UIViewController? = null
+    private val contentViewControllers = mutableListOf<WeakReference<UIViewController>>()
     private val settingsSyncPort = IosCoreSettingsSyncPort(
         settingsStore = settingsValueStore,
-        presenter = { contentViewController },
+        presenter = { contentViewControllers.mapNotNull { it.get() }
+            .lastOrNull { it.viewIfLoaded?.window?.isKeyWindow() == true } },
     )
     private var cacheSettings = settings.storedSettings.loadCache()
     private val audioCacheDirectory = "${databaseLocation.directoryPath}/audio-cache"
@@ -296,19 +299,36 @@ class NaviampIosApplication(
         artworkBytes = ::loadProviderArtwork,
     )
 
-    fun viewController(): UIViewController = contentViewController ?: ComposeUIViewController {
-        NaviampIosRasterHost(rootLayer = { contentViewController?.view?.layer }) {
-            NaviampCoreApp(
-                core = core,
-                screenAwakeEffect = remember { IosScreenAwakeEffect() },
-                applicationUpdateChecker = environment.applicationUpdateChecker,
-            )
+    init {
+        core.startRuntimeServices()
+    }
+
+    fun viewController(): UIViewController {
+        var reference: WeakReference<UIViewController>? = null
+        val controller = ComposeUIViewController {
+            NaviampIosRasterHost(rootLayer = { reference?.get()?.view?.layer }) {
+                NaviampCoreApp(
+                    core = core,
+                    screenAwakeEffect = remember { IosScreenAwakeEffect() },
+                    applicationUpdateChecker = environment.applicationUpdateChecker,
+                )
+            }
         }
-    }.also { contentViewController = it }
+        val controllerReference = WeakReference(controller)
+        reference = controllerReference
+        contentViewControllers.removeAll { it.get() == null }
+        contentViewControllers.add(controllerReference)
+        return controller
+    }
+
+    fun releaseViewController(controller: UIViewController) {
+        contentViewControllers.removeAll { it.get() == null || it.get() === controller }
+    }
 
     fun close() {
         resetIosPlatformCoverArtByteLoader()
         nativePlayback.close()
+        core.close()
         playbackEngine.release()
         scope.cancel()
         driver.close()

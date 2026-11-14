@@ -4,14 +4,14 @@
 
 Started from accepted main `e2da3aaf5ce8acbd008a9ef3ccf595474e7ed253` on
 `codex/43-carplay`. This is an implementation checkpoint, not a claim that CarPlay is available.
-PR #605 is a separate dependency: integrate its accepted main commit after it merges, rather than
-merging its unreleased feature branch. Keep the original PR #605 checkout unchanged.
+PR #605 merged as accepted main commit `57c26661247facd5d3ddf43319b7f119d6683c22` and was integrated
+through merge `a9bc29da71762151ded3a3e00fe5365587f40904`. The original PR #605 checkout was not changed.
 
 The first shared implementation is `NaviampApplicationRuntimeOwner` in `core:app`. It lazily owns
 one runtime across scene acquisitions, retains it for reconnects, rejects reentrant construction,
 and makes shutdown final and idempotent. Creation failure can be retried without disposing a runtime
-that never existed. Calls must be confined to the application lifecycle dispatcher. Native wiring
-has deliberately not been added yet: compile this owner for Android, JVM and iOS first.
+that never existed. Calls must be confined to the application lifecycle dispatcher. This owner passed
+JVM and native iOS tests and both Android/iOS compilation before native scene wiring was added.
 
 ## Existing owners and first integration gap
 
@@ -20,12 +20,12 @@ has deliberately not been added yet: compile this owner for Android, JVM and iOS
   current-item-first queue ordering. Reuse these instead of implementing a CarPlay-only catalog.
 - `IosNativePlaybackIntegration` already translates shared playback into MediaPlayer Now Playing,
   remote commands and AVAudioSession callbacks. CarPlay must reuse that registration.
-- `NaviampRootView.Coordinator` currently constructs `NaviampIosApplication` and closes it when the
+- At the starting baseline, `NaviampRootView.Coordinator` constructed `NaviampIosApplication` and closed it when the
   phone coordinator is released. A car-first launch cannot depend on this view existing; phone and
   car scenes must acquire the same application-owned instance. Scene disconnect must release only
   scene presentation resources, not the player, repositories or remote-command registration.
-- `Info.plist` currently has no CarPlay scene configuration. The Xcode app has an iOS 17.2 deployment
-  target and no CarPlay entitlement configuration. Developer-account approval is unverified; the
+- At the starting baseline, `Info.plist` had no CarPlay scene configuration. The Xcode app has an iOS 17.2 deployment
+  target; the new scene and entitlement registration is described below. Developer-account approval is unverified; the
   absence of a repository entitlement file does not establish account approval status.
 
 ## Implementation sequence
@@ -96,7 +96,72 @@ shared Android compilation and architecture checks also passed:
 .\gradlew.bat :core:app:jvmTest --tests 'app.naviamp.app.NaviampApplicationRuntimeOwnerTest' :core:app:compileDebugKotlinAndroid verifyCoreFirstArchitecture --max-workers=2 '-Pkotlin.native.enableKlibsCrossCompilation=false' --console=plain
 ```
 
-Local log: `build/issue-43/runtime-owner-tests.log`. iOS compilation of this new owner remains
-pending before host wiring. Native scene integration, CarPlay simulator, signing and
-physical-head-unit checks have not run at this checkpoint. Native factories remain responsible
-for cleaning up their own partial construction if they throw before returning a runtime.
+Local log: `build/issue-43/runtime-owner-tests.log`. Native factories remain responsible for cleaning
+up their own partial construction if they throw before returning a runtime.
+
+## Phone and CarPlay scene wiring checkpoint
+
+The UIApplication delegate now holds a single native application factory backed by the common
+runtime owner. Both the SwiftUI phone coordinator and CarPlay scene delegate acquire that factory's
+application. Phone-controller disposal no longer closes playback. Each phone scene gets a separate
+UIKit controller and raster-layer reference, while sharing Core state, playback and repositories.
+Only weak phone-controller references are retained for native document presentation; CarPlay does
+not create a phone controller. CarPlay disconnect releases its own interface/controller references.
+Application termination disposes the shared owner and native resources.
+
+The initial CarPlay adapter installs Apple's shared Now Playing template, using the application's
+existing MediaPlayer integration rather than registering a second player or remote-command center.
+The scene manifest, Xcode source lists and audio entitlement build setting are wired. This remains
+an initial Now Playing/lifecycle surface: browsing, car-visible empty/connection/error presentation,
+search, artwork acceptance and the full browse-to-play flow still need implementation/acceptance.
+No CarPlay template was presented in a connected CarPlay simulator or physical head unit in this
+checkpoint; compiling the delegate is not evidence that its connection callback was exercised.
+
+Provider renewal was also detached from phone-view lifetime. Shared Core owns one maintenance job;
+mounted views may await it, and cancelling a view's waiter leaves the runtime's job alive. Core
+shutdown cancels that job. Native Android and iOS startup now delegate to the same common operation,
+removing Android's duplicate host-owned scheduling condition. No renewal timing/retry policy was
+added to either host.
+
+### Verification results
+
+- Six common runtime-owner tests passed natively on iOS Simulator; iOS ARM64 compilation passed.
+- A native application-owner integration test passed against a disposable application-support
+  directory: repeated scene acquisitions return the same real application, phone controllers are
+  distinct, releasing them retains the runtime, and final shutdown rejects reacquisition.
+- Shared connection/lifecycle tests passed on JVM and iOS Simulator (48 native cases). The added
+  regression proves one renewal job survives scene-waiter cancellation and stops at runtime close.
+- The full shared presentation JVM suite passed 627 cases, with no failures/errors/skips.
+- Shared presentation compiled for Android and iOS ARM64. The final iOS application compiled for
+  both simulator and device targets. Android application compilation and architecture checks passed.
+- Xcode's complete Debug simulator build succeeded, including both Swift scene adapters and the
+  generated Kotlin/Native framework. The built app installed and launched on a dedicated iPhone 17 /
+  iOS 26.5 simulator, and its first-run phone connection UI rendered normally.
+
+The native integration test initially exposed missing BASS/SQLite executable link settings and an
+uncreated fixture directory; both were corrected in test configuration/setup. Test audio frameworks
+are staged using the existing platform staging task. Final native startup and Xcode builds passed
+after the accepted PR #605 merge. Tests used a dedicated simulator and disposable data, not the
+owner's iOS profile. Apple account/provisioning approval, signed CarPlay-template presentation,
+car-first/phone-first OS scene callbacks, process-kill recovery and physical head-unit acceptance
+remain open. No Apple developer-account settings were changed.
+
+Evidence under `build/issue-43/`: `runtime-owner-ios.log`, `runtime-renewal-tests.log`,
+`runtime-renewal-ios.log`, `presentation-full-tests.log`, `presentation-test-summary.json`,
+`native-owner-final.log`, `android-startup-compile.log`, `xcode-scene-build.log` and
+`phone-launch-settled.png`. The Mac's matching worktree retains simulator/test XML and DerivedData.
+
+### Native production-file boundary audit
+
+| File | Concrete native boundary |
+| --- | --- |
+| `apps/ios/iosApp/NaviampApp.swift` | SwiftUI's UIApplication-delegate adaptor installs the process-lifecycle callback receiver. |
+| `apps/ios/iosApp/NaviampApplicationDelegate.swift` | UIApplication termination and the native filesystem/Keychain resource factory connect to common ownership. |
+| `apps/ios/iosApp/NaviampRootView.swift` | UIViewControllerRepresentable creates and releases per-phone UIKit controllers without closing Core. |
+| `apps/ios/iosApp/NaviampCarPlaySceneDelegate.swift` | CPTemplateApplicationSceneDelegate and CPInterfaceController translate CarPlay connection/disconnection and present the system template. |
+| `apps/ios/src/iosMain/kotlin/app/naviamp/ios/NaviampIosApplicationOwner.kt` | The Swift/Objective-C ABI exposes a concrete factory for the native SQL/audio application while delegating ownership policy to common code. |
+| `apps/ios/src/iosMain/kotlin/app/naviamp/ios/NaviampIosApplication.kt` | UIKit controllers, CALayer references, native document presentation, SQL driver and audio-resource lifetimes require the iOS host. |
+| `apps/android/src/main/kotlin/app/naviamp/android/AndroidNaviampApplicationRuntime.kt` | Android Context and playback-service bridge installation remain native; renewal startup now mechanically delegates to common Core. |
+
+Xcode/Gradle, scene-manifest and entitlement changes are build/native registration metadata. The
+new iOS test exercises the actual native application factory. No Desktop production file changed.
