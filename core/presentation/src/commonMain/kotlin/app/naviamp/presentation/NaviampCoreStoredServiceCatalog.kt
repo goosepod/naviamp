@@ -140,7 +140,6 @@ fun naviampCoreStoredServiceCatalog(
             applyDocument = { document ->
                 val applied = applySettingsSyncDocument(
                     document = document,
-                    playbackEngine = playbackEngine,
                     mediaSourceRepository = repositories.providerMediaSources,
                     radioDjPresetRepository = repositories.radioDjPresets,
                 )

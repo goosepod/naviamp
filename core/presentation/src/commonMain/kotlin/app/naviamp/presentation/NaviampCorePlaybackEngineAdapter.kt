@@ -62,6 +62,7 @@ import app.naviamp.domain.settings.AudioOutputDeviceMode
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.effectiveForEngine
+import app.naviamp.domain.settings.normalized
 import app.naviamp.domain.settings.effectiveLyricsDisplayTimingPreference
 import app.naviamp.domain.settings.effectiveLyricsTimingPreference
 import app.naviamp.domain.settings.effectiveSonicSimilarityEnabled
@@ -850,22 +851,23 @@ class NaviampCorePlaybackEngineSettings(
     initial: PlaybackSettings = PlaybackSettings(),
     private val persist: (PlaybackSettings) -> Unit = {},
 ) : NaviampCorePlaybackSettingsPort {
-    private var current = initial.effectiveForEngine(engine)
+    private var current = initial.normalized()
 
     init {
-        applyToEngine(current)
+        applyToEngine(current.effectiveForEngine(engine))
     }
 
     fun current(): PlaybackSettings = current
 
     override fun apply(settings: PlaybackSettings, redownload: Boolean): PlaybackSettings {
-        val effective = settings.effectiveForEngine(engine)
-        val transitionChanged = current.transitionSettings() != effective.transitionSettings()
-        current = effective
+        val normalized = settings.normalized()
+        val effective = normalized.effectiveForEngine(engine)
+        val transitionChanged = current.effectiveForEngine(engine).transitionSettings() != effective.transitionSettings()
+        current = normalized
         if (transitionChanged) {
             (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
         }
-        applyToEngine(current)
+        applyToEngine(effective)
         persist(current)
         return current
     }

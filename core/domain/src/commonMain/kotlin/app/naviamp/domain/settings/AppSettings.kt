@@ -533,6 +533,9 @@ data class PlaybackSettings(
 
 fun PlaybackSettings.normalized(): PlaybackSettings =
     copy(
+        replayGainPreampDb = replayGainPreampDb.coerceIn(MinReplayGainPreampDb, MaxReplayGainPreampDb),
+        crossfadeDurationSeconds = crossfadeDurationSeconds.coerceIn(0, 12),
+        volumePercent = volumePercent.coerceIn(0, 100),
         sonicSimilarityPreferenceConfigured = true,
         radioMinimumTracks = app.naviamp.domain.radio.normalizedRadioMinimumTracks(radioMinimumTracks),
         sonicAutoplayMinimumTracks = app.naviamp.domain.radio.normalizedRadioMinimumTracks(sonicAutoplayMinimumTracks),
@@ -689,6 +692,8 @@ fun PlaybackSettings.effectiveForEngine(playbackEngine: PlaybackEngine): Playbac
             0f
         },
         gaplessEnabled = effectiveGapless,
+        stereoDownmixEnabled = stereoDownmixEnabled &&
+            (playbackEngine as? app.naviamp.domain.playback.StereoDownmixPlaybackEngine)?.supportsStereoDownmix == true,
         crossfadeDurationSeconds = if (playbackEngine.supportsCrossfade) {
             if (effectiveGapless) 0 else crossfadeDurationSeconds.coerceIn(0, 12)
         } else {

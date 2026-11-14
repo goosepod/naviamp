@@ -6,11 +6,6 @@ import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.provider.ProviderIdNavidrome
 import app.naviamp.domain.provider.ProviderIdSubsonic
 import app.naviamp.domain.playback.ReplayGainMode
-import app.naviamp.domain.playback.PlaybackEngine
-import app.naviamp.domain.playback.PlaybackProgress
-import app.naviamp.domain.playback.PlaybackRequest
-import app.naviamp.domain.playback.PlaybackState
-import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.radio.RadioDjPreset
 import app.naviamp.domain.radio.RadioDjPresetRepository
 import app.naviamp.domain.source.MediaSourceIdentity
@@ -22,16 +17,31 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import kotlinx.coroutines.CoroutineScope
 
 class SettingsSyncMappingTest {
+    @Test fun portableMixerPreferencesSurviveImportReexportAndNormalization() {
+        for (gapless in listOf(false, true)) {
+            val requested = PlaybackSettings(gaplessEnabled = gapless, crossfadeDurationSeconds = 99,
+                stereoDownmixEnabled = true, replayGainPreampDb = 999f)
+            val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(playback = requested), 1L, "sender")
+            val imported = applySettingsSyncDocument(SettingsSyncJson.decode(SettingsSyncJson.encode(document)),
+                RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
+            val reexported = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(playback = imported.playbackSettings), 2L, "receiver")
+            val restored = SettingsSyncJson.decode(SettingsSyncJson.encode(reexported)).preferences.playback
+            assertEquals(gapless, restored.gaplessEnabled)
+            assertEquals(12, restored.crossfadeDurationSeconds)
+            assertTrue(restored.stereoDownmixEnabled)
+            assertEquals(MaxReplayGainPreampDb, restored.replayGainPreampDb)
+        }
+    }
+
     @Test fun artworkFillAndCornersAreIndependentPortablePreferences() {
         for (square in listOf(false, true)) for (fill in listOf(false, true)) {
             val settings = InterfaceSettings(squareAlbumArtwork = square,
                 nowPlaying = NowPlayingDisplaySettings(fillArtworkArea = fill, splitPaneBackgroundOpacityPercent = 999))
             val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(interfaceSettings = settings), 1L, "test")
             val applied = applySettingsSyncDocument(SettingsSyncJson.decode(SettingsSyncJson.encode(document)),
-                FakePlaybackEngine(false), RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
+                RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
             assertEquals(square, applied.interfaceSettings.squareAlbumArtwork)
             assertEquals(fill, applied.interfaceSettings.nowPlaying.fillArtworkArea)
             assertEquals(100, applied.interfaceSettings.nowPlaying.splitPaneBackgroundOpacityPercent)
@@ -43,7 +53,7 @@ class SettingsSyncMappingTest {
             val settings = InterfaceSettings(squareAlbumArtwork = square)
             val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(interfaceSettings = settings), 1L, "test")
             val applied = applySettingsSyncDocument(SettingsSyncJson.decode(SettingsSyncJson.encode(document)),
-                FakePlaybackEngine(false), RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
+                RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
             assertEquals(settings, applied.interfaceSettings)
         }
         assertFalse(SettingsSyncJson.decode("{}").preferences.interfaceSettings.squareAlbumArtwork)
@@ -66,7 +76,7 @@ class SettingsSyncMappingTest {
             val settings = InterfaceSettings(artistPlaylistLayout = playlists, artistAppearanceAlbumLayout = appearances)
             val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(interfaceSettings = settings), 1L, "test")
             val applied = applySettingsSyncDocument(SettingsSyncJson.decode(SettingsSyncJson.encode(document)),
-                FakePlaybackEngine(false), RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
+                RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
             assertEquals(settings, applied.interfaceSettings)
         }
     }
@@ -75,10 +85,10 @@ class SettingsSyncMappingTest {
             val exported = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(
                 interfaceSettings = InterfaceSettings(showArtistPlaylists = enabled)), 1L, "test")
             val applied = applySettingsSyncDocument(SettingsSyncJson.decode(SettingsSyncJson.encode(exported)),
-                FakePlaybackEngine(false), RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
+                RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
             assertEquals(enabled, applied.interfaceSettings.showArtistPlaylists)
         }
-        val older = applySettingsSyncDocument(SettingsSyncJson.decode("{}"), FakePlaybackEngine(false),
+        val older = applySettingsSyncDocument(SettingsSyncJson.decode("{}"),
             RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
         assertTrue(older.interfaceSettings.showArtistPlaylists)
     }
@@ -88,7 +98,7 @@ class SettingsSyncMappingTest {
             val settings = InterfaceSettings(showArtistTopTracks = visible, artistTopTracksLimit = limit)
             val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(interfaceSettings = settings), 1L, "test")
             val applied = applySettingsSyncDocument(SettingsSyncJson.decode(SettingsSyncJson.encode(document)),
-                FakePlaybackEngine(false), RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
+                RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
             assertEquals(settings, applied.interfaceSettings)
         }
     }
@@ -98,7 +108,7 @@ class SettingsSyncMappingTest {
                 .copy(sonicAutoplayEnabled = true, radioMinimumTracks = 40, sonicAutoplayMinimumTracks = 70)
             val exported = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(playback = settings), 1L, "test")
             val restored = SettingsSyncJson.decode(SettingsSyncJson.encode(exported))
-            val applied = applySettingsSyncDocument(restored, FakePlaybackEngine(false),
+            val applied = applySettingsSyncDocument(restored,
                 RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository()).playbackSettings
             assertEquals(settings.sonicSimilarityEnabled, applied.sonicSimilarityEnabled)
             assertTrue(applied.sonicSimilarityPreferenceConfigured)
@@ -116,13 +126,13 @@ class SettingsSyncMappingTest {
         val exported = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(
             playback = PlaybackSettings(radioMinimumTracks = 30, sonicAutoplayMinimumTracks = 80)), 1L, "test")
         val restored = SettingsSyncJson.decode(SettingsSyncJson.encode(exported))
-        val applied = applySettingsSyncDocument(restored, FakePlaybackEngine(false),
+        val applied = applySettingsSyncDocument(restored,
             RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
         assertEquals(30, applied.playbackSettings.radioMinimumTracks)
         assertEquals(80, applied.playbackSettings.sonicAutoplayMinimumTracks)
         val raw = restored.copy(preferences = restored.preferences.copy(playback =
             PlaybackSettings(radioMinimumTracks = -1, sonicAutoplayMinimumTracks = 999)))
-        val normalized = applySettingsSyncDocument(raw, FakePlaybackEngine(false),
+        val normalized = applySettingsSyncDocument(raw,
             RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository()).playbackSettings
         assertEquals(10, normalized.radioMinimumTracks)
         assertEquals(100, normalized.sonicAutoplayMinimumTracks)
@@ -305,12 +315,11 @@ class SettingsSyncMappingTest {
 
         val applied = applySettingsSyncDocument(
             document = document,
-            playbackEngine = FakePlaybackEngine(supportsCrossfade = false),
             mediaSourceRepository = mediaSources,
             radioDjPresetRepository = radioDjs,
         )
 
-        assertEquals(0, applied.playbackSettings.crossfadeDurationSeconds)
+        assertEquals(7, applied.playbackSettings.crossfadeDurationSeconds)
         assertEquals("wide", applied.playbackSettings.radioDjs.single().id)
         assertEquals("AudioBars", applied.visualizer.selectedVisualizer)
         assertEquals(1, applied.importedServerProfiles.importedCount)
@@ -412,29 +421,4 @@ class SettingsSyncMappingTest {
         }
     }
 
-    private class FakePlaybackEngine(
-        override val supportsCrossfade: Boolean,
-    ) : PlaybackEngine {
-        override val name = "Fake"
-        override val supportsPause = true
-        override val supportsSeek = true
-        override val supportsGapless = true
-        override val supportsReplayGain = true
-        override val supportsSoftwareVolume = true
-        override val prefersOriginalStream = false
-
-        override fun play(
-            scope: CoroutineScope,
-            request: PlaybackRequest,
-            onStateChanged: (PlaybackState) -> Unit,
-            onProgressChanged: (PlaybackProgress) -> Unit,
-            onMetadataChanged: (PlaybackStreamMetadata) -> Unit,
-        ) = Unit
-
-        override fun pause() = Unit
-        override fun resume() = Unit
-        override fun seek(positionSeconds: Double) = Unit
-        override fun setVolume(percent: Int) = Unit
-        override fun stop() = Unit
-    }
 }

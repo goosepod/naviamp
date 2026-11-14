@@ -19,6 +19,25 @@ import kotlin.test.assertTrue
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class CoreBassPlaybackEngineTest {
     @Test
+    fun mixerFreeBackendRetainsDirectPlaybackAndOnlyAdvertisesAvailableFeatures() = runTest {
+        val backend = RecordingPlaybackBackend()
+        val engine = CoreBassPlaybackEngine(Result.success(backend), FakeBassPlaybackEngineRuntime)
+        assertFalse(engine.supportsGapless)
+        assertFalse(engine.supportsCrossfade)
+        assertFalse(engine.supportsStereoDownmix)
+        assertTrue(engine.supportsReplayGain)
+        assertTrue(engine.supportsEqualizer)
+        val states = mutableListOf<PlaybackState>()
+        engine.play(this, PlaybackRequest("file:///fixture.wav"), states::add, {})
+        advanceUntilIdle()
+        assertTrue(PlaybackState.Playing in states)
+        assertTrue(PlaybackState.Finished in states)
+        assertEquals(1, backend.playCalls)
+        engine.release()
+        assertEquals(listOf(BassStreamHandle(41)), backend.releasedHandles)
+    }
+
+    @Test
     fun failedAuthenticatedReadsNeverPublishFinishedFromSyncOrPolling() = runTest {
         for (sync in listOf(false, true)) {
             var transportFailure: Throwable? = null

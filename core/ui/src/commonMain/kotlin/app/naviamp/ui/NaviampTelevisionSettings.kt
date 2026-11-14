@@ -104,7 +104,7 @@ internal fun televisionSettingsCategories(controllersAvailable: Boolean): List<T
         category != TelevisionSettingsCategory.Controllers || controllersAvailable
     }
 
-private enum class TelevisionSettingsChoicePage {
+internal enum class TelevisionSettingsChoicePage {
     Language,
     GeneralFontSize,
     NowPlayingFontSize,
@@ -815,7 +815,7 @@ private fun TelevisionSourcesSettings(
 }
 
 @Composable
-private fun TelevisionPlaybackSettings(
+internal fun TelevisionPlaybackSettings(
     uiState: NaviampAppShellUiState,
     colors: NaviampColors,
     actions: NaviampSettingsValueActions,
@@ -909,7 +909,7 @@ private fun TelevisionPlaybackSettings(
                 },
             )
         }
-        item(key = "downmix") {
+        if (capability.stereoDownmixAvailable) item(key = "downmix") {
             TelevisionSettingsToggleRow(
                 stringResource(Res.string.tv_stereo_downmix),
                 stringResource(Res.string.tv_mix_multichannel_audio_to_stereo),

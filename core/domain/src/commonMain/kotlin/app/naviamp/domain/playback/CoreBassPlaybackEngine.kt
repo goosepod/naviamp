@@ -107,6 +107,7 @@ open class CoreBassPlaybackEngine(
 
     override val supportsGapless: Boolean = featureSupport.supportsGapless
     override val supportsCrossfade: Boolean = featureSupport.supportsCrossfade
+    override val supportsStereoDownmix: Boolean = backend?.supportsMixer == true
     override val supportsReplayGain: Boolean = true
     override val supportsEqualizer: Boolean = backend != null
 

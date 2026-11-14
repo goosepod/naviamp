@@ -338,7 +338,7 @@ fun bassStreamHandlesForRelease(vararg handles: Int): List<BassStreamHandle> =
         .map(::BassStreamHandle)
 
 fun BassAudioBackend.releaseBassStream(stream: BassStreamHandle): Result<Unit> {
-    removeMixerChannel(stream)
+    if (supportsMixer) removeMixerChannel(stream)
     return freeStream(stream)
 }
 

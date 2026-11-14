@@ -1101,6 +1101,7 @@ fun NaviampSettingsContent(
         supportsReplayGain = playback.replayGainAvailable,
         supportsGapless = playback.gaplessAvailable,
         supportsCrossfade = playback.crossfadeAvailable,
+        supportsStereoDownmix = playback.stereoDownmixAvailable,
         supportsEqualizer = playback.equalizerAvailable,
         supportsAudioOutputDeviceSelection = playback.audioOutputDeviceSelectionAvailable,
         audioOutputDevices = playback.audioOutputDevices,

@@ -125,6 +125,13 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun directStreamReleaseNeverCallsTheMissingMixer() {
+        val backend = RecordingBassAudioBackend(supportsMixer = false)
+        assertTrue(backend.releaseBassStream(42).isSuccess)
+        assertEquals(listOf("free:42"), backend.calls)
+    }
+
+    @Test
     fun releaseStillFreesWhenMixerRemovalFails() {
         val backend = RecordingBassAudioBackend(removeSucceeds = false)
 
@@ -888,6 +895,7 @@ class BassAudioBackendTest {
 }
 
 private class RecordingBassAudioBackend(
+    override val supportsMixer: Boolean = true,
     private val removeSucceeds: Boolean = true,
     private val slideSucceeds: Boolean = true,
     private val createFileStreamSucceeds: Boolean = true,

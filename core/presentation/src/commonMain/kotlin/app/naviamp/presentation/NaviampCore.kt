@@ -65,6 +65,7 @@ fun NaviampCoreInitialState.withShellCapabilities(
                 replayGainAvailable = capabilities.replayGain,
                 gaplessAvailable = capabilities.gapless,
                 crossfadeAvailable = capabilities.crossfade,
+                stereoDownmixAvailable = capabilities.stereoDownmix,
                 equalizerAvailable = capabilities.equalizer,
                 audioOutputDeviceSelectionAvailable = audioOutputDeviceSelectionAvailable,
                 audioOutputDevices = audioOutputDevices,

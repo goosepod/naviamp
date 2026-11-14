@@ -7,6 +7,7 @@ import app.naviamp.domain.app.PlatformCapabilityStatus
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.EqualizerSettings
 import app.naviamp.domain.playback.PlaybackEngine
+import app.naviamp.domain.playback.StereoDownmixPlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
@@ -84,6 +85,7 @@ class NaviampShellCapabilityMapperTest {
     fun appliesShellPreferencesToTheSharedPlaybackSettingsModel() {
         val capabilities = NaviampShellCapabilitiesUi(
             softwareVolumeControl = false,
+            stereoDownmix = false,
         )
 
         val playback = NaviampCoreInitialState()
@@ -93,6 +95,20 @@ class NaviampShellCapabilityMapperTest {
             .playback
 
         assertFalse(playback.softwareVolumeControlAvailable)
+        assertFalse(playback.stereoDownmixAvailable)
+    }
+
+    @Test
+    fun downmixRequiresTheEngineContractAndItsCurrentCapability() {
+        val presentation = NaviampCapabilityPresentation(PlatformCapabilities())
+        assertFalse(presentation.toShellCapabilitiesUi(TestPlaybackEngine, false).stereoDownmix)
+        for (available in listOf(false, true)) {
+            val engine = object : PlaybackEngine by TestPlaybackEngine, StereoDownmixPlaybackEngine {
+                override val supportsStereoDownmix = available
+                override fun setStereoDownmixEnabled(enabled: Boolean) = Unit
+            }
+            assertEquals(available, presentation.toShellCapabilitiesUi(engine, false).stereoDownmix)
+        }
     }
 }
 

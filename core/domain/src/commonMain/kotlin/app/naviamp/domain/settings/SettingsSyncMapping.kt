@@ -2,7 +2,6 @@ package app.naviamp.domain.settings
 
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
-import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.radio.RadioDjPresetRepository
 import app.naviamp.domain.source.ConnectionHeaderDefinition
 import app.naviamp.domain.source.ConnectionTlsSettings
@@ -35,12 +34,12 @@ data class AppliedSettingsSyncDocument(
 /** Applies the platform-neutral repository mutations and normalization for a synced document. */
 fun applySettingsSyncDocument(
     document: SettingsSyncDocument,
-    playbackEngine: PlaybackEngine,
     mediaSourceRepository: ProviderMediaSourceRepository,
     radioDjPresetRepository: RadioDjPresetRepository,
 ): AppliedSettingsSyncDocument {
     val preferences = document.preferences
-    val importedPlayback = preferences.playback.effectiveForEngine(playbackEngine)
+    // A receiving device's capabilities must never erase portable preferences.
+    val importedPlayback = preferences.playback.normalized()
     radioDjPresetRepository.replaceRadioDjPresets(importedPlayback.radioDjs)
     return AppliedSettingsSyncDocument(
         interfaceSettings = preferences.interfaceSettings.normalized(),

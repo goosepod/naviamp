@@ -60,6 +60,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -1400,6 +1401,30 @@ class NaviampCorePlaybackEngineAdapterTest {
         )
 
         assertEquals(listOf("clear"), engine.events)
+    }
+
+    @Test
+    fun unavailableMixerPreferencesSurviveEditsPersistenceAndACapableEngineRestart() {
+        val recorder = RecordingPlaybackEngine()
+        val direct = object : QueueAwarePlaybackEngine by recorder, StereoDownmixPlaybackEngine {
+            override val supportsGapless = false
+            override val supportsCrossfade = false
+            override val supportsStereoDownmix = false
+            override fun setStereoDownmixEnabled(enabled: Boolean) = recorder.setStereoDownmixEnabled(enabled)
+        }
+        val saved = PlaybackSettings(gaplessEnabled = false, crossfadeDurationSeconds = 8, stereoDownmixEnabled = true)
+        var persisted: PlaybackSettings? = null
+        val settings = NaviampCorePlaybackEngineSettings(direct, saved) { persisted = it }
+        assertEquals(8, settings.current().crossfadeDurationSeconds)
+        assertEquals(0, recorder.crossfadeSeconds)
+        assertFalse(recorder.appliedStereoDownmixEnabled)
+        val edited = settings.apply(settings.current().copy(volumePercent = 55), redownload = false)
+        assertEquals(8, edited.crossfadeDurationSeconds)
+        assertTrue(edited.stereoDownmixEnabled)
+        assertEquals(edited, persisted)
+        NaviampCorePlaybackEngineSettings(recorder, edited)
+        assertEquals(8, recorder.crossfadeSeconds)
+        assertTrue(recorder.appliedStereoDownmixEnabled)
     }
 
     @Test
