@@ -14,6 +14,84 @@ import kotlin.test.*
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCoreDiscoveryControllerTest {
+    @Test fun refreshedCompanionCapabilitiesSurviveTheFirstHubOpenAfterAnExplicitAccountReset() = runTest {
+        val h = DiscoveryHarness()
+        h.active = object : MediaProvider by h.active { override val discoveryAccountScope = "new-companion" }
+        h.controller.resetForSourceChange()
+        val feed = ProviderDiscoveryFeed(ProviderDiscoveryStatus.Ready, trending = listOf(First), chartsAvailable = true, genreBlockingAvailable = true)
+        h.store.updateShell { it.copy(home = it.home.copy(providerDiscovery = h.discovery().copy(feed = feed))) }
+        val hub = NaviampCoreCommand.Home.Browse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Hub))
+        h.controller.dispatch(hub); h.controller.execute(hub)
+        assertEquals(feed, h.discovery().feed)
+        assertEquals(DiscoveryBrowsePage.Hub, h.discovery().browser!!.page)
+    }
+
+    @Test fun changingOnlyTheCompanionAccountRejectsItsLateReadWhileKeepingThePrimaryIdentity() = runTest {
+        val waiting = CompletableDeferred<ProviderDiscoveryArtistResult>()
+        val native = object : DiscoveryNative() {
+            override suspend fun artistDetails(artist: ProviderDiscoveryArtist): ProviderDiscoveryArtistResult =
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { waiting.await() }
+        }
+        val h = DiscoveryHarness(native)
+        val primaryNamespace = h.active.cacheNamespace
+        val command = NaviampCoreCommand.Home.SelectDiscoveryArtist(First.id)
+        h.controller.dispatch(command)
+        val reading = launch { h.controller.execute(command) }
+        runCurrent()
+        h.active = object : MediaProvider by h.active {
+            override val discoveryAccountScope = "other-companion"
+            override val discovery = DiscoveryNative()
+        }
+        h.controller.dispatch(NaviampCoreCommand.Home.ShowDiscoveryRequests)
+        waiting.complete(ProviderDiscoveryArtistResult(ProviderDiscoveryStatus.Ready,
+            ProviderDiscoveryArtistDetails(First)))
+        reading.join()
+        assertEquals(primaryNamespace, h.active.cacheNamespace)
+        assertNull(h.discovery().artistDetail)
+        assertTrue(h.discovery().feed.trending.isEmpty())
+        assertFalse(h.discovery().feed.chartsAvailable)
+    }
+
+    @Test fun radioContextSearchIsReadOnlyAndRejectsAStaleSourceOrMetadata() = runTest {
+        val searches = mutableListOf<String>()
+        val h = DiscoveryHarness(object : DiscoveryNative() {
+            override suspend fun searchCatalog(query: String, scope: ProviderCatalogScope, offset: Int, limit: Int): ProviderCatalogPage {
+                searches += query
+                return ProviderCatalogPage(ProviderDiscoveryStatus.Ready, artists = listOf(First))
+            }
+            override suspend fun requestTrack(artist: ProviderDiscoveryArtist, sample: ProviderDiscoverySample): ProviderDiscoveryOperation =
+                error("A context search must never acquire a recording")
+            override suspend fun setMonitoring(artist: ProviderDiscoveryArtist, enabled: Boolean): ProviderDiscoveryOperation =
+                error("A context search must never start monitoring")
+        })
+        val feed = ProviderDiscoveryFeed(ProviderDiscoveryStatus.Ready, trending = listOf(First), chartsAvailable = true, genreBlockingAvailable = true)
+        h.store.updateShell { it.copy(home = it.home.copy(providerDiscovery = h.discovery().copy(feed = feed))) }
+        h.store.updateShell { it.copy(nowPlaying = NowPlayingUi(id = "station", title = "Station", subtitle = "", stateLabel = "Playing",
+            isLive = true, aurralSourceId = h.account, aurralRadioMetadata = "Artist - Recording")) }
+        val old = NaviampCoreCommand.Home.FindInAurral(h.account, radioId = "station", radioMetadata = "Old recording")
+        h.controller.dispatch(old); h.controller.execute(old)
+        assertTrue(searches.isEmpty())
+        val command = NaviampCoreCommand.Home.FindInAurral(h.account, radioId = "station", radioMetadata = "Artist - Recording")
+        assertEquals(NaviampCoreImmediateCommandResult.Deferred, h.controller.dispatch(command))
+        h.controller.execute(command)
+        assertEquals(listOf("Artist"), searches)
+        assertEquals("Artist - Recording", h.discovery().contextQuery)
+        assertEquals(DiscoveryBrowsePage.Search, h.discovery().browser!!.page)
+        assertEquals(feed, h.discovery().feed)
+        val close = NaviampCoreCommand.Home.Browse(DiscoveryBrowseAction.Close)
+        h.controller.dispatch(close); h.controller.execute(close)
+        val hub = NaviampCoreCommand.Home.Browse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Hub))
+        h.controller.dispatch(hub); h.controller.execute(hub)
+        assertEquals(DiscoveryBrowsePage.Hub, h.discovery().browser!!.page)
+        assertTrue(h.discovery().feed.chartsAvailable)
+        assertTrue(h.discovery().feed.genreBlockingAvailable)
+        assertEquals(listOf(First), h.discovery().feed.trending)
+        assertTrue(h.played.isEmpty())
+        h.account = "another-account"
+        h.controller.dispatch(command); h.controller.execute(command)
+        assertEquals(listOf("Artist"), searches)
+    }
+
     @Test fun hubNavigationDoesNotReadRecommendationsAndBackRestoresItsViewport() = runTest {
         var reads = 0
         val h = DiscoveryHarness(object : DiscoveryNative() {
@@ -213,7 +291,7 @@ class NaviampCoreDiscoveryControllerTest {
         val opening = launch { h.controller.execute(command) }
         entered.await()
         h.account = "account-two"; h.active = discoveryProvider(DiscoveryNative(), h.account)
-        h.open(First)
+        h.browse(First)
         gate.complete(Unit); opening.join()
         assertEquals(First.id, h.detail().artist.id)
         assertNull(h.discovery().releasePage)
@@ -328,7 +406,7 @@ class NaviampCoreDiscoveryControllerTest {
 
         h.account = "account-two"
         h.active = discoveryProvider(native, h.account)
-        h.open(First); h.openRelease()
+        h.browse(First); h.openRelease()
         assertTrue(h.detail().requestOperations.isEmpty())
         h.controller.dispatch(request); h.controller.execute(request)
         assertEquals(1, albumCalls, "An old account command cannot acquire on the new account")
@@ -421,7 +499,7 @@ class NaviampCoreDiscoveryControllerTest {
         assertTrue(action in h.detail().blockedActions)
         h.account = "account-two"
         h.active = discoveryProvider(DiscoveryNative(), h.account)
-        h.open(First); h.openRelease()
+        h.browse(First); h.openRelease()
         assertTrue(h.detail().requestOperations.isEmpty())
         assertTrue(h.controller.dispatch(request) is NaviampCoreImmediateCommandResult.Handled)
     }
@@ -773,6 +851,10 @@ private class DiscoveryHarness(native: ProviderDiscovery = DiscoveryNative(),
     fun releaseAction(action: ProviderDiscoveryAction) = NaviampCoreCommand.Home.DiscoveryReleaseAction(account, discovery().sourceGeneration, Release.id, action)
     suspend fun openRelease() {
         val command = NaviampCoreCommand.Home.SelectDiscoveryRelease(Release.id)
+        controller.dispatch(command); controller.execute(command)
+    }
+    suspend fun browse(artist: ProviderDiscoveryArtist) {
+        val command = NaviampCoreCommand.Home.BrowseDiscoveryArtist(account, artist)
         controller.dispatch(command); controller.execute(command)
     }
     suspend fun open(artist: ProviderDiscoveryArtist) {

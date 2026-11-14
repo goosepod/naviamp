@@ -63,6 +63,9 @@ class NaviampCoreProviderSessionRouter(
         return connected
     }
 
+    override suspend fun saveAurralCompanion(sourceId: String, companion: app.naviamp.domain.source.AurralCompanion) =
+        (routeForSaved(sourceId) ?: unsupportedSaved(sourceId)).sessionPort.saveAurralCompanion(sourceId, companion)
+
     override suspend fun editableConnection(id: String): NaviampCoreEditableConnection =
         (routeForSaved(id) ?: unsupportedSaved(id)).sessionPort.editableConnection(id)
 

@@ -75,6 +75,7 @@ fun buildSettingsSyncDocument(
 
 fun SavedMediaSource.toSettingsSyncServerProfile(): SettingsSyncServerProfile =
     SettingsSyncServerProfile(
+        aurralCompanion = aurralCompanion?.withoutSecrets(),
         id = id,
         providerId = providerId,
         displayName = displayName,
@@ -109,6 +110,7 @@ fun SettingsSyncServerProfile.toConnectionFormState(
     normalized()
         ?.let { profile ->
             ConnectionFormState(
+                aurralCompanion = profile.aurralCompanion?.withoutSecrets(),
                 providerId = profile.providerId,
                 displayName = profile.displayName,
                 serverUrl = profile.primaryUrl,
@@ -144,9 +146,14 @@ fun importSettingsSyncServerProfiles(
     val profiles = serverProfiles.mapNotNull { it.normalized() }
     var importedCount = 0
     profiles.forEach { profile ->
+        val existing = (repository as? app.naviamp.domain.cache.MediaSourceRepository)?.mediaSources()?.firstOrNull {
+            it.providerId == profile.providerId && app.naviamp.domain.source.normalizedBaseUrl(it.baseUrl) == profile.primaryUrl &&
+                it.username == profile.username && it.selectedMusicFolderIds.toSet() == profile.selectedMusicFolderIds.toSet()
+        }
         repository.upsertProviderMediaSource(
-            connection = profile.toProviderMediaSourceConnection(),
-            cacheNamespace = profile.cacheNamespace,
+            connection = profile.toProviderMediaSourceConnection(existing),
+            cacheNamespace = existing?.cacheNamespace ?: profile.cacheNamespace,
+            preferredSourceId = existing?.id,
             providerId = profile.providerId,
         )
         importedCount++
@@ -157,20 +164,22 @@ fun importSettingsSyncServerProfiles(
     )
 }
 
-private fun SettingsSyncServerProfile.toProviderMediaSourceConnection(): ProviderMediaSourceConnection =
+private fun SettingsSyncServerProfile.toProviderMediaSourceConnection(existing: SavedMediaSource? = null): ProviderMediaSourceConnection =
     ProviderMediaSourceConnection(
+        aurralCompanion = aurralCompanion?.withoutSecrets(),
         displayName = displayName,
         baseUrl = primaryUrl,
         username = username,
         authenticationMode = authenticationMode,
-        token = "",
-        salt = "",
-        nativeToken = null,
+        token = existing?.token.takeIf { existing?.authenticationMode == authenticationMode }.orEmpty(),
+        salt = existing?.salt.takeIf { existing?.authenticationMode == authenticationMode }.orEmpty(),
+        nativeToken = existing?.nativeToken.takeIf { existing?.authenticationMode == authenticationMode },
         tlsSettings = ConnectionTlsSettings(
             insecureSkipTlsVerification = tls.insecureSkipTlsVerification,
             customCertificatePath = tls.customCertificatePath,
             clientCertificateKeyStorePath = tls.clientCertificateKeyStorePath,
-            clientCertificateKeyStorePassword = null,
+            clientCertificateKeyStorePassword = existing?.tlsSettings?.clientCertificateKeyStorePassword
+                .takeIf { existing?.tlsSettings?.clientCertificateKeyStorePath == tls.clientCertificateKeyStorePath },
         ),
         secondaryUrls = secondaryUrls.map {
             ConnectionSecondaryUrl(
@@ -182,7 +191,9 @@ private fun SettingsSyncServerProfile.toProviderMediaSourceConnection(): Provide
         customHeaders = customHeaders.map {
             ConnectionHeaderDefinition(
                 name = it.name,
-                value = it.value,
+                value = it.value ?: existing?.customHeaders?.firstOrNull { previous ->
+                    previous.valueIsSecret && it.valueIsSecret && previous.name.equals(it.name, ignoreCase = true)
+                }?.value,
                 valueIsSecret = it.valueIsSecret,
             )
         },

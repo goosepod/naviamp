@@ -158,6 +158,8 @@ class NaviampCoreNowPlayingPresenter(
                 playlistChoices = shell.playlistChoices,
                 playlistActionStatus = display.playlistActionStatus,
             ).toNowPlayingUi().copy(
+                aurralSourceId = shell.connectionSettings.currentSourceId.takeIf { provider?.discovery != null },
+                aurralRadioMetadata = sidecar.streamMetadata?.title?.trim()?.takeIf { isLive && it.isNotEmpty() },
                 visualizerFrame = sidecar.visualizerFrame,
                 canEditPlaylistMembership = provider != null && track?.id?.isDiscoveryPreview() != true,
                 queueManagementActionsOnly = track?.id?.isDiscoveryPreview() == true,

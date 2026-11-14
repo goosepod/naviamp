@@ -7,6 +7,7 @@ enum class ServerCertificateTrust(val includesPlatformAnchors: Boolean) {
     Platform(true), PlatformAndCustom(true), Unverified(false),
 }
 
+@Serializable
 data class ConnectionTlsSettings(
     val insecureSkipTlsVerification: Boolean = false,
     val customCertificatePath: String? = null,
@@ -92,6 +93,7 @@ data class SavedMediaSource(
     val lastLibraryScanSignature: String? = null,
     val lastLibraryScanCheckedAtEpochMillis: Long? = null,
     val authenticationMode: String = SubsonicAuthToken,
+    val aurralCompanion: AurralCompanion? = null,
 )
 
 const val SubsonicAuthToken = "token"

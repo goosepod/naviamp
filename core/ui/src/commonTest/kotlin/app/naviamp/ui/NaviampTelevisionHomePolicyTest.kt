@@ -2,6 +2,7 @@ package app.naviamp.ui
 
 import app.naviamp.domain.settings.HomeSectionIds
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.resolvedHomeSectionOrder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -73,7 +74,7 @@ class NaviampTelevisionHomePolicyTest {
 
         val reordered = televisionSections.moveHomeSectionItem(0, 1)
         val updated = settings.withOrderedTelevisionHomeSections(reordered)
-        assertEquals(HomeSectionIds.MixBuilders, updated.homeSectionOrder[1])
+        assertEquals(HomeSectionIds.MixBuilders, updated.homeSectionOrder[settings.resolvedHomeSectionOrder().indexOf(HomeSectionIds.MixBuilders)])
     }
 
     @Test

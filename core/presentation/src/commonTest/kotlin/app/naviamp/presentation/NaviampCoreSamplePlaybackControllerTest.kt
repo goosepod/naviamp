@@ -17,6 +17,28 @@ import kotlin.test.*
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCoreSamplePlaybackControllerTest {
+    @Test fun engineResolvesDiscoverySamplesThroughTheCompanionWithoutUsingThePrimaryStreamContract() = runTest {
+        val companion = SampleProvider("secondary") { "https://aurral.test/sample.mp3" }
+        val primary = object : MediaProvider by SampleProvider("primary", { error("Primary stream contract used for a companion sample") }) {
+            override val discoveryPreviewProvider: MediaProvider = companion
+        }
+        val providers = NaviampCoreMediaProviderSource { primary }
+        val bass = PendingMainLoadBassBackend()
+        val runtime = object : BassPlaybackEngineRuntime {
+            override val workContext = kotlin.coroutines.EmptyCoroutineContext
+            override fun localFilePath(url: String): String? = null
+            override fun nowEpochMillis() = 1_000L
+            override fun <T> withPreparedPlaybackLock(block: () -> T) = block()
+        }
+        val engine = CoreBassPlaybackEngine(Result.success(bass), runtime)
+        val port = NaviampCoreEngineSamplePlayback(backgroundScope, engine, providers, { true }, { 50 })
+        try {
+            port.play(primary, sample("42")) {}
+            runCurrent()
+            assertEquals(listOf("https://aurral.test/sample.mp3"), bass.urls)
+        } finally { port.close(); engine.release() }
+    }
+
     @Test fun pendingMainUrlCannotInterruptANewerPreviewAndResumesOnlyOnExplicitRequest() = runTest {
         for (initiallyPlaying in listOf(false, true)) {
             val wait = CompletableDeferred<String>()

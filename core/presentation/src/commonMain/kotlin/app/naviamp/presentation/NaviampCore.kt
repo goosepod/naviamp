@@ -618,6 +618,18 @@ class NaviampCore private constructor(
                     standardMixes.resetForSourceChange()
                     sonicBuilders.resetForSourceChange()
                 },
+                onCompanionChanged = { sourceId ->
+                    notifyLocalSettingsChanged()
+                    if (sourceId == services.connection.currentSourceId()) {
+                        samplePlayback.stop()
+                        nowPlayingPresenter.publish()
+                        stateStore.updateShell { shell -> shell.copy(artistDetail = shell.artistDetail.copy(
+                            detail = shell.artistDetail.detail?.copy(aurralSourceId = sourceId.takeIf {
+                                services.connection.currentProvider()?.discovery != null
+                            }))) }
+                        scope.launch { home.refreshAfterCompanionChange() }
+                    }
+                },
                 onConnected = { sourceId ->
                     scope.launch { providerSessionLifecycle.refreshNow() }
                     scope.launch {

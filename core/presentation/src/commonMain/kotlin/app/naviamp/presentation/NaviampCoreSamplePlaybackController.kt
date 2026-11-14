@@ -47,16 +47,21 @@ internal class NaviampCoreEngineSamplePlayback(
         require(track.id.isDiscoveryPreview())
         val epoch = ++generation
         val native = checkNotNull(engine)
+        val sampleProvider = provider.discoveryPreviewProvider ?: provider
         val request = StreamRequest(track.id, StreamQuality.Original)
         var transport: app.naviamp.domain.playback.PlaybackRandomAccessSource? = null
-        val url = if (provider.requiresAuthenticatedPlaybackTransport) {
-            val bytes = relay ?: NaviampPlaybackStreamRelay(scope, providers::isCurrent).also { relay = it }
-            bytes.url(NaviampPlaybackStreamRelay.Slot.Current, provider, request).also {
+        val url = if (sampleProvider.requiresAuthenticatedPlaybackTransport) {
+            val bytes = relay ?: NaviampPlaybackStreamRelay(scope) { candidate ->
+                providers.current()?.let { current ->
+                    current.discoveryPreviewProvider?.let { it === candidate } ?: providers.isCurrentDiscovery(candidate)
+                } == true
+            }.also { relay = it }
+            bytes.url(NaviampPlaybackStreamRelay.Slot.Current, sampleProvider, request).also {
                 transport = bytes.randomAccessSource(it)
             }
-        } else provider.streamUrl(request)
+        } else sampleProvider.streamUrl(request)
         currentCoroutineContext().ensureActive()
-        if (epoch != generation || !providers.isCurrent(provider)) return
+        if (epoch != generation || !providers.isCurrentDiscovery(provider)) return
         native.playPreview(scope, PlaybackRequest(url, mediaId = track.id.value, randomAccess = transport),
             verifyCertificates(), volumePercent()) { state ->
             if (epoch != generation) return@playPreview
@@ -105,11 +110,11 @@ class NaviampCoreSamplePlaybackController(
         job = scope.launch {
             try {
                 port.play(provider, sample) { next ->
-                    if (epoch == generation && providers.isCurrent(provider)) update(next)
+                    if (epoch == generation && providers.isCurrentDiscovery(provider)) update(next)
                 }
             } catch (error: Throwable) {
                 if (error is CancellationException) throw error
-                if (epoch == generation && providers.isCurrent(provider)) {
+                if (epoch == generation && providers.isCurrentDiscovery(provider)) {
                     port.stop()
                     update(PlaybackState.Error(error.message.orEmpty()))
                 }

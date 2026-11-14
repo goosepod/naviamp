@@ -451,6 +451,7 @@ data class SharedArtistDetailUi(
     val similarArtistsExpanded: Boolean = false,
     val playlistsVisible: Boolean = true,
     val playlists: SharedArtistPlaylistsUi = SharedArtistPlaylistsUi(),
+    val aurralSourceId: String? = null,
 )
 
 data class SharedArtistPlaylistsUi(
@@ -512,6 +513,7 @@ data class NaviampArtistDetailActions(
     val onKeepDownloaded: (SharedMediaItemUi) -> Unit = {},
     val onPlaylistSelected: (SharedMediaItemUi) -> Unit = {},
     val onPlaylistsRefresh: (String) -> Unit = {},
+    val onFindInAurral: (String, String) -> Unit = { _, _ -> },
 )
 
 data class SharedAlbumSectionUi(
@@ -632,6 +634,8 @@ data class SharedHomeUi(
     val genreSpotlightAlbums: List<SharedMediaItemUi> = emptyList(),
     val decadeLabel: String = "Decade",
     val decadeAlbums: List<SharedMediaItemUi> = emptyList(),
+    val homeSectionOrder: List<String> = app.naviamp.domain.settings.DefaultHomeSectionOrder,
+    val aurralHomeVisible: Boolean = true,
 ) {
     val isEmpty: Boolean
         get() = mixBuilders.isEmpty() &&
@@ -984,6 +988,8 @@ data class SharedProviderDiscoveryUi(
     val requestActivity: app.naviamp.domain.provider.ProviderDiscoveryActivities = app.naviamp.domain.provider.ProviderDiscoveryActivities(),
     val requestsLoading: Boolean = false,
     val requestsStatus: app.naviamp.domain.provider.ProviderDiscoveryStatus? = null,
+    val contextQuery: String? = null,
+    val isCompanion: Boolean = false,
 )
 
 data class SharedDiscoveryReleaseUi(
@@ -1354,6 +1360,8 @@ data class NowPlayingUi(
     val radioStations: List<NaviampNowPlayingItemUi> = emptyList(),
     val radioDjs: List<RadioDjPreset> = emptyList(),
     val activeRadioDjId: String? = null,
+    val aurralSourceId: String? = null,
+    val aurralRadioMetadata: String? = null,
 )
 
 data class NowPlayingQueueContextUi(
@@ -1410,6 +1418,7 @@ data class NaviampShellConnectionUi(
     val musicFoldersStatus: String? = null,
     val savedConnections: List<NaviampSavedConnectionUi> = emptyList(),
     val hasSavedConnection: Boolean = false,
+    val saveWithoutReconnect: Boolean = false,
 )
 
 data class NaviampConnectionSettingsUi(
@@ -1445,6 +1454,8 @@ data class NaviampConnectionSettingsActions(
     val onSwitchAccount: (NaviampSavedConnectionUi) -> Unit = {},
     val onAddAccount: () -> Unit = {},
     val onChooseServerCertificate: (() -> Unit)? = null,
+    val onChooseCompanionServerCertificate: (() -> Unit)? = null,
+    val onChooseCompanionClientCertificate: (() -> Unit)? = null,
     val onChooseClientCertificate: (() -> Unit)? = null,
 ) {
     fun updateForm(

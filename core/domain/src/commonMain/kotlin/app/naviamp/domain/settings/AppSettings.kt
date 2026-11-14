@@ -63,6 +63,7 @@ data class ConnectionFormState(
     val selectedMusicFolderIds: List<String> = emptyList(),
     val apiKey: String = "",
     val authenticationMode: String = app.naviamp.domain.source.SubsonicAuthToken,
+    val aurralCompanion: app.naviamp.domain.source.AurralCompanion? = null,
 )
 
 fun ConnectionFormState.selectProvider(providerId: String): ConnectionFormState {
@@ -283,7 +284,11 @@ fun InterfaceSettings.withHomeSectionPresentation(
 
 fun InterfaceSettings.resolvedHomeSectionOrder(
     availableSectionIds: List<String> = DefaultHomeSectionOrder,
-): List<String> = (homeSectionOrder + availableSectionIds).distinct()
+): List<String> {
+    val newAurralEntry = if (HomeSectionIds.Aurral in availableSectionIds && HomeSectionIds.Aurral !in homeSectionOrder)
+        listOf(HomeSectionIds.Aurral) else emptyList()
+    return (newAurralEntry + homeSectionOrder + availableSectionIds).distinct()
+}
 
 fun InterfaceSettings.withHomeSectionOrder(order: List<String>): InterfaceSettings =
     copy(homeSectionOrder = order).normalized()
@@ -292,6 +297,7 @@ fun InterfaceSettings.withHomeSectionOrder(order: List<String>): InterfaceSettin
 enum class FavoriteArtistSort { Name, DateFavorited, LastRadioPlayed }
 
 object HomeSectionIds {
+    const val Aurral = "aurral"
     const val FavoriteArtists = "favorite-artists"
     const val MixesForYou = "mixes-for-you"
     const val NavibeatMixes = "navibeat-mixes"
@@ -313,6 +319,7 @@ object HomeSectionIds {
 }
 
 val DefaultHomeSectionOrder = listOf(
+    HomeSectionIds.Aurral,
     HomeSectionIds.FavoriteArtists,
     HomeSectionIds.MixesForYou,
     HomeSectionIds.NavibeatMixes,

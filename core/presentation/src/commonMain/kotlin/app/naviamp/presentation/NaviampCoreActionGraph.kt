@@ -104,6 +104,8 @@ fun createNaviampCoreActions(
         ),
         connectionActions = NaviampConnectionSettingsActions(
             onFormChanged = { send(NaviampCoreCommand.Connection.ChangeForm(it)) },
+            onChooseCompanionServerCertificate = if (availability.chooseCertificate) ({ send(NaviampCoreCommand.Connection.ChooseCertificate(NaviampConnectionCertificateKind.ServerAuthority, companion = true)) }) else null,
+            onChooseCompanionClientCertificate = if (availability.chooseCertificate) ({ send(NaviampCoreCommand.Connection.ChooseCertificate(NaviampConnectionCertificateKind.ClientIdentity, companion = true)) }) else null,
             onChooseServerCertificate = if (availability.chooseCertificate) ({ send(NaviampCoreCommand.Connection.ChooseCertificate(NaviampConnectionCertificateKind.ServerAuthority)) }) else null,
             onChooseClientCertificate = if (availability.chooseCertificate) ({ send(NaviampCoreCommand.Connection.ChooseCertificate(NaviampConnectionCertificateKind.ClientIdentity)) }) else null,
             onConnect = { send(NaviampCoreCommand.Connection.Connect) },
@@ -254,6 +256,7 @@ fun createNaviampCoreActions(
             },
         ),
         artistDetailActions = NaviampArtistDetailActions(
+            onFindInAurral = { source, artist -> send(NaviampCoreCommand.Home.FindInAurral(source, artistId = artist)) },
             onBack = { send(NaviampCoreCommand.Navigation.BackFromArtist) },
             onArtistAction = { send(NaviampCoreCommand.Detail.Artist(it)) },
             onAlbumAction = { send(NaviampCoreCommand.Detail.ArtistAlbum(it)) },
@@ -309,6 +312,7 @@ fun createNaviampCoreActions(
             onMediaItemAction = { send(NaviampCoreCommand.Media.ItemAction(it)) },
         ),
         nowPlayingActions = NaviampNowPlayingActions(
+            onFindInAurral = { source, station, metadata -> send(NaviampCoreCommand.Home.FindInAurral(source, radioId = station, radioMetadata = metadata)) },
             onPlaybackAction = { send(NaviampCoreCommand.NowPlaying.Playback(it)) },
             onDisplayAction = { send(NaviampCoreCommand.NowPlaying.Display(it)) },
             onCurrentTrackAction = { send(NaviampCoreCommand.NowPlaying.CurrentTrack(it)) },

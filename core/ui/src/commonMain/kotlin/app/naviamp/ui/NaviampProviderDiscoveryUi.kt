@@ -195,6 +195,7 @@ internal fun NaviampDiscoveryArtistPanel(
     dismissModifier: Modifier = Modifier,
     navigationModifier: Modifier = Modifier,
     onRequests: (() -> Unit)? = null,
+    contextQuery: String? = null,
 ) {
     var imageOpen by remember(screen.artist.id, stateKey) { mutableStateOf(false) }
     if (imageOpen) ExpandedMediaImageDialog(screen.artist.imageUrl, colors = colors,
@@ -228,6 +229,7 @@ internal fun NaviampDiscoveryArtistPanel(
                 LazyColumn((if (fullPage) Modifier.fillMaxSize() else Modifier.fillMaxWidth().heightIn(max = 640.dp)).testTag("discovery-artist-list"),
                     state = listState, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     item {
+                        contextQuery?.let { DiscoveryText(it, color = colors.primaryText) }
                         val imageAction = stringResource(Res.string.artwork_view_full_size)
                         Box(Modifier.testTag("discovery-artist-artwork").clickable(
                             enabled = !screen.artist.imageUrl.isNullOrBlank(), role = Role.Button,

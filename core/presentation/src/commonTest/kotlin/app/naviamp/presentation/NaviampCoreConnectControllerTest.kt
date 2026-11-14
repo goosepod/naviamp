@@ -1110,10 +1110,32 @@ class NaviampCoreConnectControllerTest {
         controller.close()
     }
 
+    @Test fun companionTransferRequiresTargetSupportAndSendsTheIndependentAccount() = runTest {
+        val companion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "companion-secret")
+        for (supported in listOf(false, true)) {
+            val sent = mutableListOf<app.naviamp.domain.connect.NaviampConnectEnvelope>()
+            val (controller, store, _) = remoteFixture(providerSessions = SetupSourcePort("primary-secret", companion = companion),
+                companionProvisioningSupported = supported) { sent += it }
+            controller.actions.onProvisionTarget()
+            runCurrent()
+            if (supported) {
+                val request = sent.single().message as app.naviamp.domain.connect.NaviampConnectCommandRequest
+                val offer = request.command as app.naviamp.domain.connect.NaviampConnectOfferConnectionProvisioning
+                assertEquals("companion-secret", offer.profile.aurralCompanion?.password)
+                assertEquals("primary-secret", offer.profile.password)
+            } else {
+                assertTrue(sent.isEmpty(), "An older target must not silently receive only the primary connection")
+                assertFalse(store.state.value.shell.connect.provisioningBusy)
+            }
+            controller.close()
+        }
+    }
+
     private fun kotlinx.coroutines.test.TestScope.remoteFixture(
         discovery: NaviampConnectDiscoveryEffect? = null,
         permissionSettings: app.naviamp.app.NaviampConnectPermissionSettingsEffect? = null,
         providerSessions: NaviampCoreProviderSessionPort? = null,
+        companionProvisioningSupported: Boolean = false,
         send: suspend (app.naviamp.domain.connect.NaviampConnectEnvelope) -> Unit,
     ): Triple<NaviampCoreConnectController, NaviampCoreStateStore, NaviampConnectControllerSession> {
         var stored: String? = null
@@ -1139,7 +1161,7 @@ class NaviampCoreConnectControllerTest {
         session.connect("session", 1, target, setOf(app.naviamp.domain.connect.NaviampConnectCapability.TransportControls,
                 app.naviamp.domain.connect.NaviampConnectCapability.ConnectionProvisioning),
             NaviampConnectTargetSnapshot(0, target, emptySet()))
-        controller.adoptControllerSession(session)
+        controller.adoptControllerSession(session, companionProvisioningSupported)
         return Triple(controller, store, session)
     }
 
@@ -1281,7 +1303,8 @@ internal object UnusedCipherFactory : NaviampConnectAuthenticatedCipherFactory {
     ): NaviampConnectAuthenticatedCipher = error("unused")
 }
 
-private class SetupSourcePort(private val password: String, private val suspendExport: Boolean = false) : NaviampCoreProviderSessionPort {
+private class SetupSourcePort(private val password: String, private val suspendExport: Boolean = false,
+    private val companion: app.naviamp.domain.source.AurralCompanion? = null) : NaviampCoreProviderSessionPort {
     var cancelled = false
     override fun currentSourceId() = "source"
     override suspend fun currentProvisioningConnection(): NaviampCoreEditableConnection {
@@ -1289,7 +1312,8 @@ private class SetupSourcePort(private val password: String, private val suspendE
         return editableConnection("source")
     }
     override suspend fun editableConnection(id: String) = NaviampCoreEditableConnection(
-        app.naviamp.domain.settings.ConnectionFormState(serverUrl = "https://fixture.invalid", username = "fixture", password = password))
+        app.naviamp.domain.settings.ConnectionFormState(serverUrl = "https://fixture.invalid", username = "fixture", password = password,
+            aurralCompanion = companion))
     override suspend fun connect(request: NaviampCoreConnectionRequest, plan: app.naviamp.app.NaviampConnectionAttemptPlan): NaviampCoreConnectedSession = error("unused")
     override suspend fun deleteConnection(id: String) = NaviampCoreConnectionInventory()
     override suspend fun smartPlaylistProvider(password: String?) = null

@@ -9,6 +9,21 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class NaviampConnectProtocolTest {
+    @Test fun companionNegotiationIsAdditiveAndOlderOffersHaveNoCompanion() {
+        val welcome = NaviampConnectWelcome("session", 1, targetDevice(), emptySet(), snapshot(0),
+            companionProvisioningSupported = true)
+        val envelope = NaviampConnectEnvelope(1, "session", 1, message = welcome)
+        val encoded = NaviampConnectWireCodec.encode(envelope)
+        assertEquals(envelope, NaviampConnectWireCodec.decode(encoded))
+        val legacy = encoded.replace(",\"companionProvisioningSupported\":true", "")
+        assertFalse((NaviampConnectWireCodec.decode(legacy).message as NaviampConnectWelcome).companionProvisioningSupported)
+        val oldOffer = NaviampConnectEnvelope(1, "session", 1, message = NaviampConnectCommandRequest(
+            NaviampConnectOfferConnectionProvisioning(NaviampConnectProvisioningProfile(
+                "navidrome", "Home", "https://primary.example", "primary", "secret"))))
+        val decoded = NaviampConnectWireCodec.decode(NaviampConnectWireCodec.encode(oldOffer))
+        assertNull(((decoded.message as NaviampConnectCommandRequest).command as NaviampConnectOfferConnectionProvisioning).profile.aurralCompanion)
+    }
+
     @Test
     fun setupRejectionIsAdditiveAndLegacyFailureRemainsUnclassified() {
         val result = NaviampConnectConnectionProvisioningResult(false, "", "setup", rejected = true)

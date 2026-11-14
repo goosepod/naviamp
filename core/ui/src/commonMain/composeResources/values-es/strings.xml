@@ -1264,4 +1264,9 @@
     <string name="stream_details_embedded_artwork">Carátula integrada disponible</string>
     <string name="stream_details_redacted">oculto</string>
     <string name="stream_details_unavailable_url">URL no disponible</string>
+    <string name="connection_aurral_companion">Aurral complementario</string>
+    <string name="connection_aurral_companion_guidance">Usa Aurral para descubrir música y hacer solicitudes. Tu servidor de música sigue gestionando la biblioteca y la reproducción.</string>
+    <string name="connection_aurral_companion_invalid">Introduce una URL de servidor HTTP o HTTPS de Aurral y un nombre de usuario.</string>
+    <string name="discovery_find_in_aurral">Buscar en Aurral</string>
+    <string name="connection_aurral_companion_save_failed">No se pudo guardar Aurral complementario. La conexión de música no ha cambiado.</string>
 </resources>

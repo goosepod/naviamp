@@ -18,6 +18,91 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 
 class NaviampCoreConnectionControllerTest {
+    @Test fun provisioningAnAlreadyConnectedPrimaryStillSavesItsCompanionWithoutReconnecting() = kotlinx.coroutines.test.runTest {
+        var changes = 0
+        val f = fixture(onCompanionChanged = { changes++ })
+        f.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        f.port.connectRequests.clear()
+        val companion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret")
+        val form = ConnectionFormState(serverUrl = "https://music.example", username = "demo", password = "primary-secret",
+            aurralCompanion = companion)
+        assertTrue(f.controller.provisionConnect(form))
+        assertEquals("source-1" to companion, f.port.savedCompanions.single())
+        assertEquals(1, changes)
+        assertTrue(f.port.connectRequests.isEmpty())
+        assertTrue(f.controller.provisionConnect(form.copy(aurralCompanion = null)))
+        assertEquals(1, f.port.savedCompanions.size, "Older offers must retain the target's attachment")
+        f.port.companionSaveFailure = IllegalStateException("Storage unavailable")
+        assertFalse(f.controller.provisionConnect(form))
+        assertEquals(1, changes)
+        assertFalse(f.controller.provisionConnect(form.copy(aurralCompanion = companion.copy(baseUrl = "invalid"))))
+        assertTrue(f.port.connectRequests.isEmpty())
+    }
+
+    @Test fun savingAnUnchangedPrimaryWithAnExistingCompanionCanStillReconnectThePrimary() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        fixture.port.editableCompanion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret")
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.port.connectRequests.clear()
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        assertFalse(fixture.store.state.value.shell.connectionSettings.connection.saveWithoutReconnect)
+        fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
+        assertEquals(1, fixture.port.connectRequests.size)
+        assertTrue(fixture.port.savedCompanions.isEmpty())
+    }
+
+    @Test fun failedCompanionSaveKeepsThePrimaryConnectedAndTheEditorOpen() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        fixture.port.companionSaveFailure = IllegalStateException("credential protector unavailable")
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(
+            aurralCompanion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret"))))
+        fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
+        val connection = fixture.store.state.value.shell.connectionSettings.connection
+        assertTrue(connection.connected)
+        assertTrue(connection.editingConnection)
+        assertTrue(connection.statusIsError)
+        assertEquals("connection_aurral_companion_save_failed", connection.status)
+    }
+
+    @Test fun companionOnlyEditPreservesTheConnectedPrimaryAndDoesNotRestoreItsQueue() = kotlinx.coroutines.test.runTest {
+        var connectedCallbacks = 0
+        var sourceChanges = 0
+        var companionChanges = 0
+        val fixture = fixture(onConnected = { connectedCallbacks++ }, onSourceChanging = { _, _ -> sourceChanges++ },
+            onCompanionChanged = { companionChanges++ })
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        val before = fixture.store.state.value.shell.connectionSettings.currentSourceId
+        fixture.port.connectRequests.clear()
+        connectedCallbacks = 0; sourceChanges = 0
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        val companion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret")
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(aurralCompanion = companion)))
+        assertTrue(fixture.store.state.value.shell.connectionSettings.connection.saveWithoutReconnect)
+        fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
+        assertEquals("source-1" to companion, fixture.port.savedCompanions.single())
+        assertEquals(before, fixture.store.state.value.shell.connectionSettings.currentSourceId)
+        assertTrue(fixture.store.state.value.shell.connectionSettings.connection.connected)
+        assertTrue(fixture.port.connectRequests.isEmpty())
+        assertEquals(0, connectedCallbacks)
+        assertEquals(0, sourceChanges)
+        assertEquals(1, companionChanges)
+    }
+
+    @Test fun companionCertificateSelectionUpdatesOnlyItsOwnTlsIdentity() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture(certificateFiles = NaviampCoreCertificateFilePort { "/companion.p12" })
+        val original = ConnectionFormState(serverUrl = "https://primary.example", clientCertificatePath = "/primary.p12",
+            aurralCompanion = app.naviamp.domain.source.AurralCompanion(enabled = true))
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(original))
+        fixture.controller.execute(NaviampCoreCommand.Connection.ChooseCertificate(NaviampConnectionCertificateKind.ClientIdentity, companion = true))
+        val updated = fixture.store.state.value.shell.connectionSettings.connection.form
+        assertEquals(original.clientCertificatePath, updated.clientCertificatePath)
+        assertEquals("/companion.p12", updated.aurralCompanion!!.tlsSettings.clientCertificateKeyStorePath)
+    }
+
     @Test fun importedConnectionsCanBeEditedAndConnectedThroughNestedRoutersWithoutRestart() = kotlinx.coroutines.test.runTest {
         val empty = NaviampCoreConnectionInventory()
         val leaf = FakeProviderSessionPort(empty, null, false, emptyList(), emptyList())
@@ -785,6 +870,7 @@ class NaviampCoreConnectionControllerTest {
         connectFailure: Throwable? = null,
         musicFoldersLoadFailed: Boolean = false,
         onConnected: (String) -> Unit = {},
+        onCompanionChanged: (String) -> Unit = {},
         onUserConnected: (String) -> Unit = {},
         onOfflineRestored: (String) -> Unit = {},
         onSourceChanging: (String?, String) -> Unit = { _, _ -> },
@@ -817,6 +903,7 @@ class NaviampCoreConnectionControllerTest {
                 initialInventory = inventory,
                 onSourceChanging = onSourceChanging,
                 onConnected = onConnected,
+                onCompanionChanged = onCompanionChanged,
                 onUserConnected = onUserConnected,
                 onOfflineRestored = onOfflineRestored,
                 certificateFiles = certificateFiles,
@@ -858,6 +945,13 @@ private class FakeProviderSessionPort(
 ) : NaviampCoreProviderSessionPort {
     override fun initialInventory() = inventory
     var inventory = initialInventory
+    var editableCompanion: app.naviamp.domain.source.AurralCompanion? = null
+    var companionSaveFailure: Throwable? = null
+    val savedCompanions = mutableListOf<Pair<String, app.naviamp.domain.source.AurralCompanion>>()
+    override suspend fun saveAurralCompanion(sourceId: String, companion: app.naviamp.domain.source.AurralCompanion) {
+        companionSaveFailure?.let { throw it }
+        savedCompanions += sourceId to companion
+    }
     var refreshCalls = 0
     var activeSessionCleared = false
     var connectGate: CompletableDeferred<Unit>? = null
@@ -891,6 +985,7 @@ private class FakeProviderSessionPort(
 
     override suspend fun editableConnection(id: String) = NaviampCoreEditableConnection(
         form = ConnectionFormState(
+            aurralCompanion = editableCompanion,
             serverUrl = "https://edited.example",
             username = "demo",
             selectedMusicFolderIds = selectedMusicFolderIds,

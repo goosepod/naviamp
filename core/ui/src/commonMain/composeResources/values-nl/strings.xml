@@ -492,4 +492,9 @@
     <string name="tv_repeat_all">Alles herhalen</string>
     <string name="tv_repeat_one">Nummer herhalen</string>
     <string name="tv_start_radio">Radio starten</string>
+    <string name="connection_aurral_companion">Aurral als aanvulling</string>
+    <string name="connection_aurral_companion_guidance">Gebruik Aurral om muziek te ontdekken en aan te vragen. Je muziekserver blijft je bibliotheek en het afspelen beheren.</string>
+    <string name="connection_aurral_companion_invalid">Voer een HTTP- of HTTPS-serveradres en gebruikersnaam voor Aurral in.</string>
+    <string name="discovery_find_in_aurral">Zoeken in Aurral</string>
+    <string name="connection_aurral_companion_save_failed">De Aurral-aanvulling kon niet worden opgeslagen. Je muziekverbinding blijft ongewijzigd.</string>
 </resources>

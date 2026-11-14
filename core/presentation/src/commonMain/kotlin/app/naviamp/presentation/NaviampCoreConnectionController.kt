@@ -50,9 +50,11 @@ class NaviampCoreConnectionController(
     private val onUserConnected: (String) -> Unit = {},
     private val onOfflineRestored: (String) -> Unit = {},
     private val certificateFiles: NaviampCoreCertificateFilePort? = null,
+    private val onCompanionChanged: (String) -> Unit = {},
 ) : NaviampCoreCommandController {
     private var inventory = initialInventory
     private var editingConnectionId: String? = null
+    private var originalEditingForm: ConnectionFormState? = null
     private var librarySourceConnection: NaviampCoreEditableConnection? = null
     private var accountAttempt: Job? = null
     private var certificateSelectionGeneration = 0L
@@ -77,6 +79,7 @@ class NaviampCoreConnectionController(
         sessionPort.clearActiveSession()
         inventory = NaviampCoreConnectionInventory()
         editingConnectionId = null
+        originalEditingForm = null
         connection.disconnected("Database reset.")
         stateStore.updateShell { shell ->
             shell.copy(
@@ -84,6 +87,7 @@ class NaviampCoreConnectionController(
                     connection = shell.connectionSettings.connection.copy(
                         editingConnection = false,
                         editingSavedConnection = false,
+                        saveWithoutReconnect = false,
                         form = ConnectionFormState(),
                         availableMusicFolders = emptyList(),
                         musicFoldersStatus = null,
@@ -129,7 +133,17 @@ class NaviampCoreConnectionController(
             ) &&
             active.username == form.username.trim()
         ) {
-            return true
+            val companion = form.aurralCompanion ?: return true
+            if (connectionFormError(form, hasSavedConnectionForLogin = true) != null) return false
+            return try {
+                sessionPort.saveAurralCompanion(active.id, companion)
+                onCompanionChanged(active.id)
+                true
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                false
+            }
         }
         return connect(NaviampCoreConnectionRequest.Form(form))
     }
@@ -184,11 +198,29 @@ class NaviampCoreConnectionController(
             certificateSelectionGeneration++
         }
         when (command) {
-            is NaviampCoreCommand.Connection.ChooseCertificate -> chooseCertificate(command.kind)
+            is NaviampCoreCommand.Connection.ChooseCertificate -> chooseCertificate(command.kind, command.companion)
             NaviampCoreCommand.Connection.Connect -> {
                 val request = NaviampCoreConnectionRequest.Form(
                     stateStore.state.value.shell.connectionSettings.connection.form, editingConnectionId)
-                if (accountSwitcher().addingAccount) connectAccount(request) else connect(request)
+                val savedId = request.savedConnectionId
+                val companion = request.form.aurralCompanion
+                if (savedId != null && companion != null && isCompanionOnlyEdit(request.form)) {
+                    val error = connectionFormError(request.form, hasSavedConnectionForLogin = true)
+                    if (error != null) {
+                        stateStore.updateShell { shell -> shell.copy(connectionSettings = shell.connectionSettings.copy(
+                            connection = shell.connectionSettings.connection.copy(status = error, statusIsError = true))) }
+                    } else {
+                        try {
+                            sessionPort.saveAurralCompanion(savedId, companion)
+                            setEditing(false)
+                            onCompanionChanged(savedId)
+                        } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+                        catch (_: Exception) {
+                            stateStore.updateShell { shell -> shell.copy(connectionSettings = shell.connectionSettings.copy(
+                                connection = shell.connectionSettings.connection.copy(status = "connection_aurral_companion_save_failed", statusIsError = true))) }
+                        }
+                    }
+                } else if (accountSwitcher().addingAccount) connectAccount(request) else connect(request)
             }
             is NaviampCoreCommand.Connection.SwitchAccount -> {
                 val id = command.connection.id
@@ -221,7 +253,7 @@ class NaviampCoreConnectionController(
         return NaviampCoreCommandResult.Completed
     }
 
-    private suspend fun chooseCertificate(kind: NaviampConnectionCertificateKind) {
+    private suspend fun chooseCertificate(kind: NaviampConnectionCertificateKind, companion: Boolean = false) {
         val port = certificateFiles ?: return
         val before = stateStore.state.value.shell.connectionSettings.connection
         if (before.isConnecting) return
@@ -239,6 +271,15 @@ class NaviampCoreConnectionController(
         // Do not apply a late picker result to another form or overwrite edits made while it was open.
         val current = stateStore.state.value.shell.connectionSettings.connection
         if (generation != certificateSelectionGeneration || editing != editingConnectionId || current.form != before.form || current.isConnecting) return
+        if (companion) {
+            val attachment = before.form.aurralCompanion ?: return
+            val tls = when (kind) {
+                NaviampConnectionCertificateKind.ServerAuthority -> attachment.tlsSettings.copy(customCertificatePath = path)
+                NaviampConnectionCertificateKind.ClientIdentity -> attachment.tlsSettings.copy(clientCertificateKeyStorePath = path)
+            }
+            updateForm(before.form.copy(aurralCompanion = attachment.copy(tlsSettings = tls)))
+            return
+        }
         updateForm(when (kind) {
             NaviampConnectionCertificateKind.ServerAuthority -> before.form.copy(customCertificatePath = path)
             NaviampConnectionCertificateKind.ClientIdentity -> before.form.copy(clientCertificatePath = path)
@@ -283,6 +324,7 @@ class NaviampCoreConnectionController(
                 }
                 inventory = session.inventory
                 editingConnectionId = null
+                originalEditingForm = null
                 connection.connected(
                     sourceId = session.sourceId,
                     serverVersion = session.serverVersion,
@@ -294,6 +336,7 @@ class NaviampCoreConnectionController(
                             connection = shell.connectionSettings.connection.copy(
                                 editingConnection = false,
                                 editingSavedConnection = false,
+                                saveWithoutReconnect = false,
                             ),
                         ),
                     )
@@ -463,6 +506,7 @@ class NaviampCoreConnectionController(
         runCatching { sessionPort.editableConnection(id) }
             .onSuccess { editable ->
                 editingConnectionId = id
+                originalEditingForm = editable.form
                 stateStore.updateShell { shell ->
                     shell.copy(
                         connectionSettings = shell.connectionSettings.copy(
@@ -470,6 +514,7 @@ class NaviampCoreConnectionController(
                                 editingConnection = true,
                                 editingSavedConnection = true,
                                 form = editable.form,
+                                saveWithoutReconnect = isCompanionOnlyEdit(editable.form),
                                 availableMusicFolders = editable.availableMusicFolders,
                                 musicFoldersStatus = if (editable.musicFoldersLoadFailed) {
                                     "Could not load music folders. You can still edit the connection."
@@ -498,17 +543,23 @@ class NaviampCoreConnectionController(
             .onFailure { cause -> publishStatus(cause.message ?: "Could not delete ${saved.displayName}.") }
     }
 
+    private fun isCompanionOnlyEdit(form: ConnectionFormState): Boolean =
+        editingConnectionId != null && form.aurralCompanion != null &&
+            form.aurralCompanion != originalEditingForm?.aurralCompanion &&
+            originalEditingForm?.copy(aurralCompanion = form.aurralCompanion) == form
+
     private fun updateForm(form: ConnectionFormState) {
         stateStore.updateShell { shell ->
             shell.copy(
                 connectionSettings = shell.connectionSettings.copy(
-                    connection = shell.connectionSettings.connection.copy(form = form),
+                    connection = shell.connectionSettings.connection.copy(form = form, saveWithoutReconnect = isCompanionOnlyEdit(form)),
                 ),
             )
         }
     }
 
     private fun openNewForm() {
+        originalEditingForm = null
         editingConnectionId = null
         stateStore.updateShell { shell ->
             shell.copy(
@@ -516,6 +567,7 @@ class NaviampCoreConnectionController(
                     connection = shell.connectionSettings.connection.copy(
                         editingConnection = true,
                         editingSavedConnection = false,
+                        saveWithoutReconnect = false,
                         form = ConnectionFormState(),
                         availableMusicFolders = emptyList(),
                         musicFoldersStatus = null,
@@ -526,12 +578,13 @@ class NaviampCoreConnectionController(
     }
 
     private fun setEditing(editing: Boolean) {
-        if (!editing) editingConnectionId = null
+        if (!editing) { editingConnectionId = null; originalEditingForm = null }
         stateStore.updateShell { shell ->
             shell.copy(
                 connectionSettings = shell.connectionSettings.copy(
                     connection = shell.connectionSettings.connection.copy(
                         editingConnection = editing,
+                        saveWithoutReconnect = editing && shell.connectionSettings.connection.saveWithoutReconnect,
                         editingSavedConnection = if (editing) {
                             shell.connectionSettings.connection.editingSavedConnection
                         } else {

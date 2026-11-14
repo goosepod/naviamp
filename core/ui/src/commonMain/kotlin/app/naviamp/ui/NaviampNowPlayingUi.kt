@@ -207,6 +207,7 @@ data class NaviampNowPlayingActions(
     val onPlaylistMembershipApplied: () -> Unit = {},
     val onPlaylistMembershipDismissed: () -> Unit = {},
     val onCreateRadioDj: () -> Unit = {},
+    val onFindInAurral: (String, String, String) -> Unit = { _, _, _ -> },
 ) {
     fun playback(action: NowPlayingPlaybackAction) {
         onPlaybackAction(NowPlayingPlaybackActionRequest(action))
@@ -1428,6 +1429,13 @@ private fun NowPlayingDetails(
                                         actions.onRemoteOutputAction()
                                     },
                                 )
+                            }
+                            if (nowPlaying.isLive && nowPlaying.aurralSourceId != null && nowPlaying.aurralRadioMetadata != null) {
+                                NaviampDropdownMenuItem(label = stringResource(Res.string.discovery_find_in_aurral),
+                                    icon = NaviampIcons.Search, onClick = {
+                                        actionMenuExpanded = false
+                                        actions.onFindInAurral(nowPlaying.aurralSourceId, nowPlaying.id, nowPlaying.aurralRadioMetadata)
+                                    })
                             }
                             nowPlayingTrackMenuActions(
                                 canStartRadio = nowPlaying.canStartRadio,

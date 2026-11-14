@@ -387,4 +387,5 @@ private fun JdbcSqliteDriver.removeDiscMetadataColumns() {
 private fun JdbcSqliteDriver.createSchemaWithoutAcquisitions() {
     NaviampStorageDatabase.Schema.create(this)
     execute(null, "DROP TABLE discovery_acquisition", 0)
+    execute(null, "ALTER TABLE media_source DROP COLUMN aurral_companion", 0)
 }

@@ -492,4 +492,9 @@
     <string name="tv_repeat_all">Ulangi semua</string>
     <string name="tv_repeat_one">Ulangi lagu</string>
     <string name="tv_start_radio">Mulai radio</string>
+    <string name="connection_aurral_companion">Pendamping Aurral</string>
+    <string name="connection_aurral_companion_guidance">Gunakan Aurral untuk penemuan musik dan permintaan. Server musik tetap mengelola pustaka dan pemutaran.</string>
+    <string name="connection_aurral_companion_invalid">Masukkan URL server Aurral HTTP atau HTTPS dan nama pengguna.</string>
+    <string name="discovery_find_in_aurral">Cari di Aurral</string>
+    <string name="connection_aurral_companion_save_failed">Pendamping Aurral tidak dapat disimpan. Koneksi musik Anda tidak berubah.</string>
 </resources>

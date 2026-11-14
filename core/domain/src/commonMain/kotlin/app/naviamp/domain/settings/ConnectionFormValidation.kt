@@ -24,6 +24,11 @@ fun connectionFormError(
     form: ConnectionFormState,
     hasSavedConnectionForLogin: Boolean,
 ): String? {
+    val companion = form.aurralCompanion?.normalized()
+    if (companion?.enabled == true && (companion.username.isBlank() ||
+        !(companion.baseUrl.startsWith("https://") || companion.baseUrl.startsWith("http://")) ||
+        companion.baseUrl.substringAfter("://").substringBefore('/').let { it.isBlank() || '@' in it }))
+        return "connection_aurral_companion_invalid"
     val provider = providerDescriptor(form.providerId)
     if (!provider.selectable) return "${provider.displayName} support is not available yet."
     if (provider.id == app.naviamp.domain.provider.ProviderIdAurral && form.authenticationMode == SubsonicAuthApiKey) {

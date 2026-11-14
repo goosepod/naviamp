@@ -53,7 +53,7 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface Connection : NaviampCoreCommand {
-        data class ChooseCertificate(val kind: NaviampConnectionCertificateKind) : Connection
+        data class ChooseCertificate(val kind: NaviampConnectionCertificateKind, val companion: Boolean = false) : Connection
         data class ChangeForm(val form: ConnectionFormState) : Connection
         data object Connect : Connection
         data object EditCurrent : Connection
@@ -191,6 +191,8 @@ sealed interface NaviampCoreCommand {
         data class OpenDiscoveryArtist(val id: String) : Home
         data class SelectDiscoveryArtist(val id: String) : Home
         data class BrowseDiscoveryArtist(val sourceId: String?, val artist: app.naviamp.domain.provider.ProviderDiscoveryArtist) : Home
+        data class FindInAurral(val sourceId: String, val artistId: String? = null,
+            val radioId: String? = null, val radioMetadata: String? = null) : Home
         data class SelectDiscoveryRelease(val id: String) : Home
         data class OpenDiscoveryLibraryRelease(val sourceId: String?, val sourceGeneration: Long, val releaseId: String) : Home
         data class DiscoveryReleaseAction(val sourceId: String?, val sourceGeneration: Long, val releaseId: String,

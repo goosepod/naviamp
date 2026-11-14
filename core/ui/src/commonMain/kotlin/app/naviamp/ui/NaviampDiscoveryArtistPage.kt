@@ -9,11 +9,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.focus.FocusDirection
@@ -61,6 +63,7 @@ internal fun NaviampDiscoveryArtistPage(
         }
     }
     if (release != null) {
+        val editionsExpanded = remember(discovery.sourceId, discovery.sourceGeneration, release.release.id) { mutableStateOf(false) }
         val albumOperation = artist.requestOperations[ProviderDiscoveryAction.RequestAlbum(release.release.id)]
         val available = release.ownership?.status == ProviderDiscoveryStatus.Ready &&
             release.ownership.availability == ProviderDiscoveryReleaseAvailability.Available
@@ -72,6 +75,7 @@ internal fun NaviampDiscoveryArtistPage(
             DiscoveryActionButton(colors = colors, onClick = actions.onDiscoveryRequests) { DiscoveryText(stringResource(Res.string.discovery_requests_title)) }
             if (discovery.requestsStatus != null && discovery.requestsStatus != ProviderDiscoveryStatus.Ready)
                 DiscoveryText(stringResource(Res.string.discovery_requests_stale), color = colors.secondaryText)
+            discovery.contextQuery?.let { DiscoveryText(it, color = colors.primaryText) }
             DiscoveryText(release.result?.release?.title ?: release.release.title, color = colors.primaryText,
                 modifier = Modifier.semantics { heading() })
             val metadata = release.result?.release ?: release.release
@@ -92,12 +96,6 @@ internal fun NaviampDiscoveryArtistPage(
                     DiscoveryText(release.result.credits.joinToString(", ") { it.name }, color = colors.secondaryText)
                     NaviampProviderDescription(release.result.overview, release.release.id, colors)
                     if (release.result.genres.isNotEmpty()) DiscoveryText(release.result.genres.joinToString(", "), color = colors.secondaryText)
-                    if (release.result.editions.isNotEmpty()) {
-                        DiscoveryText(stringResource(Res.string.discovery_editions), color = colors.primaryText, modifier = Modifier.semantics { heading() })
-                        release.result.editions.forEach { edition ->
-                            DiscoveryText(listOfNotNull(edition.title, discoveryCalendarDate(edition.date), edition.status).joinToString(" · "), color = colors.secondaryText)
-                        }
-                    }
                 }
             }
             if (release.ownershipLoading) DiscoveryText(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
@@ -146,6 +144,19 @@ internal fun NaviampDiscoveryArtistPage(
                     NaviampDiscoveryReleaseTrackList(discovery, artist, release, colors, actions, playback, waitingRequest)
                 }
             }
+            if (release.result?.status == ProviderDiscoveryStatus.Ready && release.result.editions.isNotEmpty()) {
+                val title = stringResource(Res.string.discovery_editions)
+                val toggleLabel = stringResource(if (editionsExpanded.value) Res.string.mix_collapse_genre else Res.string.mix_expand_genre, title)
+                DiscoveryActionButton(colors = colors, onClick = { editionsExpanded.value = !editionsExpanded.value },
+                    modifier = Modifier.semantics { onClick(label = toggleLabel, action = null) }) {
+                    DiscoveryText(title)
+                    Spacer(Modifier.width(8.dp))
+                    Icon(if (editionsExpanded.value) NaviampIcons.ChevronUp else NaviampIcons.ChevronDown, null, Modifier.size(16.dp))
+                }
+                if (editionsExpanded.value) release.result.editions.forEach { edition ->
+                    DiscoveryText(listOfNotNull(edition.title, discoveryCalendarDate(edition.date), edition.status).joinToString(" · "), color = colors.secondaryText)
+                }
+            }
         }
         return
     }
@@ -156,6 +167,7 @@ internal fun NaviampDiscoveryArtistPage(
         onFeedback = { actions.onDiscoveryFeedback(artist.artist.id, it) },
         onLibrary = { actions.onDiscoveryLibraryArtist(artist.artist.id) },
         onAction = { actions.onDiscoveryAction(artist.artist.id, it) }, playback = playback,
+        contextQuery = discovery.contextQuery,
         fullPage = true, onArtistDetails = actions.onDiscoveryArtistDetails,
         onRequests = actions.onDiscoveryRequests,
         onReleaseSelected = actions.onDiscoveryRelease, onViewport = actions.onDiscoveryViewport,

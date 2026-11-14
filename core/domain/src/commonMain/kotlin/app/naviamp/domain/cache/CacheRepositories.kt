@@ -257,6 +257,10 @@ interface TrackMetadataRepository {
 }
 
 interface MediaSourceRepository {
+    fun updateAurralCompanion(sourceId: String, companion: app.naviamp.domain.source.AurralCompanion) {
+        error("Companion persistence is unavailable.")
+    }
+
     fun latestMediaSource(): SavedMediaSource?
 
     fun mediaSources(): List<SavedMediaSource>
@@ -279,6 +283,7 @@ data class ProviderMediaSourceConnection(
     val customHeaders: List<ConnectionHeaderDefinition> = emptyList(),
     val selectedMusicFolderIds: List<String> = emptyList(),
     val authenticationMode: String = app.naviamp.domain.source.SubsonicAuthToken,
+    val aurralCompanion: app.naviamp.domain.source.AurralCompanion? = null,
 ) {
     fun serverConnectionKey(providerId: String): String =
         stableServerConnectionKey(

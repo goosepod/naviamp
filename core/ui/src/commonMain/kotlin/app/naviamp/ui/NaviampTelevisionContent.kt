@@ -134,13 +134,15 @@ internal fun TelevisionHome(
             entryFocusGeneration = entryFocusGeneration, onEntryFocusHandled = onEntryFocusHandled)
         return
     }
-    val sections = televisionHomeSections(home.content.collectionSections)
+    val sections = home.content.homeScreenSlots(home.providerDiscovery != null,
+        televisionHomeSections(home.content.collectionSections))
     val listState = rememberLazyListState()
-    val discoveryScope = rememberCoroutineScope()
     val density = LocalDensity.current
     val contextInsetPx = with(density) { TelevisionHomeFocusedSectionTopInset.roundToPx() }
     val sectionItemKeys = sections.map { section ->
-        section.items.map { item -> "${item.mediaKind}:${item.mediaItem.id}" } + "view-all:${section.id}"
+        section.collection?.let { collection ->
+            collection.items.map { item -> "${item.mediaKind}:${item.mediaItem.id}" } + "view-all:${section.id}"
+        } ?: listOf("aurral-entry")
     }
     val itemFocusRequesters = remember(sectionItemKeys) {
         sectionItemKeys.map { itemKeys -> List(itemKeys.size) { FocusRequester() } }
@@ -181,7 +183,7 @@ internal fun TelevisionHome(
                     )
                 }
             }
-            itemsIndexed(sections, key = { _, section -> section.id }) { sectionIndex, section ->
+            itemsIndexed(sections, key = { _, slot -> slot.id }) { sectionIndex, slot ->
                 val nextSectionIndex = televisionHomeVerticalSectionTarget(
                     currentSectionIndex = sectionIndex,
                     sectionCount = sections.size,
@@ -192,8 +194,31 @@ internal fun TelevisionHome(
                     sectionCount = sections.size,
                     key = Key.DirectionUp,
                 )
+                if (slot.collection == null) {
+                    home.providerDiscovery?.let { discovery ->
+                        Box(Modifier.focusRequester(itemFocusRequesters[sectionIndex].first())
+                            .onFocusChanged { focus -> if (focus.hasFocus) focusedSectionIndex = sectionIndex }
+                            .onPreviewKeyEvent { event ->
+                                val targetIndex = when (event.key) {
+                                    Key.DirectionUp -> previousSectionIndex
+                                    Key.DirectionDown -> nextSectionIndex
+                                    else -> null
+                                }
+                                if (targetIndex == null) false else {
+                                    if (event.type == KeyEventType.KeyDown) itemFocusRequesters[targetIndex].first().requestFocus()
+                                    true
+                                }
+                            }) {
+                            NaviampProviderDiscoveryContent(discovery, colors, actions.onDiscoveryArtistSelected,
+                                actions.onDiscoveryArtistDetails, actions.onDiscoveryArtistDismiss,
+                                actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist, actions.onDiscoveryAction, discoveryPlayback,
+                                onRequests = actions.onDiscoveryRequests, onBrowse = actions.onDiscoveryBrowse)
+                        }
+                    }
+                    return@itemsIndexed
+                }
                 TelevisionHomeCarousel(
-                    section = section,
+                    section = slot.collection,
                     colors = colors,
                     itemFocusRequesters = itemFocusRequesters[sectionIndex],
                     previousSectionFocusRequester = previousSectionIndex?.let { targetSectionIndex ->
@@ -214,25 +239,11 @@ internal fun TelevisionHome(
                     },
                     onSectionFocused = { focusedSectionIndex = sectionIndex },
                     onItemFocused = { itemIndex ->
-                        rememberedItemIndices = rememberedItemIndices + (section.id to itemIndex)
+                        rememberedItemIndices = rememberedItemIndices + (slot.id to itemIndex)
                     },
                     onSelected = { item -> dispatchHomeCollectionItem(item, actions, mediaActions) },
-                    onViewAll = { actions.onCollectionSelected(section.id) },
+                    onViewAll = { actions.onCollectionSelected(slot.id) },
                 )
-            }
-            home.providerDiscovery?.let { discovery ->
-                item(key = "television-provider-discovery") {
-                    Box(Modifier.onFocusChanged { focus ->
-                        if (focus.hasFocus) discoveryScope.launch {
-                            listState.scrollToItem(sections.size.coerceAtLeast(1))
-                        }
-                    }) {
-                        NaviampProviderDiscoveryContent(discovery, colors, actions.onDiscoveryArtistSelected,
-                            actions.onDiscoveryArtistDetails, actions.onDiscoveryArtistDismiss,
-                            actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist, actions.onDiscoveryAction, discoveryPlayback,
-                            onRequests = actions.onDiscoveryRequests, onBrowse = actions.onDiscoveryBrowse)
-                    }
-                }
             }
         }
     }
@@ -1722,6 +1733,13 @@ internal fun TelevisionNowPlaying(
                             queueOpen = !queueOpen
                             queueActionItem = null
                             queueReorder = null
+                        }
+                        if (nowPlaying.isLive && nowPlaying.aurralSourceId != null && nowPlaying.aurralRadioMetadata != null) {
+                            TelevisionIconButton(true, NaviampIcons.Search, stringResource(Res.string.discovery_find_in_aurral), colors,
+                                size = TelevisionNowPlayingSecondaryButtonSize, iconSize = TelevisionNowPlayingSecondaryIconSize,
+                                whiteHighlight = true) {
+                                actions.onFindInAurral(nowPlaying.aurralSourceId, nowPlaying.id, nowPlaying.aurralRadioMetadata)
+                            }
                         }
                         if (!nowPlaying.isLive) {
                             TelevisionIconButton(

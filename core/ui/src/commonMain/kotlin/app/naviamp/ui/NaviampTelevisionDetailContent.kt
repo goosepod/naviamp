@@ -176,7 +176,7 @@ internal fun TelevisionArtistDetail(
                 } else {
                     firstAlbumFocusRequester
                 },
-                actions = listOf(
+                actions = listOfNotNull(
                     TelevisionHeroAction(stringResource(Res.string.transport_play), NaviampTransportIcons.Play, detail.albums.isNotEmpty()) {
                         actions.onArtistAction(
                             NaviampArtistDetailActionRequest(
@@ -195,6 +195,9 @@ internal fun TelevisionArtistDetail(
                             NaviampArtistDetailActionRequest(detail.artist, NaviampArtistDetailCommand.AddToQueue),
                         )
                     },
+                    detail.aurralSourceId?.let { source -> TelevisionHeroAction(stringResource(Res.string.discovery_find_in_aurral), NaviampIcons.Search, true) {
+                        actions.onFindInAurral(source, detail.artist.id)
+                    } },
                 ),
             )
         }

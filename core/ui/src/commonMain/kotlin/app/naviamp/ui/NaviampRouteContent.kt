@@ -81,13 +81,19 @@ fun SharedHome(
     home: SharedHomeUi,
     actions: NaviampHomeActions,
     mediaActions: NaviampMediaActions,
+    discoveryContent: (@Composable () -> Unit)? = null,
 ) {
-    val visibleSections = home.collectionSections.filter { it.visible }
+    val slots = home.homeScreenSlots(discoveryContent != null)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (home.isEmpty || visibleSections.isEmpty()) {
+        if (slots.isEmpty()) {
             PlaceholderTile(stringResource(Res.string.home_empty), colors)
         }
-        visibleSections.forEach { section ->
+        slots.forEach { slot ->
+            val section = slot.collection
+            if (section == null) {
+                discoveryContent?.invoke()
+                return@forEach
+            }
             HomeCollectionSection(
                 section = section,
                 colors = colors,
@@ -1027,17 +1033,19 @@ fun SharedHomeRoute(
                     .verticalScroll(scrollState),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    home.providerDiscovery?.let { discovery ->
-                        NaviampProviderDiscoveryContent(discovery, colors, actions.onDiscoveryArtistSelected,
-                            actions.onDiscoveryArtistDetails, actions.onDiscoveryArtistDismiss,
-                            actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist, actions.onDiscoveryAction, discoveryPlayback,
-                            onRequests = actions.onDiscoveryRequests, onBrowse = actions.onDiscoveryBrowse)
-                    }
                     SharedHome(
                         colors = colors,
                         home = home.content,
                         actions = actions,
                         mediaActions = mediaActions,
+                        discoveryContent = home.providerDiscovery?.let { discovery ->
+                            @Composable {
+                                NaviampProviderDiscoveryContent(discovery, colors, actions.onDiscoveryArtistSelected,
+                                    actions.onDiscoveryArtistDetails, actions.onDiscoveryArtistDismiss,
+                                    actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist, actions.onDiscoveryAction, discoveryPlayback,
+                                    onRequests = actions.onDiscoveryRequests, onBrowse = actions.onDiscoveryBrowse)
+                            }
+                        },
                     )
                 }
             }

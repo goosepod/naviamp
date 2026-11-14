@@ -74,7 +74,7 @@ class NaviampFavoriteArtistSettingsUiTest {
         onNodeWithContentDescription("Drag Favorite Artists to reorder", useUnmergedTree = true).performTouchInput {
             swipe(center, center + Offset(0f, 110f), 500)
         }
-        runOnIdle { assertEquals(2, settings.value.resolvedHomeSectionOrder().indexOf(HomeSectionIds.FavoriteArtists)) }
+        runOnIdle { assertEquals(3, settings.value.resolvedHomeSectionOrder().indexOf(HomeSectionIds.FavoriteArtists)) }
         onNodeWithText("Visible").assertDoesNotExist()
         onNodeWithText("Section order").assertDoesNotExist()
     }

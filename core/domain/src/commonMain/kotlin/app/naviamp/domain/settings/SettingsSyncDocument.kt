@@ -36,12 +36,14 @@ data class SettingsSyncServerProfile(
     val customHeaders: List<SettingsSyncHeaderDefinition> = emptyList(),
     val selectedMusicFolderIds: List<String> = emptyList(),
     val authenticationMode: String = app.naviamp.domain.source.SubsonicAuthToken,
+    val aurralCompanion: app.naviamp.domain.source.AurralCompanion? = null,
 ) {
     fun normalized(): SettingsSyncServerProfile? {
         val normalizedId = id.trim()
         val normalizedPrimaryUrl = normalizeSyncUrl(primaryUrl)
         if (normalizedId.isEmpty() || normalizedPrimaryUrl == null) return null
         return copy(
+            aurralCompanion = aurralCompanion?.withoutSecrets()?.takeUnless { providerId.trim() == app.naviamp.domain.provider.ProviderIdAurral },
             id = normalizedId,
             providerId = providerId.trim().ifEmpty { ProviderIdNavidrome },
             displayName = displayName.trim().ifEmpty { normalizedPrimaryUrl },

@@ -8,3 +8,10 @@ internal fun NaviampCoreMediaProviderSource.isCurrent(provider: MediaProvider): 
         active.id == provider.id && active.cacheNamespace == provider.cacheNamespace &&
             active.selectedMusicFolderIds.toSet() == provider.selectedMusicFolderIds.toSet()
     } == true
+
+/** Discovery can change accounts without changing the primary playback/library source. */
+internal fun NaviampCoreMediaProviderSource.isCurrentDiscovery(provider: MediaProvider): Boolean =
+    isCurrent(provider) && current()?.let { active ->
+        active.discoveryAccountScope == provider.discoveryAccountScope &&
+            (active.discovery != null) == (provider.discovery != null)
+    } == true

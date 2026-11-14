@@ -492,4 +492,9 @@
     <string name="tv_repeat_all">전체 반복</string>
     <string name="tv_repeat_one">한 곡 반복</string>
     <string name="tv_start_radio">라디오 시작</string>
+    <string name="connection_aurral_companion">Aurral 연동</string>
+    <string name="connection_aurral_companion_guidance">Aurral로 음악을 발견하고 요청하세요. 라이브러리와 재생은 기존 음악 서버가 계속 관리합니다.</string>
+    <string name="connection_aurral_companion_invalid">Aurral HTTP 또는 HTTPS 서버 URL과 사용자 이름을 입력하세요.</string>
+    <string name="discovery_find_in_aurral">Aurral에서 찾기</string>
+    <string name="connection_aurral_companion_save_failed">Aurral 연동을 저장하지 못했습니다. 음악 서버 연결은 변경되지 않았습니다.</string>
 </resources>

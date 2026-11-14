@@ -23,6 +23,9 @@ import app.naviamp.domain.media.ArtistDiscography
 
 interface MediaProvider {
     val discovery: ProviderDiscovery? get() = null
+    val discoveryProviderId: ProviderId? get() = null
+    /** Optional independent account used exclusively for discovery sample playback. */
+    val discoveryPreviewProvider: MediaProvider? get() = null
     /** Stable account identity for requests, independent of library-folder display filters. */
     val discoveryAccountScope: String get() = cacheNamespace
     val id: ProviderId
@@ -360,3 +363,6 @@ data class SonicPathMatch(
     val track: Track,
     val similarity: Double? = null,
 )
+
+/** Resolve defaults outside delegated providers, whose default getters run on their delegate. */
+val MediaProvider.effectiveDiscoveryProviderId: ProviderId get() = discoveryProviderId ?: id
