@@ -362,8 +362,9 @@ Material3 1.9.0, AGP 9.5.1 and checksum-pinned Gradle 9.9.1. The Gradle distribu
 `d8a18a7a841dd5df825d35a685fad6f2d7f12ac0c280e57b67c27b4a520ba228`.
 Original native inputs, JDK 21, NDK 27, PMCS, min SDK 26 and target SDK 36 are preserved.
 The obsolete R8 9.1.57 buildscript override was removed there so AGP can use its bundled 9.5.29;
-release shrinker validation must inspect the resulting artifact before acceptance.
-This candidate has not yet passed the original-app matrix and is not adopted by the normal branch.
+release shrinker validation inspects the resulting artifact below.
+This candidate remains isolated and is not adopted by the normal branch; the completed functional
+checks and remaining acceptance work are recorded below.
 
 Windows thread samples found Kotlin's `BuildFinishBuildService.findV2FusFilesByBuildId` repeatedly
 reading last-modified times while sorting the existing 83,470 `~/.gradle/kotlin-profile` files.
@@ -380,9 +381,140 @@ argument into a task path. Its long cleanup exhibited the same statistics overhe
 failure is not a dependency compatibility result. The corrected retry places the test-only reporting
 path in the disposable `gradle.properties` and removes the obsolete R8 override before further work.
 It passed `help` in 46 seconds. Dotted command-line property arguments are quoted for subsequent
-PowerShell invocations. The complete original-app build/test matrix is the next acceptance step.
+PowerShell invocations.
 
 Both initial SDK-37 debug and release APKs were re-inspected with `aapt2`: minimum API 26 and target
 API 36 are unchanged. Compilation uses API 37. This preserves the declared Android 8.0 install
 floor; the actual runtime checks cover API 34 and 37, not an API-26 device. Recheck the final merged
 manifest, lint/API calls and an oldest-supported runtime when accepting the newer candidate.
+
+### Newest-stable functional results
+
+The [newest-stable reproduction patch](590-latest-stable-upgrade.patch) applies to `f52687f67`
+and the current issue branch. It contains build metadata only and deliberately excludes the
+machine-specific internal statistics-report isolation property. `git apply --check` passed against
+the ordinary branch. The default catalog, wrapper and platform production code remain unchanged.
+
+The Windows build invocation passed with the following tasks:
+
+```powershell
+./gradlew.bat :core:ui:jvmTest :apps:android:assembleDebug `
+  :apps:android:testDebugUnitTest :apps:android:assembleRelease :apps:android:lintRelease `
+  :apps:desktop:createDistributable verifyCoreFirstArchitecture --max-workers=2 `
+  '-Pkotlin.native.enableKlibsCrossCompilation=false' `
+  '-Pnaviamp.bass.platform=windows-x64' --no-configuration-cache
+```
+
+It took **25m12s, 657 tasks executed**. A subsequent shared/provider/native JVM invocation took
+**8m26s, 45 tasks executed and 34 up-to-date**, and the remaining Desktop host suite took
+**23s, 24 executed and 42 up-to-date**. These are functional build observations, not a matched
+performance comparison. The SDK, JDK and existing CMake executable must be configured in the
+invoking process. Retained failed host-suite launches document sandbox cache denial, an unset
+Android SDK and an unset CMake executable; the configured retry passed without source changes.
+
+XML results across these invocations:
+
+| Suite | Reported cases | Failures/errors | Skips |
+| --- | ---: | ---: | ---: |
+| Core domain | 1,148 | 0 | 0 |
+| Core presentation | 626 | 0 | 0 |
+| Core app | 298 | 0 | 0 |
+| Core storage | 75 | 0 | 0 |
+| Core UI | 762 | 0 | 0 |
+| Desktop native/platform | 72 | 0 | 3 |
+| Navidrome/Aurral provider | 344 | 0 | 1 |
+| Jellyfin provider | 36 | 0 | 0 |
+| Android host | 7 | 0 | 0 |
+| Desktop host | 8 | 0 | 0 |
+| **Total** | **3,376** | **0** | **4** |
+
+All ten `DesktopBassJniBindingIntegrationTest` cases executed, including decode/seek, mixer/FFT,
+equalizer, downmix, end callbacks and audio-output reinitialization. The four skips are the two
+Linux MPRIS/session-bus tests and two opt-in real-service Aurral tests. They are not native-audio
+skips or evidence that those external services passed. The separate credential-validating fixture
+runtime checks below exercise the main/companion separation without real service credentials.
+
+The newest-stable release APK is **29,055,557 bytes**, with all four existing ABIs and **18 native
+libraries per ABI**. Its real R8 mapping header identifies **9.5.29**, minimum API 26. Release lint
+reports **zero errors, 16 warnings**. `aapt2` inspection of both debug and release APKs confirms
+compile API 37, target API 36 and minimum API 26. The debug APK is 49,919,957 bytes. These are
+unsigned/local artifacts, not release publication or store acceptance.
+
+On the unlocked Pixel 6a (API 37), the newest-stable debug APK passed main artist/album browsing,
+independent Aurral recommendations, playback progression, pause, seek, Next, background/return and
+paused queue restoration after force-stop/restart. The existing 1.3-font-scale duration wrapping
+remains covered by the baseline comparison above. All **13 original profile files** were restored
+byte-identically, owned reverse ports removed, and the device returned Home.
+
+On the Android TV (API 34), the same APK passed D-pad library/album navigation, actual rendered
+artwork and advancing playback, pause, Next, background/return and restart. The companion fixture
+required its separate credentials and custom header, and its recommendations loaded successfully.
+An initial fixture startup entered offline state; saving the synthetic connection recovered it.
+The original SDK-36 APK did not reproduce that startup observation in the comparison run, and
+neither did the subsequent settled newest-stable startup. This does not establish an upgrade
+regression or prove a fixture-only cause. Preserve the failed evidence and reproduce under
+controlled conditions if it recurs. Fixture setup now explicitly force-stops the test package
+after installation before replacing its database. All **nine original profile files** were
+restored byte-identically, owned reverse ports removed, and the TV returned Home. Only the
+`.v2test` package was exercised; the production app and device settings were not changed.
+
+The newest-stable Windows packaged copy rendered its first untouched startup at 936x633 with
+artwork, controls and Home content. The main artist and album libraries loaded. The separate
+Aurral account and required custom header authenticated and loaded one recommendation. Playback
+advanced from 4:39 to 4:52, pause settled at 5:03, seeking while paused reached 7:45, and Next
+selected track two and began playback. After pausing at 0:18, minimize/restore and app restart
+retained that paused position and track. The restarted window also painted without input/resize.
+Only a copied package and disposable synthetic profile were used. Both owned windows were closed,
+and both loopback fixture servers were stopped after testing. This is functional rendering
+evidence; the owner's independent physical-display confirmation above applies to the earlier
+Skiko-patch diagnostic stack, not this newer complete stack. No animation budget or causal
+first-show-fix claim follows from these observations.
+
+On the configured ARM64 Mac, all **2,590 shared/provider iOS simulator cases passed**, with zero
+failures/errors/skips, and `:apps:ios:compileKotlinIosArm64` passed in the same invocation
+(6m04s, 147 tasks executed). The prebuilt native simulator binary then passed **all 18 inventoried
+tests**, with zero failures/errors/skips, including real mutual TLS, shared file callbacks,
+decode/seek, codec registration and mixer/downmix. The replay used a fresh owned simulator and
+recorded `cleanup-complete`. Two prior replay setup failures are retained separately: the first
+omitted `:core:testkit:prepareMobileMutualTlsFixture`; the second linked the binary without
+`:platforms:ios:stageIosSimulatorTestBassFrameworks`, so dyld could not load BASS before test
+inventory. Running both existing prerequisite tasks resolved these setup failures without changing
+the binary or native adapter. The successful binary SHA-256 is
+`daf01f075a3c5ef95eccd7919d31a931b59b400e289e57d216dc59863bca2448`.
+
+Local Windows/Android evidence is under `build/590-feasibility/latest-stable-*` and
+`build/590-runtime/*-stable-*`; the Mac checkout is `.worktrees/590-latest-stable`, with successful
+native replay evidence in `build/590-stable-native-replay-staged`. Device restoration JSON files
+confirm file equality. Logs are local verification data, not new production dependencies.
+
+### Android minimum-version decision and remaining gates
+
+Keep the Android 8.0/API-26 floor for this experiment. Android 8.0 was released on
+[August 21, 2017](https://android-developers.googleblog.com/2017/08/introducing-android-8-oreo.html).
+Raising the floor can remove compatibility paths and reduce the oldest-runtime test burden, but
+the tested stable dependencies do not require doing so. Android 10/API 29 is a concrete native
+rendering boundary because [SurfaceControl became public at API 29](https://developer.android.com/reference/android/view/SurfaceControl).
+`AndroidRasterPresenter` already selects that path on supported devices; increasing `minSdk`
+alone does not accelerate those devices. An API-29 floor would exclude Android-9-based Fire OS 7
+devices, including the 2021 Fire TV Stick 4K Max in
+[Amazon's device list](https://www.developer.amazon.com/docs/device-specs/identify-fire-tv-devices.html).
+No minimum-version increase is authorized or made here. An actual API-26 runtime check remains
+necessary before claiming full oldest-supported-device acceptance.
+
+Before permanent adoption and tvOS host work:
+
+1. Replace the temporary AGP legacy compatibility bridge with the supported KMP Android library
+   plugin/DSL; preserve source-set behavior, resources, tests, native packaging and architecture
+   checks. The passing bridged experiment is not proof that the deprecated graph is a maintainable
+   upgrade. Retest every original target after that migration.
+2. Repeat the newest-stable iOS host launch/Keychain and validated Release archive checks. The
+   earlier alpha experiment's launch, Keychain and archive timings are not evidence for this stack.
+   Measure matched fresh-output and warm archives with consistent native homes, optimization,
+   PMCS, exports and native inputs; do not narrow the product to improve timing.
+3. Complete visible idle/marquee/progress/combined CPU, parent-frame and GPU/compositor comparisons
+   and relevant lifecycle checks. No renderer, animation policy, cadence or performance claim was
+   changed by the functional tests above.
+4. Resolve the mismatch between the stable official UI/Material3 coordinates and the published
+   tvOS fork. Retain strict mapping diagnostics and prove the original-platform graph remains
+   official when tvOS is enabled. Do not silently downgrade common APIs or accept an alpha-only
+   dependency to bypass the gap.

@@ -371,12 +371,14 @@ are recorded in [the SDK 37 experiment report](verification/590-sdk37-compose-up
 The original-app upgrade remains isolated while performance acceptance is measured; the ordinary
 branch catalog has not been changed merely to make the community port resolve.
 
-The first cold/warm iOS archive comparison passed validation, with an 8.6% cold archive cost and
-fast up-to-date warm builds. The upgrade is **not accepted**: repeated Windows first-show captures
-remain blank until input/resize in some trials. Physical-display/capture interoperability must be
-resolved. The unlocked Pixel follow-up passed navigation, companion recommendations, playback,
-seek, lifecycle and restart checks with its original profile restored. All unproven rendering workarounds were
-removed. Continue with the specific original-app gate in the report before creating the tvOS host.
+The first cold/warm iOS archive comparison of the original alpha-based experiment passed
+validation, with an 8.6% cold archive cost and fast up-to-date warm builds. That stack was **not
+accepted**: Windows first-show captures were blank until input/resize in some trials. Later
+untouched launches and the owner's physical-display confirmation passed on the compatible Skiko
+patch diagnostic stack, but do not establish the cause of those earlier failures. The unlocked
+Pixel follow-up passed with its original profile restored. All unproven rendering workarounds were
+removed. The newer stable candidate below supersedes that alpha dependency choice; it still needs
+the remaining acceptance gates before creating the tvOS host.
 
 ### Stable dependency target clarified by the owner
 
@@ -406,3 +408,30 @@ independently, but a production tvOS target must not silently map newer common A
 forks or adopt Material3 alpha as a workaround. Assess porting the matching stable sources or
 waiting for matching upstream artifacts, recording the maintenance cost and acceptance evidence
 under #590. Do not hold regular supported upgrades indefinitely without documenting this dependency.
+
+### Newest-stable experiment checkpoint
+
+The isolated stable stack now builds the original Android debug/release and Windows distributions,
+passes lint (zero errors, 16 warnings), and passes 3,372 JVM/Android/Desktop cases with four
+conditional Linux/live-service skips. All ten real BASS JNI integration cases executed. The Mac
+passed 2,590 shared/provider simulator cases, the iOS device Kotlin compile and all 18 prebuilt
+native simulator cases including BASS and real mutual TLS. Pixel, TV and Windows functional
+checks include main-library and independently authenticated Aurral recommendations, actual
+playback, pause/seek, Next and lifecycle/restart. Pixel and TV profiles were restored byte-identically;
+owned test windows, reverse ports and fixture servers were cleaned up. See the detailed report
+for setup failures, the transient TV offline observation and the limits of capture evidence.
+
+The ordinary app's dependencies remain unchanged. Reproduce the stable build metadata with
+[the stable upgrade patch](verification/590-latest-stable-upgrade.patch), excluding local-only
+statistics-report settings. Next migrate the temporary AGP 9 legacy bridge to the supported KMP
+Android DSL, then repeat the original-platform checks, newest-stable iOS host/Keychain/Release
+archive checks, and matched runtime/build performance measurements. The earlier alpha stack's
+archive timings must not be reused as newest-stable evidence. Resolve the tvOS artifact mismatch
+before enabling the host; retain strict diagnostics and the Core-first ownership rules.
+
+Keep minimum Android API 26 during this work. Both newest-stable APK manifests retain minimum 26,
+target 36 and compile 37. API 29 is a meaningful native compositor boundary, already selected at
+runtime where available, but raising the minimum alone does not speed up modern devices and would
+exclude Android-9-based Fire OS 7 TVs/sticks. A minimum-version change requires a separate concrete
+benefit/device-impact decision within #590; none has been made. Actual API-26 runtime acceptance
+remains outstanding.
