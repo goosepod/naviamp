@@ -95,6 +95,15 @@ The owned simulator was removed. Xcode's quiet log contains framework-copy messa
 as an error despite exit code 0; keep that diagnostic with the successful build/launch evidence,
 and repeat the final host/archive validation before adopting the candidate.
 
+The final graph (all eight additional upgrades plus shared mixer-free changes) then passed a
+fresh iOS 26.5 host build/install/launch and the real Keychain test again, this time with full
+Xcode logs. The startup screenshot was inspected and showed the connection UI, all provider
+choices, credentials fields and shared navigation. The xcresult summary confirms exactly one
+test passed, zero failures/skips. Shutdown and deletion returned 0. Evidence:
+`.worktrees/590-latest-stable/build/590-final-stable-host`; local inspected screenshot:
+`build/590-feasibility/final-stable-ios-startup.png`. The fully optimized Release archive pair
+below also passed; the earlier quiet-log diagnostic is retained rather than relabeled a failure.
+
 The earlier stable stack's physical Pixel/Android TV and Windows packaged runtime results are
 in [the original experiment report](590-sdk37-compose-upgrade.md). Those checks predate the
 additional-library batch and cannot substitute for its final runtime acceptance.
@@ -109,12 +118,22 @@ optimization, PMCS, unchanged exports and all existing native inputs/validators.
 | --- | ---: | ---: | --- |
 | Fresh outputs | 855.229 | 610.572 | yes |
 | Warm repeat | 27.484 | 0.032 (up-to-date) | yes |
+| Candidate fresh outputs | 859.834 | 637.809 | yes |
+| Candidate warm repeat | 23.636 | 0.018 (up-to-date) | yes |
 
 Reports are under the Mac root's `build/590-stable-archive-baseline-{cold,warm}`. Both report
 `sourceStable=true` and exit 0. The exported header stayed 876,770 bytes/9,929 lines,
 339 interfaces/79 protocols; static framework library 221,109,176 bytes.
-These are baseline measurements, not an upgrade speedup. A matching final-candidate fresh/warm
-pair remains required. The cold candidate is running from clean local-only Mac commit
+The candidate pair also reports `sourceStable=true`, exit 0, and all existing archive/IPA/native/
+privacy/version/unsigned ARM64 validators passed. Cold total time was 0.54% higher and optimized
+link time 4.46% higher; warm total time was 14.0% lower. One local pair does not establish a
+statistically significant speed change. Both keep full optimization, PMCS, unchanged exports and
+all eleven native frameworks. One in-progress candidate thread diagnostic confirmed LLVM
+optimization, followed by native clang++ linking, rather than a statistics cleanup stall.
+The candidate exported header is 876,404 bytes/9,910 lines, with the same 339 interfaces and
+79 protocols; its static library is 231,224,168 bytes (4.57% larger). No export-narrowing or reduced
+optimization workaround was used. Repeat on hosted CI before claiming general build performance.
+The candidate is frozen at clean local-only Mac commit
 `e61f9e0b1107a5d45ec7c542afb97f5becbfb0ee` in `.worktrees/590-stable-archive-candidate`,
 with a distinct `build/590-stable-archive-candidate-cache` and the same archive command/validators.
 It freezes the stable metadata, existing raster test and mixer-free shared changes; it is not a
@@ -122,8 +141,8 @@ published branch. Do not reuse alpha-stack timings or omit archive validators.
 
 ## Remaining work
 
-- Repeat the final host/Keychain and validated optimized
-  Release archives, and repeat original-app runtime checks for the final accepted graph.
+- Finish original-app runtime checks for the accepted graph. Final iOS host/Keychain and both
+  optimized Release archives passed; the final visible Windows comparison is in progress.
 - Measure visible idle/individual/combined animation costs and lifecycle behavior with matching
   window, refresh, scale and power conditions. Functional rendering does not establish a budget.
 - Resolve the stable Compose/Material3 tvOS port mismatch without hiding strict diagnostics or

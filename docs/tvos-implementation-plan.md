@@ -188,6 +188,27 @@ user-facing feature setting. Remove the gate when the supported graph and CI are
 
 ### 3. Native playback gate
 
+The next native implementation should extract a shared Apple ABI adapter rather than copy the
+existing 700-line `IosBassPlayback.kt` into a tvOS directory:
+
+- Keep `BassAudioBackend`, `CoreBassPlaybackEngine`, feature selection, settings, callbacks'
+  portable coordination and playback orchestration in Domain. The shared mixer-free contract
+  and tests now exist; do not add a second tvOS player controller.
+- Put only BASS C calls, `StableRef`/C callback lifetimes, Apple locks, native file/URL translation
+  and `AVAudioSession` calls in a narrow shared Apple native module/source set. These concrete
+  C ABI/Foundation/AVFAudio boundaries prevent that code from compiling in common Kotlin.
+- Bind the base adapter to `bass.h` only. Keep BASSmix calls/cinterop and the full iOS native
+  inventory in a separate iOS mixer specialization, so the tvOS linker never needs missing
+  symbols. Preserve existing iOS mixer behavior and real native regressions through the extraction.
+- Use the same base adapter with tvOS's verified core/FLAC/Opus inventory. Report actual native
+  facts (`supportsMixer=false`); Core derives effective transitions/downmix and UI availability.
+  Public iOS headers may describe the shared C ABI; every linked binary must remain a genuine
+  tvOS device/simulator slice, never an iOS binary relabeled for tvOS.
+- Compile/test the Apple base on both iOS and tvOS before adding the television app host. Extend
+  native acceptance beyond the small C probe to Core-driven authenticated range streams, actual
+  FLAC/Opus decode, preview isolation and lifecycle cleanup. Then add only the executable/scene,
+  remote, audio interruption and system Now Playing translations needed by the shared product.
+
 - First prove direct BASS playback with the public tvOS core/FLAC/Opus binaries. Gate gapless,
   crossfade and custom stereo downmix through shared capabilities, preserving stored settings.
   Native output, pause/seek, normal queue advance, end callbacks, failure recovery, previews and
