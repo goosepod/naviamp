@@ -26,6 +26,20 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class NavidromeCoreProviderSessionPortTest {
+    @Test fun provisioningReadsTheCurrentCompanionIncludingItsProtectedAccountCredentials() = runTest {
+        val companion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret")
+        val source = savedSource().copy(aurralCompanion = companion)
+        val repository = TestMediaSourceRepository(source)
+        val primary = NavidromeCoreProviderSessionPort(mediaSources = repository, initialSource = source,
+            sessionOpener = NavidromeProviderSessionOpener { _, _ -> error("No primary login expected") })
+        val router = subsonicFamilyProviderSessionRouter(primary)
+        assertEquals(companion, router.currentProvisioningConnection()!!.form.aurralCompanion)
+        val disabled = companion.copy(enabled = false, password = "new-secret")
+        router.saveAurralCompanion(source.id, disabled)
+        assertEquals(disabled, router.currentProvisioningConnection()!!.form.aurralCompanion)
+        assertEquals(source.password.orEmpty(), router.currentProvisioningConnection()!!.form.password)
+    }
+
     @Test fun settingsImportDuringTheFirstCompanionReadCannotPublishThePreviousAccount() {
         val old = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "old-secondary", "secret")
         val source = savedSource().copy(aurralCompanion = old)

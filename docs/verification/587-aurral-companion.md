@@ -110,3 +110,54 @@ Recent requests and Genres. The updated test app remains open.
 
 Physical Android-device acceptance and Windows manual testing remain pending with the owner.
 The debug APK uses the existing `app.naviamp.android.v2test` package and **Naviamp v2 Test** label.
+
+## Pixel-to-TV companion provisioning correction (2026-11-13)
+
+Tested the correction on branch `codex/587-companion-pairing`, based on PR #605 head
+`308428defc35af5677261c787d7add32a39d5ab4`. The original provisioning form and wire profile
+omitted the saved companion. Shared provisioning now exports/imports its enabled state, endpoint,
+credentials, TLS verification flag and custom headers through the encrypted setup offer. An
+already-matching primary saves the companion without reconnecting or replacing playback state.
+Older targets must advertise companion support before receiving a compound offer, preventing
+silent partial setup. Legacy primary-only offers retain an existing attachment. Device-local
+certificate files still require direct setup on the target. No platform production files changed.
+
+Focused Windows JVM verification passed:
+
+```text
+.\gradlew.bat :core:domain:jvmTest :core:presentation:jvmTest :providers:navidrome:jvmTest verifyCoreFirstArchitecture --max-workers=2 -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.bass.platform=windows-x64
+.\gradlew.bat :apps:android:assembleDebug :apps:android:testDebugUnitTest --max-workers=2 -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.bass.platform=windows-x64
+```
+
+JVM totals: domain 1,148; presentation 626; Navidrome/Aurral 344 (one opt-in live test skipped).
+Android app unit tests: seven. All failures/errors are zero. Shared iOS simulator tests also passed
+on `naviamp-mac` using `--no-daemon :core:domain:iosSimulatorArm64Test
+:core:presentation:iosSimulatorArm64Test :providers:navidrome:iosSimulatorArm64Test --max-workers=2`:
+domain 1,148; presentation 614; provider 314; zero failures/errors/skips. This focused fix validation
+does not replace the broader feature matrix or Windows manual UI acceptance described above.
+
+Installed the same fixed debug APK on the physical Pixel 6a and onn 4K Pro Streaming Device.
+APK SHA-256: `5A55DEC01A947A0831F67B611FF38F75E8C9F854E28F2E0348E12111571DD0B3`.
+Used isolated synthetic primary/Aurral accounts and local fixtures; no acquisition mutations.
+
+- Paired the Pixel and TV with a code, then sent the Pixel's connection using the setup action and
+  approved it on the TV. Both the primary account and Aurral companion appeared on TV Home.
+  The phone reported secure setup completion. The companion fixture verified its password and
+  required secret custom header, then accepted authenticated discovery requests.
+- Stopped the Pixel app and restarted the TV. The companion persisted and independently returned
+  an Aurral catalog search result on the TV; the phone process remained stopped.
+- Changed only the Pixel companion credentials and repeated setup against the same primary.
+  The TV authenticated as the updated companion account. Database comparison showed exactly one
+  primary source, with only `aurral_companion` changed; its two queue rows were byte-for-byte equal.
+  Playback remained paused at 45.48 seconds. Only the expected now-playing presentation flag and
+  state timestamp changed, with no playback position or queue replacement.
+- Restored both original test-app profiles from pre-test backups. Every file in the backed-up
+  database, preference and file directories matched its original SHA-256 (Pixel: 13 files; TV: nine).
+  Removed the fixture port reverses, stopped the fixtures and returned both devices to Home.
+
+Local artifacts are under `build/pr605-pairing-fixed/`: `tv-fixed-both-accounts.png`,
+`pixel-fixed-first-success.png`, `tv-fixed-independent-results.png`,
+`tv-fixed-repeat-success.png`, `repeat-transfer-result.json`, `restoration-result.json`,
+`companion-requests.jsonl` and `ios-tests.log`. Windows build logs are in
+`build/pr605-pairing/fix-shared-tests.log` and `fix-android-build.log`. Device archives contain
+private profile data and remain local; they must not be committed or uploaded.

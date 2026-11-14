@@ -133,7 +133,17 @@ class NaviampCoreConnectionController(
             ) &&
             active.username == form.username.trim()
         ) {
-            return true
+            val companion = form.aurralCompanion ?: return true
+            if (connectionFormError(form, hasSavedConnectionForLogin = true) != null) return false
+            return try {
+                sessionPort.saveAurralCompanion(active.id, companion)
+                onCompanionChanged(active.id)
+                true
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                false
+            }
         }
         return connect(NaviampCoreConnectionRequest.Form(form))
     }

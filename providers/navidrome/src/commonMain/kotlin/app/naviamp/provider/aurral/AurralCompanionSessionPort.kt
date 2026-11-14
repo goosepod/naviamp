@@ -54,6 +54,14 @@ internal class AurralCompanionSessionPort(
     override suspend fun editableConnection(id: String): NaviampCoreEditableConnection =
         primary.editableConnection(id).let { it.copy(form = it.form.copy(aurralCompanion = sources.mediaSource(id)?.takeUnless { saved -> saved.providerId == ProviderIdAurral }?.aurralCompanion)) }
 
+    override suspend fun currentProvisioningConnection(): NaviampCoreEditableConnection? {
+        val id = primary.currentSourceId() ?: return null
+        val editable = primary.currentProvisioningConnection() ?: return null
+        if (primary.currentSourceId() != id) return null
+        return editable.copy(form = editable.form.copy(aurralCompanion = sources.mediaSource(id)
+            ?.takeUnless { it.providerId == ProviderIdAurral }?.aurralCompanion))
+    }
+
     override suspend fun connect(request: NaviampCoreConnectionRequest, plan: NaviampConnectionAttemptPlan): NaviampCoreConnectedSession {
         val configured = (request as? NaviampCoreConnectionRequest.Form)?.form?.aurralCompanion
         val result = primary.connect(request, plan)

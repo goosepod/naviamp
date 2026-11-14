@@ -18,6 +18,27 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 
 class NaviampCoreConnectionControllerTest {
+    @Test fun provisioningAnAlreadyConnectedPrimaryStillSavesItsCompanionWithoutReconnecting() = kotlinx.coroutines.test.runTest {
+        var changes = 0
+        val f = fixture(onCompanionChanged = { changes++ })
+        f.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        f.port.connectRequests.clear()
+        val companion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret")
+        val form = ConnectionFormState(serverUrl = "https://music.example", username = "demo", password = "primary-secret",
+            aurralCompanion = companion)
+        assertTrue(f.controller.provisionConnect(form))
+        assertEquals("source-1" to companion, f.port.savedCompanions.single())
+        assertEquals(1, changes)
+        assertTrue(f.port.connectRequests.isEmpty())
+        assertTrue(f.controller.provisionConnect(form.copy(aurralCompanion = null)))
+        assertEquals(1, f.port.savedCompanions.size, "Older offers must retain the target's attachment")
+        f.port.companionSaveFailure = IllegalStateException("Storage unavailable")
+        assertFalse(f.controller.provisionConnect(form))
+        assertEquals(1, changes)
+        assertFalse(f.controller.provisionConnect(form.copy(aurralCompanion = companion.copy(baseUrl = "invalid"))))
+        assertTrue(f.port.connectRequests.isEmpty())
+    }
+
     @Test fun savingAnUnchangedPrimaryWithAnExistingCompanionCanStillReconnectThePrimary() = kotlinx.coroutines.test.runTest {
         val fixture = fixture()
         fixture.port.editableCompanion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret")

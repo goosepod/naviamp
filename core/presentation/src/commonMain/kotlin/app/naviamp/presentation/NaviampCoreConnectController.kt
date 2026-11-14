@@ -217,6 +217,7 @@ class NaviampCoreConnectController(
     private val initialSetupAuthorization = app.naviamp.app.NaviampConnectInitialSetupAuthorization()
     private var codePairingOfferId: String? = null
     private var controllerInitialSetupAllowed = false
+    private var controllerCompanionProvisioningSupported = false
     private var controllerSetupNeedsNewCode = false
     private var controllerProvisioningBusy = false
     private var controllerProvisioningJob: Job? = null
@@ -1219,6 +1220,7 @@ class NaviampCoreConnectController(
                 target = localTargetDevice,
                 capabilities = supportedTargetCapabilities,
                 snapshot = snapshot,
+                companionProvisioningSupported = NaviampConnectCapability.ConnectionProvisioning in supportedTargetCapabilities,
                 initialSetupAllowed = initialSetupAuthorization.permitsSetup(session.sessionId,
                     targetIsEmpty(), services.nowEpochMillis()),
             ),
@@ -1311,7 +1313,7 @@ class NaviampCoreConnectController(
         authenticatedSession = session
         controllerInitialSetupAllowed = welcome.initialSetupAllowed &&
             NaviampConnectCapability.ConnectionProvisioning in welcome.capabilities && welcome.snapshot.sourceIdentity == null
-        adoptControllerSession(connectedController)
+        adoptControllerSession(connectedController, welcome.companionProvisioningSupported)
         trace(NaviampCoreConnectTraceKind.ControllerSessionStarted)
         if (controllerInitialSetupAllowed) trace(NaviampCoreConnectTraceKind.InitialSetupAuthorized)
         authenticatedSessionJob = controllerScope.launch { receiveControllerSession(session, connectedController) }
@@ -1321,7 +1323,8 @@ class NaviampCoreConnectController(
         return true
     }
 
-    internal fun adoptControllerSession(session: NaviampConnectControllerSession) {
+    internal fun adoptControllerSession(session: NaviampConnectControllerSession, companionProvisioningSupported: Boolean = false) {
+        controllerCompanionProvisioningSupported = companionProvisioningSupported
         val connectedState = session.state.value
         connectedState.target?.let { target ->
             if (playbackDestination.selectedTrustedDeviceId() == null) {
@@ -1526,6 +1529,7 @@ class NaviampCoreConnectController(
         needsProvisioningCredential = false
         provisioningCredentialSourceId = null
         controllerInitialSetupAllowed = false
+        controllerCompanionProvisioningSupported = false
         controllerSetupNeedsNewCode = false
         heartbeatJob?.cancel()
         heartbeatJob = null
@@ -1686,6 +1690,10 @@ class NaviampCoreConnectController(
                             NaviampConnectStatusText.CouldNotValidateThatConnectionCheckTheServerAndCredentialThenRetry)
                     }
                     is NaviampCoreConnectProvisioningExport.Ready -> {
+                        if (exported.profile.aurralCompanion != null && !controllerCompanionProvisioningSupported) {
+                            provisioningFailed()
+                            return@launch
+                        }
                         needsProvisioningCredential = false
                         provisioningCredentialSourceId = null
                         provisioningResult = pending
