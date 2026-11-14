@@ -161,3 +161,56 @@ Local artifacts are under `build/pr605-pairing-fixed/`: `tv-fixed-both-accounts.
 `companion-requests.jsonl` and `ios-tests.log`. Windows build logs are in
 `build/pr605-pairing/fix-shared-tests.log` and `fix-android-build.log`. Device archives contain
 private profile data and remain local; they must not be committed or uploaded.
+
+## Windows acceptance and remaining draft gate (2026-11-13)
+
+Tested PR head `5b8439b86ae30cda89a2a2c87e6f1e5cec22dd25` in the newly packaged Windows x64
+application. A disposable profile under `build/pr605-windows/profile` used only synthetic loopback
+primary/Aurral accounts and silent media. The installed application and owner profile were untouched.
+
+The following command passed after setting `CMAKE_EXE` to the installed SDK executable
+`C:/Users/ursasmar/AppData/Local/Android/Sdk/cmake/3.22.1/bin/cmake.exe` (the first packaging attempt
+could not find CMake on PATH):
+
+```powershell
+.\gradlew.bat :apps:desktop:stageLocalTestApp :platforms:desktop:desktopTest :core:storage:jvmTest :core:ui:jvmTest :core:app:jvmTest verifyCoreFirstArchitecture --max-workers=2 '-Pkotlin.native.enableKlibsCrossCompilation=false' '-Pnaviamp.bass.platform=windows-x64' --console=plain
+```
+
+Regular suites: Desktop adapter 72 cases (three skipped), storage 75, shared UI 759 and Core app 298;
+zero failures/errors. Packaging and architecture checks passed. Build log:
+`build/pr605-pairing-fixed/windows-acceptance-build.log`; summary:
+`build/pr605-windows/test-summary.json`. The hosted Windows native check also passed on this head.
+
+Visible Windows checks passed:
+
+- Started a two-track primary queue, observed the playback clock advance, then paused it.
+- Attached Aurral through the connection editor with an independent password and a custom header
+  marked secret. The fixture accepted authentication and authenticated discovery reads.
+- Compared SQLite snapshots before/after Save: one primary source, only `aurral_companion` changed;
+  both queue rows and the complete playback-session state remained equal, at 13.19 seconds paused.
+  The stored companion used the Desktop protected credential prefix and contained no plaintext
+  fixture password.
+- Opened the companion hub, recommendations and catalog search beside the docked primary player.
+  Submitted search with Enter, saw the result and circular artist placeholders, and navigated Back.
+- Stopped Aurral: discovery retained its result and displayed the retry guidance. Primary playback
+  resumed and its clock advanced. Restarted Aurral and refreshed successfully.
+- Closed and relaunched the Windows app: Aurral independently authenticated again, the Home entry
+  remained present, and the primary queue returned paused at the same position.
+- Hid and restored the Aurral Home entry through Experience settings, confirming both results.
+  Closed the disposable application and stopped both fixtures afterward.
+
+**Keep PR #605 in draft:** rechecking the earlier directional-focus reproducer still fails on this
+head. In `NaviampConnectionUi.kt`, Down from the primary form's collapsed Show Advanced action
+requests the Connect/Save focus requester directly, skipping the Aurral companion checkbox. This
+is a shared remote/keyboard setup defect, separate from the corrected pairing transfer. The regular
+UI suite does not cover this transition and its passing result does not resolve this failure.
+
+The isolated regression renders `NaviampConnectionForm` at 850x1100, requests focus on
+`ConnectionAdvancedActionTestTag`, sends `Key.DirectionDown`, and asserts that Aurral companion is
+focused. The assertion fails. It was injected from an ignored build directory through a temporary
+Gradle init script; no production or tracked test sources were changed. Recheck artifacts:
+`build/pr605-windows/reproducer/Pr605CompanionRemoteReviewTest.kt`, `reproducer.init.gradle`,
+`remote-focus-recheck.log` and `remote-focus-result.xml`. Fix this transition, add permanent shared
+regression coverage and retest the remote path before removing draft status. At the final hosted
+check snapshot, shared/Android, API 30 emulator and iOS simulator checks were still running; none
+had reported failure. This acceptance does not claim screen-reader speech or audible output.
