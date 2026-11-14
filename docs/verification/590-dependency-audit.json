@@ -1,0 +1,169 @@
+{
+  "checkedOn": "2026-11-14",
+  "policy": "Stable releases; beta/RC only when justified for issue 590",
+  "additionalBatchValidation": "Windows full matrix and iOS shared/native matrix passed; final host/archive/runtime acceptance pending",
+  "dependencies": [
+    {
+      "key": "ksoup",
+      "coordinate": "com.mohamedrejeb.ksoup:ksoup-entities",
+      "current": "0.6.0",
+      "metadata": "https://repo.maven.apache.org/maven2/com/mohamedrejeb/ksoup/ksoup-entities/maven-metadata.xml",
+      "latestStable": "0.6.0",
+      "changed": false,
+      "lastUpdated": "20250608123148"
+    },
+    {
+      "key": "androidx-lifecycle",
+      "coordinate": "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose",
+      "current": "2.9.6",
+      "metadata": "https://repo.maven.apache.org/maven2/org/jetbrains/androidx/lifecycle/lifecycle-runtime-compose/maven-metadata.xml",
+      "latestStable": "2.11.0",
+      "changed": true,
+      "lastUpdated": "20260714105623"
+    },
+    {
+      "key": "activity-compose",
+      "coordinate": "androidx.activity:activity-compose",
+      "current": "1.13.0",
+      "metadata": "https://dl.google.com/dl/android/maven2/androidx/activity/activity-compose/maven-metadata.xml",
+      "latestStable": "1.13.0",
+      "changed": false,
+      "lastUpdated": "20260923170445"
+    },
+    {
+      "key": "androidx-fragment",
+      "coordinate": "androidx.fragment:fragment",
+      "current": "1.9.1",
+      "metadata": "https://dl.google.com/dl/android/maven2/androidx/fragment/fragment/maven-metadata.xml",
+      "latestStable": "1.9.1",
+      "changed": false,
+      "lastUpdated": "20260923170451"
+    },
+    {
+      "key": "material3",
+      "coordinate": "org.jetbrains.compose.material3:material3",
+      "current": "1.9.0",
+      "metadata": "https://repo.maven.apache.org/maven2/org/jetbrains/compose/material3/material3/maven-metadata.xml",
+      "latestStable": "1.9.0",
+      "changed": false,
+      "lastUpdated": "20261104123327"
+    },
+    {
+      "key": "androidx-media",
+      "coordinate": "androidx.media:media",
+      "current": "1.8.0",
+      "metadata": "https://dl.google.com/dl/android/maven2/androidx/media/media/maven-metadata.xml",
+      "latestStable": "1.8.0",
+      "changed": false,
+      "lastUpdated": "20260506170124"
+    },
+    {
+      "key": "androidx-profileinstaller",
+      "coordinate": "androidx.profileinstaller:profileinstaller",
+      "current": "1.4.1",
+      "metadata": "https://dl.google.com/dl/android/maven2/androidx/profileinstaller/profileinstaller/maven-metadata.xml",
+      "latestStable": "1.4.1",
+      "changed": false,
+      "lastUpdated": "20241002170209"
+    },
+    {
+      "key": "androidx-test",
+      "coordinate": "androidx.test:core",
+      "current": "1.7.0",
+      "metadata": "https://dl.google.com/dl/android/maven2/androidx/test/core/maven-metadata.xml",
+      "latestStable": "1.7.0",
+      "changed": false,
+      "lastUpdated": "20261111212242"
+    },
+    {
+      "key": "androidx-test-junit",
+      "coordinate": "androidx.test.ext:junit",
+      "current": "1.3.0",
+      "metadata": "https://dl.google.com/dl/android/maven2/androidx/test/ext/junit/maven-metadata.xml",
+      "latestStable": "1.3.0",
+      "changed": false,
+      "lastUpdated": "20261111212242"
+    },
+    {
+      "key": "kotlinx-coroutines",
+      "coordinate": "org.jetbrains.kotlinx:kotlinx-coroutines-core",
+      "current": "1.11.0",
+      "metadata": "https://repo.maven.apache.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core/maven-metadata.xml",
+      "latestStable": "1.11.0",
+      "changed": false,
+      "lastUpdated": "20260508122950"
+    },
+    {
+      "key": "kotlinx-serialization",
+      "coordinate": "org.jetbrains.kotlinx:kotlinx-serialization-json",
+      "current": "1.11.0",
+      "metadata": "https://repo.maven.apache.org/maven2/org/jetbrains/kotlinx/kotlinx-serialization-json/maven-metadata.xml",
+      "latestStable": "1.13.0",
+      "changed": true,
+      "lastUpdated": "20261111185449"
+    },
+    {
+      "key": "ktor",
+      "coordinate": "io.ktor:ktor-client-core",
+      "current": "3.5.2",
+      "metadata": "https://repo.maven.apache.org/maven2/io/ktor/ktor-client-core/maven-metadata.xml",
+      "latestStable": "3.6.1",
+      "changed": true,
+      "lastUpdated": "20261029151253"
+    },
+    {
+      "key": "sqldelight",
+      "coordinate": "app.cash.sqldelight:sqlite-driver",
+      "current": "2.3.2",
+      "metadata": "https://repo.maven.apache.org/maven2/app/cash/sqldelight/sqlite-driver/maven-metadata.xml",
+      "latestStable": "2.4.1",
+      "changed": true,
+      "lastUpdated": "20261006150126"
+    },
+    {
+      "key": "jna",
+      "coordinate": "net.java.dev.jna:jna-platform",
+      "current": "5.19.1",
+      "metadata": "https://repo.maven.apache.org/maven2/net/java/dev/jna/jna-platform/maven-metadata.xml",
+      "latestStable": "5.19.1",
+      "changed": false,
+      "lastUpdated": "20260612165939"
+    },
+    {
+      "key": "bouncycastle",
+      "coordinate": "org.bouncycastle:bcprov-jdk18on",
+      "current": "1.85.2",
+      "metadata": "https://repo.maven.apache.org/maven2/org/bouncycastle/bcprov-jdk18on/maven-metadata.xml",
+      "latestStable": "1.87",
+      "changed": true,
+      "lastUpdated": "20261111102806"
+    },
+    {
+      "key": "jmdns",
+      "coordinate": "org.jmdns:jmdns",
+      "current": "3.6.3",
+      "metadata": "https://repo.maven.apache.org/maven2/org/jmdns/jmdns/maven-metadata.xml",
+      "latestStable": "3.6.5",
+      "changed": true,
+      "lastUpdated": "20261031002247"
+    },
+    {
+      "key": "dbus-java",
+      "coordinate": "com.github.hypfvieh:dbus-java-core",
+      "current": "5.2.0",
+      "metadata": "https://repo.maven.apache.org/maven2/com/github/hypfvieh/dbus-java-core/maven-metadata.xml",
+      "latestStable": "5.2.2",
+      "changed": true,
+      "lastUpdated": "20260926144825"
+    },
+    {
+      "key": "kover",
+      "coordinate": "org.jetbrains.kotlinx.kover:org.jetbrains.kotlinx.kover.gradle.plugin",
+      "current": "0.9.9",
+      "metadata": "https://repo.maven.apache.org/maven2/org/jetbrains/kotlinx/kover/org.jetbrains.kotlinx.kover.gradle.plugin/maven-metadata.xml",
+      "latestStable": "0.9.11",
+      "changed": true,
+      "lastUpdated": "20260929192253"
+    }
+  ]
+}

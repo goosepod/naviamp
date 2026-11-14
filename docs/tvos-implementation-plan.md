@@ -10,6 +10,14 @@ Build one shared Naviamp application with an additional tvOS host. Reuse the Tel
 Core runtime, providers, queue, connection provisioning (including Aurral), navigation and settings.
 No second tvOS controller, provider implementation or persistence policy is permitted.
 
+The owner's additional [official Kotlin/Native target reference](https://kotlinlang.org/docs/native-target-support.html)
+confirms `tvosArm64` and `tvosSimulatorArm64` are Tier 2: compilation is regularly checked in
+Kotlin's CI, with best-effort source/binary compatibility. The ARM64 simulator supports running
+tests through Gradle on a Mac. The default compiler deployment floor is tvOS 15.0; confirm the
+maximum floor imposed by the final UI and native framework inventory before setting app metadata.
+`tvosX64` has been deprecated since Kotlin 2.3.20 and remains outside this plan. These guarantees
+cover the compiler, not Compose's platform matrix, BASS add-ons or physical Apple TV acceptance.
+
 Feasibility is conditional. Kotlin targets are available, but a working shared renderer and the
 complete native playback chain must be demonstrated before promising a shipping Apple TV app.
 Do not silently replace shared UI with a separate SwiftUI product or substitute AVPlayer for BASS.
@@ -44,6 +52,13 @@ from a demo or from the ability to resolve a runtime KLIB.
 
 Un4seen's historical forum announces tvOS BASS/BASSmix and later discusses licensed builds.
 Those old statements do not establish current licensing or add-on availability.
+The owner highlighted the announcement again on November 14: reply #1102 explicitly names
+both BASS and BASSmix and links the same `bass-tvos.zip` URL below. This establishes that a
+tvOS mixer build existed; it does not establish what today's mutable download contains.
+Re-downloading that exact link on November 14 produced the same byte count, SHA-256 and
+three-framework inventory below, with no BASSmix framework. Later replies #1118 and #1131
+discuss requesting builds and licensed-user access at that time; they are historical evidence,
+not confirmation of current availability or a reason to assume a new release is required.
 The actual public `https://www.un4seen.com/stuff/bass-tvos.zip` was downloaded successfully:
 801,783 bytes, SHA-256 `8f3bef0a67c20fdf1b65a7b6164b25bfb3a75e47e8bd5f1094eb0fad1ac3bbe8`.
 Its entries contain BASS, BASSFLAC and BASSOPUS XCFrameworks with device arm64 and simulator
@@ -51,11 +66,31 @@ arm64/x86_64 directory names. Validate plist platform declarations and Mach-O bu
 well; directory names and the shared arm64 architecture alone are insufficient.
 
 The archive does not contain BASSmix, MIDI, WavPack, DSD, WebM, HLS, APE or MPC. Naviamp's current
-iOS build links all of those. BASSmix is a playback-chain feasibility gate, not merely an optional
-format gap. Do not copy an iOS binary into a tvOS slice. Confirm current versions, required symbols,
-SDK minimums, device/simulator ABI and redistribution terms for every component before vendoring.
-No vendor communication has been sent. If private vendor access is required, prepare the exact
-missing inventory for the owner rather than asserting that a license/build is available.
+iOS build links all of those. The owner selected a **direct-BASS first version** on November 14:
+use public downloads, with gapless, crossfade and the custom multichannel-to-stereo matrix
+unavailable until a compatible public BASSmix build exists. BASSmix blocks that feature parity,
+not all playback. Core already has a direct-stream path and mixer-dependent transition capabilities.
+The November 14 common implementation adds the missing downmix capability, hides unavailable
+downmix controls in both shared settings surfaces and skips mixer calls during direct-stream
+cleanup. Saved/imported settings remain normalized portable preferences; only the engine copy is
+capability-gated. Common and rendered regressions cover unavailable capabilities and restoration
+on a capable engine. Cross-target verification is recorded in the current upgrade checkpoint.
+Codec availability is a separate inventory and playback-test requirement.
+
+The public core's **2.4.18.14** version ran in a disposable tvOS 27.2 ARM64 simulator app using
+`scripts/probe-tvos-bass-runtime.py`. All 17 native checks passed: audio-session activation,
+initialization, FLAC/Opus registration, direct stream creation, volume, end-sync installation,
+play/advancing position, pause/stable position, seek/seek position, resume, end callback and stream/
+engine cleanup. BASSmix was not linked. The synthetic WAV was silent and volume was zero:
+this proves the control/lifecycle calls, not acoustic output or FLAC/Opus decoding. The owned
+simulator was shut down and deleted. SDK 27's UIKit scene lifecycle is required by the probe;
+an initial legacy-delegate app trapped before BASS execution. Native app launches must use the
+current lifecycle rather than weakening the SDK or treating link success as runtime proof.
+
+Do not copy an iOS binary into a tvOS slice. Confirm current versions, required symbols, SDK
+minimums, device/simulator ABI and redistribution terms for each supplied component. No vendor
+communication has been sent; private vendor access is outside the owner's selected public-download
+scope. A weekly public-release check is configured separately, with no automatic integration.
 
 Sources:
 - https://www.un4seen.com/forum/?topic=10910.1100 (historical announcement)
@@ -66,9 +101,36 @@ Sources:
 ### Local tools
 
 The configured ARM64 Mac `naviamp-mac` has Xcode 27.2 and tvOS device/simulator SDKs 27.2.
-No available tvOS simulator runtime was listed; an old tvOS 14.3 runtime is unavailable. SDK
-compilation can start now; launch tests require an installed compatible runtime. Physical Apple TV
+The official tvOS 27.2 ARM64 simulator runtime (24K150) was installed on November 14; an old
+tvOS 14.3 runtime remains unavailable. Simulator launch tests can now run. Physical Apple TV
 availability, signing/provisioning and distribution entitlement acceptance remain unverified.
+
+### Additional host-integration reference
+
+The owner supplied David Cruz Anaya's
+[KMP for Apple TV article](https://www.davthecoder.com/blog/kmp-for-appletv)
+(published July 2024, updated July 2026). Its
+[sample target configuration](https://github.com/davthecodercom/KMP-for-AppleTV/blob/main/shared/build.gradle.kts)
+is useful for the Kotlin/Native framework and Xcode host boundary. The
+[sample screen](https://github.com/davthecodercom/KMP-for-AppleTV/blob/main/iosApp/iosApp/ContentView.swift)
+uses SwiftUI and calls shared Kotlin; it does not demonstrate shared Compose UI or BASS playback.
+Use it as a host-wiring reference, not as evidence that those two Naviamp feasibility gates are
+closed. Retain the shared Television UI and common navigation/focus owners. Do not copy its older
+dependency pins, Intel simulator target or framework export configuration without independent need.
+The article's linked integration commit did not resolve through GitHub's API during this check;
+the current sample files were inspected instead.
+
+The owner also requested a quick comparison with JellyBox. Its public
+[platform list](https://github.com/avdept/JellyBoxPlayer/blob/main/README.md) and
+[App Store listing](https://apps.apple.com/us/app/jellybox-player/id6469732117) cover iOS/iPadOS,
+macOS, Windows, Linux and Android, plus CarPlay/Android Auto. The inspected complete repository
+tree has no tvOS target. Its Flutter player uses `just_audio` 0.10.6; the Darwin implementation uses
+AVQueuePlayer/AVFoundation, while Windows/Linux explicitly initialize `just_audio_media_kit`
+(libmpv). See the [player provider](https://github.com/avdept/JellyBoxPlayer/blob/0550d9b727b7ad9964938a1265238320008417c9/lib/src/providers/player_provider.dart),
+[desktop initialization](https://github.com/avdept/JellyBoxPlayer/blob/0550d9b727b7ad9964938a1265238320008417c9/lib/main.dart#L195)
+and [Darwin implementation](https://github.com/ryanheise/just_audio/blob/minor/just_audio/darwin/just_audio/Sources/just_audio/AudioPlayer.m).
+This is an alternative playback-architecture reference, not proof of JellyBox tvOS support or a
+decision to replace Naviamp's BASS engine. Continue the owner-selected direct-BASS approach.
 
 ## Target graph and file placement
 
@@ -126,8 +188,13 @@ user-facing feature setting. Remove the gate when the supported graph and CI are
 
 ### 3. Native playback gate
 
-- Obtain compatible BASSmix and resolve each missing format component/redistribution condition.
-  Until then, keep full playback explicitly unproven; do not ship a silent capability regression.
+- First prove direct BASS playback with the public tvOS core/FLAC/Opus binaries. Gate gapless,
+  crossfade and custom stereo downmix through shared capabilities, preserving stored settings.
+  Native output, pause/seek, normal queue advance, end callbacks, failure recovery, previews and
+  cleanup must work without calling or linking BASSmix. Record the tested codec set separately.
+- Add BASSmix and other missing formats only when compatible public builds are available and
+  validated. These additions are later feature work within #590, not blockers for the explicitly
+  reduced first playback milestone. Release documentation must state the actual limitations.
 - Reuse common playback/native contracts; define any missing shared ABI contract first. Native
   code owns only C calls, resource lifetime, AVAudioSession and OS callbacks.
 - Exercise authenticated streaming/ranges/TLS, decoder data, device startup, pause/seek/resume,
@@ -291,7 +358,8 @@ the required SDK in the test environment, and preserve JNI, R8, lint, instrument
 packaging and idle/animation checks. Compare the original app before/after; do not suppress AAR
 requirements or force older Android Compose artifacts under a newer common Compose API.
 Then audit the plugin diagnostics, move only proven native Apple operations into appleMain and
-add opt-in UI tvOS targets. Simulator launch and the BASSmix/vendor inventory gate follow.
+add opt-in UI tvOS targets. Simulator launch and direct-BASS native acceptance follow; BASSmix
+feature parity remains deferred under the owner's November 14 scope decision.
 
 Evidence: `upgrade-existing-targets.log` (missing SDK), `upgrade-existing-targets-retry.log`
 (AAR validation failure; interrupted remaining work), `naviamp-590-compose-resolution.log`,
@@ -422,12 +490,16 @@ owned test windows, reverse ports and fixture servers were cleaned up. See the d
 for setup failures, the transient TV offline observation and the limits of capture evidence.
 
 The ordinary app's dependencies remain unchanged. Reproduce the stable build metadata with
-[the stable upgrade patch](verification/590-latest-stable-upgrade.patch), excluding local-only
-statistics-report settings. Next migrate the temporary AGP 9 legacy bridge to the supported KMP
-Android DSL, then repeat the original-platform checks, newest-stable iOS host/Keychain/Release
-archive checks, and matched runtime/build performance measurements. The earlier alpha stack's
-archive timings must not be reused as newest-stable evidence. Resolve the tvOS artifact mismatch
-before enabling the host; retain strict diagnostics and the Core-first ownership rules.
+[the supported migration patch](verification/590-supported-agp-upgrade.patch), excluding local-only
+statistics-report settings. The supported Android KMP plugin/DSL migration and eight additional
+stable library upgrades now pass the Android/JVM and iOS shared/native matrices. Shared mixer-free
+capability and preference preservation passed both the original and upgraded graphs; Domain's
+1,152 tests also pass on tvOS. See [the current checkpoint](verification/590-supported-upgrade-checkpoint.md)
+for reproduction, exact results, native simulator proof, verified renderer source provenance and
+remaining gates. Finish final host/Keychain/Release archive checks and matched runtime/build
+performance measurements before permanent dependency adoption. The earlier alpha stack's archive
+timings must not be reused as newest-stable evidence. Resolve the tvOS artifact mismatch before
+enabling the host; retain strict diagnostics and Core-first ownership.
 
 Keep minimum Android API 26 during this work. Both newest-stable APK manifests retain minimum 26,
 target 36 and compile 37. API 29 is a meaningful native compositor boundary, already selected at

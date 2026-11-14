@@ -6,10 +6,11 @@ This is an original-application compatibility experiment before creating the tvO
 not establish tvOS runtime support, audio output, App Store eligibility or release readiness.
 All work remains under #590. No additional issues were created.
 
-Status: the Compose plugin correction and broad compatibility checks pass, but Windows startup
-capture/presentation acceptance does not. Keep the upgrade isolated and hold tvOS host work.
-The ordinary app retains its original dependency versions. The unlocked Pixel runtime follow-up
-passed; the Windows gate remains open.
+Current status: the later newest-stable experiment passed Windows startup and original-app
+runtime checks. The supported AGP migration and additional stable-library batch are recorded in
+[the current upgrade checkpoint](590-supported-upgrade-checkpoint.md). Ordinary app dependencies
+remain unchanged until final acceptance. Earlier experiment sections below retain their historical
+results; the initial Windows failure and temporary AGP bridge are not the current candidate state.
 
 ## Frozen inputs and reproduction
 

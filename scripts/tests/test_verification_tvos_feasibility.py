@@ -9,9 +9,23 @@ import zipfile
 SPEC = importlib.util.spec_from_file_location("tvos_feasibility", Path(__file__).parents[1] / "tvos-feasibility.py")
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
+RUNTIME_SPEC = importlib.util.spec_from_file_location("tvos_runtime_probe", Path(__file__).parents[1] / "probe-tvos-bass-runtime.py")
+RUNTIME = importlib.util.module_from_spec(RUNTIME_SPEC)
+RUNTIME_SPEC.loader.exec_module(RUNTIME)
 
 
 class TvosFeasibilityTest(unittest.TestCase):
+    def test_runtime_results_accept_c_bool_and_require_every_native_check(self):
+        for success in (True, 1):
+            result = dict.fromkeys(RUNTIME.CHECKS, success)
+            self.assertTrue(RUNTIME.native_checks_pass(result))
+            for key in RUNTIME.CHECKS:
+                for failure in (False, 0, None, "1", "true"):
+                    self.assertFalse(RUNTIME.native_checks_pass({**result, key: failure}))
+                missing = result.copy()
+                del missing[key]
+                self.assertFalse(RUNTIME.native_checks_pass(missing))
+
     def archive(self, root, platform="tvos", simulator=True, architectures=None):
         path = root / "bass.zip"
         libraries = []
