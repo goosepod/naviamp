@@ -299,3 +299,74 @@ Evidence: `upgrade-existing-targets.log` (missing SDK), `upgrade-existing-target
 `build/590-feasibility`. Candidate catalogs/settings/build files remain in the isolated worktrees;
 the active branch retains Kotlin 2.4.10, Compose 1.11.0 and Material3 1.9.0. These results authorize
 neither production upgrade nor release support. No additional issues were created.
+
+## SDK 37 / AGP 9 experiment and original-app gate (November 14)
+
+The owner authorized continuing the build-tool migration and fixing the plugin before any tvOS
+host work. Candidate: SDK 37, AGP 9.1.1, Gradle 9.3.1, Kotlin 2.4.21, Compose 1.12.0 and
+Material3 1.12.0-alpha03. Keep JDK 21 and NDK 27.0.12077973 fixed initially. Application target SDK
+remains 36 and minimum SDK remains 26; compile SDK is independent of runtime opt-in behavior.
+Google documents API 37 support and Gradle 9.3.1 as the AGP 9.1.1 minimum:
+https://developer.android.com/build/releases/agp-9-1-0-release-notes.
+
+The first experiment explicitly uses `android.builtInKotlin=false` and `android.newDsl=false`.
+These documented, deprecated AGP 9 compatibility switches preserve current KMP library variants,
+instrumentation and source-set behavior while separating toolchain compatibility from a module
+migration. They are removed in AGP 10 and are not a permanent migration strategy. Do not disable
+AAR validation, force older Compose Android artifacts or change runtime behavior to pass the gate.
+The supported Android KMP plugin/source-set migration remains a separately measured step under
+#590 if retaining AGP 9. See https://developer.android.com/build/migrate-to-built-in-kotlin and
+https://kotlinlang.org/docs/multiplatform/multiplatform-project-agp-9-migration.html.
+
+Initial migration repairs:
+- Explicitly enable `resValues` in the application so generated release/test/profileable labels
+  survive AGP 9's feature default changes.
+- Move the shared UI instrumentation fixture's SDK 34 target into `testOptions.targetSdk`; retain
+  the existing pre-enforced-edge-to-edge acceptance conditions.
+- Replace removed Gradle `Project.exec` packaging calls with injected `ExecOperations`, preserving
+  commands, output/error handling and exit checks for jpackage and macOS signing/privacy setup.
+- Explicitly pin the established NDK rather than accepting AGP's changed default native toolchain.
+
+### Compose plugin correction
+
+`build-logic/compose-tvos` contains Apache-2.0 upstream source pinned to
+`f1b260751bac8b073519e65675fe2797dab71b8a`, a minimal local build and diagnostic corrections.
+It is not published as an upstream artifact. Read its README and retained LICENSE.
+Metadata rules run for all platforms and for losing conflict candidates. The original global
+empty-discovery summary therefore reports gaps that the tvOS graph never selected.
+
+The local fix collects selected module coordinates only when a configuration's native target
+attribute is tvOS, and scopes empty-discovery errors to that set. It retains unmapped fork-edge
+failures and normal Gradle resolution failures. Once scoped, the summary must not suppress a
+selected gap merely because an unrelated graph found a working alternative version. Selection
+state is reset between builds. Strict mode remains enabled. Configuration-cache reuse is not
+accepted for this experiment; the upstream static bookkeeping limitation must be addressed before
+claiming configuration-cache support.
+
+Retained upstream diagnostic tests plus regressions cover original-platform/losing candidates,
+genuinely selected missing variants (including another graph's working version), fork-coordinate
+normalization and state reset. The combined Apple/Android/JVM compile is the integration gate;
+passing only unit tests or a tvOS-only build is insufficient.
+
+### Required original-app acceptance before tvOS host work
+
+1. Full shared UI/JVM behavior suites, Android debug/unit tests, storage migration and architecture.
+2. Android release/R8/JNI/resource validation and lint; inspect the actual R8 version after AGP
+   resolution rather than assuming the older override wins. Keep native symbols/capabilities intact.
+3. Stage and launch Windows: primary connection, independent Aurral account, browse/search,
+   nonempty queue, real native playback state progression, pause/seek and restart persistence.
+4. Pixel and Android TV with preserved profiles: connection, remote/touch navigation, playback,
+   lifecycle and companion provisioning. Restore test profiles and owned network fixtures.
+5. iOS device and simulator compilation, native playback/TLS/Keychain regressions, actual app
+   launch; retain physical-device/audio limits honestly. Inspect mixed-platform resolved graphs
+   to confirm original targets continue to use official artifacts.
+6. Recheck the actual visible idle/animation budgets and matched cold/warm build measurements;
+   a dependency upgrade is not automatically a runtime or compilation performance improvement.
+
+Logs for this phase live under `build/590-feasibility`; failed setup attempts remain evidence and
+are not passing compatibility results. Do not begin the tvOS host until these gates are satisfied.
+
+The detailed reproduction patch, plugin correction, original-app test results and remaining gates
+are recorded in [the SDK 37 experiment report](verification/590-sdk37-compose-upgrade.md).
+The original-app upgrade remains isolated while performance acceptance is measured; the ordinary
+branch catalog has not been changed merely to make the community port resolve.

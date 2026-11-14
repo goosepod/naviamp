@@ -1,0 +1,152 @@
+diff --git a/apps/android/build.gradle.kts b/apps/android/build.gradle.kts
+index aa8c09472..7c413e8c2 100644
+--- a/apps/android/build.gradle.kts
++++ b/apps/android/build.gradle.kts
+@@ -32 +32,2 @@ android {
+-    compileSdk = 36
++    compileSdk = 37
++    ndkVersion = "27.0.12077973"
+@@ -109 +110 @@ android {
+-    buildFeatures { buildConfig = true }
++    buildFeatures { buildConfig = true; resValues = true }
+diff --git a/apps/desktop/build.gradle.kts b/apps/desktop/build.gradle.kts
+index 088da3b81..cd35cc0d8 100644
+--- a/apps/desktop/build.gradle.kts
++++ b/apps/desktop/build.gradle.kts
+@@ -0,0 +1,2 @@
++import org.gradle.process.ExecOperations
++import javax.inject.Inject
+@@ -15,0 +18,5 @@ plugins {
++abstract class DesktopPackagingProcess {
++    @get:Inject abstract val operations: ExecOperations
++}
++val desktopPackagingProcess = objects.newInstance<DesktopPackagingProcess>()
++
+@@ -449 +456 @@ fun registerWindowsInstaller(format: String) = tasks.register("packageReleaseWin
+-        project.exec {
++        desktopPackagingProcess.operations.exec {
+@@ -471 +478 @@ fun registerWindowsInstaller(format: String) = tasks.register("packageReleaseWin
+-        project.exec {
++        desktopPackagingProcess.operations.exec {
+@@ -652 +659 @@ fun configureMacLocalNetworkPrivacy(appDirectory: File, checkOnly: Boolean = fal
+-    project.exec {
++    desktopPackagingProcess.operations.exec {
+@@ -665 +672 @@ fun sealMacAppBundle(appDirectory: File) {
+-    project.exec {
++    desktopPackagingProcess.operations.exec {
+@@ -681 +688 @@ fun verifyMacAppBundleSeal(appDirectory: File) {
+-    project.exec {
++    desktopPackagingProcess.operations.exec {
+diff --git a/core/app/build.gradle.kts b/core/app/build.gradle.kts
+index 55b479251..41117768d 100644
+--- a/core/app/build.gradle.kts
++++ b/core/app/build.gradle.kts
+@@ -55 +55 @@ android {
+-    compileSdk = 36
++    compileSdk = 37
+diff --git a/core/domain/build.gradle.kts b/core/domain/build.gradle.kts
+index e7f1e94f4..33b6b4571 100644
+--- a/core/domain/build.gradle.kts
++++ b/core/domain/build.gradle.kts
+@@ -47,0 +48,6 @@ kotlin {
++    val tvosFeasibility = providers.gradleProperty("naviamp.tvos.feasibility").orNull == "true"
++    if (tvosFeasibility) {
++        tvosArm64()
++        tvosSimulatorArm64()
++        applyDefaultHierarchyTemplate()
++    }
+@@ -74,0 +81,3 @@ kotlin {
++        if (tvosFeasibility) getByName("tvosMain").dependencies {
++            implementation(libs.ktor.client.darwin)
++        }
+@@ -80 +89 @@ android {
+-    compileSdk = 36
++    compileSdk = 37
+diff --git a/core/presentation/build.gradle.kts b/core/presentation/build.gradle.kts
+index 4cfe2ddd9..f444abbbc 100644
+--- a/core/presentation/build.gradle.kts
++++ b/core/presentation/build.gradle.kts
+@@ -47 +47 @@ android {
+-    compileSdk = 36
++    compileSdk = 37
+diff --git a/core/storage/build.gradle.kts b/core/storage/build.gradle.kts
+index 53d228728..b7eccb0e8 100644
+--- a/core/storage/build.gradle.kts
++++ b/core/storage/build.gradle.kts
+@@ -41 +41 @@ android {
+-    compileSdk = 36
++    compileSdk = 37
+diff --git a/core/testkit/build.gradle.kts b/core/testkit/build.gradle.kts
+index 717123ee6..85ba7bddd 100644
+--- a/core/testkit/build.gradle.kts
++++ b/core/testkit/build.gradle.kts
+@@ -39 +39 @@ android {
+-    compileSdk = 36
++    compileSdk = 37
+diff --git a/core/tls-testkit/build.gradle.kts b/core/tls-testkit/build.gradle.kts
+index addd8c0e1..56cd037b0 100644
+--- a/core/tls-testkit/build.gradle.kts
++++ b/core/tls-testkit/build.gradle.kts
+@@ -25 +25 @@ android {
+-    compileSdk = 36
++    compileSdk = 37
+diff --git a/core/ui/build.gradle.kts b/core/ui/build.gradle.kts
+index b42ad11f1..f05c67381 100644
+--- a/core/ui/build.gradle.kts
++++ b/core/ui/build.gradle.kts
+@@ -88 +88,2 @@ android {
+-    compileSdk = 36
++    compileSdk = 37
++    testOptions { targetSdk = 34 }
+@@ -92 +92,0 @@ android {
+-        targetSdk = 34
+diff --git a/gradle.properties b/gradle.properties
+index 4a593de75..67e25602d 100644
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -9,0 +10,4 @@ kotlin.native.binary.gc=pmcs
++
++# Temporary AGP 9 compatibility bridge for the controlled upgrade experiment.
++android.builtInKotlin=false
++android.newDsl=false
+diff --git a/gradle/libs.versions.toml b/gradle/libs.versions.toml
+index 48a81a26b..8a234fb0b 100644
+--- a/gradle/libs.versions.toml
++++ b/gradle/libs.versions.toml
+@@ -3,4 +3,4 @@
+-kotlin = "2.4.10"
+-agp = "8.13.2"
+-compose = "1.11.0"
+-material3 = "1.9.0"
++kotlin = "2.4.21"
++agp = "9.1.1"
++compose = "1.12.0"
++material3 = "1.12.0-alpha03"
+diff --git a/gradle/wrapper/gradle-wrapper.properties b/gradle/wrapper/gradle-wrapper.properties
+index 8ff605c61..935447668 100644
+--- a/gradle/wrapper/gradle-wrapper.properties
++++ b/gradle/wrapper/gradle-wrapper.properties
+@@ -3 +3 @@ distributionPath=wrapper/dists
+-distributionUrl=https\://services.gradle.org/distributions/gradle-8.14.5-bin.zip
++distributionUrl=https\://services.gradle.org/distributions/gradle-9.3.1-bin.zip
+diff --git a/platforms/android/build.gradle.kts b/platforms/android/build.gradle.kts
+index 5a5997d17..f6a26576d 100644
+--- a/platforms/android/build.gradle.kts
++++ b/platforms/android/build.gradle.kts
+@@ -12 +12 @@ android {
+-    compileSdk = 36
++    compileSdk = 37
+diff --git a/providers/jellyfin/build.gradle.kts b/providers/jellyfin/build.gradle.kts
+index 7ea1b0e69..221dbbf68 100644
+--- a/providers/jellyfin/build.gradle.kts
++++ b/providers/jellyfin/build.gradle.kts
+@@ -37 +37 @@ android {
+-    compileSdk = 36
++    compileSdk = 37
+diff --git a/providers/navidrome/build.gradle.kts b/providers/navidrome/build.gradle.kts
+index c3fa8b064..8518c0754 100644
+--- a/providers/navidrome/build.gradle.kts
++++ b/providers/navidrome/build.gradle.kts
+@@ -57 +57 @@ android {
+-    compileSdk = 36
++    compileSdk = 37
