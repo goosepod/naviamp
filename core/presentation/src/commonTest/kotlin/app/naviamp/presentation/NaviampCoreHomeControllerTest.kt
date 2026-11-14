@@ -416,6 +416,7 @@ class NaviampCoreHomeControllerTest {
         controller.interfaceSettingsChanged(
             InterfaceSettings(
                 homeSectionPresentations = mapOf(
+                    app.naviamp.domain.settings.HomeSectionIds.Aurral to HomeSectionPresentationSettings(visible = false),
                     SharedHomeCollectionSectionIds.MixesForYou to HomeSectionPresentationSettings(
                         visible = false,
                     ),
@@ -427,6 +428,7 @@ class NaviampCoreHomeControllerTest {
                 .single { it.id == SharedHomeCollectionSectionIds.MixesForYou }
                 .visible,
         )
+        assertFalse(store.state.value.shell.home.content.aurralHomeVisible)
         assertEquals(null, store.state.value.shell.home.collectionPage)
 
         controller.dispatch(NaviampCoreCommand.Home.CloseCollection)

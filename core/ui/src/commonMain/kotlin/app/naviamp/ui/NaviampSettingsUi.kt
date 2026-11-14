@@ -266,6 +266,8 @@ fun NaviampSharedSettingsContent(
     onSettingsSyncAutoExportChanged: ((Boolean) -> Unit)? = null,
     onConnectionFormChanged: (ConnectionFormState) -> Unit,
     onChooseServerCertificate: (() -> Unit)? = null,
+    onChooseCompanionServerCertificate: (() -> Unit)? = null,
+    onChooseCompanionClientCertificate: (() -> Unit)? = null,
     onChooseClientCertificate: (() -> Unit)? = null,
     onConnect: () -> Unit,
     onCancelConnectionForm: () -> Unit,
@@ -305,6 +307,7 @@ fun NaviampSharedSettingsContent(
     onAudioCacheLocationChanged: (NaviampStorageLocationUi) -> Unit,
     connect: NaviampConnectSettingsUi = NaviampConnectSettingsUi(),
     connectActions: NaviampConnectSettingsActions? = null,
+    saveWithoutReconnect: Boolean = false,
 ) {
     var selectedCategory by rememberSaveable { mutableStateOf<NaviampSettingsCategory?>(null) }
     // Opening an editor can remount Settings when the split player is hidden.
@@ -366,6 +369,7 @@ fun NaviampSharedSettingsContent(
                         availableMusicFolders = availableMusicFolders,
                         musicFoldersStatus = musicFoldersStatus,
                         connectionForm = connectionForm,
+                        saveWithoutReconnect = saveWithoutReconnect,
                         hasSavedConnection = hasSavedConnection,
                         connectionCapabilities = connectionCapabilities,
                         onNewConnection = onNewConnection,
@@ -380,6 +384,8 @@ fun NaviampSharedSettingsContent(
                         onSettingsSyncAutoExportChanged = onSettingsSyncAutoExportChanged,
                         onConnectionFormChanged = onConnectionFormChanged,
                         onChooseServerCertificate = onChooseServerCertificate,
+                        onChooseCompanionServerCertificate = onChooseCompanionServerCertificate,
+                        onChooseCompanionClientCertificate = onChooseCompanionClientCertificate,
                         onChooseClientCertificate = onChooseClientCertificate,
                         onConnect = onConnect,
                         onCancelConnectionForm = onCancelConnectionForm,
@@ -1724,7 +1730,8 @@ private fun HomeScreenSectionPresentationSettings(
     val presentation = interfaceSettings.homeSectionPresentation(selectedSection.id)
     SettingsSubsectionHeader(
         title = selectedSection.title,
-        subtitle = "Choose whether this section appears and how it is laid out",
+        subtitle = if (selectedSection.id == HomeSectionIds.Aurral) stringResource(Res.string.home_settings_visible)
+            else "Choose whether this section appears and how it is laid out",
         colors = colors,
     ) { onSelectedSectionChanged(null) }
 
@@ -1742,6 +1749,8 @@ private fun HomeScreenSectionPresentationSettings(
         androidx.compose.material3.Switch(checked = presentation.visible, onCheckedChange = null,
             colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = colors.accent, checkedThumbColor = colors.onAccent))
     }
+
+    if (selectedSection.id == HomeSectionIds.Aurral) return
 
     if (selectedSection.id == HomeSectionIds.FavoriteArtists) {
         SettingsSectionTitle(stringResource(Res.string.favorite_artists_sort_title), colors)
@@ -2513,9 +2522,12 @@ private fun NaviampConnectionsSettingsSection(
     onSettingsSyncAutoExportChanged: ((Boolean) -> Unit)?,
     onConnectionFormChanged: (ConnectionFormState) -> Unit,
     onChooseServerCertificate: (() -> Unit)? = null,
+    onChooseCompanionServerCertificate: (() -> Unit)? = null,
+    onChooseCompanionClientCertificate: (() -> Unit)? = null,
     onChooseClientCertificate: (() -> Unit)? = null,
     onConnect: () -> Unit,
     onCancelConnectionForm: () -> Unit,
+    saveWithoutReconnect: Boolean = false,
 ) {
     var pendingDelete by remember { mutableStateOf<NaviampSavedConnectionUi?>(null) }
     var selectedPage by rememberSaveable { mutableStateOf<SourceSettingsPage?>(null) }
@@ -2548,6 +2560,7 @@ private fun NaviampConnectionsSettingsSection(
                 form = connectionForm,
                 colors = colors,
                 isReconnect = editingSavedConnection,
+                saveWithoutReconnect = saveWithoutReconnect,
                 isConnecting = isConnecting,
                 connectionStatus = connectionStatus,
                 connectionStatusIsError = connectionStatusIsError,
@@ -2557,6 +2570,8 @@ private fun NaviampConnectionsSettingsSection(
                 capabilities = connectionCapabilities,
                 onFormChanged = onConnectionFormChanged,
                 onChooseServerCertificate = onChooseServerCertificate,
+                        onChooseCompanionServerCertificate = onChooseCompanionServerCertificate,
+                        onChooseCompanionClientCertificate = onChooseCompanionClientCertificate,
                 onChooseClientCertificate = onChooseClientCertificate,
                 onConnect = onConnect,
                 onImportSettingsSyncFile = onImportSettingsSyncFile,

@@ -384,6 +384,8 @@ fun HomeContent.toSharedHomeUi(
     return SharedHomeUi(
         mixBuilders = builders,
         collectionSections = orderedSections,
+        homeSectionOrder = interfaceSettings.resolvedHomeSectionOrder(),
+        aurralHomeVisible = interfaceSettings.homeSectionPresentation(HomeSectionIds.Aurral).visible,
         navibeatMixes = navibeatMixes.map { mix ->
             SharedNavibeatMixUi(
                 playlist = mix.playlist.toSharedMediaItemUi(

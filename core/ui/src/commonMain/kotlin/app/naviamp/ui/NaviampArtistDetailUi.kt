@@ -62,6 +62,7 @@ import app.naviamp.domain.settings.AppBackgroundStyle
 import app.naviamp.domain.settings.DefaultSingleColorHex
 import app.naviamp.domain.settings.toggleSelectedMusicFolderId
 import app.naviamp.domain.media.AlbumReleaseSection
+import app.naviamp.ui.generated.resources.discovery_find_in_aurral
 import app.naviamp.ui.generated.resources.Res
 import app.naviamp.ui.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -187,6 +188,7 @@ fun NaviampArtistDetailContent(
             )
         },
         onPopularTrackAction = actions.onPopularTrackAction,
+        onFindInAurral = detail.aurralSourceId?.let { source -> { actions.onFindInAurral(source, detail.artist.id) } },
         onFindSimilarArtists = {
             actions.onArtistAction(
                 NaviampArtistDetailActionRequest(detail.artist, NaviampArtistDetailCommand.FindSimilar),
@@ -252,6 +254,7 @@ private fun ArtistDetailContent(
     onPopularRadio: () -> Unit,
     onPopularAddToQueue: () -> Unit,
     onPopularTrackAction: (SharedTrackRowActionRequest) -> Unit,
+    onFindInAurral: (() -> Unit)? = null,
     onFindSimilarArtists: () -> Unit,
     onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
     onSimilarArtistExternalSelected: (String) -> Unit,
@@ -364,7 +367,7 @@ private fun ArtistDetailContent(
                 )
                 NaviampResponsiveActionRow(
                     colors = colors,
-                    actions = listOf(
+                    actions = listOfNotNull(
                         NaviampDetailAction("Play artist catalog", NaviampTransportIcons.Play, { onArtistPlay(displayedAlbums) }, displayedAlbums.isNotEmpty()),
                         NaviampDetailAction("Start artist radio", NaviampTransportIcons.Radio, onArtistRadio, detail.albums.isNotEmpty()),
                         NaviampDetailAction(
@@ -388,6 +391,7 @@ private fun ArtistDetailContent(
                         NaviampDetailAction("Add artist to queue", NaviampIcons.Queue, onArtistAddToQueue, detail.albums.isNotEmpty()),
                         NaviampDetailAction("Add artist to playlist", NaviampIcons.Playlist, { addArtistToPlaylistOpen = true }, detail.albums.isNotEmpty()),
                         NaviampDetailAction("Shuffle artist catalog", NaviampTransportIcons.Shuffle, { onArtistShuffle(displayedAlbums) }, displayedAlbums.isNotEmpty()),
+                        onFindInAurral?.let { NaviampDetailAction(stringResource(Res.string.discovery_find_in_aurral), NaviampIcons.Search, it) },
                     ),
                 )
             }

@@ -254,6 +254,8 @@ data class NaviampConnectWelcome(
     val snapshot: NaviampConnectTargetSnapshot,
     /** This code-authenticated session may perform initial setup of an empty target. */
     val initialSetupAllowed: Boolean = false,
+    /** Additive negotiation: older targets must not silently discard an attached account. */
+    val companionProvisioningSupported: Boolean = false,
 ) : NaviampConnectMessage
 
 /** An opaque PAKE exchange payload. A short code is never placed in a wire message. */
@@ -488,6 +490,7 @@ data class NaviampConnectProvisioningProfile(
     val secondaryUrls: List<NaviampConnectProvisioningEndpoint> = emptyList(),
     val customHeaders: List<NaviampConnectProvisioningHeader> = emptyList(),
     val selectedLibraryIds: List<String> = emptyList(),
+    val aurralCompanion: NaviampConnectProvisioningCompanion? = null,
 ) {
     init {
         require(providerId.isNotBlank()) { "A provisioning provider ID is required." }
@@ -500,7 +503,21 @@ data class NaviampConnectProvisioningProfile(
         "NaviampConnectProvisioningProfile(providerId=$providerId, displayName=$displayName, " +
             "serverUrl=$serverUrl, username=$username, password=<redacted>, " +
             "skipTlsVerification=$skipTlsVerification, secondaryUrls=${secondaryUrls.size}, " +
-            "customHeaders=${customHeaders.size}, selectedLibraryIds=$selectedLibraryIds)"
+            "customHeaders=${customHeaders.size}, selectedLibraryIds=$selectedLibraryIds, " +
+            "aurralCompanion=${aurralCompanion != null})"
+}
+
+/** Secrets travel only in the encrypted setup offer; device-local certificate files have no representation. */
+@Serializable
+data class NaviampConnectProvisioningCompanion(
+    val enabled: Boolean,
+    val serverUrl: String,
+    val username: String,
+    val password: String,
+    val skipTlsVerification: Boolean = false,
+    val customHeaders: List<NaviampConnectProvisioningHeader> = emptyList(),
+) {
+    override fun toString(): String = "NaviampConnectProvisioningCompanion(enabled=$enabled, credentials=<redacted>)"
 }
 
 @Serializable

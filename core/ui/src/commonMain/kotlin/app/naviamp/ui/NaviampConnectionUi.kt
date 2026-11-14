@@ -73,6 +73,8 @@ import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.selectProvider
+import app.naviamp.domain.source.toConnectionForm
+import app.naviamp.domain.source.withForm
 import app.naviamp.domain.source.ConnectionPasswordRequiredStatus
 import app.naviamp.domain.settings.AlbumCollectionLayout
 import app.naviamp.domain.settings.AlbumSortOrder
@@ -90,6 +92,8 @@ import app.naviamp.domain.source.SubsonicAuthToken
 @Composable
 private fun localizedConnectionStatus(status: String): String =
     when (status) {
+        "connection_aurral_companion_save_failed" -> stringResource(Res.string.connection_aurral_companion_save_failed)
+        "connection_aurral_companion_invalid" -> stringResource(Res.string.connection_aurral_companion_invalid)
         ConnectionPasswordRequiredStatus -> stringResource(Res.string.connection_password_required)
         "connection_aurral_guidance" -> stringResource(Res.string.connection_aurral_guidance)
         "connection_api_key_required" -> stringResource(Res.string.connection_api_key_required)
@@ -139,7 +143,13 @@ fun NaviampConnectionForm(
     onChooseServerCertificate: (() -> Unit)? = null,
     onChooseClientCertificate: (() -> Unit)? = null,
     onCancel: (() -> Unit)?,
+    companionMode: Boolean = false,
+    onChooseCompanionServerCertificate: (() -> Unit)? = null,
+    onChooseCompanionClientCertificate: (() -> Unit)? = null,
+    saveWithoutReconnect: Boolean = false,
 ) {
+    val fieldTagPrefix = if (companionMode) "aurral-companion-" else ""
+    val hasCompanionSection = !companionMode && form.providerId != app.naviamp.domain.provider.ProviderIdAurral
     var advancedVisible by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
@@ -156,13 +166,14 @@ fun NaviampConnectionForm(
                 label = stringResource(Res.string.common_back),
                 colors = colors,
                 enabled = !isConnecting,
-                modifier = Modifier.testTag(ConnectionBackButtonTestTag),
+                modifier = Modifier.testTag(fieldTagPrefix + ConnectionBackButtonTestTag),
                 onClick = cancel,
             )
         }
         if (connectionStatusIsError && !connectionStatus.isNullOrBlank()) {
             ConnectionErrorCard(localizedConnectionStatus(connectionStatus))
         }
+        if (!companionMode) {
         SettingsSectionTitle(stringResource(Res.string.connection_connection_details), colors)
         ProviderSelector(
             selectedProviderId = form.providerId,
@@ -175,6 +186,7 @@ fun NaviampConnectionForm(
             color = colors.mutedText,
             fontSize = 11.sp,
         )
+        }
         if (form.providerId == ProviderIdNavidrome || form.providerId == ProviderIdSubsonic) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ConnectionFormTextAction(
@@ -198,7 +210,7 @@ fun NaviampConnectionForm(
                 fontSize = 11.sp,
             )
         }
-        if (isReconnect && form.authenticationMode != SubsonicAuthApiKey) {
+        if (!companionMode && isReconnect && form.authenticationMode != SubsonicAuthApiKey) {
             Text(
                 stringResource(Res.string.connection_saved_credentials_loaded_leave_password_blank_to_reuse_them),
                 color = colors.mutedText,
@@ -216,14 +228,14 @@ fun NaviampConnectionForm(
                 Text(it, color = colors.secondaryText, fontSize = 12.sp)
             }
         }
-        NaviampTextField(
+        if (!companionMode) NaviampTextField(
             value = form.displayName,
             onValueChange = { onFormChanged(form.copy(displayName = it)) },
             label = stringResource(Res.string.connection_connection_name_optional),
             colors = colors,
             imeAction = ImeAction.Next,
             onImeAction = focusNext,
-            modifier = Modifier.testTag(ConnectionNameFieldTestTag),
+            modifier = Modifier.testTag(fieldTagPrefix + ConnectionNameFieldTestTag),
         )
         NaviampTextField(
             value = form.serverUrl,
@@ -233,7 +245,7 @@ fun NaviampConnectionForm(
             inputKind = NaviampTextInputKind.Url,
             imeAction = ImeAction.Next,
             onImeAction = focusNext,
-            modifier = Modifier.testTag(ConnectionServerUrlFieldTestTag),
+            modifier = Modifier.testTag(fieldTagPrefix + ConnectionServerUrlFieldTestTag),
         )
         if (form.authenticationMode == SubsonicAuthApiKey) {
             NaviampTextField(
@@ -243,11 +255,11 @@ fun NaviampConnectionForm(
                 colors = colors,
                 isPassword = true,
                 forceFloatingLabel = isReconnect,
-                modifier = Modifier.testTag(ConnectionApiKeyFieldTestTag),
+                modifier = Modifier.testTag(fieldTagPrefix + ConnectionApiKeyFieldTestTag),
                 imeAction = ImeAction.Done,
                 onImeAction = {
                     softwareKeyboardController?.hide()
-                    connectFocusRequester.requestFocus()
+                    if (companionMode) focusNext() else connectFocusRequester.requestFocus()
                 },
             )
         } else Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -257,7 +269,7 @@ fun NaviampConnectionForm(
                 label = stringResource(Res.string.connection_username),
                 colors = colors,
                 inputKind = NaviampTextInputKind.Technical,
-                modifier = Modifier.weight(1f).testTag(ConnectionUsernameFieldTestTag),
+                modifier = Modifier.weight(1f).testTag(fieldTagPrefix + ConnectionUsernameFieldTestTag),
                 imeAction = ImeAction.Next,
                 onImeAction = focusNext,
             )
@@ -268,11 +280,11 @@ fun NaviampConnectionForm(
                 colors = colors,
                 isPassword = true,
                 forceFloatingLabel = isReconnect,
-                modifier = Modifier.weight(1f).testTag(ConnectionPasswordFieldTestTag),
+                modifier = Modifier.weight(1f).testTag(fieldTagPrefix + ConnectionPasswordFieldTestTag),
                 imeAction = ImeAction.Done,
                 onImeAction = {
                     softwareKeyboardController?.hide()
-                    connectFocusRequester.requestFocus()
+                    if (companionMode) focusNext() else connectFocusRequester.requestFocus()
                 },
             )
         }
@@ -282,14 +294,14 @@ fun NaviampConnectionForm(
             modifier = Modifier
                 .focusRequester(advancedFocusRequester)
                 .onPreviewKeyEvent { event ->
-                    if (!advancedVisible && event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
-                        connectFocusRequester.requestFocus()
+                    if (!companionMode && !advancedVisible && event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
+                        if (hasCompanionSection) focusNext() else connectFocusRequester.requestFocus()
                         true
                     } else {
                         false
                     }
                 }
-                .testTag(ConnectionAdvancedActionTestTag),
+                .testTag(fieldTagPrefix + ConnectionAdvancedActionTestTag),
             onClick = { advancedVisible = !advancedVisible },
         )
         if (advancedVisible) {
@@ -457,28 +469,58 @@ fun NaviampConnectionForm(
                 },
             )
         }
+        if (hasCompanionSection) {
+            val companion = form.aurralCompanion ?: app.naviamp.domain.source.AurralCompanion()
+            Row(modifier = Modifier.fillMaxWidth().onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) false
+                else when (event.key) {
+                    Key.DirectionDown -> { focusNext(); true }
+                    Key.DirectionUp -> { focusManager.moveFocus(FocusDirection.Previous); true }
+                    else -> false
+                }
+            }.toggleable(value = companion.enabled,
+                enabled = !isConnecting, role = Role.Checkbox,
+                onValueChange = { onFormChanged(form.copy(aurralCompanion = companion.copy(enabled = it))) }),
+                verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = companion.enabled, onCheckedChange = null)
+                Text(stringResource(Res.string.connection_aurral_companion), color = colors.primaryText)
+            }
+            if (companion.enabled) {
+                Text(stringResource(Res.string.connection_aurral_companion_guidance), color = colors.secondaryText, fontSize = 12.sp)
+                NaviampConnectionForm(
+                    form = companion.toConnectionForm(), colors = colors, isReconnect = isReconnect,
+                    isConnecting = isConnecting, capabilities = capabilities,
+                    allowLocalFileInputs = allowLocalFileInputs, allowFallbackUrls = false,
+                    onFormChanged = { onFormChanged(form.copy(aurralCompanion = companion.withForm(it))) },
+                    onConnect = {}, onCancel = null, companionMode = true,
+                    onChooseServerCertificate = onChooseCompanionServerCertificate,
+                    onChooseClientCertificate = onChooseCompanionClientCertificate,
+                )
+            }
+        }
         connectionStatus?.takeUnless { connectionStatusIsError }?.let {
             Text(localizedConnectionStatus(it), color = colors.secondaryText, fontSize = 11.sp)
         }
-        Row(
+        if (!companionMode) Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             PrimaryButton(
-                label = if (isConnecting) stringResource(Res.string.common_connecting) else if (isReconnect) stringResource(Res.string.connection_save_and_connect) else stringResource(Res.string.common_connect),
+                label = if (isConnecting) stringResource(Res.string.common_connecting) else if (saveWithoutReconnect) stringResource(Res.string.common_save) else if (isReconnect) stringResource(Res.string.connection_save_and_connect) else stringResource(Res.string.common_connect),
                 colors = colors,
                 enabled = !isConnecting,
                 modifier = Modifier
                     .focusRequester(connectFocusRequester)
                     .onPreviewKeyEvent { event ->
                         if (!advancedVisible && event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp) {
-                            advancedFocusRequester.requestFocus()
+                            if (hasCompanionSection) focusManager.moveFocus(FocusDirection.Previous)
+                            else advancedFocusRequester.requestFocus()
                             true
                         } else {
                             false
                         }
                     }
-                    .testTag(ConnectionConnectButtonTestTag),
+                    .testTag(fieldTagPrefix + ConnectionConnectButtonTestTag),
                 onClick = onConnect,
             )
             onCancel?.let {

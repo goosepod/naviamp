@@ -33,7 +33,7 @@ internal fun NaviampAurralHomeEntry(discovery: SharedProviderDiscoveryUi, colors
                 NaviampServiceIcon(discovery.providerId, colors.primaryText, 38.dp)
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                DiscoveryText(localizedProviderName(discovery.providerId), color = colors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                DiscoveryText(if (discovery.isCompanion) stringResource(Res.string.connection_aurral_companion) else localizedProviderName(discovery.providerId), color = colors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                 DiscoveryText(stringResource(Res.string.discovery_hub_intro), color = colors.secondaryText, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
             Icon(NaviampIcons.ChevronRight, null, tint = colors.secondaryText, modifier = Modifier.size(24.dp))

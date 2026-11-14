@@ -4,6 +4,10 @@ import app.naviamp.domain.connect.NaviampConnectPortableSettings
 import app.naviamp.domain.connect.NaviampConnectProvisioningEndpoint
 import app.naviamp.domain.connect.NaviampConnectProvisioningHeader
 import app.naviamp.domain.connect.NaviampConnectProvisioningProfile
+import app.naviamp.domain.connect.NaviampConnectProvisioningCompanion
+import app.naviamp.domain.source.AurralCompanion
+import app.naviamp.domain.source.ConnectionHeaderDefinition
+import app.naviamp.domain.source.ConnectionTlsSettings
 import app.naviamp.domain.settings.ConnectionFormHeader
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.settings.ConnectionFormState
@@ -21,7 +25,12 @@ internal sealed interface NaviampCoreConnectProvisioningExport {
 
 /** Removes machine-local certificate paths before any connection data enters the wire contract. */
 internal fun ConnectionFormState.toConnectProvisioningExport(): NaviampCoreConnectProvisioningExport {
-    if (customCertificatePath.isNotBlank() || clientCertificatePath.isNotBlank()) {
+    val companion = aurralCompanion?.normalized()?.takeUnless {
+        providerId.trim() == app.naviamp.domain.provider.ProviderIdAurral
+    }
+    if (customCertificatePath.isNotBlank() || clientCertificatePath.isNotBlank() ||
+        !companion?.tlsSettings?.customCertificatePath.isNullOrBlank() ||
+        !companion?.tlsSettings?.clientCertificateKeyStorePath.isNullOrBlank()) {
         return NaviampCoreConnectProvisioningExport.Unsupported(
             "Connections using local certificate files must still be configured directly on the TV.",
         )
@@ -34,6 +43,11 @@ internal fun ConnectionFormState.toConnectProvisioningExport(): NaviampCoreConne
     }
     return NaviampCoreConnectProvisioningExport.Ready(
         NaviampConnectProvisioningProfile(
+            aurralCompanion = companion?.let { value -> NaviampConnectProvisioningCompanion(
+                enabled = value.enabled, serverUrl = value.baseUrl, username = value.username,
+                password = value.password, skipTlsVerification = value.tlsSettings.insecureSkipTlsVerification,
+                customHeaders = value.customHeaders.map { NaviampConnectProvisioningHeader(it.name, it.value.orEmpty(), it.valueIsSecret) },
+            ) },
             providerId = providerId.trim(),
             displayName = displayName.trim(),
             serverUrl = serverUrl.trim(),
@@ -58,6 +72,11 @@ internal fun ConnectionFormState.toConnectProvisioningExport(): NaviampCoreConne
 }
 
 internal fun NaviampConnectProvisioningProfile.toConnectionFormState() = ConnectionFormState(
+    aurralCompanion = aurralCompanion?.let { value -> AurralCompanion(
+        enabled = value.enabled, baseUrl = value.serverUrl, username = value.username, password = value.password,
+        tlsSettings = ConnectionTlsSettings(insecureSkipTlsVerification = value.skipTlsVerification),
+        customHeaders = value.customHeaders.map { ConnectionHeaderDefinition(it.name, it.value, it.secret) },
+    ).normalized() },
     providerId = providerId,
     displayName = displayName,
     serverUrl = serverUrl,

@@ -317,7 +317,7 @@ class NaviampCoreHomeController(
     }
 
     private suspend fun refreshProviderDiscovery(provider: MediaProvider, generation: Long) {
-        if (generation != refreshGeneration || !providerSource.isCurrent(provider)) return
+        if (generation != refreshGeneration || !providerSource.isCurrentDiscovery(provider)) return
         val feedGeneration = ++discoveryFeedGeneration
         val discovery = provider.discovery
         if (discovery == null) {
@@ -325,8 +325,8 @@ class NaviampCoreHomeController(
             return
         }
         stateStore.updateShell { shell -> shell.copy(home = shell.home.copy(
-            providerDiscovery = shell.home.providerDiscovery?.takeIf { it.providerId == provider.id.value }?.copy(loading = true)
-                ?: SharedProviderDiscoveryUi(provider.id.value, loading = true),
+            providerDiscovery = shell.home.providerDiscovery?.takeIf { it.providerId == provider.effectiveDiscoveryProviderId.value }?.copy(loading = true)
+                ?: SharedProviderDiscoveryUi(provider.effectiveDiscoveryProviderId.value, loading = true, isCompanion = provider.effectiveDiscoveryProviderId != provider.id),
         )) }
         val feed = try {
             discovery.load()
@@ -334,12 +334,18 @@ class NaviampCoreHomeController(
             if (error is CancellationException) throw error
             ProviderDiscoveryFeed(ProviderDiscoveryStatus.Unavailable)
         }
-        if (generation != refreshGeneration || feedGeneration != discoveryFeedGeneration || !providerSource.isCurrent(provider)) return
+        if (generation != refreshGeneration || feedGeneration != discoveryFeedGeneration || !providerSource.isCurrentDiscovery(provider)) return
         stateStore.updateShell { shell -> shell.copy(home = shell.home.copy(
-            providerDiscovery = (shell.home.providerDiscovery ?: SharedProviderDiscoveryUi(provider.id.value)).copy(feed = feed, loading = false),
+            providerDiscovery = (shell.home.providerDiscovery ?: SharedProviderDiscoveryUi(provider.effectiveDiscoveryProviderId.value, isCompanion = provider.effectiveDiscoveryProviderId != provider.id)).copy(feed = feed, loading = false),
         )) }
     }
 
+
+    suspend fun refreshAfterCompanionChange() {
+        discoveryController.resetForSourceChange()
+        stateStore.updateShell { it.copy(home = it.home.copy(providerDiscovery = null)) }
+        providerSource.current()?.let { refreshProviderDiscovery(it, refreshGeneration) }
+    }
 
     suspend fun refreshAfterConnection() = refresh()
 
@@ -402,7 +408,11 @@ class NaviampCoreHomeController(
             }
             shell.copy(
                 home = shell.home.copy(
-                    content = shell.home.content.copy(collectionSections = sections),
+                    content = shell.home.content.copy(
+                        collectionSections = sections,
+                        homeSectionOrder = settings.resolvedHomeSectionOrder(),
+                        aurralHomeVisible = settings.homeSectionPresentation(app.naviamp.domain.settings.HomeSectionIds.Aurral).visible,
+                    ),
                     collectionPage = currentPage,
                 ),
             )

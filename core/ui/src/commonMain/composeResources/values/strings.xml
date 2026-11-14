@@ -1289,4 +1289,9 @@
     <string name="stream_details_embedded_artwork">Embedded artwork provided</string>
     <string name="stream_details_redacted">redacted</string>
     <string name="stream_details_unavailable_url">Unavailable URL</string>
+    <string name="connection_aurral_companion">Aurral companion</string>
+    <string name="connection_aurral_companion_guidance">Use Aurral for discovery and requests. Your music server keeps control of your library and playback.</string>
+    <string name="connection_aurral_companion_invalid">Enter an Aurral HTTP or HTTPS server URL and username.</string>
+    <string name="discovery_find_in_aurral">Find in Aurral</string>
+    <string name="connection_aurral_companion_save_failed">Could not save the Aurral companion. Your music connection is unchanged.</string>
 </resources>

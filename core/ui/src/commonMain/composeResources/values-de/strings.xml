@@ -1260,4 +1260,9 @@
     <string name="stream_details_embedded_artwork">Eingebettetes Cover vorhanden</string>
     <string name="stream_details_redacted">ausgeblendet</string>
     <string name="stream_details_unavailable_url">URL nicht verfügbar</string>
+    <string name="connection_aurral_companion">Aurral-Begleiter</string>
+    <string name="connection_aurral_companion_guidance">Aurral für Entdeckungen und Anfragen verwenden. Dein Musikserver verwaltet weiterhin Bibliothek und Wiedergabe.</string>
+    <string name="connection_aurral_companion_invalid">Gib eine HTTP- oder HTTPS-Serveradresse und einen Benutzernamen für Aurral ein.</string>
+    <string name="discovery_find_in_aurral">In Aurral suchen</string>
+    <string name="connection_aurral_companion_save_failed">Der Aurral-Begleiter konnte nicht gespeichert werden. Deine Musikverbindung bleibt unverändert.</string>
 </resources>

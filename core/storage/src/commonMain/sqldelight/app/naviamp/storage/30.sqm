@@ -1,0 +1,2 @@
+-- #587; main baseline is migration 29.
+ALTER TABLE media_source ADD COLUMN aurral_companion TEXT;

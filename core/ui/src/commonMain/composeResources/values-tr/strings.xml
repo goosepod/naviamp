@@ -492,4 +492,9 @@
     <string name="tv_repeat_all">Tümünü tekrarla</string>
     <string name="tv_repeat_one">Parçayı tekrarla</string>
     <string name="tv_start_radio">Radyo başlat</string>
+    <string name="connection_aurral_companion">Aurral yardımcısı</string>
+    <string name="connection_aurral_companion_guidance">Müzik keşfetmek ve istekte bulunmak için Aurral kullanın. Müzik sunucunuz kitaplığınızı ve oynatmayı yönetmeye devam eder.</string>
+    <string name="connection_aurral_companion_invalid">Aurral HTTP veya HTTPS sunucu adresini ve kullanıcı adını girin.</string>
+    <string name="discovery_find_in_aurral">Aurral’da bul</string>
+    <string name="connection_aurral_companion_save_failed">Aurral yardımcısı kaydedilemedi. Müzik bağlantınız değişmedi.</string>
 </resources>

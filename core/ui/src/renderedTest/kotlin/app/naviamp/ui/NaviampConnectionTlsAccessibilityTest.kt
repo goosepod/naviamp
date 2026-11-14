@@ -36,7 +36,10 @@ class NaviampConnectionTlsAccessibilityTest {
         val checkbox = onNodeWithText("Skip TLS certificate verification").performScrollTo()
         checkbox.assertIsToggleable().assertIsOff()
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Checkbox))
-        onAllNodes(isToggleable(), useUnmergedTree = true).assertCountEquals(1)
+        // TLS and the optional companion each expose one named checkbox, without a second
+        // independently toggleable visual box inside either accessible target.
+        onAllNodes(isToggleable(), useUnmergedTree = true).assertCountEquals(2)
+        onNodeWithText("Aurral companion").assertIsToggleable().assertIsOff()
 
         // The label and the visual box are parts of the same native-accessible target.
         checkbox.performClick().assertIsOn()

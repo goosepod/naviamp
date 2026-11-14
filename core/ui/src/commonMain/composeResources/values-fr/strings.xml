@@ -492,4 +492,9 @@
     <string name="tv_repeat_all">Tout répéter</string>
     <string name="tv_repeat_one">Répéter le titre</string>
     <string name="tv_start_radio">Démarrer la radio</string>
+    <string name="connection_aurral_companion">Aurral complémentaire</string>
+    <string name="connection_aurral_companion_guidance">Utilisez Aurral pour découvrir de la musique et envoyer des demandes. Votre serveur musical conserve la gestion de la bibliothèque et de la lecture.</string>
+    <string name="connection_aurral_companion_invalid">Saisissez une URL de serveur Aurral HTTP ou HTTPS et un nom d’utilisateur.</string>
+    <string name="discovery_find_in_aurral">Rechercher dans Aurral</string>
+    <string name="connection_aurral_companion_save_failed">Impossible d’enregistrer Aurral complémentaire. Votre connexion musicale reste inchangée.</string>
 </resources>

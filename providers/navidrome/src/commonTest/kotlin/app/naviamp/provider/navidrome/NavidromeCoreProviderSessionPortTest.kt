@@ -26,6 +26,75 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class NavidromeCoreProviderSessionPortTest {
+    @Test fun provisioningReadsTheCurrentCompanionIncludingItsProtectedAccountCredentials() = runTest {
+        val companion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret")
+        val source = savedSource().copy(aurralCompanion = companion)
+        val repository = TestMediaSourceRepository(source)
+        val primary = NavidromeCoreProviderSessionPort(mediaSources = repository, initialSource = source,
+            sessionOpener = NavidromeProviderSessionOpener { _, _ -> error("No primary login expected") })
+        val router = subsonicFamilyProviderSessionRouter(primary)
+        assertEquals(companion, router.currentProvisioningConnection()!!.form.aurralCompanion)
+        val disabled = companion.copy(enabled = false, password = "new-secret")
+        router.saveAurralCompanion(source.id, disabled)
+        assertEquals(disabled, router.currentProvisioningConnection()!!.form.aurralCompanion)
+        assertEquals(source.password.orEmpty(), router.currentProvisioningConnection()!!.form.password)
+    }
+
+    @Test fun settingsImportDuringTheFirstCompanionReadCannotPublishThePreviousAccount() {
+        val old = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "old-secondary", "secret")
+        val source = savedSource().copy(aurralCompanion = old)
+        val repository = TestMediaSourceRepository(source)
+        val primary = NavidromeCoreProviderSessionPort(mediaSources = repository, initialSource = source,
+            sessionOpener = NavidromeProviderSessionOpener { _, _ -> error("No primary login expected") })
+        val router = subsonicFamilyProviderSessionRouter(primary)
+        repository.beforeReturningSource = {
+            repository.updateAurralCompanion(source.id, old.copy(username = "new-secondary", password = "new-secret"))
+            router.replaceSavedConnections(router.initialInventory().connections)
+        }
+        val provider = router.currentProvider()!!
+        assertTrue(provider.discoveryAccountScope.endsWith(":new-secondary"))
+        assertEquals(primary.currentProvider()!!.cacheNamespace, provider.cacheNamespace)
+        val reads = repository.sourceReads
+        repeat(10) { assertSame(provider, router.currentProvider()) }
+        assertEquals(reads, repository.sourceReads, "Playback lookups must not repeatedly read protected settings")
+    }
+
+    @Test fun restoringASavedCompanionDoesNotRewriteItsProtectedCredentials() = runTest {
+        val source = savedSource().copy(aurralCompanion = app.naviamp.domain.source.AurralCompanion(
+            true, "https://aurral.example", "secondary", "secret"))
+        val repository = TestMediaSourceRepository(source)
+        val primary = NavidromeCoreProviderSessionPort(mediaSources = repository, initialSource = source,
+            sessionOpener = NavidromeProviderSessionOpener { _, _ -> session(source.toNavidromeConnection()) },
+            canonicalIdMigrationSupport = { NavidromeCanonicalIdMigrationSupport.Unsupported })
+        val router = subsonicFamilyProviderSessionRouter(primary)
+        router.connect(NaviampCoreConnectionRequest.Saved(source.id), NaviampConnectionAttemptPlan(true, false, false, false))
+        assertNotNull(router.currentProvider()!!.discovery)
+        assertEquals(0, repository.companionWrites)
+        assertEquals(source.aurralCompanion, repository.mediaSource(source.id)!!.aurralCompanion)
+    }
+
+    @Test fun savingAndDisablingACompanionNeverOpensAnotherPrimarySessionOrAddsAnAccount() = runTest {
+        val source = savedSource()
+        val repository = TestMediaSourceRepository(source)
+        var logins = 0
+        val primary = NavidromeCoreProviderSessionPort(mediaSources = repository, initialSource = source,
+            sessionOpener = NavidromeProviderSessionOpener { _, _ -> logins++; error("Unexpected primary login") },
+            musicFolders = { emptyList() })
+        val router = subsonicFamilyProviderSessionRouter(primary)
+        val before = router.currentProvider()!!
+        val companion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret")
+        router.saveAurralCompanion(source.id, companion)
+        val attached = router.currentProvider()!!
+        assertEquals(before.cacheNamespace, attached.cacheNamespace)
+        assertNotNull(attached.discovery)
+        assertSame(attached, router.currentProvider())
+        assertEquals(1, router.initialInventory().connections.size)
+        assertEquals(companion, router.editableConnection(source.id).form.aurralCompanion)
+        router.saveAurralCompanion(source.id, companion.copy(enabled = false))
+        assertSame(before, router.currentProvider())
+        assertEquals(0, logins)
+    }
+
     @Test fun aurralSavedAccountRestoresThroughTheSharedRouterWithoutNavidromeLoginOrIdMigration() = runTest {
         val source = savedSource(providerId = app.naviamp.domain.provider.ProviderIdAurral)
         val repository = TestMediaSourceRepository(source)
@@ -410,9 +479,21 @@ private class TestMediaSourceRepository(source: SavedMediaSource) :
     var identityTransform: ((String) -> String)? = null
     var probeState: ProviderIdentityProbeState? = null
 
+    var companionWrites = 0
+    override fun updateAurralCompanion(sourceId: String, companion: app.naviamp.domain.source.AurralCompanion) {
+        companionWrites++
+        sources[sourceId] = sources.getValue(sourceId).copy(aurralCompanion = companion)
+    }
     override fun latestMediaSource(): SavedMediaSource? = sources.values.lastOrNull()
     override fun mediaSources(): List<SavedMediaSource> = sources.values.toList()
-    override fun mediaSource(sourceId: String): SavedMediaSource? = sources[sourceId]
+    var sourceReads = 0
+    var beforeReturningSource: (() -> Unit)? = null
+    override fun mediaSource(sourceId: String): SavedMediaSource? {
+        sourceReads++
+        val snapshot = sources[sourceId]
+        beforeReturningSource?.also { beforeReturningSource = null }?.invoke()
+        return snapshot
+    }
     override fun deleteMediaSource(sourceId: String) {
         sources.remove(sourceId)
     }
