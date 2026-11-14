@@ -374,5 +374,35 @@ branch catalog has not been changed merely to make the community port resolve.
 The first cold/warm iOS archive comparison passed validation, with an 8.6% cold archive cost and
 fast up-to-date warm builds. The upgrade is **not accepted**: repeated Windows first-show captures
 remain blank until input/resize in some trials. Physical-display/capture interoperability must be
-resolved, and Pixel interaction still awaits unlock. All unproven rendering workarounds were
+resolved. The unlocked Pixel follow-up passed navigation, companion recommendations, playback,
+seek, lifecycle and restart checks with its original profile restored. All unproven rendering workarounds were
 removed. Continue with the specific original-app gate in the report before creating the tvOS host.
+
+### Stable dependency target clarified by the owner
+
+The owner clarified that upgrades should normally target the newest production-ready stable
+releases, then explicitly allowed beta or release-candidate libraries when engineering judgment
+shows they are needed to move #590 forward. Record the concrete benefit, support/rollback cost
+and full original-app validation for each exception. Do not adopt a beta simply for its larger
+version number. The Material3 alpha in the original port experiment remains feasibility evidence
+only, not an accepted application dependency. Keep version
+pins explicit; do not use dynamic versions or describe a prerelease as a stable update.
+
+As checked on 2026-11-14, the stable targets are Kotlin 2.4.21, Compose Multiplatform 1.12.2,
+Material3 Multiplatform 1.9.0 (already used by the ordinary app), AGP 9.5.1 and Gradle 9.9.1.
+See the [Kotlin release history](https://kotlinlang.org/docs/releases.html),
+[Compose 1.12.2 release](https://github.com/JetBrains/compose-multiplatform/releases/tag/v1.12.2),
+[Material3 Maven metadata](https://repo.maven.apache.org/maven2/org/jetbrains/compose/material3/material3/maven-metadata.xml),
+[AGP release reference](https://developer.android.com/reference/tools/gradle-api) and
+[Gradle current stable metadata](https://services.gradle.org/versions/current).
+AGP 9.5 requires Gradle 9.6 or newer and supports API 37. Kotlin's fully tested compatibility
+table currently ends at Gradle 9.7.0 / AGP 9.3.1; its documentation permits newer versions with
+possible limitations. Test the latest stable combination explicitly and record any concrete
+failure rather than treating the compatibility table alone as a failed build.
+
+The tvOS fork is a separate constraint: its UI artifacts currently stop at 1.12.0 and its
+Material3 artifacts expose only alpha versions. A stable-original-app experiment can proceed
+independently, but a production tvOS target must not silently map newer common APIs to older
+forks or adopt Material3 alpha as a workaround. Assess porting the matching stable sources or
+waiting for matching upstream artifacts, recording the maintenance cost and acceptance evidence
+under #590. Do not hold regular supported upgrades indefinitely without documenting this dependency.

@@ -8,7 +8,8 @@ All work remains under #590. No additional issues were created.
 
 Status: the Compose plugin correction and broad compatibility checks pass, but Windows startup
 capture/presentation acceptance does not. Keep the upgrade isolated and hold tvOS host work.
-The ordinary app retains its original dependency versions. Pixel interaction is pending unlock.
+The ordinary app retains its original dependency versions. The unlocked Pixel runtime follow-up
+passed; the Windows gate remains open.
 
 ## Frozen inputs and reproduction
 
@@ -214,7 +215,7 @@ The retained regression passed on both the original and upgraded JVM stacks (one
 failures/errors/skips each) and on physical Android TV API 34 using the upgraded standalone
 instrumentation APK: one test, zero failures, 3.436 seconds of test execution.
 The temporary `app.naviamp.ui.test` fixture was absent before the run, was removed afterward, and
-did not change the main TV app profile. The Pixel reports API 37; it was not interactively accepted.
+did not change the main TV app profile. The Pixel API 37 runtime follow-up is recorded below.
 
 **Decision: do not adopt the version upgrade or start the tvOS host yet.** Windows first-presentation
 acceptance is a real blocker. All speculative rendering changes were removed from production code,
@@ -238,7 +239,7 @@ Next work under #590:
 4. Require repeated untouched cold/warm startup, minimize/restore, resize, clipping, keyboard/input,
    accessibility, and the matched static/marquee/progress/combined CPU/frame/compositor matrix.
    A resized window, a frame request, or a passing policy unit test is not startup acceptance.
-5. Finish unlocked Pixel acceptance and the supported Android KMP/AGP DSL migration. Keep all this
+5. Finish the supported Android KMP/AGP DSL migration. Keep all this
    work on #590; then make an explicit original-app acceptance decision before the tvOS host.
 
 The follow-up archive setup initially switched a checkout from normal `~/.konan` test compilation
@@ -274,7 +275,7 @@ Spotlight activity, no peak-RSS capture, and no hosted run limit the inference. 
 samples before accepting a production upgrade or performance claim. The candidate is below the
 plan's provisional +20% cold ceiling (866.116 s), with a measured cold cost rather than a speedup.
 
-Complete unlocked Pixel runtime checks and repeat comparable iOS Release measurements before
+Repeat comparable iOS Release measurements before
 production acceptance. The first fresh-output/warm pair above is complete.
 Keep Release optimization, PMCS, the 6 GiB archive heap, arm64 and all
 existing unsigned IPA/privacy/version/native validators. Do not use experimental Release binary
@@ -283,3 +284,105 @@ Retain failed setup runs separately. Do not claim a performance improvement from
 dependency warming alone. A full matched idle/marquee/progress/combined visible-window matrix,
 with GPU/compositor measurements and lifecycle checks, remains required before accepting any
 animation performance claim. Do not create the tvOS host until these gates have a recorded decision.
+
+## Unlocked Pixel follow-up and Windows isolation
+
+After the owner unlocked the Pixel 6a (API 37), the same upgraded debug APK passed touch navigation,
+main-library artist/album browsing, Aurral recommendations with independent companion credentials
+and a required custom header, album playback, pause, seek, Next, background/return and paused queue
+restoration after force-stop/restart. Playback visibly advanced from 0:01 to 0:20, pause stopped at
+0:31, seeking reached 6:35, and Next selected the second fixture track. Its crash log was empty.
+Only synthetic loopback services and the `.v2test` package were used. Initial discovery failure
+was traced to stopped fixture processes; restarting the fixtures and refreshing loaded the artist.
+This setup failure is not an app regression or a passing network-failure behavior test.
+
+At the existing 1.3 font scale, the full player's `10:00` total-duration label wraps. Reinstalling
+the original SDK 36 debug APK against the same synthetic profile reproduced the identical wrapping;
+it is baseline behavior, not an upgrade regression. The upgraded APK was then reinstalled. All 13
+original profile files were restored byte-identically from a fresh backup, both owned ADB reverses
+were removed, the phone was returned Home, and both loopback fixtures were stopped.
+Local screenshots/XML, fixture logs and restoration evidence are under `build/590-runtime` with
+the `pixel-followup-` prefix. No phone system settings or production profile were changed.
+
+A disposable native probe now isolates a plain Skiko OpenGL parent from a DirectComposition raster
+region using the real packaged JNI library. The candidate painted a blue parent and magenta native
+region when attachment occurred during the first recording pass. A second run first settled the
+blue parent, then attached the region with an explicit test key. The region appeared without any
+additional parent recording callback: native attachment alone did not reproduce the blank surface.
+These are bounded window captures, not independent physical-display corroboration.
+
+Two untouched full-candidate launches through a disposable profile launcher also rendered correctly
+in this session. This does not supersede the earlier intermittent failures or close acceptance.
+The baseline/candidate SkiaLayer, OpenGL redrawer and OpenGL context Kotlin sources were identical
+across Skiko 0.144.6 and 0.150.1; this rules out a simple change in those Kotlin bodies only.
+
+Crossing Compose 1.12 with Skiko 0.144.6 fails on missing `Paragraph.getUnresolvedCodepoints()`.
+Crossing Compose 1.11 with Skiko 0.150.1 fails on removed `GradientStyle`. Neither mixed stack is
+a supported workaround or accepted candidate. Production dependencies remain unchanged.
+
+Skiko 0.152 contains an upstream
+[first-show presentation change](https://github.com/JetBrains/skiko/pull/1237), and
+[0.153.0](https://github.com/JetBrains/skiko/releases/tag/v0.153.0) retains it. Testing that newer
+runtime is a separate isolated experiment; do not attribute the earlier failures to that upstream
+bug or accept a newer Skiko merely from the release notes.
+
+The Skiko 0.153-only experiment was rejected: all 762 shared UI cases ran, with 405 failures
+caused by missing `RenderNodeContext(boolean)` at rendered-scene creation. Compilation alone did
+not detect this binary incompatibility. The failed test XML was preserved separately. No runtime
+acceptance is claimed for this stack, and no product adapter was changed to hide the failure.
+The owning Gradle invocation was canceled after reporting the failures while awaiting build
+cleanup; this is not a successful build. A later thread sample isolated slow Kotlin statistics
+cleanup, rather than establishing a rendering-worker hang.
+
+Published Maven metadata also rules out upgrading the shared UI arbitrarily: Compose 1.12.2 uses
+Skiko 0.150.2, while Compose 1.13.0-beta02's `ui-skiko-desktop` uses 0.156.1. The tvOS UI fork
+currently publishes 1.12.0 and 1.12.0-beta01 only. Do not substitute that older tvOS UI beneath
+newer common APIs or disable strict missing-coordinate diagnostics. A Skiko 0.150.2 patch-runtime
+experiment was tested separately against the existing Compose 1.12 candidate. Its upstream
+release updates Skia and does not claim to include the 0.152 first-show change.
+
+The 0.150.2 patch-runtime run passed all **762 UI cases, zero failures/errors/skips**, and
+`:apps:desktop:createDistributable` succeeded. Five separate launches from fresh copies of the
+same saved-queue fixture profile rendered without keyboard input or resizing. The owner independently
+confirmed normal artwork, player controls and Home content on the physical display during the first
+run. Minimize/restore, maximize/restore and subsequent keyboard input also rendered correctly.
+The window remained 936x633 for startup; maximize was only tested afterward. The source app and
+native adapter were unchanged; a disposable launcher set the synthetic profile environment.
+Two 0.150.1 runs through that launcher also passed earlier, so these observations do not establish
+that 0.150.2 alone fixed the earlier intermittent failure. No new animation/performance acceptance
+is claimed. Its earlier Material3 alpha still prevents treating this diagnostic stack as the
+newest-stable application candidate.
+
+### Newest-stable candidate and build cleanup
+
+The owner's current policy is newest stable by default, with RC/beta exceptions permitted by
+engineering judgment when they concretely advance #590 and pass full validation. A fresh detached
+worktree at `f52687f67`, `build/590-stable-probe`, now tests Kotlin 2.4.21, Compose 1.12.2,
+Material3 1.9.0, AGP 9.5.1 and checksum-pinned Gradle 9.9.1. The Gradle distribution SHA-256 is
+`d8a18a7a841dd5df825d35a685fad6f2d7f12ac0c280e57b67c27b4a520ba228`.
+Original native inputs, JDK 21, NDK 27, PMCS, min SDK 26 and target SDK 36 are preserved.
+The obsolete R8 9.1.57 buildscript override was removed there so AGP can use its bundled 9.5.29;
+release shrinker validation must inspect the resulting artifact before acceptance.
+This candidate has not yet passed the original-app matrix and is not adopted by the normal branch.
+
+Windows thread samples found Kotlin's `BuildFinishBuildService.findV2FusFilesByBuildId` repeatedly
+reading last-modified times while sorting the existing 83,470 `~/.gradle/kotlin-profile` files.
+This consumed minutes after tests had finished. See
+[the Kotlin service source](https://github.com/JetBrains/kotlin/blob/v2.4.21/libraries/tools/kotlin-gradle-plugin/src/common/kotlin/org/jetbrains/kotlin/gradle/plugin/statistics/BuildFinishBuildService.kt).
+The experiment isolates reports using the internal, explicitly test-only
+`kotlin.session.logger.root.path` property in the disposable worktree; it does not change compiler
+optimization, task execution, tests, caching or PMCS. Do not put this internal testing switch into
+production defaults or compare timings across different reporting-directory workloads silently.
+The existing user-home reports were not deleted or moved.
+
+The first latest-stable `help` invocation failed because PowerShell split an unquoted dotted `-P`
+argument into a task path. Its long cleanup exhibited the same statistics overhead. That setup
+failure is not a dependency compatibility result. The corrected retry places the test-only reporting
+path in the disposable `gradle.properties` and removes the obsolete R8 override before further work.
+It passed `help` in 46 seconds. Dotted command-line property arguments are quoted for subsequent
+PowerShell invocations. The complete original-app build/test matrix is the next acceptance step.
+
+Both initial SDK-37 debug and release APKs were re-inspected with `aapt2`: minimum API 26 and target
+API 36 are unchanged. Compilation uses API 37. This preserves the declared Android 8.0 install
+floor; the actual runtime checks cover API 34 and 37, not an API-26 device. Recheck the final merged
+manifest, lint/API calls and an oldest-supported runtime when accepting the newer candidate.
