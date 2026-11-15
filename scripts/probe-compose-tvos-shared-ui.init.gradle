@@ -1,21 +1,19 @@
-// Diagnostic compile only. No application host or persistent build target is enabled.
+// Diagnostic graph verification. Scene-host builds opt in to their checked-in targets separately.
 gradle.beforeProject { project ->
     if (!(project.path in [':core:ui', ':core:presentation'])) return
     project.pluginManager.withPlugin('org.jetbrains.kotlin.multiplatform') {
         if (project.findProperty('naviamp.tvos.feasibility') != 'true') {
             throw new GradleException('The shared UI probe requires naviamp.tvos.feasibility=true')
         }
+        if (project.findProperty('naviamp.tvos.sceneHost') == 'true') return // Declared by the checked-in build scripts.
         def kotlin = project.extensions.getByName('kotlin')
-        kotlin.tvosArm64()
-        kotlin.tvosSimulatorArm64()
+        if (kotlin.targets.findByName('tvosArm64') == null) kotlin.tvosArm64()
+        if (kotlin.targets.findByName('tvosSimulatorArm64') == null) kotlin.tvosSimulatorArm64()
     }
 }
 gradle.projectsEvaluated {
     if (rootProject.findProject(':core:ui') == null) return
-    def ui = rootProject.project(':core:ui')
-    // Reuse the same native effects to diagnose API availability; do not copy product behavior.
-    ui.extensions.getByName('kotlin').sourceSets.getByName('tvosMain').kotlin.srcDir(
-        ui.file('src/iosMain/kotlin'))
+    // The compatible UIKit/Metal/Foundation effects now live in the shared appleMain source set.
     rootProject.tasks.register('verifyFullSharedUiProbeVariants') {
         doLast {
             def report = [:]

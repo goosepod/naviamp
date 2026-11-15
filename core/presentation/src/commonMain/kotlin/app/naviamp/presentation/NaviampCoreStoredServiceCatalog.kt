@@ -59,8 +59,8 @@ fun NaviampCoreStoredSettings.withStorageBackedSettings(
             delegate.loadPlayback().copy(radioDjs = radioDjPresetRepository.radioDjPresets())
         },
         saveCache = { settings ->
-            onCacheSettingsSaved(settings)
             delegate.saveCache(settings)
+            onCacheSettingsSaved(settings)
         },
     )
 }
@@ -110,6 +110,8 @@ fun naviampCoreStoredServiceCatalog(
     favoritedAtIso8601: () -> String,
     diagnostics: NaviampCoreDiagnosticsPort = emptyNaviampCoreDiagnosticsPort(),
     certificateFiles: NaviampCoreCertificateFilePort? = null,
+    settingsPersistenceTransaction: (() -> Unit) -> Unit = { it() },
+    persistImportedPlayback: ((PlaybackSettings) -> Unit)? = null,
 ): NaviampCoreStoredServiceCatalog {
     val initialInterfaceSettings = settings.loadInterface()
     val initialPlaybackSettings = settings.loadPlayback()
@@ -124,6 +126,12 @@ fun naviampCoreStoredServiceCatalog(
             deviceId = settingsSyncDeviceId,
             state = settings.loadSyncRuntime,
             saveState = settings.saveSyncRuntime,
+            persistenceTransaction = settingsPersistenceTransaction,
+            afterDocumentApplied = {
+                if (persistImportedPlayback != null) {
+                    playback.settings.apply(settings.loadPlayback(), redownload = false)
+                }
+            },
             nowEpochMillis = clockEpochMillis,
             snapshot = {
                 SettingsSyncLocalSnapshot(
@@ -144,7 +152,8 @@ fun naviampCoreStoredServiceCatalog(
                     radioDjPresetRepository = repositories.radioDjPresets,
                 )
                 settings.saveInterface(applied.interfaceSettings)
-                playback.settings.apply(applied.playbackSettings, redownload = false)
+                if (persistImportedPlayback == null) playback.settings.apply(applied.playbackSettings, redownload = false)
+                else persistImportedPlayback(applied.playbackSettings)
                 settings.saveVisualizer(applied.visualizer)
                 settings.saveRecentRadioStreams(applied.recentRadioStreams)
                 settings.saveRecentInternetRadioStations(applied.recentInternetRadioStations)
@@ -206,8 +215,8 @@ fun naviampCoreStoredServiceCatalog(
             interfaceSettings = NaviampCoreInterfaceSettingsStore(settings.saveInterface),
             cacheSettings = NaviampCoreCacheSettingsPort { requested ->
                 requested.normalized().also { effective ->
-                    repositories.updateAudioCacheLimit(effective.maxAudioCacheBytes)
                     settings.saveCache(effective)
+                    repositories.updateAudioCacheLimit(effective.maxAudioCacheBytes)
                 }
             },
             maintenance = naviampCoreRepositoryMaintenancePort(

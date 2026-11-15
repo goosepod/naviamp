@@ -52,12 +52,12 @@ import platform.Metal.MTLTextureProtocol
 import platform.Metal.MTLTextureUsageRenderTarget
 import platform.Metal.MTLTextureUsageShaderRead
 
-/** Executes Core's translated Metal visualizers through the native iOS Metal command API. */
-internal class IosMetalVisualizerRenderer(
+/** Executes Core's translated Metal visualizers through the native Apple Metal command API. */
+internal class AppleMetalVisualizerRenderer(
     private val visualizer: NaviampVisualizer,
     private val renderPolicy: VisualizerRenderPolicy,
 ) : AutoCloseable {
-    private var resources: IosMetalResources? = createMetalResources(visualizer)
+    private var resources: AppleMetalResources? = createMetalResources(visualizer)
     private val uniformBands = FloatArray(VisualizerFrameBandCount)
     private val smoothBands = FloatArray(VisualizerFrameBandCount)
     private var renderTexture: MTLTextureProtocol? = null
@@ -184,7 +184,7 @@ internal class IosMetalVisualizerRenderer(
     }
 }
 
-private class IosMetalResources(
+private class AppleMetalResources(
     val device: MTLDeviceProtocol,
     val commandQueue: MTLCommandQueueProtocol,
     val pipeline: MTLRenderPipelineStateProtocol,
@@ -193,7 +193,7 @@ private class IosMetalResources(
     val albumArtTexture: MTLTextureProtocol,
 )
 
-private fun createMetalResources(visualizer: NaviampVisualizer): IosMetalResources {
+private fun createMetalResources(visualizer: NaviampVisualizer): AppleMetalResources {
     val device = requireNotNull(MTLCreateSystemDefaultDevice())
     val albumArtTexture = createTexture(
         device = device,
@@ -210,7 +210,7 @@ private fun createMetalResources(visualizer: NaviampVisualizer): IosMetalResourc
             bytesPerRow = 4u,
         )
     }
-    return IosMetalResources(
+    return AppleMetalResources(
         device = device,
         commandQueue = requireNotNull(device.newCommandQueue()),
         pipeline = createPipeline(device, visualizer),

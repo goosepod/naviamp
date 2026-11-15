@@ -19,8 +19,6 @@ import app.naviamp.storage.IosStorageDriverFactory
 import app.naviamp.storage.NaviampStorageDatabase
 import app.naviamp.storage.StorageCredentialProtector
 import app.naviamp.storage.StorageDatabaseLocation
-import app.naviamp.ui.resetIosPlatformCoverArtByteLoader
-import app.naviamp.ui.setIosPlatformCoverArtByteLoader
 import app.naviamp.ui.NaviampStorageLocationUi
 import app.naviamp.ui.NaviampIosRasterHost
 import kotlinx.coroutines.CoroutineScope
@@ -82,9 +80,6 @@ class NaviampIosApplication(
         selectedDownloadLocationId = "app-storage",
         selectedAudioCacheLocationId = "app-storage",
     )
-    init {
-        setIosPlatformCoverArtByteLoader(application::loadProviderArtwork)
-    }
     private val nativePlayback = IosNativePlaybackIntegration(
         scope = scope,
         bridge = application.core.externalPlaybackBridge(),
@@ -102,9 +97,8 @@ class NaviampIosApplication(
     }.also { contentViewController = it }
 
     fun close() {
-        resetIosPlatformCoverArtByteLoader()
         nativePlayback.close()
-        application.core.close()
+        application.close()
         playbackEngine.release()
         scope.cancel()
         driver.close()

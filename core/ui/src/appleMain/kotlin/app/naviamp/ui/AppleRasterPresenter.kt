@@ -26,22 +26,22 @@ import platform.UIKit.UIScreen
 
 /** UIKit supplies only a CALayer presentation boundary; shared Kotlin owns every motion value. */
 @Composable
-fun NaviampIosRasterHost(rootLayer: () -> CALayer?, content: @Composable () -> Unit) {
-    val presenter = remember(rootLayer) { IosRasterPresenter(rootLayer) }
+fun NaviampAppleRasterHost(rootLayer: () -> CALayer?, content: @Composable () -> Unit) {
+    val presenter = remember(rootLayer) { AppleRasterPresenter(rootLayer) }
     CompositionLocalProvider(LocalNaviampRasterPresenter provides presenter, content = content)
     DisposableEffect(presenter) { onDispose { presenter.close() } }
 }
 
-private class IosRasterPresenter(private val rootLayer: () -> CALayer?) : NaviampRasterPresenter {
-    private val regions = mutableSetOf<IosRasterRegion>()
-    override fun create(): NaviampRasterRegion = IosRasterRegion(rootLayer) { regions.remove(it) }.also(regions::add)
-    fun close() { regions.toList().forEach(IosRasterRegion::close); regions.clear() }
+private class AppleRasterPresenter(private val rootLayer: () -> CALayer?) : NaviampRasterPresenter {
+    private val regions = mutableSetOf<AppleRasterRegion>()
+    override fun create(): NaviampRasterRegion = AppleRasterRegion(rootLayer) { regions.remove(it) }.also(regions::add)
+    fun close() { regions.toList().forEach(AppleRasterRegion::close); regions.clear() }
 }
 
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
-private class IosRasterRegion(
+private class AppleRasterRegion(
     private val parent: () -> CALayer?,
-    private val removed: (IosRasterRegion) -> Unit,
+    private val removed: (AppleRasterRegion) -> Unit,
 ) : NaviampRasterRegion {
     private val root = CALayer.layer()
     private var translationLayers = emptyList<CALayer>()

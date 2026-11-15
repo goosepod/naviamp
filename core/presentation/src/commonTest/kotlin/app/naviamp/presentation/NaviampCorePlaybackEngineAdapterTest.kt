@@ -1388,6 +1388,19 @@ class NaviampCorePlaybackEngineAdapterTest {
     }
 
     @Test
+    fun failedSettingsPersistenceDoesNotChangeNativeEffectsOrCurrentPreferences() {
+        val engine = RecordingPlaybackEngine()
+        val initial = PlaybackSettings(volumePercent = 40, gaplessEnabled = true)
+        val settings = NaviampCorePlaybackEngineSettings(engine, initial) { error("storage rejected") }
+        kotlin.test.assertFailsWith<IllegalStateException> {
+            settings.apply(initial.copy(volumePercent = 90, gaplessEnabled = false), redownload = false)
+        }
+        assertEquals(initial, settings.current())
+        assertEquals(40, engine.appliedVolume)
+        assertEquals(emptyList(), engine.events)
+    }
+
+    @Test
     fun changingTransitionSettingsImmediatelyInvalidatesPreparedNext() {
         val engine = RecordingPlaybackEngine()
         val settings = NaviampCorePlaybackEngineSettings(

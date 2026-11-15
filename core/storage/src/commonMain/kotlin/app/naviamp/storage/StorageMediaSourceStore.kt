@@ -41,15 +41,17 @@ class StorageMediaSourceStore(
     private val nowMillis: () -> Long,
     private val credentialProtector: StorageCredentialProtector = PassthroughStorageCredentialProtector,
     private val json: Json = Json { ignoreUnknownKeys = true },
+    private val recovery: StorageRecoveryState? = null,
 ) : MediaSourceRepository,
     ProviderMediaSourceRepository,
     ProviderIdentityMigrationRepository {
     private val identityMigrations = StorageProviderIdentityMigrationStore(queries, json)
     init {
+        recovery?.restoreConnections(queries)
         migrateStoredCredentials()
     }
 
-    override fun updateAurralCompanion(sourceId: String, companion: app.naviamp.domain.source.AurralCompanion) {
+    override fun updateAurralCompanion(sourceId: String, companion: app.naviamp.domain.source.AurralCompanion) = mutate<Unit> {
         val saved = requireNotNull(mediaSource(sourceId))
         require(saved.providerId != app.naviamp.domain.provider.ProviderIdAurral)
         val key = saved.effectiveServerConnectionKey()
@@ -73,7 +75,7 @@ class StorageMediaSourceStore(
     override fun mediaSource(sourceId: String): SavedMediaSource? =
         queries.selectMediaSourceById(sourceId).executeAsOneOrNull()?.toSavedMediaSource()
 
-    override fun deleteMediaSource(sourceId: String) {
+    override fun deleteMediaSource(sourceId: String) = mutate<Unit> {
         queries.deleteMediaSource(sourceId)
     }
 
@@ -82,12 +84,12 @@ class StorageMediaSourceStore(
         providerId: String,
         targetVersion: Long,
         transform: (String) -> String,
-    ): ProviderIdentityMigrationResult = identityMigrations.migrate(
+    ): ProviderIdentityMigrationResult = mutate { identityMigrations.migrate(
         sourceId = sourceId,
         providerId = providerId,
         targetVersion = targetVersion,
         transform = transform,
-    )
+    ) }
 
     override fun providerIdentityVersion(sourceId: String): Long? =
         queries.selectProviderIdentityVersion(sourceId).executeAsOneOrNull()
@@ -112,7 +114,7 @@ class StorageMediaSourceStore(
         cacheNamespace: String,
         providerId: String,
         preferredSourceId: String?,
-    ): MediaSourceIdentity = queries.transactionWithResult {
+    ): MediaSourceIdentity = mutate {
         val now = nowMillis()
         val existingForNamespace = queries.selectMediaSourceByCacheNamespace(cacheNamespace).executeAsOneOrNull()
         val preferred = preferredSourceId?.let { sourceId ->
@@ -213,14 +215,14 @@ class StorageMediaSourceStore(
             val cacheFilesDeleted = cachedAudio.all { row -> deleteKnownAudioCacheFile(row.file_path) }
             val downloadFilesDeleted = downloadedAudio.all { row -> deleteKnownDownloadFile(row.file_path) }
             if (cacheFilesDeleted && downloadFilesDeleted) {
-                queries.transaction {
+                mutate {
                     cachedAudio.forEach { row ->
                         queries.deleteCachedAudio(row.source_id, row.remote_track_id, row.quality_key)
                     }
                     downloadedAudio.forEach { row ->
                         queries.deleteDownloadedAudio(row.source_id, row.remote_track_id, row.quality_key)
                     }
-                    queries.deleteMediaSource(sourceId)
+                    deleteMediaSource(sourceId)
                 }
                 true
             } else {
@@ -436,6 +438,16 @@ class StorageMediaSourceStore(
                 last_library_scan_checked_at_epoch_millis = source.last_library_scan_checked_at_epoch_millis,
                 id = source.id,
             )
+        }
+    }
+
+    private fun <T> mutate(block: () -> T): T {
+        val state = recovery ?: return queries.transactionWithResult { block() }
+        return state.transaction(queries) {
+            val result = block()
+            state.replaceConnections(queries.selectMediaSources().executeAsList().map { it.recoveryConnection() })
+            state.captureUserConfiguration(queries)
+            result
         }
     }
 

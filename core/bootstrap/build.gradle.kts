@@ -2,6 +2,8 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.compose.multiplatform)
+    alias(libs.plugins.compose.compiler)
     alias(libs.plugins.android.multiplatform.library)
     alias(libs.plugins.kover)
 }
@@ -32,6 +34,7 @@ kotlin {
             implementation(project(":providers:jellyfin"))
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.ktor.client.core)
+            implementation(compose.runtime)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

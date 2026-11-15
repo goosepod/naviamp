@@ -12,7 +12,9 @@ import app.naviamp.domain.playback.PlaybackTransitionMode
 class StoragePlaybackProfileStore(
     private val queries: NaviampStorageQueries,
     private val nowEpochMillis: () -> Long,
+    private val recovery: StorageRecoveryState?,
 ) : PlaybackProfileRepository {
+    constructor(queries: NaviampStorageQueries, nowEpochMillis: () -> Long) : this(queries, nowEpochMillis, null)
     override fun playbackProfile(sourceId: String, target: PlaybackProfileTarget): PlaybackProfile? {
         val source = sourceId.normalizedId() ?: return null
         val normalizedTarget = target.normalized() ?: return null
@@ -52,19 +54,23 @@ class StoragePlaybackProfileStore(
         val source = sourceId.normalizedId() ?: return
         val normalizedTarget = target.normalized() ?: return
         val normalizedProfile = profile?.normalized()
-        if (normalizedProfile == null || normalizedProfile.isInherited) {
-            queries.deletePlaybackProfile(source, normalizedTarget.type.name, normalizedTarget.id)
-            return
+        fun persist() {
+            if (normalizedProfile == null || normalizedProfile.isInherited) {
+                queries.deletePlaybackProfile(source, normalizedTarget.type.name, normalizedTarget.id)
+                return
+            }
+            queries.upsertPlaybackProfile(
+                source_id = source,
+                target_type = normalizedTarget.type.name,
+                target_id = normalizedTarget.id,
+                transition_mode = normalizedProfile.transitionMode.name,
+                crossfade_duration_seconds = normalizedProfile.crossfadeDurationSeconds?.toLong(),
+                replay_gain_mode = normalizedProfile.replayGainMode.name,
+                updated_at_epoch_millis = nowEpochMillis(),
+            )
         }
-        queries.upsertPlaybackProfile(
-            source_id = source,
-            target_type = normalizedTarget.type.name,
-            target_id = normalizedTarget.id,
-            transition_mode = normalizedProfile.transitionMode.name,
-            crossfade_duration_seconds = normalizedProfile.crossfadeDurationSeconds?.toLong(),
-            replay_gain_mode = normalizedProfile.replayGainMode.name,
-            updated_at_epoch_millis = nowEpochMillis(),
-        )
+        val state = recovery
+        if (state == null) persist() else state.transaction(queries) { persist(); state.captureUserConfiguration(queries) }
     }
 }
 

@@ -65,6 +65,8 @@ class SettingsSyncCoordinator(
     private val nowEpochMillis: () -> Long,
     private val buildLocalDocument: (Long) -> SettingsSyncDocument,
     private val applyDocument: (SettingsSyncDocument) -> Unit,
+    private val persistenceTransaction: (() -> Unit) -> Unit = { it() },
+    private val afterDocumentApplied: (SettingsSyncDocument) -> Unit = {},
 ) {
     fun nextTimestamp(): Long =
         nowEpochMillis().coerceAtLeast(state().lastLocalUpdateEpochMillis + 1L)
@@ -87,8 +89,11 @@ class SettingsSyncCoordinator(
     }
 
     fun applySyncedDocument(document: SettingsSyncDocument): SettingsSyncOperationResult {
-        applyDocument(document)
-        markDocumentApplied(document.updatedAtEpochMillis)
+        persistenceTransaction {
+            applyDocument(document)
+            markDocumentApplied(document.updatedAtEpochMillis)
+        }
+        afterDocumentApplied(document)
         return SettingsSyncOperationResult(
             kind = SettingsSyncOperationKind.Imported,
             hasServerProfiles = document.serverProfiles.isNotEmpty(),

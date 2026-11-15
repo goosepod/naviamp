@@ -1265,4 +1265,11 @@
     <string name="connection_aurral_companion_invalid">Gib eine HTTP- oder HTTPS-Serveradresse und einen Benutzernamen für Aurral ein.</string>
     <string name="discovery_find_in_aurral">In Aurral suchen</string>
     <string name="connection_aurral_companion_save_failed">Der Aurral-Begleiter konnte nicht gespeichert werden. Deine Musikverbindung bleibt unverändert.</string>
+    <string name="storage_recovery_title">Gespeicherte Einstellungen</string>
+    <string name="storage_recovery_capacity">Diese Änderung überschreitet das Speicherbudget des Geräts. Bisher gespeicherte Einstellungen und Verbindungen bleiben erhalten.</string>
+    <string name="storage_recovery_unreadable">Gespeicherte Einstellungen konnten nicht geöffnet werden. Sie bleiben erhalten. Versuche es erneut oder setze sie zurück, um dieses Gerät neu einzurichten.</string>
+    <string name="storage_recovery_conflict">Die gespeicherten Einstellungen wurden während dieses Vorgangs geändert. Lade sie vor einem erneuten Versuch neu.</string>
+    <string name="storage_recovery_unavailable">Gespeicherte Einstellungen sind vorübergehend nicht verfügbar. Versuche es erneut.</string>
+    <string name="storage_recovery_reset_title">Gespeicherte Einstellungen zurücksetzen?</string>
+    <string name="storage_recovery_reset_message">Gespeicherte Einstellungen und Verbindungen auf diesem Gerät werden gelöscht. Deine Serverbibliothek wird nicht gelöscht.</string>
 </resources>

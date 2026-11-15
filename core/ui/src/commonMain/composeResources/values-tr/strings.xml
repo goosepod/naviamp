@@ -497,4 +497,11 @@
     <string name="connection_aurral_companion_invalid">Aurral HTTP veya HTTPS sunucu adresini ve kullanıcı adını girin.</string>
     <string name="discovery_find_in_aurral">Aurral’da bul</string>
     <string name="connection_aurral_companion_save_failed">Aurral yardımcısı kaydedilemedi. Müzik bağlantınız değişmedi.</string>
+    <string name="storage_recovery_title">Kayıtlı ayarlar</string>
+    <string name="storage_recovery_capacity">Bu değişiklik cihazın kalıcı depolama sınırını aşıyor. Önceden kaydedilmiş ayarlar ve bağlantılar değiştirilmedi.</string>
+    <string name="storage_recovery_unreadable">Kayıtlı ayarlar açılamadı. Ayarlar korundu. Yeniden deneyin veya bu cihazı yeniden kurmak için ayarları sıfırlayın.</string>
+    <string name="storage_recovery_conflict">Bu işlem sırasında kayıtlı ayarlar değişti. Yeniden denemeden önce ayarları yeniden yükleyin.</string>
+    <string name="storage_recovery_unavailable">Kayıtlı ayarlar geçici olarak kullanılamıyor. Yeniden deneyin.</string>
+    <string name="storage_recovery_reset_title">Kayıtlı ayarlar sıfırlansın mı?</string>
+    <string name="storage_recovery_reset_message">Bu cihazdaki kayıtlı ayarlar ve bağlantılar silinecek. Sunucu kitaplığınız silinmeyecek.</string>
 </resources>

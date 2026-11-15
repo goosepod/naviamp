@@ -10,11 +10,21 @@ import app.naviamp.domain.radio.RadioTuningSettings
 class StorageRadioDjPresetStore(
     private val queries: NaviampStorageQueries,
     private val nowMillis: () -> Long,
+    private val recovery: StorageRecoveryState?,
 ) : RadioDjPresetRepository {
+    constructor(queries: NaviampStorageQueries, nowMillis: () -> Long) : this(queries, nowMillis, null)
+    init {
+        recovery?.let { state ->
+            queries.transaction {
+                queries.clearRadioDjPresets()
+                state.radioDjPresets().forEachIndexed { index, preset -> upsertPreset(preset, index.toLong()) }
+            }
+        }
+    }
     override fun radioDjPresets(): List<RadioDjPreset> =
         queries.radioDjPresets(::rowToPreset).executeAsList()
 
-    override fun replaceRadioDjPresets(presets: List<RadioDjPreset>) {
+    override fun replaceRadioDjPresets(presets: List<RadioDjPreset>) = mutate {
         queries.transaction {
             queries.clearRadioDjPresets()
             presets.map { it.normalized() }.forEachIndexed { index, preset ->
@@ -23,7 +33,7 @@ class StorageRadioDjPresetStore(
         }
     }
 
-    override fun upsertRadioDjPreset(preset: RadioDjPreset) {
+    override fun upsertRadioDjPreset(preset: RadioDjPreset) = mutate {
         val sortOrder = radioDjPresets().indexOfFirst { it.id == preset.id }
             .takeIf { it >= 0 }
             ?.toLong()
@@ -31,8 +41,16 @@ class StorageRadioDjPresetStore(
         upsertPreset(preset.normalized(), sortOrder)
     }
 
-    override fun deleteRadioDjPreset(id: String) {
+    override fun deleteRadioDjPreset(id: String) = mutate {
         queries.deleteRadioDjPreset(id)
+    }
+
+    private fun mutate(block: () -> Unit) {
+        val state = recovery
+        if (state == null) block() else state.transaction(queries) {
+            block()
+            state.replaceRadioDjPresets(radioDjPresets())
+        }
     }
 
     private fun upsertPreset(preset: RadioDjPreset, sortOrder: Long) {

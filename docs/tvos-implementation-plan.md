@@ -683,4 +683,16 @@ regressions, original iOS device/simulator compilation, rebuilt visible iOS star
 and both TV compilations with strict original-iOS/private-TV graph isolation. TV executes two
 bootstrap, eleven storage and three direct BASS cases; iOS executes two bootstrap and twelve
 storage cases. All pass without failures/errors/skips and owned simulator cleanup succeeds.
-The full TV scene host and bounded authoritative persistence remain the next implementation gates.
+The subsequent [bounded recovery/scene checkpoint](verification/590-tvos-recovery-storage.md)
+implements one encrypted, size-limited settings/connection authority with a fixed Keychain key,
+main/Aurral and certificate recovery, SQL projection failure/reload handling and shared retry/reset
+UI. Compatible Apple UI/filesystem effects are shared rather than copied. `apps:tvos` now builds
+behind the explicit scene/feasibility flags and visibly launches/relaunches the existing TV UI.
+The new Swift API exports only the small host effects, keeping the provider/product graph private.
+Native storage/cryptography, original-platform regressions and bounded build measurements are
+recorded in that report. This is an initial foreground scene, not full TV release acceptance.
+
+Next work stays under #590: actual remote/text entry, GUI-driven main/Aurral encrypted cache-purge
+recovery, shared native media/lifecycle and discovery effects, authenticated streaming, physical
+remote/HDMI/VoiceOver, older-runtime proof, trusted port delivery and hosted full-scene CI. Keep
+normal builds and release claims unchanged until those gates close. Android 8 support remains.

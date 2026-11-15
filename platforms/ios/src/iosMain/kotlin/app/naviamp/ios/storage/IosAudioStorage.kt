@@ -1,115 +1,19 @@
-@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
-
 package app.naviamp.ios.storage
 
 import app.naviamp.domain.cache.AudioByteStore
-import app.naviamp.domain.cache.AudioByteWriter
-import app.naviamp.domain.cache.StoredAudioBytes
-import app.naviamp.storage.StorageAudioDirectory
-import app.naviamp.storage.resolveStoredAudioFilePath
-import app.naviamp.storage.isKnownStoredAudioFilePath
-import kotlinx.cinterop.addressOf
-import kotlinx.cinterop.convert
-import kotlinx.cinterop.usePinned
-import platform.Foundation.NSFileManager
-import platform.Foundation.NSFileSize
-import platform.Foundation.NSFileType
-import platform.Foundation.NSFileTypeRegular
-import platform.Foundation.NSNumber
-import platform.Foundation.NSURL
-import platform.posix.fclose
-import platform.posix.fflush
-import platform.posix.fileno
-import platform.posix.fopen
-import platform.posix.fsync
-import platform.posix.fwrite
-import platform.posix.rename
+import app.naviamp.storage.AppleAudioByteStore
+import app.naviamp.storage.AppleAudioFileSystem
+import app.naviamp.storage.appleStorageAudioDirectory
 
-/** Atomic Foundation/POSIX byte effect for Core-owned audio storage behavior. */
-class IosAudioByteStore(
-    private val directoryPath: String,
-) : AudioByteStore {
-    override suspend fun writeAudioBytes(
-        fileName: String,
-        errorMessage: String,
-        writeBytes: suspend (AudioByteWriter) -> Boolean,
-    ): StoredAudioBytes {
-        require('/' !in fileName) { "Audio file names must not contain path separators." }
-        val manager = NSFileManager.defaultManager
-        check(manager.createDirectoryAtPath(directoryPath, true, null, null)) {
-            "Could not create the audio storage directory."
-        }
-        val targetPath = childPath(fileName)
-        val temporaryPath = "$targetPath.tmp"
-        manager.removeItemAtPath(temporaryPath, null)
-        check(manager.createFileAtPath(temporaryPath, null, null)) { errorMessage }
-        val handle = requireNotNull(fopen(temporaryPath, "wb")) { errorMessage }
-        var handleOpen = true
-        return try {
-            val writer = AudioByteWriter { bytes, count ->
-                require(count in 0..bytes.size)
-                if (count > 0) {
-                    val written = bytes.usePinned { pinned ->
-                        fwrite(pinned.addressOf(0), 1.convert(), count.convert(), handle)
-                    }
-                    check(written.toLong() == count.toLong()) { errorMessage }
-                }
-            }
-            if (!writeBytes(writer)) throw IllegalStateException(errorMessage)
-            check(fflush(handle) == 0) { errorMessage }
-            check(fsync(fileno(handle)) == 0) { errorMessage }
-            check(fclose(handle) == 0) { errorMessage }
-            handleOpen = false
-            if (rename(temporaryPath, targetPath) != 0) throw IllegalStateException(errorMessage)
-            StoredAudioBytes(
-                filePath = targetPath,
-                sizeBytes = requireNotNull(IosAudioFileSystem.fileSize(targetPath)) { errorMessage },
-            )
-        } catch (failure: Throwable) {
-            if (handleOpen) runCatching { fclose(handle) }
-            manager.removeItemAtPath(temporaryPath, null)
-            throw failure
-        }
-    }
-
-    override fun deleteAudioBytes(filePath: String) {
-        IosAudioFileSystem.deleteKnownRegularFile(directoryPath, filePath)
-    }
-
-    private fun childPath(fileName: String): String = "${directoryPath.trimEnd('/')}/$fileName"
-}
+/** Compatibility delegates for the shared Foundation/POSIX file effects. */
+class IosAudioByteStore(directoryPath: String) : AudioByteStore by AppleAudioByteStore(directoryPath)
 
 object IosAudioFileSystem {
-    fun isRegularFile(filePath: String): Boolean =
-        NSFileManager.defaultManager.attributesOfItemAtPath(filePath, null)
-            ?.get(NSFileType) == NSFileTypeRegular
-
-    fun fileSize(filePath: String): Long? =
-        (NSFileManager.defaultManager.attributesOfItemAtPath(filePath, null)
-            ?.get(NSFileSize) as? NSNumber)?.longLongValue
-
-    fun deleteKnownRegularFile(directoryPath: String, filePath: String): Boolean {
-        val resolvedPath = resolveStoredFilePath(directoryPath, filePath)
-        if (!isKnownStoredAudioFilePath(directoryPath, resolvedPath)) return false
-        if (!NSFileManager.defaultManager.fileExistsAtPath(resolvedPath)) return true
-        if (!isRegularFile(resolvedPath)) return false
-        return NSFileManager.defaultManager.removeItemAtPath(resolvedPath, null)
-    }
-
-    /** iOS may relocate an app's data container during an update, invalidating persisted absolute paths. */
-    fun resolveStoredFilePath(directoryPath: String, filePath: String): String =
-        resolveStoredAudioFilePath(directoryPath, filePath)
-
-    fun isStoredRegularFile(directoryPath: String, filePath: String): Boolean =
-        isRegularFile(resolveStoredFilePath(directoryPath, filePath))
-
+    fun isRegularFile(filePath: String) = AppleAudioFileSystem.isRegularFile(filePath)
+    fun fileSize(filePath: String) = AppleAudioFileSystem.fileSize(filePath)
+    fun deleteKnownRegularFile(directoryPath: String, filePath: String) = AppleAudioFileSystem.deleteKnownRegularFile(directoryPath, filePath)
+    fun resolveStoredFilePath(directoryPath: String, filePath: String) = AppleAudioFileSystem.resolveStoredFilePath(directoryPath, filePath)
+    fun isStoredRegularFile(directoryPath: String, filePath: String) = AppleAudioFileSystem.isStoredRegularFile(directoryPath, filePath)
 }
 
-/** Foundation file-URL and filesystem effects consumed by shared storage/playback assembly. */
-fun iosStorageAudioDirectory(path: String): StorageAudioDirectory = StorageAudioDirectory(
-    path = path,
-    byteStore = IosAudioByteStore(path),
-    regularFileExists = IosAudioFileSystem::isRegularFile,
-    deleteFile = { IosAudioFileSystem.deleteKnownRegularFile(path, it) },
-    fileUri = { NSURL.fileURLWithPath(it).absoluteString ?: "file://$it" },
-)
+fun iosStorageAudioDirectory(path: String) = appleStorageAudioDirectory(path)

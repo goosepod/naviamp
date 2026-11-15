@@ -3,7 +3,7 @@ package app.naviamp.ui
 import platform.Foundation.NSArgumentDomain
 import platform.Foundation.NSUserDefaults
 
-/** NSLocale.preferredLanguages reads AppleLanguages from the native defaults search list. */
+/** NSLocale.preferredLanguages reads AppleLanguages from the native defaults search list on Apple hosts. */
 actual fun createNaviampLocaleEffect(): NaviampLocaleEffect {
     val defaults = NSUserDefaults.standardUserDefaults
     val original = defaults.volatileDomainForName(NSArgumentDomain)

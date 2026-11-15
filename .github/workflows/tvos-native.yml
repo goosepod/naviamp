@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'core/domain/**'
+      - 'core/host-api/**'
       - 'core/app/**'
       - 'core/storage/**'
       - 'providers/navidrome/**'
@@ -20,6 +21,7 @@ on:
     branches: [main]
     paths:
       - 'core/domain/**'
+      - 'core/host-api/**'
       - 'core/app/**'
       - 'core/storage/**'
       - 'providers/navidrome/**'

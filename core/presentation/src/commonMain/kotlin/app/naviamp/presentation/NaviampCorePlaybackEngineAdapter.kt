@@ -863,12 +863,12 @@ class NaviampCorePlaybackEngineSettings(
         val normalized = settings.normalized()
         val effective = normalized.effectiveForEngine(engine)
         val transitionChanged = current.effectiveForEngine(engine).transitionSettings() != effective.transitionSettings()
+        persist(normalized)
         current = normalized
         if (transitionChanged) {
             (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
         }
         applyToEngine(effective)
-        persist(current)
         return current
     }
 

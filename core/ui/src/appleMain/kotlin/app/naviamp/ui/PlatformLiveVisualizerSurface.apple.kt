@@ -43,7 +43,7 @@ internal actual fun PlatformLiveVisualizerSurface(
     val rendererMode = remember(visualizer) {
         selectedVisualizerRendererMode(
             visualizer = visualizer,
-            nativeRendererAvailable = IosMetalVisualizerRenderer.isAvailable(),
+            nativeRendererAvailable = AppleMetalVisualizerRenderer.isAvailable(),
         )
     }
     if (rendererMode == VisualizerRendererMode.Canvas) {
@@ -95,7 +95,7 @@ internal actual fun PlatformLiveVisualizerSurface(
     }
     val metalRenderer = remember(rendererMode, visualizer, renderPolicy) {
         if (rendererMode == VisualizerRendererMode.NativeGpu) {
-            runCatching { IosMetalVisualizerRenderer(visualizer, renderPolicy) }.getOrNull()
+            runCatching { AppleMetalVisualizerRenderer(visualizer, renderPolicy) }.getOrNull()
         } else {
             null
         }

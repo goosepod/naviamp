@@ -17,6 +17,7 @@ dependencyResolutionManagement {
 rootProject.name = "naviamp"
 
 include(":core:domain")
+include(":core:host-api")
 include(":core:app")
 include(":core:bootstrap")
 include(":core:presentation")
@@ -36,4 +37,10 @@ if (providers.gradleProperty("naviamp.tvos.feasibility").orNull == "true") {
 include(":apps:desktop")
 include(":apps:android")
 include(":apps:ios")
+if (providers.gradleProperty("naviamp.tvos.sceneHost").orNull == "true") {
+    check(providers.gradleProperty("naviamp.tvos.feasibility").orNull == "true") {
+        "The experimental tvOS scene host requires -Pnaviamp.tvos.feasibility=true and the reviewed Compose port inputs."
+    }
+    include(":apps:tvos")
+}
 include(":tools:genre-ontology")

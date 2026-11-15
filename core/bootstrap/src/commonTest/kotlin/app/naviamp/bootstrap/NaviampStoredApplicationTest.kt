@@ -12,6 +12,10 @@ import app.naviamp.domain.network.SharedHttpClient
 import app.naviamp.domain.network.SharedHttpResponse
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.SettingsSyncDocument
+import app.naviamp.domain.settings.SettingsSyncPreferences
+import app.naviamp.domain.settings.SettingsSyncServerProfile
+import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.host.*
 import app.naviamp.presentation.*
 import app.naviamp.storage.*
 import app.naviamp.ui.NaviampShellCapabilitiesUi
@@ -31,13 +35,13 @@ class NaviampStoredApplicationTest {
             assertEquals(effective, first.environment.services.settings.cacheSettings.apply(cache))
             assertEquals(effective, naviampCoreSettingsValueCatalog(values).storedSettings.loadCache())
             assertFalse(first.environment.initialState.product.shell.capabilities.crossfade)
-            first.core.close()
+            first.close()
             val reopened = application(driver, values)
             assertEquals(effective, naviampCoreSettingsValueCatalog(values).storedSettings.loadCache())
             assertFalse(reopened.environment.initialState.product.shell.cache.settings.audioCachingEnabled)
             assertFalse(reopened.environment.initialState.product.shell.playback.gaplessAvailable)
             assertNotNull(reopened.environment.services.downloads.storage)
-            reopened.core.close()
+            reopened.close()
         } finally { driver.close() }
     }
 
@@ -49,15 +53,55 @@ class NaviampStoredApplicationTest {
             assertContentEquals(byteArrayOf(1, 2, 3), app.loadProviderArtwork("https://fixture.invalid/art"))
             assertContentEquals(byteArrayOf(1, 2, 3), app.loadProviderArtwork("https://fixture.invalid/art"))
             assertEquals(listOf("https://fixture.invalid/missing", "https://fixture.invalid/art"), calls)
-            app.core.close()
+            app.close()
         } finally { driver.close() }
     }
 
     private val calls = mutableListOf<String>()
-    private fun kotlinx.coroutines.CoroutineScope.application(driver: SqlDriver, values: TestValues) =
+    @Test fun boundedImportCommitsCompleteSettingsAndStampOrLeavesEverythingUnchanged() = runTest {
+        val driver = storedApplicationTestDriver()
+        val document = TestRecoveryDocument()
+        val box = TestRecoveryBox()
+        val protector = StorageAeadCredentialProtector(box)
+        val state = StorageRecoveryState(document, protector, object : StorageRecoveryLock {
+            override fun lock() = Unit
+            override fun unlock() = Unit
+        })
+        val values = NaviampRecoverySettingsValueStore(state)
+        try {
+            val app = application(driver, values, state, protector)
+            val sync = app.environment.services.settings.sync.controller
+            val imported = SettingsSyncDocument(updatedAtEpochMillis = 42,
+                serverProfiles = listOf(SettingsSyncServerProfile("main", displayName = "Main", username = "user", primaryUrl = "https://fixture.invalid")),
+                preferences = SettingsSyncPreferences(playback = PlaybackSettings(gaplessEnabled = true, crossfadeDurationSeconds = 7, volumePercent = 62)))
+            sync.applySyncedDocument(imported)
+            val settings = naviampCoreSettingsValueCatalog(values).storedSettings
+            assertEquals(42L, settings.loadSyncRuntime().lastAppliedSyncUpdateEpochMillis)
+            assertEquals(7, settings.loadPlayback().crossfadeDurationSeconds)
+            assertTrue(settings.loadPlayback().gaplessEnabled) // Retain portable preferences even on direct-output TV.
+            val exported = assertNotNull(sync.exportCurrent().documentToWrite)
+            assertEquals(imported.preferences.playback.copy(volumePercent = 100), exported.preferences.playback)
+            assertEquals(1, exported.serverProfiles.size)
+            val before = document.value
+            val playback = settings.loadPlayback()
+            document.fail = true
+            assertFailsWith<StorageRecoveryException> {
+                sync.applySyncedDocument(imported.copy(updatedAtEpochMillis = 99,
+                    preferences = imported.preferences.copy(playback = playback.copy(volumePercent = 10))))
+            }
+            assertEquals(before, document.value)
+            assertEquals(playback, settings.loadPlayback())
+            assertEquals(playback, sync.localSnapshot().playback)
+            assertEquals(42L, settings.loadSyncRuntime().lastAppliedSyncUpdateEpochMillis)
+            app.close()
+        } finally { driver.close() }
+    }
+
+    private fun kotlinx.coroutines.CoroutineScope.application(driver: SqlDriver, values: NaviampCoreSettingsValueStore,
+        recovery: StorageRecoveryState? = null, protector: StorageCredentialProtector = PassthroughStorageCredentialProtector) =
         NaviampStoredApplication(
             scope = this, database = NaviampStorageDatabase(driver),
-            credentialProtector = PassthroughStorageCredentialProtector,
+            credentialProtector = protector, recoveryState = recovery,
             settingsValueStore = values, settingsSyncPort = NoDocumentEffects, certificateFiles = null,
             databaseLabel = "test", audioCacheDirectory = directory("/cache"), downloadDirectory = directory("/downloads"),
             playbackEngine = UnavailableNaviampPlaybackEngine, waveformBass = NoBassEffects,
@@ -77,6 +121,31 @@ class NaviampStoredApplicationTest {
                 override suspend fun download(url: String, headers: Map<String, String>, writeChunk: suspend (ByteArray, Int) -> Unit): Boolean = error("Unexpected download")
             },
         )
+}
+
+private class TestRecoveryDocument : StorageRecoveryDocumentPort {
+    var value: String? = null
+    var fail = false
+    override fun read() = StorageRecoveryDocument(value != null, value)
+    override fun projectedDomainBytes(encoded: String) = encoded.length.toLong()
+    override fun compareAndSet(expected: String?, replacement: String?): StorageRecoveryWriteResult {
+        if (value != expected) return StorageRecoveryWriteResult.Conflict
+        if (fail) return StorageRecoveryWriteResult.Failed
+        value = replacement
+        return StorageRecoveryWriteResult.Committed
+    }
+    override fun remove(): Boolean { value = null; return true }
+}
+
+private class TestRecoveryBox : StorageSecretBox {
+    private val entries = mutableMapOf<String, ByteArray>()
+    override fun seal(plaintext: ByteArray): StorageSealedBytes {
+        val token = "token-${entries.size}"
+        entries[token] = plaintext.copyOf()
+        return StorageSealedBytes("test", token.encodeToByteArray())
+    }
+    override fun open(keyReference: String, ciphertext: ByteArray) = entries[ciphertext.decodeToString()]?.copyOf()
+    override fun clearKey(): Boolean { entries.clear(); return true }
 }
 
 private object NoBassEffects : BassAudioBackend {

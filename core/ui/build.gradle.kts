@@ -86,6 +86,10 @@ kotlin {
     jvm()
     iosArm64()
     iosSimulatorArm64()
+    if (providers.gradleProperty("naviamp.tvos.sceneHost").orNull == "true") {
+        tvosArm64()
+        tvosSimulatorArm64()
+    }
 
     if (animationProbe) {
         targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget>().configureEach {

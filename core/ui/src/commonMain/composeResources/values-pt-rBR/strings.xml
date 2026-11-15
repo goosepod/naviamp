@@ -1271,4 +1271,11 @@
     <string name="connection_aurral_companion_invalid">Insira uma URL de servidor Aurral HTTP ou HTTPS e um nome de usuário.</string>
     <string name="discovery_find_in_aurral">Buscar no Aurral</string>
     <string name="connection_aurral_companion_save_failed">Não foi possível salvar o Aurral complementar. Sua conexão de música não foi alterada.</string>
+    <string name="storage_recovery_title">Configurações salvas</string>
+    <string name="storage_recovery_capacity">Esta alteração excede o limite de armazenamento persistente do dispositivo. As configurações e conexões salvas anteriormente permanecem inalteradas.</string>
+    <string name="storage_recovery_unreadable">Não foi possível abrir as configurações salvas. Elas foram preservadas. Tente novamente ou redefina-as para configurar este dispositivo de novo.</string>
+    <string name="storage_recovery_conflict">As configurações salvas mudaram durante esta operação. Recarregue-as antes de tentar novamente.</string>
+    <string name="storage_recovery_unavailable">As configurações salvas estão temporariamente indisponíveis. Tente novamente.</string>
+    <string name="storage_recovery_reset_title">Redefinir as configurações salvas?</string>
+    <string name="storage_recovery_reset_message">As configurações e conexões salvas neste dispositivo serão apagadas. Sua biblioteca no servidor não será excluída.</string>
 </resources>

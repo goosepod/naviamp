@@ -20,20 +20,16 @@ import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
 import java.util.LinkedHashMap
 
-@Volatile
-private var androidPlatformCoverArtByteLoader: (suspend (String) -> ByteArray?)? = null
-
 fun setAndroidPlatformCoverArtByteLoader(loader: suspend (String) -> ByteArray?) {
-    androidPlatformCoverArtByteLoader = loader
+    setNaviampCoverArtByteLoader(loader)
 }
 
 fun resetAndroidPlatformCoverArtByteLoader() {
-    androidPlatformCoverArtByteLoader = null
-    resetNaviampCoverArtCache()
+    resetNaviampCoverArtByteLoader()
 }
 
 internal suspend fun androidPlatformCoverArtBytes(url: String): ByteArray? =
-    generatedRadioTileBytes(url) ?: androidPlatformCoverArtByteLoader?.invoke(url) ?: AndroidCoverArtHttpClient.getBytes(url)
+    generatedRadioTileBytes(url) ?: loadNaviampCoverArtBytes(url, AndroidCoverArtHttpClient::getBytes)
 
 /** Resolves authenticated artwork for native Android surfaces that require a local file. */
 suspend fun androidPlatformCoverArtFile(context: Context, url: String): File? =

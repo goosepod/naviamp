@@ -11,7 +11,7 @@ import platform.Foundation.dateWithTimeIntervalSince1970
 import platform.Foundation.localTimeZone
 import platform.Foundation.timeZoneWithName
 
-/** Foundation owns the user's regional calendar, date format and hour-cycle preference. */
+/** Foundation owns the user's regional calendar, date format and hour-cycle preference on Apple hosts. */
 @Composable
 internal actual fun formatNaviampDateTime(epochMillis: Long, includeTime: Boolean, timeZoneId: String?): String {
     val formatter = NSDateFormatter()

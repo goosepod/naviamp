@@ -48,6 +48,7 @@ import app.naviamp.domain.network.SharedHttpClient
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.storage.StorageAudioDirectory
 import app.naviamp.storage.StoragePlaybackAudioAssets
+import app.naviamp.storage.StorageRecoveryState
 import app.naviamp.presentation.NaviampCoreSettingsValueStore
 import app.naviamp.presentation.NaviampCoreSettingsSyncPort
 import app.naviamp.presentation.NaviampCoreCertificateFilePort
@@ -84,7 +85,12 @@ class NaviampStoredApplication(
     selectedDownloadLocationId: String?,
     selectedAudioCacheLocationId: String?,
     private val httpClient: SharedHttpClient = KtorSharedHttpClient(),
+    recoveryState: StorageRecoveryState? = null,
+    onAsyncFailure: ((app.naviamp.presentation.NaviampCoreCommand, Throwable) -> Unit)? = null,
 ) {
+    init {
+        require(recoveryState == null || (settingsValueStore as? NaviampRecoverySettingsValueStore)?.recovery === recoveryState)
+    }
     private val settings = naviampCoreSettingsValueCatalog(settingsValueStore)
     private var cacheSettings = settings.storedSettings.loadCache()
     private val repositories = StorageCoreRepositoryCatalog(
@@ -95,6 +101,7 @@ class NaviampStoredApplication(
         deleteKnownAudioCacheFile = audioCacheDirectory::delete,
         deleteKnownDownloadFile = downloadDirectory::delete,
         maxAudioBytes = cacheSettings.maxAudioCacheBytes,
+        recoveryState = recoveryState,
     )
     private val audioStore = StorageAudioStore(
         queries = database.naviampStorageQueries,
@@ -236,6 +243,10 @@ class NaviampStoredApplication(
         playbackEngine = playbackEngine,
         settingsSyncPort = settingsSyncPort,
         certificateFiles = certificateFiles,
+        settingsPersistenceTransaction = { block ->
+            if (recoveryState == null) block() else recoveryState.transaction(database.naviampStorageQueries, block)
+        },
+        persistImportedPlayback = if (recoveryState == null) null else settings.savePlayback,
         settings = settings.storedSettings.withStorageBackedSettings(
             radioDjPresetRepository = repositories.radioDjPresets,
             onCacheSettingsSaved = { effective -> cacheSettings = effective },
@@ -268,8 +279,16 @@ class NaviampStoredApplication(
         services = storedCatalog.services,
         initialState = storedCatalog.initialState,
         actionAvailability = actionAvailability,
-    )
+    ).let { if (onAsyncFailure == null) it else it.copy(onAsyncFailure = onAsyncFailure) }
     val core = createNaviampCore(scope, environment)
+    private val releaseArtwork = app.naviamp.ui.bindNaviampCoverArtByteLoader(::loadProviderArtwork)
+    private var closed = false
+
+    fun close() {
+        if (closed) return
+        closed = true
+        try { core.close() } finally { releaseArtwork() }
+    }
 
     suspend fun loadProviderArtwork(url: String): ByteArray? = runCatching {
         val provider = sessions.currentProvider()

@@ -22,6 +22,15 @@ REQUIRED_STORAGE_NATIVE_CASES = {
     "nativeDriverCreatesCanonicalSchemaAndEnforcesForeignKeys",
     "nativeDriverReopensCommittedRowsInTheHostSelectedDirectory",
     "emptyReplacementDirectoryRebuildsSchemaAfterSimulatedCachePurge",
+    "atomicBytesAndBoundedReadUseOnlyTheSelectedNativeDirectory",
+    "writeAndDeletionRejectTraversalAndMissingReadsRemainFailures",
+    "emptyCacheRecoversMainCompanionSecretsScopesSelectionAndPresetsButNoPlaybackQueue",
+    "failedDocumentCommitRollsBackConnectionAndCompanionChanges",
+    "oversizedBatchRollsBackSettingsConnectionsAndDjPresetsTogether",
+    "certificateBytesForMainAndCompanionRecoverIntoRelocatedCacheAndDeletionStaysDeleted",
+    "externalCertificateWithRecoveryBasenameDoesNotReplaceAnotherConnectionsCertificate",
+    "sqlCommitFailurePreservesNewAuthorityAndRequiresReloadBeforeAnyFurtherMutation",
+    "sqlRollbackFailureAlsoRequiresReloadButNormalPreflightFailureDoesNotWrite",
 }
 
 
