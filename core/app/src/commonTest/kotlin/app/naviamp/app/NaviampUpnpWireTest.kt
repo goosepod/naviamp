@@ -13,6 +13,16 @@ import kotlin.test.assertTrue
 class NaviampUpnpWireTest {
     private val location = "http://127.0.0.1:19002/desc/device.xml"
 
+    @Test fun transportTimeSupportsPreciseDecimalAndRationalFractionsWithoutOverflow() {
+        assertEquals(1_250L, parseUpnpTime("0:00:01.250999"))
+        assertEquals(333L, parseUpnpTime("+00:00:00.1/3"))
+        assertEquals(10L, parseUpnpTime("00:00:00.441/44100"))
+        assertEquals(-1_250L, parseUpnpTime("-00:00:01.250"))
+        for (invalid in listOf("00:00:00.1/0", "00:00:00.2/1", "9999999999999999999:00:00", "00:60:00")) {
+            assertFailsWith<NaviampUpnpProtocolException> { parseUpnpTime(invalid) }
+        }
+    }
+
     @Test fun ssdpUsesPacketSourceAndRejectsAmbiguousHeadersOrOffDeviceLocations() {
         val response = "HTTP/1.1 200 OK\r\nST: $NAVIAMP_UPNP_RENDERER_TYPE\r\nUSN: uuid:fixture::$NAVIAMP_UPNP_RENDERER_TYPE\r\nLOCATION: $location\r\nCACHE-CONTROL: max-age=1800\r\n\r\n"
         val parsed = assertIs<NaviampUpnpAdvertisement.Available>(parseNaviampUpnpAdvertisement(response, "127.0.0.1"))

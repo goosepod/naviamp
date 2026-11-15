@@ -91,7 +91,8 @@ The wire layer stays in `core:app/commonMain`:
 - `NaviampUpnpRendererClient`: SCPD action discovery, ConnectionManager Sink probing, namespaced
   SOAP, DIDL metadata and AVTransport/RenderingControl commands/status. Missing optional actions
   fail before sending; SOAP faults and unexpected response actions fail explicitly. Load/Play
-  acknowledgement never grants playback authority or substitutes for observed playback.
+  acknowledgement never grants playback authority or substitutes for observed playback. Time parsing
+  accepts signed decimal/rational fractional seconds, truncates to milliseconds and rejects overflow.
 - `NaviampUpnpEventSubscriptionClient` supplies subscribe/renew/unsubscribe operations and a
   renewal deadline. `NaviampUpnpEventGate` validates selection/SID/NT/NTS/content type and SEQ,
   rejects duplicate/old events, handles wrap from 4,294,967,295 to 1, and parses bounded nested
@@ -123,7 +124,7 @@ HTTP client, metadata codec, event gate, scoped media relay and handoff ledger t
   action, and HTTP 500/UPnP fault 701 cannot be mistaken for successful preparation.
 - No redirect follow and bounded reads for both declared and chunked oversized responses.
 
-Local checks pass: **322 app + 627 presentation tests (949 total)**; both modules' Android and
+Local checks pass: **323 app + 627 presentation tests (950 total)**; both modules' Android and
 common-metadata compilation; the Core architecture check and diff check. The cancellation-fix CI
 run (`43748120294`, commit `fe31a5977`) passed common/device/simulator compilation, simulator tests,
 native TLS/BASS execution and production iOS build before this increment was pushed. The new wire

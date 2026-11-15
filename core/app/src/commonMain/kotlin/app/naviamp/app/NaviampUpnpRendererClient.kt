@@ -112,9 +112,23 @@ internal fun parseUpnpTransportState(value: String): NaviampUpnpTransportState =
 
 internal fun parseUpnpTime(value: String): Long? {
     if (value == "NOT_IMPLEMENTED") return null
-    val match = Regex("([0-9]{1,7}):([0-5][0-9]):([0-5][0-9])(?:\\.([0-9]{1,3}))?").matchEntire(value) ?: throw NaviampUpnpProtocolException()
-    val (hours, minutes, seconds, fraction) = match.destructured
-    return ((hours.toLong() * 60 + minutes.toInt()) * 60 + seconds.toInt()) * 1_000 + fraction.padEnd(3, '0').toInt()
+    val match = Regex("([+-]?)([0-9]{1,19}):([0-5][0-9]):([0-5][0-9])(?:\\.([0-9]{1,18})(?:/([0-9]{1,15}))?)?")
+        .matchEntire(value) ?: throw NaviampUpnpProtocolException()
+    val (sign, hours, minutes, seconds, fraction, denominator) = match.destructured
+    val wholeHours = hours.toLongOrNull() ?: throw NaviampUpnpProtocolException()
+    upnpCheck(wholeHours <= Long.MAX_VALUE / 3_600_000)
+    val fractionalMillis = if (denominator.isEmpty()) fraction.take(3).padEnd(3, '0').toLong() else {
+        // UPnP also permits rational fractions. Bound operands before integer arithmetic.
+        upnpCheck(fraction.length <= 15)
+        val numerator = fraction.toLong()
+        val divisor = denominator.toLong()
+        upnpCheck(divisor > 0 && numerator < divisor)
+        numerator * 1_000 / divisor
+    }
+    val remainder = minutes.toLong() * 60_000 + seconds.toLong() * 1_000 + fractionalMillis
+    val base = wholeHours * 3_600_000
+    upnpCheck(base <= Long.MAX_VALUE - remainder)
+    return (base + remainder) * if (sign == "-") -1 else 1
 }
 
 internal fun upnpTime(millis: Long): String =
