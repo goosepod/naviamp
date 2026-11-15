@@ -1,7 +1,10 @@
 {
   "checkedOn": "2026-11-14",
   "policy": "Stable releases; beta/RC only when justified for issue 590",
-  "additionalBatchValidation": "Windows full matrix and iOS shared/native matrix passed; final host/archive/runtime acceptance pending",
+  "baselineCommit": "57c26661247facd5d3ddf43319b7f119d6683c22",
+  "currentFieldMeaning": "Version in the baseline catalog before the issue 590 candidate",
+  "issueBranchCatalog": "Candidate applied for branch verification; main acceptance pending",
+  "additionalBatchValidation": "Windows broad no-sound matrix and final packaging, iOS shared/native matrix, final iOS host/Keychain and optimized archive passed; Windows real-output repeat fails driver initialization; visible motion and API-26 runtime acceptance pending",
   "dependencies": [
     {
       "key": "ksoup",

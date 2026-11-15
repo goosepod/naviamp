@@ -1,17 +1,9 @@
-buildscript {
-    repositories { google() }
-    dependencies {
-        // Kotlin 2.4 metadata requires R8 >= 9.1.29; keep the compatible AGP host unchanged.
-        classpath("com.android.tools:r8:9.1.57")
-    }
-}
-
 plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.android.library) apply false
+    alias(libs.plugins.android.multiplatform.library) apply false
     alias(libs.plugins.kotlin.multiplatform) apply false
     alias(libs.plugins.kotlin.jvm) apply false
-    alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.compose.multiplatform) apply false
     alias(libs.plugins.compose.compiler) apply false
     alias(libs.plugins.kotlin.serialization) apply false
@@ -31,6 +23,33 @@ dependencies {
     kover(project(":providers:navidrome"))
     kover(project(":platforms:desktop"))
     kover(project(":apps:desktop"))
+}
+
+// Custom hierarchy selectors must recognize the Android-KMP plugin's target type.
+// Otherwise a main compilation can silently become NO-SOURCE and publish an empty AAR.
+tasks.register("verifySharedAndroidSourceGraph") {
+    group = "verification"
+    description = "Checks that shared Android compilations retain common production and test sources."
+    doLast {
+        val checked = mutableListOf<String>()
+        subprojects.forEach { module ->
+            val multiplatform = module.extensions.findByType<org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension>()
+                ?: return@forEach
+            multiplatform.targets.filter {
+                it.platformType == org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType.androidJvm
+            }.forEach { target ->
+                target.compilations.forEach { compilation ->
+                    val required = if (compilation.name == "main") "commonMain" else "commonTest"
+                    check(compilation.allKotlinSourceSets.any { it.name == required }) {
+                        "${module.path}:${compilation.name} lost $required; check the Android target hierarchy selector."
+                    }
+                    checked += "${module.path}:${compilation.name}"
+                }
+            }
+        }
+        check(checked.isNotEmpty()) { "No shared Android compilations were inspected." }
+        logger.lifecycle("Verified common source ownership for ${checked.size} shared Android compilations.")
+    }
 }
 
 kover {

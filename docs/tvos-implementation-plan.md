@@ -65,6 +65,13 @@ Its entries contain BASS, BASSFLAC and BASSOPUS XCFrameworks with device arm64 a
 arm64/x86_64 directory names. Validate plist platform declarations and Mach-O build commands as
 well; directory names and the shared arm64 architecture alone are insufficient.
 
+The owner's download at `C:\Users\ursasmar\Downloads\bass-tvos` was also inspected: all 18
+files are byte-identical to that pinned archive. Each `.xcframework` is a container of compiled
+libraries, with an ARM64 slice for physical Apple TV and ARM64/x86_64 slices for the simulator.
+The top-level `Info.plist` tells Apple's build tools which slice to link; the extensionless
+`bass` file inside `bass.framework` is the native library. The FLAC/Opus siblings are decoder
+add-ons, not BASSmix. These are integration inputs, not a separate tvOS app or new mixer build.
+
 The archive does not contain BASSmix, MIDI, WavPack, DSD, WebM, HLS, APE or MPC. Naviamp's current
 iOS build links all of those. The owner selected a **direct-BASS first version** on November 14:
 use public downloads, with gapless, crossfade and the custom multichannel-to-stereo matrix
@@ -385,9 +392,10 @@ feature parity remains deferred under the owner's November 14 scope decision.
 Evidence: `upgrade-existing-targets.log` (missing SDK), `upgrade-existing-targets-retry.log`
 (AAR validation failure; interrupted remaining work), `naviamp-590-compose-resolution.log`,
 `naviamp-590-compose-compile.log` and `naviamp-590-apple-adapter-audit.log` under
-`build/590-feasibility`. Candidate catalogs/settings/build files remain in the isolated worktrees;
-the active branch retains Kotlin 2.4.10, Compose 1.11.0 and Material3 1.9.0. These results authorize
-neither production upgrade nor release support. No additional issues were created.
+`build/590-feasibility`. At that initial checkpoint, candidate catalogs/settings/build files
+remained isolated and the active branch retained Kotlin 2.4.10/Compose 1.11.0/Material3 1.9.0.
+Later supported-tooling results below supersede that checkpoint; those early failures alone
+authorized neither an upgrade nor release support. No additional issues were created.
 
 ## SDK 37 / AGP 9 experiment and original-app gate (November 14)
 
@@ -457,8 +465,9 @@ are not passing compatibility results. Do not begin the tvOS host until these ga
 
 The detailed reproduction patch, plugin correction, original-app test results and remaining gates
 are recorded in [the SDK 37 experiment report](verification/590-sdk37-compose-upgrade.md).
-The original-app upgrade remains isolated while performance acceptance is measured; the ordinary
-branch catalog has not been changed merely to make the community port resolve.
+That original experiment remained isolated while performance acceptance was measured. The later
+stable candidate below uses matching public releases, rather than changing app versions merely
+to make older community binaries resolve.
 
 The first cold/warm iOS archive comparison of the original alpha-based experiment passed
 validation, with an 8.6% cold archive cost and fast up-to-date warm builds. That stack was **not
@@ -510,7 +519,8 @@ playback, pause/seek, Next and lifecycle/restart. Pixel and TV profiles were res
 owned test windows, reverse ports and fixture servers were cleaned up. See the detailed report
 for setup failures, the transient TV offline observation and the limits of capture evidence.
 
-The ordinary app's dependencies remain unchanged. Reproduce the stable build metadata with
+The issue branch now uses the validated stable tooling/dependency candidate; acceptance on main
+is still pending. Reproduce that metadata in a disposable baseline checkout with
 [the supported migration patch](verification/590-supported-agp-upgrade.patch), excluding local-only
 statistics-report settings. The supported Android KMP plugin/DSL migration and eight additional
 stable library upgrades now pass the Android/JVM and iOS shared/native matrices. Shared mixer-free
@@ -523,8 +533,13 @@ one pair is not a statistically significant performance claim. Final Windows vis
 measurements and API-26 runtime acceptance remain before permanent dependency adoption. The
 earlier alpha stack's archive timings must not be reused as newest-stable evidence. The stable
 source port now compiles UI/Foundation/Material3 on both tvOS targets and original Android/iOS;
-resource packaging, reviewed API baselines and actual Native linking/rendering remain gates.
-Resolve those before enabling the host; retain strict diagnostics and Core-first ownership.
+the synthetic consumer also passes packaged-resource tests, Native links and visible rendering.
+The checkpoint records the lowered Material3 ABI differences and the rebuilt-consumer evidence;
+this does not establish drop-in Native binary compatibility. Finish the producer deployment-target
+audit and reproducible artifact/cache pipeline before enabling the host. Retain strict diagnostics
+and Core-first ownership. The issue-branch repeat passes all 6,029 broad reported cases with
+eight conditional skips and final packaging; its muted real-output follow-up currently fails
+Windows driver initialization and remains unresolved.
 
 Keep minimum Android API 26 during this work. Both newest-stable APK manifests retain minimum 26,
 target 36 and compile 37. API 29 is a meaningful native compositor boundary, already selected at

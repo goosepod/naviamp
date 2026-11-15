@@ -136,7 +136,7 @@ jobs:
 
       - name: Install Android build packages
         if: needs.changes.outputs.run_full == 'true'
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973"
+        run: sdkmanager "platforms;android-37.0" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973"
 
       - name: Run shared and Android unit tests
         if: needs.changes.outputs.run_full == 'true'
@@ -144,6 +144,7 @@ jobs:
           ./gradlew
           -Pkotlin.native.enableKlibsCrossCompilation=false
           verifyCoreFirstArchitecture
+          verifySharedAndroidSourceGraph
           jvmTest
           :apps:android:testDebugUnitTest
           :apps:android:testReleaseUnitTest
@@ -246,7 +247,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        api-level: [30, 35]
+        api-level: [26, 30, 35]
     steps:
       - name: Require successful change classification
         if: needs.changes.result != 'success' || (needs.changes.outputs.run_full != 'true' && needs.changes.outputs.run_full != 'false') || (needs.changes.outputs.run_translations != 'true' && needs.changes.outputs.run_translations != 'false')
@@ -285,7 +286,7 @@ jobs:
           export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avd"
           mkdir -p "$ANDROID_AVD_HOME"
           echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
-          sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973" "emulator" "system-images;android-${{ matrix.api-level }};google_apis;x86_64" 2>&1 | tee /tmp/naviamp-sdkmanager.log
+          sdkmanager "platforms;android-37.0" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973" "emulator" "system-images;android-${{ matrix.api-level }};google_apis;x86_64" 2>&1 | tee /tmp/naviamp-sdkmanager.log
           echo no | avdmanager create avd --force --name naviamp-ci --package "system-images;android-${{ matrix.api-level }};google_apis;x86_64" 2>&1 | tee /tmp/naviamp-avdmanager.log
 
       - name: Enable KVM access
@@ -333,13 +334,22 @@ jobs:
             echo "$port" >> "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE.android-reverse-ports"
           done
 
-      - name: Exercise native boundaries and raster animation
+      - name: Exercise native boundaries and shared UI
         if: needs.changes.outputs.run_full == 'true'
         run: |
           control_port="$(python3 scripts/mobile-mtls-fixture.py control-port "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE")"
-          ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.animationProbe=true \
-            "-Pandroid.testInstrumentationRunnerArguments.naviamp.mtls.controlPort=$control_port" \
-            :apps:android:connectedDebugAndroidTest :core:ui:connectedDebugAndroidTest
+          if [ "${{ matrix.api-level }}" = 26 ]; then
+            ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false \
+              "-Pandroid.testInstrumentationRunnerArguments.naviamp.mtls.controlPort=$control_port" \
+              :apps:android:connectedDebugAndroidTest
+            ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false \
+              -Pandroid.testInstrumentationRunnerArguments.class=app.naviamp.ui.NaviampRasterAttachmentTest,app.naviamp.ui.NaviampDialogInitialFocusTest,app.naviamp.ui.NaviampLanguageResourcesUiTest \
+              :core:ui:connectedAndroidDeviceTest
+          else
+            ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.animationProbe=true \
+              "-Pandroid.testInstrumentationRunnerArguments.naviamp.mtls.controlPort=$control_port" \
+              :apps:android:connectedDebugAndroidTest :core:ui:connectedAndroidDeviceTest
+          fi
 
       - name: Require repeated API 30 smart-playlist UI execution
         if: needs.changes.outputs.run_full == 'true' && matrix.api-level == 30 && contains(github.event.pull_request.labels.*.name, 'verify:android-ui-repeat')
@@ -348,14 +358,14 @@ jobs:
           set -o pipefail
           evidence="$PWD/build/android-compose-replays"
           mkdir -p "$evidence"
-          cp -R core/ui/build/outputs/androidTest-results/connected/debug "$evidence/initial"
+          cp -R core/ui/build/outputs/androidTest-results/connected "$evidence/initial"
           for attempt in $(seq 1 10); do
             status=0
             ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false \
               -Pandroid.testInstrumentationRunnerArguments.class=app.naviamp.ui.NaviampSmartPlaylistSummaryUiTest \
-              :core:ui:connectedDebugAndroidTest --rerun --console=plain \
+              :core:ui:connectedAndroidDeviceTest --rerun --console=plain \
               | tee "$evidence/run-$attempt.log" || status=$?
-            cp -R core/ui/build/outputs/androidTest-results/connected/debug "$evidence/run-$attempt"
+            cp -R core/ui/build/outputs/androidTest-results/connected "$evidence/run-$attempt"
             if [ "$status" -ne 0 ]; then exit "$status"; fi
           done
 
@@ -366,14 +376,14 @@ jobs:
           set -o pipefail
           evidence="$PWD/build/android-raster-replays"
           mkdir -p "$evidence"
-          cp -R core/ui/build/outputs/androidTest-results/connected/debug "$evidence/initial"
+          cp -R core/ui/build/outputs/androidTest-results/connected "$evidence/initial"
           for attempt in $(seq 1 10); do
             status=0
             ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.animationProbe=true \
               -Pandroid.testInstrumentationRunnerArguments.class=app.naviamp.ui.AndroidRasterPlacementTest \
-              :core:ui:connectedDebugAndroidTest --rerun --console=plain \
+              :core:ui:connectedAndroidDeviceTest --rerun --console=plain \
               | tee "$evidence/run-$attempt.log" || status=$?
-            cp -R core/ui/build/outputs/androidTest-results/connected/debug "$evidence/run-$attempt"
+            cp -R core/ui/build/outputs/androidTest-results/connected "$evidence/run-$attempt"
             if [ "$status" -ne 0 ]; then exit "$status"; fi
           done
 

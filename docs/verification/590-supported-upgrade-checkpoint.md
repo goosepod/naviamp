@@ -1,8 +1,9 @@
 # Issue 590: supported Android tooling and stable dependency checkpoint
 
-Updated November 14, 2026. This records the isolated experiment, not a release or tvOS acceptance.
-The normal branch catalog still uses its existing versions. The candidate lives in the disposable
-`build/590-stable-probe` checkout; the matching Mac experiment is `.worktrees/590-latest-stable`.
+Updated November 14, 2026. This records the issue-branch candidate, not a release or tvOS acceptance.
+The supported tooling/dependency patch is now applied to `codex/590-tvos-feasibility` for normal
+branch verification and CI. Main/release acceptance is still pending. The original isolated
+candidate remains in `build/590-stable-probe`; its Mac counterpart is `.worktrees/590-latest-stable`.
 All work belongs to [issue 590](https://github.com/goosepod/naviamp/issues/590).
 
 ## Candidate and reproduction
@@ -43,7 +44,9 @@ and AGP's variant API must explicitly enable the existing Release unit-test task
 additional-batch invocation stopped on that missing task; the successful run below includes it.
 These are build metadata repairs; no platform product behavior was added.
 
-CI now installs SDK 37 and exercises API 26, 30 and 35. API 26 runs the native app suite and
+CI now installs SDK 37 using its actual stable package ID, `platforms;android-37.0`, and exercises
+API 26, 30 and 35. The installed SDK's `package.xml` confirms that ID; `android-37` would not
+select the same package. API 26 runs the native app suite and
 three representative UI classes in separate invocations so the UI class filter cannot silently
 filter the app tests. Core UI uses `connectedAndroidDeviceTest`; the app keeps its existing task.
 Result collection includes the new Core UI directory structure. Eighteen relevant Python workflow
@@ -62,8 +65,51 @@ desktop distributable creation passed. Local log:
 `build/590-feasibility/all-stable-dependencies-release-test-fixed.log`.
 The inspected additional-batch unsigned Release APK is 27,943,062 bytes and retains all 72 native
 libraries across ARMv7, ARM64, x86 and x86_64. Its manifest reports min SDK 26, target SDK 36,
-compile SDK 37. Lint reports zero errors/fatals and 16 warnings. This packaging evidence precedes
-the later shared mixer-free commit; repeat final packaging after adopting the accepted graph.
+compile SDK 37. Lint reports zero errors/fatals and 16 warnings. This earlier packaging evidence
+precedes the shared mixer-free commit; the final issue-branch repeat is recorded next.
+
+### Repeat on the issue branch
+
+After applying the supported metadata to the issue branch, the full Android/JVM/Desktop matrix
+was repeated with test bodies forced to execute. The first invocation stopped after **11m10s**
+because the shell could not locate CMake for Desktop JNI; the preceding shared tests passed.
+Supplying the installed SDK's `cmake/3.22.1/bin/cmake.exe` through the existing `CMAKE_EXE`
+input fixed the tool lookup, without a source change. The continuation passed in **6m37s**,
+327 tasks (195 executed), including Desktop/app Debug and Release tests and coverage verification.
+
+The union of the active tasks' XML reports contains **6,029 cases, zero failures/errors and
+eight conditional skips**, across 22 tasks/914 report files. This count includes both JVM and
+Android executions, plus 40 Testkit/TLS-Testkit cases omitted from the older report collector.
+Windows used the CI no-sound output device (`0`): four real-output cases were skipped in addition
+to the four Linux/live-service conditional cases. The no-sound run does not establish real-output
+clock/recovery acceptance. Reports were preserved before the selected native follow-up overwrote
+the Desktop XML directory: `build/590-feasibility/root-upgrade-broad-test-reports.zip` and
+`root-upgrade-test-summary.json`. Logs: `root-upgrade-verification.log` and
+`root-upgrade-verification-native-fixed.log`.
+
+The 13-case muted real-output follow-up **failed**: 11 failures at driver initialization or
+dependent playback timeouts, with `BASS_ERROR_DRIVER` (3). An outside-sandbox repeat using the
+default output, rather than explicit `-1`, also failed (2m19s, 57 tasks). The Windows audio services
+were running, but BASS's inventory listed only no-sound and the default placeholder. Direct
+initialization was inconsistent: two byte-identical current/previously passing BASS DLLs yielded
+one success and one driver failure. This is not enough to accept the real-output path or attribute
+the failure to the upgrade. Leave it unresolved until a usable output is available and the tests
+pass; do not weaken the assertions or substitute no-sound acceptance. Evidence:
+`root-upgrade-real-output.log`, `root-upgrade-real-output-default.log`,
+`root-real-output-driver-failure-reports.zip` and `root-windows-audio-endpoint-check.json`.
+
+Final issue-branch lint, Debug native package verification, optimized Release APK/AAB validation
+and Windows release-distributable packaging **passed in 10m01s**, 434 tasks (261 executed).
+The Release APK is **27,943,062 bytes**, with min SDK **26**, target **36**, compile **37** and
+72 native libraries across ARMv7, ARM64, x86 and x86_64. Lint reports zero errors/fatals and
+16 warnings. Log: `build/590-feasibility/root-upgrade-packaging.log`.
+
+The five ABI-comparator, six tvOS feasibility/runtime-parser and six translation/workflow checks
+passed, together with actionlint 1.7.12. The three POSIX workflow-scope tests passed on the Mac
+with canonical LF checkout semantics; initial Windows WSL-shim access and raw-CRLF transfer
+failures were setup failures, not passing test runs. No test or script was weakened.
+
+### Mac and shared playback validation
 
 The matching Mac additional-library shared/provider simulator matrix and device Kotlin compile
 passed in **7m06s**, 187 tasks, 179 executed. The native test binary linked and its BASS frameworks
@@ -93,7 +139,7 @@ host build/install/launch and a real Keychain case on a newly owned iOS 26.5 sim
 startup screenshot showed the complete connection UI; all eleven BASS frameworks were embedded.
 The owned simulator was removed. Xcode's quiet log contains framework-copy messages described
 as an error despite exit code 0; keep that diagnostic with the successful build/launch evidence,
-and repeat the final host/archive validation before adopting the candidate.
+which required the final host/archive repeat described next.
 
 The final graph (all eight additional upgrades plus shared mixer-free changes) then passed a
 fresh iOS 26.5 host build/install/launch and the real Keychain test again, this time with full
@@ -142,12 +188,14 @@ published branch. Do not reuse alpha-stack timings or omit archive validators.
 ## Remaining work
 
 - Finish original-app runtime checks for the accepted graph. Final iOS host/Keychain and both
-  optimized Release archives passed; the final visible Windows comparison is in progress.
+  optimized Release archives passed; final Windows visible comparison and real-output playback
+  remain unresolved. Run the API-26 emulator gate on CI.
 - Measure visible idle/individual/combined animation costs and lifecycle behavior with matching
   window, refresh, scale and power conditions. Functional rendering does not establish a budget.
-- Resolve the stable Compose/Material3 tvOS port mismatch without hiding strict diagnostics or
-  mapping old fork binaries beneath newer common APIs. The fork delta is 306 files, not a plugin
-  switch. No new tvOS app support or release readiness is claimed.
+- The stable Compose/Material3 source port now compiles, links and visibly renders with packaged
+  resources, as recorded below. Finish reproducible artifact production/cache identity and audit
+  helper/vendor deployment targets before full-app integration. The fork delta is 306 files,
+  not a plugin switch. No new tvOS app support or release readiness is claimed.
 - The public direct-BASS tvOS simulator probe passed all 17 native controls/lifecycle checks;
   BASSmix was absent, and shutdown/delete returned 0. It used a silent WAV/zero volume and does
   not establish acoustic output, FLAC/Opus decoding, full Naviamp integration or physical-device
@@ -388,3 +436,61 @@ Do not run a whole-repository release task or stage other Material3-group alpha 
 the stable main-module version. Keep configuration on demand off, explicit cache roots from job
 startup, limited workers and full logs. The app consumer must still prove compatibility with
 Kotlin 2.4.21; do not upgrade an upstream source producer solely to match its consumer version.
+
+## Kotlin 2.4.21 consumer and visible renderer
+
+A synthetic consumer at `build/590-tvos-renderer-consumer` on the Mac uses Kotlin/Compose
+compiler 2.4.21, Gradle 9.9.1, Compose 1.12.2 and stable Material3 1.9.0. Its common Kotlin owns
+the entire fixture UI; the Apple factory only calls `ComposeUIViewController`. It has iOS
+simulator plus both tvOS targets, packaged XML string resources, a slider, tooltip, button and
+checkbox. This is a library/packaging probe, not a second implementation of Naviamp's TV UI.
+
+Its first attempt included the patched Compose Gradle plugin's source build in Gradle 9.9.1.
+That failed before compiling the fixture: that plugin producer uses Kotlin 2.2.0 and cannot read
+Gradle 9.9's embedded Kotlin 2.4 metadata. No metadata-version check was suppressed. Building the
+plugin separately with its pinned Gradle **9.5.0** succeeded in **58s**, 18 executed tasks. It was
+published only to the owned `build/590-resources-port-maven` under
+`app.naviamp.tvosprobe.compose:compose-gradle-plugin:1.12.2`, with no official plugin marker.
+The resources umbrella/two tvOS artifacts also staged there in 1m10s, 68 tasks (44 executed).
+
+The consumer then used that exact prebuilt JAR instead of `includeBuild` for the producer.
+Both tvOS and original iOS simulator frameworks **compiled and linked** in **4m47s**, 19 tasks
+(15 executed). The cold consumer cost includes first-time configuration/plugin dependencies and
+two Native framework links; it is not an app Release archive benchmark. The warm real resource
+copy task later passed in **8s**, 20 tasks (14 executed). Keep producer builds separate from
+ordinary app development and key cached artifacts by source/compiler/SDK identities.
+
+`scripts/probe-compose-tvos-consumer-graph.init.gradle` verified the actual resolved graphs in 9s:
+**91** selected iOS components, with **no private port artifacts**, and **96** tvOS components,
+including exact-version private UI/Foundation/Material3/resources Native leaves. It rejects
+snapshot/community-binary leakage and missing required coordinates. iOS retained the published
+`org.jetbrains.compose.material3:material3-uikitsimarm64:1.9.0` binary. JSON:
+`build/590-tvos-renderer-consumer/build/verified-consumer-variants.json` on the Mac.
+
+An owned UIKit scene host invoked the actual `syncComposeResourcesForIos` task with tvOS
+platform/architecture inputs. The task copied the generated `.cvr` string bundle into the app's
+`compose-resources` directory; no handwritten resource-copy fallback was used. On a newly created
+tvOS 27.2 simulator the host installed, launched and remained alive. Its **3840×2160** screenshot
+was inspected and visibly shows the resource-backed title/details, Material3 slider, button and
+checked checkbox. No missing-resource exception occurred. The simulator was shut down/deleted
+with both exit codes 0. The preexisting iOS Issue 43 simulator was left alone. Evidence:
+`build/590-renderer-visible-host`, `/tmp/naviamp-590-tvos-renderer-consumer-staged-plugin-link.log`,
+and the local inspected `build/590-feasibility/tvos-stable-renderer.png`. The harness wrote
+`screenshotInspected=false` before inspection; the observation here records the subsequent review.
+
+Do **not** infer a supported tvOS minimum from that host's test-only 17.0 plist. The actual link
+warned that the source producer's Objective-C helpers defaulted to SDK 27.2 deployment, plus an
+ICU data object tagged 18.5. Audit/set producer deployment targets and inspect vendor object
+requirements before selecting a supported minimum or claiming older-runtime compatibility.
+The successful smoke test proves rendering on **27.2 only**. It does not prove physical remote
+input, motion/performance budgets, older runtimes, a signed device install or the full Naviamp host.
+Android's minimum remains API 26 and is independent of these Apple deployment findings.
+
+The actual published Material3 binary was also extracted with the **same** ABI tool/filter
+settings as the port, confirming that the historical signature difference is not just a stale
+golden. The published compiler is 2.1.21 / ABI 1.201.0; the source port uses 2.3.20 / ABI 2.3.0.
+The 399 removed/3 added lowered declarations are retained in
+`build/590-compose-stable-port-check/material3-published-binary-api-comparison.json`. Do not claim
+drop-in Native binary compatibility. The Kotlin 2.4.21 consumer rebuild and visible slider prove
+the rebuilt graph can compile/link/render; remaining full-app integration must use fresh,
+identity-keyed Native caches rather than reuse objects from a different producer/compiler graph.

@@ -1,16 +1,18 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.android.multiplatform.library)
     alias(libs.plugins.kover)
 }
 
 kotlin {
-    androidTarget {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_17)
-        }
+    android {
+        namespace = "app.naviamp.provider.jellyfin"
+        compileSdk = 37
+        minSdk = 26
+        compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
+        withHostTest {}
     }
     jvm()
     iosArm64()
@@ -29,17 +31,5 @@ kotlin {
             implementation(libs.kotlinx.coroutines.test)
             implementation("io.ktor:ktor-client-mock:${libs.versions.ktor.get()}")
         }
-    }
-}
-
-android {
-    namespace = "app.naviamp.provider.jellyfin"
-    compileSdk = 36
-    defaultConfig {
-        minSdk = 26
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
     }
 }

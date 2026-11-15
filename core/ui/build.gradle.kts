@@ -5,17 +5,44 @@ val visualizerMountProbe = providers.gradleProperty("naviamp.visualizerMountProb
 val animationProbe = providers.gradleProperty("naviamp.animationProbe").orNull == "true" || visualizerMountProbe
 
 plugins {
-    alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.android.multiplatform.library)
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kover)
 }
 
 kotlin {
-    androidTarget {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_17)
+    android {
+        namespace = "app.naviamp.ui"
+        compileSdk = 37
+        minSdk = 26
+        compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
+        withHostTest {}
+        androidResources { enable = true }
+        withDeviceTestBuilder { sourceSetTreeName = "test" }.configure {
+            targetSdk { version = release(34) }
+            instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+            applicationId = if (visualizerMountProbe) "app.naviamp.ui.mount544.test" else "app.naviamp.ui.test"
+            if (visualizerMountProbe) {
+                instrumentationRunnerArguments["class"] = "app.naviamp.ui.AndroidVisualizerMountTest"
+            } else if (animationProbe) {
+                instrumentationRunnerArguments["class"] = listOf(
+                    "app.naviamp.ui.AndroidAnimationProbeTest",
+                    "app.naviamp.ui.AndroidRasterPlacementTest",
+                    "app.naviamp.ui.AndroidVisualizerMountTest",
+                    "app.naviamp.ui.NaviampMenuAttachmentTest",
+                    "app.naviamp.ui.NaviampDialogInitialFocusTest",
+                    "app.naviamp.ui.NaviampSmartPlaylistReferencePickerTest",
+                    "app.naviamp.ui.NaviampSmartPlaylistSummaryUiTest",
+                    "app.naviamp.ui.NaviampArtistPlaylistsUiTest",
+                    "app.naviamp.ui.NaviampLibrarySearchLayoutTest",
+                    "app.naviamp.ui.NaviampLibrarySearchResultsUiTest",
+                    "app.naviamp.ui.NaviampArtistTopTracksUiTest",
+                    "app.naviamp.ui.NaviampArtistSectionLayoutsUiTest",
+                    "app.naviamp.ui.NaviampLanguageResourcesUiTest",
+                ).joinToString(",")
+            }
         }
     }
     jvm()
@@ -31,12 +58,14 @@ kotlin {
     sourceSets {
         val renderedUiTests = "src/renderedTest/kotlin"
         jvmTest.get().kotlin.srcDir(renderedUiTests)
-        androidInstrumentedTest.get().kotlin.srcDir(renderedUiTests)
+        val androidDeviceTest = getByName("androidDeviceTest")
+        androidDeviceTest.kotlin.srcDirs(renderedUiTests, "src/androidInstrumentedTest/kotlin")
+        if (animationProbe) androidDeviceTest.kotlin.srcDir("src/animationProbeAndroid/kotlin")
         if (animationProbe) {
             commonMain.get().kotlin.srcDir("src/animationProbe/kotlin")
             iosMain.get().kotlin.srcDir("src/animationProbeIos/kotlin")
         }
-        androidInstrumentedTest.dependencies {
+        androidDeviceTest.dependencies {
             implementation(libs.activity.compose)
             implementation(libs.androidx.test.runner)
             implementation(libs.androidx.test.ext.junit)
@@ -81,46 +110,6 @@ compose.resources {
     generateResClass = always
     packageOfResClass = "app.naviamp.ui.generated.resources"
     customDirectory("commonMain", prepareLanguageResources.map { packagedComposeResources.get() })
-}
-
-android {
-    namespace = "app.naviamp.ui"
-    compileSdk = 36
-    defaultConfig {
-        minSdk = 26
-        // Keep the standalone native-boundary fixture on the pre-enforced-edge-to-edge model.
-        targetSdk = 34
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        if (visualizerMountProbe) {
-            testApplicationId = "app.naviamp.ui.mount544.test"
-            testInstrumentationRunnerArguments["class"] = "app.naviamp.ui.AndroidVisualizerMountTest"
-        } else if (animationProbe) {
-            testInstrumentationRunnerArguments["class"] = listOf(
-                "app.naviamp.ui.AndroidAnimationProbeTest",
-                "app.naviamp.ui.AndroidRasterPlacementTest",
-                "app.naviamp.ui.AndroidVisualizerMountTest",
-                "app.naviamp.ui.NaviampMenuAttachmentTest",
-                "app.naviamp.ui.NaviampDialogInitialFocusTest",
-                "app.naviamp.ui.NaviampSmartPlaylistReferencePickerTest",
-                "app.naviamp.ui.NaviampSmartPlaylistSummaryUiTest",
-                "app.naviamp.ui.NaviampArtistPlaylistsUiTest",
-                "app.naviamp.ui.NaviampLibrarySearchLayoutTest",
-                "app.naviamp.ui.NaviampLibrarySearchResultsUiTest",
-                "app.naviamp.ui.NaviampArtistTopTracksUiTest",
-                "app.naviamp.ui.NaviampArtistSectionLayoutsUiTest",
-                "app.naviamp.ui.NaviampLanguageResourcesUiTest",
-            ).joinToString(",")
-        }
-    }
-    sourceSets.getByName("androidTest").manifest.srcFile("src/androidInstrumentedTest/AndroidManifest.xml")
-    if (animationProbe) {
-        sourceSets.getByName("androidTest").java.srcDir("src/animationProbeAndroid/kotlin")
-        sourceSets.getByName("androidTest").manifest.srcFile("src/animationProbeAndroid/AndroidManifest.xml")
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
 }
 
 // Opt-in real-window probe; included only in explicit device CI and excluded from release packaging.
@@ -187,5 +176,16 @@ tasks.register<JavaExec>("playerAnimationProbe") {
             providers.environmentVariable("NAVIAMP_PROBE_VERIFY").orNull == "true")) {
         dependsOn(buildAnimationCompositorProbe)
         systemProperty("naviamp.probe.compositor.library", compositorProbeLibrary.get().asFile.absolutePath)
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.deviceTests.values.forEach { deviceTest ->
+            deviceTest.sources.manifests.addStaticManifestFile(
+                if (animationProbe) "src/animationProbeAndroid/AndroidManifest.xml"
+                else "src/androidInstrumentedTest/AndroidManifest.xml",
+            )
+        }
     }
 }

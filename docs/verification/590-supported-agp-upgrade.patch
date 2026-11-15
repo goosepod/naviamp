@@ -1,19 +1,19 @@
 diff --git a/.github/workflows/verify.yml b/.github/workflows/verify.yml
-index 5e0c464ad..f53df33a5 100644
+index 5e0c464ad..8226dfca3 100644
 --- a/.github/workflows/verify.yml
 +++ b/.github/workflows/verify.yml
-@@ -139,1 +139,1 @@ jobs:
+@@ -139 +139 @@ jobs:
 -        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973"
-+        run: sdkmanager "platforms;android-37" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973"
-@@ -146,0 +147,1 @@ jobs:
++        run: sdkmanager "platforms;android-37.0" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973"
+@@ -146,0 +147 @@ jobs:
 +          verifySharedAndroidSourceGraph
-@@ -249,1 +250,1 @@ jobs:
+@@ -249 +250 @@ jobs:
 -        api-level: [30, 35]
 +        api-level: [26, 30, 35]
-@@ -288,1 +289,1 @@ jobs:
+@@ -288 +289 @@ jobs:
 -          sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973" "emulator" "system-images;android-${{ matrix.api-level }};google_apis;x86_64" 2>&1 | tee /tmp/naviamp-sdkmanager.log
-+          sdkmanager "platforms;android-37" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973" "emulator" "system-images;android-${{ matrix.api-level }};google_apis;x86_64" 2>&1 | tee /tmp/naviamp-sdkmanager.log
-@@ -336,1 +337,1 @@ jobs:
++          sdkmanager "platforms;android-37.0" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973" "emulator" "system-images;android-${{ matrix.api-level }};google_apis;x86_64" 2>&1 | tee /tmp/naviamp-sdkmanager.log
+@@ -336 +337 @@ jobs:
 -      - name: Exercise native boundaries and raster animation
 +      - name: Exercise native boundaries and shared UI
 @@ -340,3 +341,12 @@ jobs:
@@ -32,35 +32,35 @@ index 5e0c464ad..f53df33a5 100644
 +              "-Pandroid.testInstrumentationRunnerArguments.naviamp.mtls.controlPort=$control_port" \
 +              :apps:android:connectedDebugAndroidTest :core:ui:connectedAndroidDeviceTest
 +          fi
-@@ -351,1 +361,1 @@ jobs:
+@@ -351 +361 @@ jobs:
 -          cp -R core/ui/build/outputs/androidTest-results/connected/debug "$evidence/initial"
 +          cp -R core/ui/build/outputs/androidTest-results/connected "$evidence/initial"
-@@ -356,1 +366,1 @@ jobs:
+@@ -356 +366 @@ jobs:
 -              :core:ui:connectedDebugAndroidTest --rerun --console=plain \
 +              :core:ui:connectedAndroidDeviceTest --rerun --console=plain \
-@@ -358,1 +368,1 @@ jobs:
+@@ -358 +368 @@ jobs:
 -            cp -R core/ui/build/outputs/androidTest-results/connected/debug "$evidence/run-$attempt"
 +            cp -R core/ui/build/outputs/androidTest-results/connected "$evidence/run-$attempt"
-@@ -369,1 +379,1 @@ jobs:
+@@ -369 +379 @@ jobs:
 -          cp -R core/ui/build/outputs/androidTest-results/connected/debug "$evidence/initial"
 +          cp -R core/ui/build/outputs/androidTest-results/connected "$evidence/initial"
-@@ -374,1 +384,1 @@ jobs:
+@@ -374 +384 @@ jobs:
 -              :core:ui:connectedDebugAndroidTest --rerun --console=plain \
 +              :core:ui:connectedAndroidDeviceTest --rerun --console=plain \
-@@ -376,1 +386,1 @@ jobs:
+@@ -376 +386 @@ jobs:
 -            cp -R core/ui/build/outputs/androidTest-results/connected/debug "$evidence/run-$attempt"
 +            cp -R core/ui/build/outputs/androidTest-results/connected "$evidence/run-$attempt"
 diff --git a/apps/android/build.gradle.kts b/apps/android/build.gradle.kts
 index aa8c09472..0504777d2 100644
 --- a/apps/android/build.gradle.kts
 +++ b/apps/android/build.gradle.kts
-@@ -25,1 +24,0 @@ plugins {
+@@ -25 +24,0 @@ plugins {
 -    alias(libs.plugins.kotlin.android)
-@@ -32,1 +31,2 @@ android {
+@@ -32 +31,2 @@ android {
 -    compileSdk = 36
 +    compileSdk = 37
 +    ndkVersion = "27.0.12077973"
-@@ -109,1 +109,1 @@ android {
+@@ -109 +109 @@ android {
 -    buildFeatures { buildConfig = true }
 +    buildFeatures { buildConfig = true; resValues = true }
 @@ -123,0 +124,7 @@ kotlin {
@@ -71,7 +71,7 @@ index aa8c09472..0504777d2 100644
 +    }
 +}
 +
-@@ -141,1 +148,1 @@ dependencies {
+@@ -141 +148 @@ dependencies {
 -    testImplementation(kotlin("test"))
 +    testImplementation(kotlin("test-junit"))
 diff --git a/apps/desktop/build.gradle.kts b/apps/desktop/build.gradle.kts
@@ -87,19 +87,19 @@ index 088da3b81..cd35cc0d8 100644
 +}
 +val desktopPackagingProcess = objects.newInstance<DesktopPackagingProcess>()
 +
-@@ -449,1 +456,1 @@ fun registerWindowsInstaller(format: String) = tasks.register("packageReleaseWin
+@@ -449 +456 @@ fun registerWindowsInstaller(format: String) = tasks.register("packageReleaseWin
 -        project.exec {
 +        desktopPackagingProcess.operations.exec {
-@@ -471,1 +478,1 @@ fun registerWindowsInstaller(format: String) = tasks.register("packageReleaseWin
+@@ -471 +478 @@ fun registerWindowsInstaller(format: String) = tasks.register("packageReleaseWin
 -        project.exec {
 +        desktopPackagingProcess.operations.exec {
-@@ -652,1 +659,1 @@ fun configureMacLocalNetworkPrivacy(appDirectory: File, checkOnly: Boolean = fal
+@@ -652 +659 @@ fun configureMacLocalNetworkPrivacy(appDirectory: File, checkOnly: Boolean = fal
 -    project.exec {
 +    desktopPackagingProcess.operations.exec {
-@@ -665,1 +672,1 @@ fun sealMacAppBundle(appDirectory: File) {
+@@ -665 +672 @@ fun sealMacAppBundle(appDirectory: File) {
 -    project.exec {
 +    desktopPackagingProcess.operations.exec {
-@@ -681,1 +688,1 @@ fun verifyMacAppBundleSeal(appDirectory: File) {
+@@ -681 +688 @@ fun verifyMacAppBundleSeal(appDirectory: File) {
 -    project.exec {
 +    desktopPackagingProcess.operations.exec {
 diff --git a/build.gradle.kts b/build.gradle.kts
@@ -115,9 +115,9 @@ index 6694032a6..072a6f966 100644
 -    }
 -}
 -
-@@ -11,0 +4,1 @@ plugins {
+@@ -11,0 +4 @@ plugins {
 +    alias(libs.plugins.android.multiplatform.library) apply false
-@@ -14,1 +6,0 @@ plugins {
+@@ -14 +6,0 @@ plugins {
 -    alias(libs.plugins.kotlin.android) apply false
 @@ -35,0 +28,27 @@ dependencies {
 +// Custom hierarchy selectors must recognize the Android-KMP plugin's target type.
@@ -151,9 +151,9 @@ diff --git a/core/app/build.gradle.kts b/core/app/build.gradle.kts
 index 55b479251..ca50f0299 100644
 --- a/core/app/build.gradle.kts
 +++ b/core/app/build.gradle.kts
-@@ -5,1 +4,0 @@ plugins {
+@@ -5 +4,0 @@ plugins {
 -    alias(libs.plugins.android.library)
-@@ -6,0 +6,1 @@ plugins {
+@@ -6,0 +6 @@ plugins {
 +    alias(libs.plugins.android.multiplatform.library)
 @@ -12,4 +12,6 @@ kotlin {
 -    androidTarget {
@@ -166,7 +166,7 @@ index 55b479251..ca50f0299 100644
 +        minSdk = 26
 +        compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
 +        withHostTest {}
-@@ -25,1 +27,5 @@ kotlin {
+@@ -25 +27,5 @@ kotlin {
 -                withAndroidTarget()
 +                // The Android-KMP plugin implements KotlinTarget directly, rather than the
 +                // legacy KotlinAndroidTarget selected by withAndroidTarget().
@@ -190,9 +190,9 @@ diff --git a/core/domain/build.gradle.kts b/core/domain/build.gradle.kts
 index 7593af621..9f93277e8 100644
 --- a/core/domain/build.gradle.kts
 +++ b/core/domain/build.gradle.kts
-@@ -33,1 +32,0 @@ plugins {
+@@ -33 +32,0 @@ plugins {
 -    alias(libs.plugins.android.library)
-@@ -34,0 +34,1 @@ plugins {
+@@ -34,0 +34 @@ plugins {
 +    alias(libs.plugins.android.multiplatform.library)
 @@ -40,4 +40,6 @@ kotlin {
 -    androidTarget {
@@ -222,9 +222,9 @@ diff --git a/core/presentation/build.gradle.kts b/core/presentation/build.gradle
 index 4cfe2ddd9..f52f1f2b5 100644
 --- a/core/presentation/build.gradle.kts
 +++ b/core/presentation/build.gradle.kts
-@@ -4,1 +3,0 @@ plugins {
+@@ -4 +3,0 @@ plugins {
 -    alias(libs.plugins.android.library)
-@@ -5,0 +5,1 @@ plugins {
+@@ -5,0 +5 @@ plugins {
 +    alias(libs.plugins.android.multiplatform.library)
 @@ -12,4 +12,6 @@ kotlin {
 -    androidTarget {
@@ -254,9 +254,9 @@ diff --git a/core/storage/build.gradle.kts b/core/storage/build.gradle.kts
 index 53d228728..0e365c186 100644
 --- a/core/storage/build.gradle.kts
 +++ b/core/storage/build.gradle.kts
-@@ -4,1 +3,0 @@ plugins {
+@@ -4 +3,0 @@ plugins {
 -    alias(libs.plugins.android.library)
-@@ -5,0 +5,1 @@ plugins {
+@@ -5,0 +5 @@ plugins {
 +    alias(libs.plugins.android.multiplatform.library)
 @@ -11,4 +11,6 @@ kotlin {
 -    androidTarget {
@@ -286,9 +286,9 @@ diff --git a/core/testkit/build.gradle.kts b/core/testkit/build.gradle.kts
 index 717123ee6..63a751ce0 100644
 --- a/core/testkit/build.gradle.kts
 +++ b/core/testkit/build.gradle.kts
-@@ -6,1 +5,0 @@ plugins {
+@@ -6 +5,0 @@ plugins {
 -    alias(libs.plugins.android.library)
-@@ -7,0 +7,1 @@ plugins {
+@@ -7,0 +7 @@ plugins {
 +    alias(libs.plugins.android.multiplatform.library)
 @@ -12,4 +12,6 @@ kotlin {
 -    androidTarget {
@@ -318,17 +318,17 @@ diff --git a/core/tls-testkit/build.gradle.kts b/core/tls-testkit/build.gradle.k
 index addd8c0e1..565a44b2b 100644
 --- a/core/tls-testkit/build.gradle.kts
 +++ b/core/tls-testkit/build.gradle.kts
-@@ -5,1 +4,0 @@ plugins {
+@@ -5 +4,0 @@ plugins {
 -    alias(libs.plugins.android.library)
-@@ -6,0 +6,1 @@ plugins {
+@@ -6,0 +6 @@ plugins {
 +    alias(libs.plugins.android.multiplatform.library)
-@@ -11,1 +11,4 @@ kotlin {
+@@ -11 +11,4 @@ kotlin {
 -    androidTarget {
 +    android {
 +        namespace = "app.naviamp.core.tls.testkit"
 +        compileSdk = 37
 +        minSdk = 26
-@@ -12,0 +16,1 @@ kotlin {
+@@ -12,0 +16 @@ kotlin {
 +        withHostTest {}
 @@ -22,10 +25,0 @@ kotlin {
 -
@@ -345,9 +345,9 @@ diff --git a/core/ui/build.gradle.kts b/core/ui/build.gradle.kts
 index b42ad11f1..ee6da2fc5 100644
 --- a/core/ui/build.gradle.kts
 +++ b/core/ui/build.gradle.kts
-@@ -8,1 +7,0 @@ plugins {
+@@ -8 +7,0 @@ plugins {
 -    alias(libs.plugins.android.library)
-@@ -9,0 +9,1 @@ plugins {
+@@ -9,0 +9 @@ plugins {
 +    alias(libs.plugins.android.multiplatform.library)
 @@ -16,3 +16,30 @@ kotlin {
 -    androidTarget {
@@ -383,12 +383,12 @@ index b42ad11f1..ee6da2fc5 100644
 +                    "app.naviamp.ui.NaviampLanguageResourcesUiTest",
 +                ).joinToString(",")
 +            }
-@@ -34,1 +61,3 @@ kotlin {
+@@ -34 +61,3 @@ kotlin {
 -        androidInstrumentedTest.get().kotlin.srcDir(renderedUiTests)
 +        val androidDeviceTest = getByName("androidDeviceTest")
 +        androidDeviceTest.kotlin.srcDirs(renderedUiTests, "src/androidInstrumentedTest/kotlin")
 +        if (animationProbe) androidDeviceTest.kotlin.srcDir("src/animationProbeAndroid/kotlin")
-@@ -39,1 +68,1 @@ kotlin {
+@@ -39 +68 @@ kotlin {
 -        androidInstrumentedTest.dependencies {
 +        androidDeviceTest.dependencies {
 @@ -86,40 +114,0 @@ compose.resources {
@@ -445,7 +445,7 @@ index b42ad11f1..ee6da2fc5 100644
 +    }
 +}
 diff --git a/gradle.properties b/gradle.properties
-index 4a593de75..9bfbef366 100644
+index 4a593de75..b18d7b9cc 100644
 --- a/gradle.properties
 +++ b/gradle.properties
 @@ -5,2 +4,0 @@ android.r8.optimizedResourceShrinking=true
@@ -462,7 +462,7 @@ index 48a81a26b..38637db4b 100644
 +kotlin = "2.4.21"
 +agp = "9.5.1"
 +compose = "1.12.2"
-@@ -9,1 +9,1 @@ androidx-fragment = "1.9.1"
+@@ -9 +9 @@ androidx-fragment = "1.9.1"
 -androidx-lifecycle = "2.9.6"
 +androidx-lifecycle = "2.11.0"
 @@ -15,3 +15,3 @@ kotlinx-coroutines = "1.11.0"
@@ -481,15 +481,15 @@ index 48a81a26b..38637db4b 100644
 +bouncycastle = "1.87"
 +jmdns = "3.6.5"
 +dbus-java = "5.2.2"
-@@ -55,0 +56,1 @@ dbus-java-transport-native-unixsocket = { module = "com.github.hypfvieh:dbus-jav
+@@ -55,0 +56 @@ dbus-java-transport-native-unixsocket = { module = "com.github.hypfvieh:dbus-jav
 +android-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
-@@ -60,1 +60,0 @@ kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+@@ -60 +60,0 @@ kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 -kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 diff --git a/gradle/wrapper/gradle-wrapper.properties b/gradle/wrapper/gradle-wrapper.properties
 index 8ff605c61..0aced5e53 100644
 --- a/gradle/wrapper/gradle-wrapper.properties
 +++ b/gradle/wrapper/gradle-wrapper.properties
-@@ -3,1 +3,1 @@ distributionPath=wrapper/dists
+@@ -3 +3 @@ distributionPath=wrapper/dists
 -distributionUrl=https\://services.gradle.org/distributions/gradle-8.14.5-bin.zip
 +distributionUrl=https\://services.gradle.org/distributions/gradle-9.9.1-bin.zip
 @@ -9,0 +10,2 @@ zipStorePath=wrapper/dists
@@ -499,21 +499,21 @@ diff --git a/platforms/android/build.gradle.kts b/platforms/android/build.gradle
 index 5a5997d17..0a845857b 100644
 --- a/platforms/android/build.gradle.kts
 +++ b/platforms/android/build.gradle.kts
-@@ -5,1 +4,0 @@ plugins {
+@@ -5 +4,0 @@ plugins {
 -    alias(libs.plugins.kotlin.android)
-@@ -12,1 +11,1 @@ android {
+@@ -12 +11 @@ android {
 -    compileSdk = 36
 +    compileSdk = 37
-@@ -47,1 +46,1 @@ dependencies {
+@@ -47 +46 @@ dependencies {
 -    testImplementation(kotlin("test"))
 +    testImplementation(kotlin("test-junit"))
 diff --git a/providers/jellyfin/build.gradle.kts b/providers/jellyfin/build.gradle.kts
 index 7ea1b0e69..63d82e692 100644
 --- a/providers/jellyfin/build.gradle.kts
 +++ b/providers/jellyfin/build.gradle.kts
-@@ -4,1 +3,0 @@ plugins {
+@@ -4 +3,0 @@ plugins {
 -    alias(libs.plugins.android.library)
-@@ -5,0 +5,1 @@ plugins {
+@@ -5,0 +5 @@ plugins {
 +    alias(libs.plugins.android.multiplatform.library)
 @@ -10,4 +10,6 @@ kotlin {
 -    androidTarget {
@@ -543,9 +543,9 @@ diff --git a/providers/navidrome/build.gradle.kts b/providers/navidrome/build.gr
 index c3fa8b064..e9960beff 100644
 --- a/providers/navidrome/build.gradle.kts
 +++ b/providers/navidrome/build.gradle.kts
-@@ -4,1 +3,0 @@ plugins {
+@@ -4 +3,0 @@ plugins {
 -    alias(libs.plugins.android.library)
-@@ -5,0 +5,1 @@ plugins {
+@@ -5,0 +5 @@ plugins {
 +    alias(libs.plugins.android.multiplatform.library)
 @@ -10,4 +10,7 @@ kotlin {
 -    androidTarget {
@@ -577,7 +577,7 @@ diff --git a/scripts/tests/test_verification_translations.py b/scripts/tests/tes
 index 47cd6dd86..864a178ac 100644
 --- a/scripts/tests/test_verification_translations.py
 +++ b/scripts/tests/test_verification_translations.py
-@@ -92,1 +92,2 @@ class TranslationValidationTest(unittest.TestCase):
+@@ -92 +92,2 @@ class TranslationValidationTest(unittest.TestCase):
 -        self.assertIn('api-level: [30, 35]', android)
 +        self.assertIn('api-level: [26, 30, 35]', android)
 +        self.assertIn('verifySharedAndroidSourceGraph', shared)
