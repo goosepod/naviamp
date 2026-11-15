@@ -62,8 +62,48 @@ Python 3.14 and the existing Windows credential/cache context. Failed attempts w
 ## Limits before host wiring
 
 This proves portable behavior compiles and executes on tvOS. It does not yet provide TV filesystem
-or secure-storage effects, a native SQL driver instance, bounded persistent settings/cache policy,
-Core presentation/UI closure, a signed app or physical input/audio. Provider tests mostly use the
+or secure-storage effects, bounded persistent settings/cache policy, Core presentation/UI closure,
+a signed app or physical input/audio. The native driver follow-up below supplies the shared SQL
+effect, without selecting a TV filesystem location. Provider tests mostly use the
 existing mock HTTP effects: native tvOS authenticated TLS/range streaming still needs a real fixture.
 Do not treat iOS TLS success as that test. Full-app UI resolution must also address Lifecycle 2.11
 and use the [verified private artifact pipeline](590-compose-artifact-delivery.md).
+
+## Shared native SQLite follow-up
+
+`NativeStorageDriverFactory` now contains the original NativeSqliteDriver effect in `nativeMain`,
+usable by both iOS and TV. Its SQLDelight Native/sqliter dependency, WAL, 10-second busy timeout,
+foreign-key configuration and canonical `NaviampStorageSchema` remain the same. The original
+`IosStorageDriverFactory` constructor/API remains as a ten-line delegation wrapper. No schema or
+migration changed. The absolute POSIX path check moved into the common location model and has a
+common regression for relative/traversal/Windows-style inputs; no filesystem location is chosen
+by the model or driver.
+
+The separate production-native audit is:
+
+| Changed native production file | Concrete boundary |
+| --- | --- |
+| `core/storage/src/nativeMain/kotlin/app/naviamp/storage/NativeStorageDriverFactory.kt` | NativeSqliteDriver/sqliter configuration and native connection lifetime; unavailable to JVM/common Kotlin |
+| `core/storage/src/iosMain/kotlin/app/naviamp/storage/IosStorageDriverFactory.kt` | Compatibility delegation into that native SQL driver, with no repository/persistence policy |
+
+Three real Apple native adapter cases now verify canonical schema/version plus enabled foreign
+keys, committed-row persistence across close/reopen in the selected directory, and schema creation
+after deleting/recreating an **owned test directory** to simulate a cache purge. They execute on
+both TV 27.2 and iOS 26.5. The TV suite set now reports **1,809** cases (storage: seven), zero
+failures/errors/skips. iOS storage reports **eight** cases, including the original compatibility
+wrapper test, zero failures/errors/skips. Both owned simulators cleaned up successfully. The three
+device/simulator native storage compilations and JVM/Android common suites also pass.
+
+The strict TV runner requires all three native SQL test names and records their source identities;
+an empty or common-only storage result cannot satisfy this gate. Evidence: Mac
+`build/590-native-storage-shared`, local `build/590-feasibility/native-storage-{ios,tvos}-summary.json`
+and `native-storage-windows.log`. This is SQLite recreation evidence, **not** recovery of user
+connections/secrets/settings after an OS purge.
+
+Apple's [archived TV storage guidance](https://developer.apple.com/library/archive/documentation/General/Conceptual/AppleTV_PG/)
+requires non-defaults local data to tolerate purging. Its current
+[UserDefaults limit documentation](https://developer.apple.com/documentation/foundation/userdefaults/sizelimitexceededmessage)
+warns at 512 KB and describes process termination at 1 MB. Before a real TV host, define the
+authoritative bounded connection/settings snapshot and secure-secret effects in shared contracts;
+keep derived SQL/index/artwork/audio data rebuildable. Do not copy iOS's large file layout/defaults
+store, silently discard oversized imported preferences, or promise durable TV downloads.

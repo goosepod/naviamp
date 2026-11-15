@@ -627,3 +627,9 @@ identity. Clean automated producer delivery remains open. The next
 for the existing app/storage/Navidrome/Jellyfin modules: all 12 requested iOS/TV compilations
 and 1,805 TV simulator cases pass. Apple TLS effects are shared byte-identically with iOS;
 the full TV filesystem/settings/UI host and real authenticated streaming remain to be wired.
+
+The follow-up shares the native SQL driver while retaining iOS's constructor/API. Real schema,
+close/reopen and simulated-purge cases pass on both TV and iOS; the expanded TV matrix now has
+1,809 passing cases. The renderer fixture also links/visibly paints with the app's official
+Lifecycle 2.11 dependency. These close specific foundation gaps, not full-host or storage durability
+acceptance; see the updated shared-foundation and artifact reports for the native file audit and limits.

@@ -18,6 +18,12 @@ REQUIRED_NATIVE_CASES = {
     "coreEnginePlaysPausesSeeksAndFinishesThroughDirectPublicBass",
 }
 
+REQUIRED_STORAGE_NATIVE_CASES = {
+    "nativeDriverCreatesCanonicalSchemaAndEnforcesForeignKeys",
+    "nativeDriverReopensCommittedRowsInTheHostSelectedDirectory",
+    "emptyReplacementDirectoryRebuildsSchemaAfterSimulatedCachePurge",
+}
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -47,6 +53,12 @@ def main():
         source_paths += [module + "/build.gradle.kts" for module in modules[2:]]
         source_paths += ["providers/navidrome/src/appleMain/kotlin/app/naviamp/provider/navidrome/" + name
                          for name in ("NavidromeApplePlatform.kt", "NavidromeAppleTlsMaterial.kt")]
+        source_paths += ["core/storage/src/" + path for path in (
+            "nativeMain/kotlin/app/naviamp/storage/NativeStorageDriverFactory.kt",
+            "iosMain/kotlin/app/naviamp/storage/IosStorageDriverFactory.kt",
+            "commonMain/kotlin/app/naviamp/storage/StorageDatabaseLocation.kt",
+            "appleTest/kotlin/app/naviamp/storage/AppleStorageDriverTest.kt",
+        )]
     report["sourceSha256"] = {path: hashlib.sha256((root / path).read_bytes()).hexdigest() for path in source_paths}
     report["sourceLfSha256"] = {
         path: hashlib.sha256((root / path).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
@@ -120,6 +132,10 @@ def main():
                 raise RuntimeError("Core test inventory unexpectedly small")
             elif not cases:
                 raise RuntimeError(f"Empty shared test inventory: {module}")
+            if module == "core/storage":
+                names = {case.attrib["name"].removesuffix("[tvosSimulatorArm64]") for case in cases}
+                if not REQUIRED_STORAGE_NATIVE_CASES <= names:
+                    raise RuntimeError(f"Required native SQLite tests did not execute: {names}")
             report["suites"][module] = dict(cases=len(cases),
                                           failures=sum(c.find("failure") is not None for c in cases),
                                           errors=sum(c.find("error") is not None for c in cases),

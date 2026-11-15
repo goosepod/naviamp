@@ -36,7 +36,7 @@ kotlin {
         jvmTest.dependencies {
             implementation(libs.sqldelight.sqlite.driver)
         }
-        iosMain.dependencies {
+        nativeMain.dependencies {
             implementation(libs.sqldelight.native.driver)
         }
     }
