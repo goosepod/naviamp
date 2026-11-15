@@ -64,7 +64,7 @@ Local Windows validation on the issue branch:
 Common-metadata validation exposed five existing calls to JVM's no-argument
 `CancellationException()` in `NaviampPlaybackStreamRelay` and
 `NaviampCorePlaylistTransactionController`. They now use the portable
-`CancellationException(null)` constructor, preserving the null message and cancellation behavior.
+`CancellationException(null, null)` factory, preserving the null message/cause and cancellation behavior. The two arguments also disambiguate Native message/cause overloads; the initial single-null form passed JVM/common metadata but failed iOS CI.
 The existing module regression suites cover these owners; metadata compilation exercises the API
 restriction that JVM compilation alone missed.
 
