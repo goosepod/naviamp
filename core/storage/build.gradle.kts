@@ -18,6 +18,10 @@ kotlin {
     jvm()
     iosArm64()
     iosSimulatorArm64()
+    if (providers.gradleProperty("naviamp.tvos.feasibility").orNull == "true") {
+        tvosArm64()
+        tvosSimulatorArm64()
+    }
 
     sourceSets {
         commonMain.dependencies {

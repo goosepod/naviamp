@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - 'core/domain/**'
+      - 'core/app/**'
+      - 'core/storage/**'
+      - 'providers/navidrome/**'
+      - 'providers/jellyfin/**'
       - 'platforms/apple/**'
       - 'platforms/tvos/**'
       - 'platforms/ios/vendor/bass/**'
@@ -16,6 +20,10 @@ on:
     branches: [main]
     paths:
       - 'core/domain/**'
+      - 'core/app/**'
+      - 'core/storage/**'
+      - 'providers/navidrome/**'
+      - 'providers/jellyfin/**'
       - 'platforms/apple/**'
       - 'platforms/tvos/**'
       - 'platforms/ios/vendor/bass/**'
@@ -107,10 +115,12 @@ jobs:
           ./gradlew --console=plain --max-workers=2 \
             '-Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8' \
             "-Pkonan.data.dir=$KONAN_DATA_DIR" -Pnaviamp.tvos.feasibility=true \
-            :platforms:tvos:compileKotlinTvosArm64 :platforms:tvos:verifyTvosBassInventory
+            :platforms:tvos:compileKotlinTvosArm64 :platforms:tvos:verifyTvosBassInventory \
+            :core:app:compileKotlinTvosArm64 :core:storage:compileKotlinTvosArm64 \
+            :providers:navidrome:compileKotlinTvosArm64 :providers:jellyfin:compileKotlinTvosArm64
       - name: Run fresh Core and direct BASS simulator tests
         run: |
-          python3 scripts/run-tvos-bass-tests.py --output build/tvos-native \
+          python3 scripts/run-tvos-bass-tests.py --output build/tvos-native --shared-foundation \
             "--gradle-arg=-Pkonan.data.dir=$KONAN_DATA_DIR"
       - uses: actions/cache/save@v6
         if: github.ref == 'refs/heads/main' && steps.native-cache.outputs.cache-hit != 'true'

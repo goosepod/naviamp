@@ -18,6 +18,10 @@ kotlin {
     jvm()
     iosArm64()
     iosSimulatorArm64()
+    if (providers.gradleProperty("naviamp.tvos.feasibility").orNull == "true") {
+        tvosArm64()
+        tvosSimulatorArm64()
+    }
     applyDefaultHierarchyTemplate()
 
     sourceSets {
@@ -49,7 +53,7 @@ kotlin {
             implementation(project(":core:testkit"))
         }
 
-        iosMain.dependencies {
+        appleMain.dependencies {
             implementation(libs.ktor.client.darwin)
         }
     }

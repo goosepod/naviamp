@@ -619,3 +619,11 @@ in the installed catalog. Keep the original Android/iOS minimums unchanged. The 
 work remains trusted artifact delivery and bounded tvOS storage/runtime/UI/provider closure,
 followed by the thin scene/remote/system host and its physical acceptance matrix. Windows output
 and final animation/compositor budget limits remain open.
+
+The [artifact integrity gate](verification/590-compose-artifact-delivery.md) now seals/verifies
+all 1,476 files across 52 intended private publications with a separately recorded manifest
+identity. Clean automated producer delivery remains open. The next
+[shared foundation checkpoint](verification/590-shared-tvos-foundation.md) adds opt-in TV targets
+for the existing app/storage/Navidrome/Jellyfin modules: all 12 requested iOS/TV compilations
+and 1,805 TV simulator cases pass. Apple TLS effects are shared byte-identically with iOS;
+the full TV filesystem/settings/UI host and real authenticated streaming remain to be wired.

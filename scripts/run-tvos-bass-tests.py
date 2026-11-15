@@ -24,6 +24,8 @@ def main():
     parser.add_argument("--project", type=Path, default=Path(__file__).resolve().parent.parent)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--gradle-arg", action="append", default=[])
+    parser.add_argument("--shared-foundation", action="store_true",
+                        help="Also run the shared app/storage/Navidrome/Jellyfin suites")
     args = parser.parse_args()
     root = args.project.resolve()
     out = args.output.resolve()
@@ -39,6 +41,12 @@ def main():
                     "platforms/tvos/src/tvosMain/kotlin/app/naviamp/tvos/playback/TvosBassPlayback.kt",
                     "platforms/tvos/src/tvosTest/kotlin/app/naviamp/tvos/playback/TvosBassIntegrationTest.kt",
                     "platforms/tvos/src/tvosTest/kotlin/app/naviamp/tvos/playback/TvosCodecFixtures.kt"]
+    modules = ["core/domain", "platforms/tvos"]
+    if args.shared_foundation:
+        modules += ["core/app", "core/storage", "providers/navidrome", "providers/jellyfin"]
+        source_paths += [module + "/build.gradle.kts" for module in modules[2:]]
+        source_paths += ["providers/navidrome/src/appleMain/kotlin/app/naviamp/provider/navidrome/" + name
+                         for name in ("NavidromeApplePlatform.kt", "NavidromeAppleTlsMaterial.kt")]
     report["sourceSha256"] = {path: hashlib.sha256((root / path).read_bytes()).hexdigest() for path in source_paths}
     report["sourceLfSha256"] = {
         path: hashlib.sha256((root / path).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
@@ -82,7 +90,7 @@ def main():
         env["SIMCTL_CHILD_DYLD_FRAMEWORK_PATH"] = str(frameworks)
         init = out / "test-device.init.gradle"
         init.write_text('''gradle.projectsEvaluated {
-    [":core:domain", ":platforms:tvos"].each { path ->
+    ''' + json.dumps([":" + module.replace("/", ":") for module in modules]) + '''.each { path ->
         rootProject.project(path).tasks.named("tvosSimulatorArm64Test").configure {
             device.set(gradle.startParameter.projectProperties["naviamp.tvos.testDevice"])
             standalone.set(false)
@@ -95,10 +103,11 @@ def main():
         _, gradle_status = run([str(root / "gradlew"), "--console=plain", "--max-workers=2",
              "-Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8", *args.gradle_arg,
              "--init-script", str(init), "-Pnaviamp.tvos.feasibility=true",
-             "-Pnaviamp.tvos.testDevice=" + device, ":core:domain:tvosSimulatorArm64Test",
-             ":platforms:tvos:tvosSimulatorArm64Test", ":platforms:tvos:verifyTvosBassInventory"], timeout=1800, check=False)
+             "-Pnaviamp.tvos.testDevice=" + device,
+             *[":" + module.replace("/", ":") + ":tvosSimulatorArm64Test" for module in modules],
+             ":platforms:tvos:verifyTvosBassInventory"], timeout=1800, check=False)
         report["suites"] = {}
-        for module in ("core/domain", "platforms/tvos"):
+        for module in modules:
             files = sorted((root / module / "build/test-results/tvosSimulatorArm64Test").glob("TEST-*.xml"))
             if not files or any(p.stat().st_mtime < started for p in files):
                 raise RuntimeError(f"Missing or stale XML results: {module}")
@@ -107,8 +116,10 @@ def main():
                 names = {case.attrib["name"].removesuffix("[tvosSimulatorArm64]") for case in cases}
                 if names != REQUIRED_NATIVE_CASES or len(cases) != len(REQUIRED_NATIVE_CASES):
                     raise RuntimeError(f"Native test inventory mismatch: {names}")
-            elif len(cases) < 1_100:
+            elif module == "core/domain" and len(cases) < 1_100:
                 raise RuntimeError("Core test inventory unexpectedly small")
+            elif not cases:
+                raise RuntimeError(f"Empty shared test inventory: {module}")
             report["suites"][module] = dict(cases=len(cases),
                                           failures=sum(c.find("failure") is not None for c in cases),
                                           errors=sum(c.find("error") is not None for c in cases),
