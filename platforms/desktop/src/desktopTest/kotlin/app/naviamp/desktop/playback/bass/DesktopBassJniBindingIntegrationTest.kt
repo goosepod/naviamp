@@ -53,8 +53,11 @@ class DesktopBassJniBindingIntegrationTest {
             assertEquals(pausedPosition, binding.positionSeconds(paused))
             assertEquals(callbacks, binding.endSyncRegistrationCount)
             val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
-            while ((binding.audiblePositionSeconds(output, source) ?: 0.0) < 0.2 && System.nanoTime() < deadline) Thread.sleep(20)
-            assertTrue((binding.audiblePositionSeconds(output, source) ?: 0.0) >= 0.2, "Reinitialized real output clock must advance")
+            val backend = DesktopBassAudioBackend(binding)
+            val outputHandle = app.naviamp.domain.bass.BassStreamHandle(output)
+            val sourceHandle = app.naviamp.domain.bass.BassStreamHandle(source)
+            while ((backend.audiblePositionSeconds(outputHandle, sourceHandle) ?: 0.0) < 0.2 && System.nanoTime() < deadline) Thread.sleep(20)
+            assertTrue((backend.audiblePositionSeconds(outputHandle, sourceHandle) ?: 0.0) >= 0.2, "Reinitialized real output clock must advance")
             assertNotNull(binding.bufferedOutputSeconds(output))
             assertTrue(binding.freeStream(output))
             assertTrue(binding.freeStream(source))
@@ -204,6 +207,24 @@ class DesktopBassJniBindingIntegrationTest {
             wav.writeBytes(bytes)
             assertTrue(binding.initForIntegrationTest())
             val backend = DesktopBassAudioBackend(binding)
+            val library = com.sun.jna.NativeLibrary.getInstance(
+                File(binding.libraryDirectory, System.mapLibraryName("bass")).absolutePath,
+            )
+            val policy = app.naviamp.domain.bass.BassInternetStreamPolicy(
+                playlistsEnabled = false, metadataEnabled = false, playlistDepth = 3,
+                bufferMillis = 4_321, prebufferPercent = 40,
+                connectionTimeoutMillis = 12_345, readTimeoutMillis = 23_456,
+            )
+            try {
+                backend.configureInternetStreams(policy).getOrThrow()
+                // BASS_CONFIG_* constants from the vendored BASS C ABI header.
+                for ((option, expected) in mapOf(21 to 0, 71 to 0, 59 to 3, 12 to 4_321,
+                    15 to 40, 11 to 12_345, 37 to 23_456)) {
+                    assertEquals(expected, library.getFunction("BASS_GetConfig").invokeInt(arrayOf(option)))
+                }
+            } finally {
+                backend.configureInternetStreams().getOrThrow()
+            }
             val stream = backend.createFileDecodeStream(wav.absolutePath).getOrThrow()
             try {
                 backend.seek(stream, 0.5).getOrThrow()

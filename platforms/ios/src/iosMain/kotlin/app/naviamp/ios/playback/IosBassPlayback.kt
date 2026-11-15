@@ -3,6 +3,7 @@
 package app.naviamp.ios.playback
 
 import app.naviamp.domain.bass.BassFilePosition
+import app.naviamp.domain.bass.BassInternetStreamPolicy
 import app.naviamp.ios.bass.native.BASS_StreamGetFilePosition
 import app.naviamp.domain.bass.bassStreamProperties
 import app.naviamp.ios.bass.native.BASS_ChannelGetTags
@@ -263,15 +264,15 @@ class IosBassAudioBackend : BassAudioBackend {
             BASS_SetConfig(BASS_CONFIG_VERIFY_NET.toUInt(), if (verify) 1u else 0u) != 0
         }
 
-    override fun configureInternetStreams(): Result<Unit> {
+    override fun configureInternetStreams(policy: BassInternetStreamPolicy): Result<Unit> {
         val settings = listOf(
-            Triple("BASS_CONFIG_NET_PLAYLIST", BASS_CONFIG_NET_PLAYLIST, 1u),
-            Triple("BASS_CONFIG_NET_META", BASS_CONFIG_NET_META, 1u),
-            Triple("BASS_CONFIG_NET_PLAYLIST_DEPTH", BASS_CONFIG_NET_PLAYLIST_DEPTH, 5u),
-            Triple("BASS_CONFIG_NET_BUFFER", BASS_CONFIG_NET_BUFFER, 5_000u),
-            Triple("BASS_CONFIG_NET_PREBUF", BASS_CONFIG_NET_PREBUF, 75u),
-            Triple("BASS_CONFIG_NET_TIMEOUT", BASS_CONFIG_NET_TIMEOUT, 15_000u),
-            Triple("BASS_CONFIG_NET_READTIMEOUT", BASS_CONFIG_NET_READTIMEOUT, 15_000u),
+            Triple("BASS_CONFIG_NET_PLAYLIST", BASS_CONFIG_NET_PLAYLIST, if (policy.playlistsEnabled) 1u else 0u),
+            Triple("BASS_CONFIG_NET_META", BASS_CONFIG_NET_META, if (policy.metadataEnabled) 1u else 0u),
+            Triple("BASS_CONFIG_NET_PLAYLIST_DEPTH", BASS_CONFIG_NET_PLAYLIST_DEPTH, policy.playlistDepth.toUInt()),
+            Triple("BASS_CONFIG_NET_BUFFER", BASS_CONFIG_NET_BUFFER, policy.bufferMillis.toUInt()),
+            Triple("BASS_CONFIG_NET_PREBUF", BASS_CONFIG_NET_PREBUF, policy.prebufferPercent.toUInt()),
+            Triple("BASS_CONFIG_NET_TIMEOUT", BASS_CONFIG_NET_TIMEOUT, policy.connectionTimeoutMillis.toUInt()),
+            Triple("BASS_CONFIG_NET_READTIMEOUT", BASS_CONFIG_NET_READTIMEOUT, policy.readTimeoutMillis.toUInt()),
         )
         settings.forEach { (name, option, value) ->
             if (BASS_SetConfig(option.toUInt(), value) == 0) return failure("$name failed")
@@ -467,23 +468,11 @@ class IosBassAudioBackend : BassAudioBackend {
             ?.let { BASS_ChannelBytes2Seconds(stream.uint, it) }
             ?.takeIf { it >= 0.0 }
 
-    override fun audiblePositionSeconds(playbackStream: BassStreamHandle, sourceStream: BassStreamHandle): Double? {
-        val progressStream = sourceStream.takeIf { it.value != 0 } ?: playbackStream
-        val mixerSource = progressStream != playbackStream
-        if (mixerSource) {
-            BASS_Mixer_ChannelGetPosition(progressStream.uint, BASS_POS_BYTE.toUInt())
-                .takeUnless { it == ULong.MAX_VALUE }
-                ?.let { BASS_ChannelBytes2Seconds(progressStream.uint, it) }
-                ?.takeIf { it >= 0.0 }
-                ?.let { return it }
-        }
-        val decoded = positionSeconds(progressStream) ?: return null
-        if (mixerSource) return decoded
-        val bufferedBytes = BASS_ChannelGetData(playbackStream.uint, null, BASS_DATA_AVAILABLE.toUInt())
-        if (bufferedBytes == UInt.MAX_VALUE) return decoded
-        val buffered = BASS_ChannelBytes2Seconds(playbackStream.uint, bufferedBytes.toULong())
-        return if (buffered >= 0.0) max(0.0, decoded - buffered) else decoded
-    }
+    override fun mixerSourcePositionSeconds(stream: BassStreamHandle): Double? =
+        BASS_Mixer_ChannelGetPosition(stream.uint, BASS_POS_BYTE.toUInt())
+            .takeUnless { it == ULong.MAX_VALUE }
+            ?.let { BASS_ChannelBytes2Seconds(stream.uint, it) }
+            ?.takeIf { it.isFinite() && it >= 0.0 }
 
     override fun durationSeconds(stream: BassStreamHandle): Double? =
         lengthBytes(stream)?.let { BASS_ChannelBytes2Seconds(stream.uint, it.toULong()) }?.takeIf { it >= 0.0 }

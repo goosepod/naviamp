@@ -224,7 +224,9 @@ interface BassAudioBackend {
 
     fun setVerifyNet(verify: Boolean): Result<Unit> = Result.success(Unit)
 
-    fun configureInternetStreams(): Result<Unit> = Result.success(Unit)
+    fun configureInternetStreams(): Result<Unit> = configureInternetStreams(BassInternetStreamPolicy())
+
+    fun configureInternetStreams(policy: BassInternetStreamPolicy): Result<Unit> = Result.success(Unit)
 
     fun setSampleRateConverterQuality(quality: Int): Result<Unit> =
         unsupportedBassOperation("BASS sample-rate converter quality")
@@ -307,10 +309,24 @@ interface BassAudioBackend {
 
     fun positionSeconds(stream: BassStreamHandle): Double? = null
 
+    /** Native mixer history only; direct-output buffering and fallback decisions belong below. */
+    fun mixerSourcePositionSeconds(stream: BassStreamHandle): Double? = null
+
     fun audiblePositionSeconds(
         playbackStream: BassStreamHandle,
         sourceStream: BassStreamHandle,
-    ): Double? = positionSeconds(sourceStream.takeIf { it.value != 0 } ?: playbackStream)
+    ): Double? {
+        val progressStream = sourceStream.takeIf { it.value != 0 } ?: playbackStream
+        val mixerSource = progressStream != playbackStream
+        if (mixerSource) {
+            mixerSourcePositionSeconds(progressStream)
+                ?.takeIf { it.isFinite() && it >= 0.0 }?.let { return it }
+        }
+        val decoded = positionSeconds(progressStream)?.takeIf { it.isFinite() && it >= 0.0 } ?: return null
+        if (mixerSource) return decoded
+        val buffered = bufferedOutputSeconds(playbackStream)?.takeIf { it.isFinite() && it >= 0.0 } ?: return decoded
+        return (decoded - buffered).coerceAtLeast(0.0)
+    }
 
     fun durationSeconds(stream: BassStreamHandle): Double? = null
 

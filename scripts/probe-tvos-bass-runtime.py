@@ -16,7 +16,8 @@ import zipfile
 EXPECTED_ARCHIVE = "8f3bef0a67c20fdf1b65a7b6164b25bfb3a75e47e8bd5f1094eb0fad1ac3bbe8"
 CHECKS = ("audioSession", "initialized", "flacRegistered", "opusRegistered", "streamCreated",
           "volume", "endSyncInstalled", "play", "positionAdvanced", "pause", "pausedPositionStable",
-          "seek", "seekPosition", "resume", "endSyncDelivered", "streamFreed", "freed")
+          "seek", "seekPosition", "resume", "endSyncDelivered", "streamFreed", "freed",
+          "networkConfigured", "networkValuesReadBack", "equalizerApplied", "waveformRmsRead")
 
 
 def native_checks_pass(result):

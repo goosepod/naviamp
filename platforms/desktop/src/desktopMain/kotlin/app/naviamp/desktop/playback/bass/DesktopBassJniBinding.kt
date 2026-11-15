@@ -1,5 +1,7 @@
 package app.naviamp.desktop.playback.bass
 
+import app.naviamp.domain.bass.BassInternetStreamPolicy
+
 import app.naviamp.domain.bass.BassCodecPluginInventory
 import app.naviamp.domain.playback.planEqualizer
 import app.naviamp.domain.playback.toNativeEqualizerParameters
@@ -49,7 +51,10 @@ class DesktopBassJniBinding private constructor(
     fun setStreamOutputDevice(stream: Int, deviceId: String?): Boolean =
         nativeSetStreamOutputDevice(stream, deviceId)
 
-    fun configureInternetStreams(): Boolean = nativeConfigureInternetStreams()
+    fun configureInternetStreams(policy: BassInternetStreamPolicy): Boolean = nativeConfigureInternetStreams(
+        policy.playlistsEnabled, policy.metadataEnabled, policy.playlistDepth, policy.bufferMillis,
+        policy.prebufferPercent, policy.connectionTimeoutMillis, policy.readTimeoutMillis,
+    )
 
     fun createUrlStream(url: String): Int = nativeCreateUrlStream(url)
 
@@ -107,8 +112,8 @@ class DesktopBassJniBinding private constructor(
     fun positionSeconds(stream: Int): Double? = nativePositionSeconds(stream).takeIf { it >= 0.0 }
     fun setSampleRateConverterQuality(quality: Int): Boolean = nativeSetSampleRateConverterQuality(quality)
 
-    fun audiblePositionSeconds(playbackStream: Int, sourceStream: Int): Double? =
-        nativeAudiblePositionSeconds(playbackStream, sourceStream).takeIf { it >= 0.0 }
+    fun mixerSourcePositionSeconds(stream: Int): Double? =
+        nativeMixerSourcePositionSeconds(stream).takeIf { it.isFinite() && it >= 0.0 }
 
     fun durationSeconds(stream: Int): Double? = nativeDurationSeconds(stream).takeIf { it > 0.0 }
 
@@ -160,7 +165,10 @@ class DesktopBassJniBinding private constructor(
     private external fun nativeOutputDevices(): Array<String>
     private external fun nativeSetOutputDevice(deviceId: String?): Boolean
     private external fun nativeSetStreamOutputDevice(stream: Int, deviceId: String?): Boolean
-    private external fun nativeConfigureInternetStreams(): Boolean
+    private external fun nativeConfigureInternetStreams(
+        playlists: Boolean, metadata: Boolean, depth: Int, bufferMillis: Int,
+        prebufferPercent: Int, timeoutMillis: Int, readTimeoutMillis: Int,
+    ): Boolean
     private external fun nativeCreateUrlStream(url: String): Int
     private external fun nativeCreateRandomAccessStream(callbacks: app.naviamp.domain.playback.BassFileCallbacks, decode: Boolean): Int
     private external fun nativeCreateFileStream(path: String): Int
@@ -185,7 +193,7 @@ class DesktopBassJniBinding private constructor(
     private external fun nativeSeek(stream: Int, seconds: Double): Boolean
     private external fun nativePositionSeconds(stream: Int): Double
     private external fun nativeSetSampleRateConverterQuality(quality: Int): Boolean
-    private external fun nativeAudiblePositionSeconds(playbackStream: Int, sourceStream: Int): Double
+    private external fun nativeMixerSourcePositionSeconds(stream: Int): Double
     private external fun nativeDurationSeconds(stream: Int): Double
     private external fun nativeLengthBytes(stream: Int): Long
     private external fun nativeFilePosition(stream: Int, mode: Int): Long

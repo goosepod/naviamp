@@ -28,10 +28,6 @@
 #include <vector>
 
 namespace {
-constexpr DWORD NETWORK_BUFFER_MILLIS = 5000;
-constexpr DWORD NETWORK_TIMEOUT_MILLIS = 15000;
-constexpr DWORD NETWORK_PREBUFFER_PERCENT = 75;
-constexpr DWORD NETWORK_PLAYLIST_DEPTH = 5;
 
 #if defined(_WIN32) && !defined(__ANDROID__)
 constexpr DWORD DWM_WINDOW_ATTRIBUTE_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19;
@@ -264,11 +260,6 @@ bool configure_playback_buffers(DWORD playbackBufferMillis, DWORD updatePeriodMi
 #else
     configured = BASS_SetConfig(BASS_CONFIG_DEV_BUFFER, deviceBufferMillis) && configured;
 #endif
-    BASS_SetConfig(BASS_CONFIG_NET_BUFFER, NETWORK_BUFFER_MILLIS);
-    BASS_SetConfig(BASS_CONFIG_NET_PREBUF, NETWORK_PREBUFFER_PERCENT);
-    BASS_SetConfig(BASS_CONFIG_NET_PREBUF_WAIT, 1);
-    BASS_SetConfig(BASS_CONFIG_NET_TIMEOUT, NETWORK_TIMEOUT_MILLIS);
-    BASS_SetConfig(BASS_CONFIG_NET_READTIMEOUT, NETWORK_TIMEOUT_MILLIS);
     return configured;
 }
 
@@ -376,15 +367,16 @@ jfloat mono_rms_level(jint stream, jfloat seconds) {
     return level;
 }
 
-BOOL configure_internet_streams() {
+BOOL configure_internet_streams(jboolean playlists, jboolean metadata, jint depth, jint bufferMillis,
+                                jint prebufferPercent, jint timeoutMillis, jint readTimeoutMillis) {
     BOOL ok = TRUE;
-    ok = BASS_SetConfig(BASS_CONFIG_NET_PLAYLIST, 1) && ok;
-    ok = BASS_SetConfig(BASS_CONFIG_NET_META, 1) && ok;
-    ok = BASS_SetConfig(BASS_CONFIG_NET_PLAYLIST_DEPTH, NETWORK_PLAYLIST_DEPTH) && ok;
-    ok = BASS_SetConfig(BASS_CONFIG_NET_BUFFER, NETWORK_BUFFER_MILLIS) && ok;
-    ok = BASS_SetConfig(BASS_CONFIG_NET_PREBUF, NETWORK_PREBUFFER_PERCENT) && ok;
-    ok = BASS_SetConfig(BASS_CONFIG_NET_TIMEOUT, NETWORK_TIMEOUT_MILLIS) && ok;
-    ok = BASS_SetConfig(BASS_CONFIG_NET_READTIMEOUT, NETWORK_TIMEOUT_MILLIS) && ok;
+    ok = BASS_SetConfig(BASS_CONFIG_NET_PLAYLIST, playlists ? 1 : 0) && ok;
+    ok = BASS_SetConfig(BASS_CONFIG_NET_META, metadata ? 1 : 0) && ok;
+    ok = BASS_SetConfig(BASS_CONFIG_NET_PLAYLIST_DEPTH, static_cast<DWORD>(depth)) && ok;
+    ok = BASS_SetConfig(BASS_CONFIG_NET_BUFFER, static_cast<DWORD>(bufferMillis)) && ok;
+    ok = BASS_SetConfig(BASS_CONFIG_NET_PREBUF, static_cast<DWORD>(prebufferPercent)) && ok;
+    ok = BASS_SetConfig(BASS_CONFIG_NET_TIMEOUT, static_cast<DWORD>(timeoutMillis)) && ok;
+    ok = BASS_SetConfig(BASS_CONFIG_NET_READTIMEOUT, static_cast<DWORD>(readTimeoutMillis)) && ok;
     return ok;
 }
 
@@ -560,30 +552,11 @@ jdouble position_seconds(jint stream) {
     return BASS_ChannelBytes2Seconds(static_cast<DWORD>(stream), bytes);
 }
 
-jdouble audible_position_seconds(jint playbackStream, jint sourceStream) {
-    DWORD playback = static_cast<DWORD>(playbackStream);
-    DWORD progress = sourceStream != 0 ? static_cast<DWORD>(sourceStream) : playback;
-    bool mixerSource = progress != playback;
-    if (mixerSource) {
-        QWORD mixerPositionBytes = BASS_Mixer_ChannelGetPosition(progress, BASS_POS_BYTE);
-        if (mixerPositionBytes != static_cast<QWORD>(-1)) {
-            double mixerPositionSeconds = BASS_ChannelBytes2Seconds(progress, mixerPositionBytes);
-            if (mixerPositionSeconds >= 0.0 && std::isfinite(mixerPositionSeconds)) {
-                return mixerPositionSeconds;
-            }
-        }
-    }
-    QWORD positionBytes = BASS_ChannelGetPosition(progress, BASS_POS_BYTE);
-    if (positionBytes == static_cast<QWORD>(-1)) return -1.0;
-    double decodedSeconds = BASS_ChannelBytes2Seconds(progress, positionBytes);
-    if (decodedSeconds < 0.0 || !std::isfinite(decodedSeconds)) return -1.0;
-    if (mixerSource) return decodedSeconds;
-
-    DWORD bufferedBytes = BASS_ChannelGetData(playback, nullptr, BASS_DATA_AVAILABLE);
-    if (bufferedBytes == static_cast<DWORD>(-1)) return decodedSeconds;
-    double bufferedSeconds = BASS_ChannelBytes2Seconds(playback, bufferedBytes);
-    if (bufferedSeconds < 0.0 || !std::isfinite(bufferedSeconds)) return decodedSeconds;
-    return std::max(0.0, decodedSeconds - bufferedSeconds);
+jdouble mixer_source_position_seconds(jint stream) {
+    DWORD channel = static_cast<DWORD>(stream);
+    QWORD bytes = BASS_Mixer_ChannelGetPosition(channel, BASS_POS_BYTE);
+    if (bytes == static_cast<QWORD>(-1)) return -1.0;
+    return BASS_ChannelBytes2Seconds(channel, bytes);
 }
 
 jdouble duration_seconds(jint stream) {
@@ -873,10 +846,13 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeSetVerifyNet(JNIEnv* env,
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_app_naviamp_android_playback_AndroidBassJni_nativeConfigureInternetStreams(JNIEnv* env, jobject thiz) {
+Java_app_naviamp_android_playback_AndroidBassJni_nativeConfigureInternetStreams(
+    JNIEnv* env, jobject thiz, jboolean playlists, jboolean metadata, jint depth, jint bufferMillis,
+    jint prebufferPercent, jint timeoutMillis, jint readTimeoutMillis) {
     (void)env;
     (void)thiz;
-    return configure_internet_streams() ? JNI_TRUE : JNI_FALSE;
+    return configure_internet_streams(playlists, metadata, depth, bufferMillis, prebufferPercent,
+                                      timeoutMillis, readTimeoutMillis) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
@@ -1112,15 +1088,14 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeSetSampleRateConverterQua
 }
 
 extern "C" JNIEXPORT jdouble JNICALL
-Java_app_naviamp_android_playback_AndroidBassJni_nativeAudiblePositionSeconds(
+Java_app_naviamp_android_playback_AndroidBassJni_nativeMixerSourcePositionSeconds(
     JNIEnv* env,
     jobject thiz,
-    jint playbackStream,
-    jint sourceStream
+    jint stream
 ) {
     (void)env;
     (void)thiz;
-    return audible_position_seconds(playbackStream, sourceStream);
+    return mixer_source_position_seconds(stream);
 }
 
 extern "C" JNIEXPORT jdouble JNICALL
@@ -1311,10 +1286,13 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeSetStreamOutp
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeConfigureInternetStreams(JNIEnv* env, jobject thiz) {
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeConfigureInternetStreams(
+    JNIEnv* env, jobject thiz, jboolean playlists, jboolean metadata, jint depth, jint bufferMillis,
+    jint prebufferPercent, jint timeoutMillis, jint readTimeoutMillis) {
     (void)env;
     (void)thiz;
-    return configure_internet_streams() ? JNI_TRUE : JNI_FALSE;
+    return configure_internet_streams(playlists, metadata, depth, bufferMillis, prebufferPercent,
+                                      timeoutMillis, readTimeoutMillis) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jint JNICALL
@@ -1538,15 +1516,14 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeSetSampleRate
 }
 
 extern "C" JNIEXPORT jdouble JNICALL
-Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeAudiblePositionSeconds(
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeMixerSourcePositionSeconds(
     JNIEnv* env,
     jobject thiz,
-    jint playbackStream,
-    jint sourceStream
+    jint stream
 ) {
     (void)env;
     (void)thiz;
-    return audible_position_seconds(playbackStream, sourceStream);
+    return mixer_source_position_seconds(stream);
 }
 
 extern "C" JNIEXPORT jdouble JNICALL

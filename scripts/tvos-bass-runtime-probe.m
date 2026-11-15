@@ -26,6 +26,28 @@ static NSDictionary *probe(void) {
         r[@"bassError"] = @(BASS_ErrorGetCode());
         return r;
     }
+    // Native availability/readback probe, matching the supported fields in Core's network policy.
+    NSArray *network = @[
+        @[@(BASS_CONFIG_NET_PLAYLIST), @1], @[@(BASS_CONFIG_NET_META), @1],
+        @[@(BASS_CONFIG_NET_PLAYLIST_DEPTH), @5], @[@(BASS_CONFIG_NET_BUFFER), @5000],
+        @[@(BASS_CONFIG_NET_PREBUF), @75], @[@(BASS_CONFIG_NET_TIMEOUT), @15000],
+        @[@(BASS_CONFIG_NET_READTIMEOUT), @15000]
+    ];
+    BOOL networkConfigured = YES, networkReadBack = YES;
+    NSMutableDictionary *networkResults = [NSMutableDictionary dictionary];
+    for (NSArray *setting in network) {
+        DWORD option = [setting[0] unsignedIntValue], value = [setting[1] unsignedIntValue];
+        BOOL configured = BASS_SetConfig(option, value);
+        int setError = configured ? 0 : BASS_ErrorGetCode();
+        DWORD actual = BASS_GetConfig(option);
+        networkConfigured &= configured;
+        networkReadBack &= actual == value;
+        networkResults[[NSString stringWithFormat:@"%u", option]] =
+            @{@"configured": @(configured), @"setError": @(setError), @"value": @(actual)};
+    }
+    r[@"networkConfigured"] = @(networkConfigured);
+    r[@"networkValuesReadBack"] = @(networkReadBack);
+    r[@"networkResults"] = networkResults;
     NSString *resources = NSBundle.mainBundle.resourcePath;
     HPLUGIN flac = BASS_PluginLoad([NSBundle.mainBundle.privateFrameworksPath stringByAppendingPathComponent:@"bassflac.framework/bassflac"].UTF8String, 0);
     HPLUGIN opus = BASS_PluginLoad([NSBundle.mainBundle.privateFrameworksPath stringByAppendingPathComponent:@"bassopus.framework/bassopus"].UTF8String, 0);
@@ -34,6 +56,11 @@ static NSDictionary *probe(void) {
     HSTREAM stream = BASS_StreamCreateFile(FALSE, [resources stringByAppendingPathComponent:@"fixture.wav"].UTF8String, 0, 0, BASS_SAMPLE_FLOAT);
     r[@"streamCreated"] = @(stream != 0);
     if (stream) {
+        HFX equalizer = BASS_ChannelSetFX(stream, BASS_FX_DX8_PARAMEQ, 0);
+        BASS_DX8_PARAMEQ parameters = {.fCenter = 1000, .fBandwidth = 12, .fGain = 3};
+        BOOL equalizerApplied = equalizer && BASS_FXSetParameters(equalizer, &parameters);
+        BOOL equalizerFreed = equalizer && BASS_ChannelRemoveFX(stream, equalizer);
+        r[@"equalizerApplied"] = @(equalizerApplied && equalizerFreed);
         // Exercise a real playback channel silently; this does not establish acoustic output.
         r[@"volume"] = @(BASS_ChannelSetAttribute(stream, BASS_ATTRIB_VOL, 0));
         HSYNC sync = BASS_ChannelSetSync(stream, BASS_SYNC_END | BASS_SYNC_ONETIME, 0, streamEnded, NULL);
@@ -55,6 +82,12 @@ static NSDictionary *probe(void) {
         r[@"endSyncDelivered"] = @(ended);
         r[@"streamFreed"] = @(BASS_StreamFree(stream));
     }
+    HSTREAM decoder = BASS_StreamCreateFile(FALSE, [resources stringByAppendingPathComponent:@"fixture.wav"].UTF8String,
+                                            0, 0, BASS_SAMPLE_FLOAT | BASS_STREAM_DECODE);
+    float rms = -1;
+    BOOL rmsRead = decoder && BASS_ChannelGetLevelEx(decoder, &rms, 0.125, BASS_LEVEL_MONO | BASS_LEVEL_RMS);
+    BOOL decoderFreed = decoder && BASS_StreamFree(decoder);
+    r[@"waveformRmsRead"] = @(rmsRead && isfinite(rms) && rms == 0 && decoderFreed);
     if (flac) BASS_PluginFree(flac);
     if (opus) BASS_PluginFree(opus);
     r[@"freed"] = @(BASS_Free());

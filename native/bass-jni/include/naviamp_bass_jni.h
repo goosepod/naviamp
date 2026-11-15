@@ -43,7 +43,17 @@ extern "C" JNIEXPORT void JNICALL
 Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeFree(JNIEnv* env, jobject thiz);
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeConfigureInternetStreams(JNIEnv* env, jobject thiz);
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeConfigureInternetStreams(
+    JNIEnv*, jobject, jboolean playlists, jboolean metadata, jint depth, jint bufferMillis,
+    jint prebufferPercent, jint timeoutMillis, jint readTimeoutMillis);
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeConfigureInternetStreams(
+    JNIEnv*, jobject, jboolean playlists, jboolean metadata, jint depth, jint bufferMillis,
+    jint prebufferPercent, jint timeoutMillis, jint readTimeoutMillis);
+extern "C" JNIEXPORT jdouble JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeMixerSourcePositionSeconds(JNIEnv*, jobject, jint stream);
+extern "C" JNIEXPORT jdouble JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeMixerSourcePositionSeconds(JNIEnv*, jobject, jint stream);
 
 extern "C" JNIEXPORT jint JNICALL
 Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeCreateUrlStream(JNIEnv* env, jobject thiz, jstring url);

@@ -1,6 +1,6 @@
 # Issue 590: supported Android tooling and stable dependency checkpoint
 
-Updated November 14, 2026. This records the issue-branch candidate, not a release or tvOS acceptance.
+Updated November 15, 2026. This records the issue-branch candidate, not a release or tvOS acceptance.
 The supported tooling/dependency patch is now applied to `codex/590-tvos-feasibility` for normal
 branch verification and CI. Main/release acceptance is still pending. The original isolated
 candidate remains in `build/590-stable-probe`; its Mac counterpart is `.worktrees/590-latest-stable`.
@@ -327,7 +327,11 @@ suite reported 11 cases: **ten executed/pass, one real-output recovery case skip
 explicit no-sound device. The new generated-tone test exercises the Core default, native RMS,
 rewind of a partly consumed decoder and invalid-handle failure. Android instrumentation APK
 assembly passed, followed by actual debug APK native-package verification for every packaged ABI;
-the added Android runtime assertion awaits CI rather than being represented as locally executed.
+the added Android runtime assertion subsequently passed in CI on API 26, 30 and 35.
+
+Verify run **887**, source `649675e20b197c3345fb3300cae191329ca1e3b1`, completed successfully:
+shared/coverage, all three Android levels, Windows/macOS/Linux, iOS host/native/Keychain and
+verified-source evidence. This verifies the waveform commit, not subsequent uncommitted work.
 
 The unchanged 18-case required iOS native inventory **passed with zero failures/errors/skips**,
 including the added waveform assertions, real mutual TLS, codecs, storage and main-queue delivery.
@@ -362,6 +366,60 @@ Platform production diff audit:
 
 No setting, export schema, user-facing copy, animation cadence or Android minimum changed. This
 is an Apple-adapter prerequisite, not a claim that the Naviamp tvOS host is implemented.
+
+## Shared audible-position and internet-stream policy prerequisite
+
+The next adapter audit found audible-position arithmetic duplicated in JNI C++ and iOS, plus
+network defaults embedded in native adapters. Both now have common ownership: Domain chooses
+the decoded/mixer-history position and direct-output buffer compensation; native effects return
+only position/buffer facts. Ten common cases cover invalid/unavailable values, clamping, mixer
+fallback and delivery/validation of the complete seven-field `BassInternetStreamPolicy`.
+The existing internet defaults are preserved and applied explicitly before URL stream creation.
+
+Do not carry forward `BASS_CONFIG_NET_PREBUF_WAIT` (60): the old JNI code ignored its return.
+Actual Windows BASS 2.4.18.3 and iOS both reject writes of 0 and 1 with error 37 (unavailable).
+The first iOS attempt exposed this and failed two native cases; that failed evidence is retained.
+The corrected adapter applies the seven supported settings, with native read-back assertions.
+Windows availability evidence: `build/590-feasibility/windows-prebuffer-wait-availability.json`.
+
+Common compilation on Android/JVM/iOS preceded native changes. Corrected final tests passed:
+**1,173 Domain cases each on JVM, Android host and iOS simulator**, zero failures/errors/skips;
+Windows native suite **10 executed/pass, four conditional real-output skips** with explicit
+no-sound output; Android instrumentation assembly and four-ABI debug native packaging. A separate
+real-output attempt failed BASS initialization with driver error 3; it is retained, not counted
+as a pass. Physical output/clock recovery still needs a usable Windows endpoint.
+
+All **18 required iOS native cases passed**, including real mutual TLS and the new native
+network-setting assertions, in 9.402s. Binary SHA-256:
+`4a848f3b8df1bb063d23f904c0d7cffb75c78e9e942e6c4e9330c9c4bb35606e`.
+Owned fixture and simulator were cleaned up. Evidence under `build/590-feasibility`:
+`apple-read-policy-supported-windows.log`, `apple-read-policy-{windows,ios}-summary.json`,
+and `apple-read-policy-real-output-driver-failure.zip`; Mac checkout
+`build/590-apple-native/build/apple-read-policy-supported-execution`.
+
+The public tvOS BASS probe now actually passes **21/21 checks on tvOS 27.2**, adding EQ,
+mono RMS and set/read-back of all seven network options to the earlier control/callback tests.
+This includes `NET_META` (71), which is available in this binary. Version is 2.4.18.14, mixer
+absent. Shutdown/delete both returned 0. The silent fixture does not verify acoustic output.
+Public archive SHA-256 remains
+`8f3bef0a67c20fdf1b65a7b6164b25bfb3a75e47e8bd5f1094eb0fad1ac3bbe8`.
+Evidence: `build/590-feasibility/tvos-direct-bass-api-summary.json`; full Mac record
+`build/590-tvos-direct-bass-api`. The six Python feasibility/parser checks also pass.
+
+Platform production diff audit for this extraction:
+
+- `platforms/android/.../AndroidBassAudioBackend.kt` and `AndroidBassJni.kt`: translate the
+  shared network values and mixer-position read across the Android BASS JNI ABI.
+- `platforms/desktop/.../DesktopBassAudioBackend.kt` and `DesktopBassJniBinding.kt`: translate
+  the same values/read across the Desktop JNI ABI.
+- `platforms/ios/.../IosBassPlayback.kt`: invokes seven BASS configuration operations and reads
+  native mixer position; portable position arithmetic was deleted.
+- `native/bass-jni/{include/naviamp_bass_jni.h,src/naviamp_bass_jni.cpp}`: implements those JNI
+  signatures/BASS calls; deletes native network defaults and audible-position policy.
+
+No new setting, export schema, UI copy or Android minimum change. The next step is the shared
+Apple C-ABI adapter and opt-in direct tvOS backend; full UI-host/performance acceptance remains
+subject to the separately documented gates.
 
 ## Stable renderer source feasibility
 
