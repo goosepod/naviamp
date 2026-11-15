@@ -3,8 +3,8 @@
 package app.naviamp.ios.playback
 
 import app.naviamp.domain.playback.planStereoDownmix
-import app.naviamp.ios.bass.native.BASS_Init
-import app.naviamp.ios.bass.native.BASS_GetConfig
+import app.naviamp.apple.bass.native.BASS_Init
+import app.naviamp.apple.bass.native.BASS_GetConfig
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 import platform.Foundation.NSData

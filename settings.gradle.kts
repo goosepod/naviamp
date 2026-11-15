@@ -28,6 +28,10 @@ include(":providers:jellyfin")
 include(":platforms:desktop")
 include(":platforms:android")
 include(":platforms:ios")
+include(":platforms:apple")
+if (providers.gradleProperty("naviamp.tvos.feasibility").orNull == "true") {
+    include(":platforms:tvos")
+}
 include(":apps:desktop")
 include(":apps:android")
 include(":apps:ios")

@@ -299,14 +299,13 @@ published branch. Do not reuse alpha-stack timings or omit archive validators.
   resources, as recorded below. Finish reproducible artifact production/cache identity and audit
   helper/vendor deployment targets before full-app integration. The fork delta is 306 files,
   not a plugin switch. No new tvOS app support or release readiness is claimed.
-- The public direct-BASS tvOS simulator probe passed all 17 native controls/lifecycle checks;
-  BASSmix was absent, and shutdown/delete returned 0. It used a silent WAV/zero volume and does
-  not establish acoustic output, FLAC/Opus decoding, full Naviamp integration or physical-device
-  acceptance. Runtime core version: 2.4.18.14. Reproduce with `scripts/probe-tvos-bass-runtime.py`
-  and the hash-pinned public archive/header directory. Evidence: Mac root
-  `build/590-tvos-direct-bass-runtime-validated`. Early probe setup failures (incompatible simulator
-  model, legacy UIKit lifecycle) and a C BOOL/JSON result-classification bug were corrected;
-  do not count those attempts as passing. All created simulators were removed.
+- The public direct-BASS probe now passes 21 controls/lifecycle/network/EQ/RMS checks. The
+  [shared Apple/direct tvOS integration](590-apple-bass-integration.md) also passes all three
+  real native cases, including actual FLAC/Opus decode and Core-driven controls/preview isolation,
+  plus 1,176 Domain cases on tvOS. No BASSmix dependency is linked. iOS's 18 native cases and
+  original app framework/device compilation remain passing. Public binary inventory and a
+  separate bounded tvOS CI/cache job are implemented. Full shared UI-host, native tvOS TLS,
+  physical output/remote and release acceptance remain open. Owned simulators were removed.
 - Connect only native ABI/audio-session effects to the complete shared application after the
   remaining original-app and stable-renderer prerequisites pass.
 
@@ -332,6 +331,11 @@ the added Android runtime assertion subsequently passed in CI on API 26, 30 and 
 Verify run **887**, source `649675e20b197c3345fb3300cae191329ca1e3b1`, completed successfully:
 shared/coverage, all three Android levels, Windows/macOS/Linux, iOS host/native/Keychain and
 verified-source evidence. This verifies the waveform commit, not subsequent uncommitted work.
+
+Verify run **888** subsequently passed the complete matrix at
+`5a57042511fdc5a4679a3c13d3f09a173433137f`, covering the position/network extraction below.
+The later Apple adapter's local tests and exact binary identities are in its separate report;
+its new source requires fresh CI rather than inheriting either earlier run's proof.
 
 The unchanged 18-case required iOS native inventory **passed with zero failures/errors/skips**,
 including the added waveform assertions, real mutual TLS, codecs, storage and main-queue delivery.

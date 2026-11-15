@@ -31,9 +31,10 @@ through dependency metadata and a patched Compose Gradle plugin. Its README docu
 official-first policy and a strict resolution mode. These are upstream claims, not Naviamp validation.
 
 The downloaded manifest currently requires Compose 1.12.0 or later, forbids cross-version mappings,
-and selects the 1.12.0 Gradle plugin. Naviamp uses Compose 1.11.0, Material3 1.9.0 and Kotlin 2.4.10.
-Therefore adding the plugin to today's build is not an accepted compatibility solution.
-Keep Android/iOS/Desktop on their existing dependencies until a controlled upgrade experiment passes.
+and selects the 1.12.0 Gradle plugin. At the research baseline Naviamp used Compose 1.11.0,
+Material3 1.9.0 and Kotlin 2.4.10. Adding that plugin alone was not an accepted compatibility
+solution. The issue branch now tests stable Compose 1.12.2/Kotlin 2.4.21 and the supported tooling
+upgrade; see the later checkpoint for actual results and outstanding acceptance gates.
 Pin the plugin, its manifest contents/hash and all native dependency versions; no moving remote
 manifest may decide a release dependency graph. Verify the actual resolved graph, not plugin promises.
 
@@ -102,7 +103,7 @@ scope. A weekly public-release check is configured separately, with no automatic
 Sources:
 - https://www.un4seen.com/forum/?topic=10910.1100 (historical announcement)
 - https://www.un4seen.com/forum/?topic=10910.1120 (historical licensed-build discussion)
-- https://www.un4seen.com/stuff/bass-tvos.zip (inspected archive, not committed)
+- https://www.un4seen.com/stuff/bass-tvos.zip (archive hash pinned; its three XCFrameworks are now vendored)
 - `platforms/ios/vendor/bass/README.md` (Naviamp's existing eleven-component inventory)
 
 ### Local tools
@@ -231,8 +232,11 @@ user-facing feature setting. Remove the gate when the supported graph and CI are
 
 ### 3. Native playback gate
 
-The next native implementation should extract a shared Apple ABI adapter rather than copy the
-existing 700-line `IosBassPlayback.kt` into a tvOS directory:
+The shared Apple ABI extraction and opt-in direct tvOS backend are now implemented. The
+[native integration report](verification/590-apple-bass-integration.md) records ownership,
+reproduction, Core preview correction, genuine FLAC/Opus decode, native control/preview tests,
+iOS regression results and bounded CI/cache design. These native modules are not the full UI host.
+Continue with the remaining requirements below; do not copy the former iOS adapter into tvOS:
 
 - Keep `BassAudioBackend`, `CoreBassPlaybackEngine`, feature selection, settings, callbacks'
   portable coordination and playback orchestration in Domain. The shared mixer-free contract

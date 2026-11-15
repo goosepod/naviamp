@@ -79,6 +79,10 @@ val hostProductionSources = fileTree(layout.projectDirectory) {
     include("apps/desktop/src/desktopMain/kotlin/**/*.kt")
     include("platforms/android/src/main/kotlin/**/*.kt")
     include("platforms/desktop/src/desktopMain/kotlin/**/*.kt")
+    include("apps/ios/src/iosMain/kotlin/**/*.kt")
+    include("platforms/ios/src/iosMain/kotlin/**/*.kt")
+    include("platforms/apple/src/appleMain/kotlin/**/*.kt")
+    include("platforms/tvos/src/tvosMain/kotlin/**/*.kt")
 }
 
 val existingHostProductDebt = emptySet<String>()
