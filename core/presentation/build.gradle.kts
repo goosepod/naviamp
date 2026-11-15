@@ -36,6 +36,7 @@ kotlin {
             implementation(libs.kotlinx.coroutines.test)
         }
         jvmTest.dependencies {
+            implementation(libs.ktor.client.cio)
             implementation(compose.desktop.currentOs)
             implementation("org.jetbrains.compose.ui:ui-test:${libs.versions.compose.get()}")
         }

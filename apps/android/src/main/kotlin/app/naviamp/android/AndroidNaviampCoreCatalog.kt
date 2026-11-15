@@ -51,9 +51,12 @@ import kotlin.coroutines.EmptyCoroutineContext
 class AndroidNaviampCoreCatalog private constructor(
     val environment: NaviampCoreEnvironment,
     private val storage: AndroidStorageDependencies,
+    private val upnpHttp: app.naviamp.app.NaviampUpnpKtorTransport,
+    private val upnpEngine: io.ktor.client.engine.HttpClientEngine,
 ) : AutoCloseable {
     override fun close() {
         resetAndroidPlatformCoverArtByteLoader()
+        upnpHttp.close(); upnpEngine.close()
         storage.close()
     }
 
@@ -70,6 +73,8 @@ class AndroidNaviampCoreCatalog private constructor(
             waveformWorkContext: CoroutineContext = EmptyCoroutineContext,
         ): AndroidNaviampCoreCatalog {
             val appContext = context.applicationContext
+            val upnpEngine = io.ktor.client.engine.cio.CIO.create()
+            val upnpHttp = app.naviamp.app.NaviampUpnpKtorTransport(upnpEngine)
             val clock = NaviampClock(System::currentTimeMillis)
             val platformSettings = AndroidSettingsStore(appContext)
             val settingsValues = AndroidCoreSettingsValueStore(appContext)
@@ -257,6 +262,10 @@ class AndroidNaviampCoreCatalog private constructor(
                             tokens = AndroidNaviampCastSecureTokenSource(),
                             showRoutePicker = AndroidNaviampCastRoutePickerEffect::show,
                         ).takeUnless { isTelevision },
+                        upnp = app.naviamp.presentation.NaviampCoreUpnpServices(
+                            http = upnpHttp, server = AndroidNaviampCastHttpServerEffect(appContext),
+                            tokens = AndroidNaviampCastSecureTokenSource(),
+                            discovery = AndroidNaviampUpnpDiscoveryEffect(appContext)),
                     ),
                     initialState = storedCatalog.initialState,
                     actionAvailability = AndroidCapabilityPresentation.toCoreActionAvailability(),
@@ -265,6 +274,7 @@ class AndroidNaviampCoreCatalog private constructor(
                     },
                 ),
                 storage = storage,
+                upnpHttp = upnpHttp, upnpEngine = upnpEngine,
             )
         }
     }

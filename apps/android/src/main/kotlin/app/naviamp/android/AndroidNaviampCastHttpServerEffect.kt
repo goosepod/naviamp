@@ -28,8 +28,21 @@ class AndroidNaviampCastHttpServerEffect(context: Context) : NaviampCastHttpServ
     private var acceptJob: Job? = null
 
     override suspend fun start(handler: suspend (NaviampCastHttpRequest, NaviampCastHttpResponse) -> Unit): String {
+        return startAt(lanAddress() ?: error("No receiver-reachable Wi-Fi or Ethernet address is available."), handler)
+    }
+
+    override suspend fun start(localAddress: String?, handler: suspend (NaviampCastHttpRequest, NaviampCastHttpResponse) -> Unit): String {
+        if (localAddress == null) return start(handler)
+        val address = connectivity.allNetworks.asSequence().filter { network ->
+            connectivity.getNetworkCapabilities(network)?.let { it.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || it.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) } == true
+        }.flatMap { connectivity.getLinkProperties(it)?.linkAddresses.orEmpty().asSequence() }
+            .mapNotNull { it.address as? Inet4Address }.firstOrNull { it.hostAddress == localAddress }
+            ?: error("Selected receiver interface is unavailable.")
+        return startAt(address, handler)
+    }
+
+    private fun startAt(address: Inet4Address, handler: suspend (NaviampCastHttpRequest, NaviampCastHttpResponse) -> Unit): String {
         check(socket == null) { "Cast media server is already running." }
-        val address = lanAddress() ?: error("No receiver-reachable Wi-Fi or Ethernet address is available.")
         val server = ServerSocket(0, 32, address)
         val serverScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         socket = server

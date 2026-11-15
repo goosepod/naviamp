@@ -28,6 +28,7 @@ class NaviampUpnpWireTest {
         val parsed = assertIs<NaviampUpnpAdvertisement.Available>(parseNaviampUpnpAdvertisement(response, "127.0.0.1"))
         assertEquals(1_800, parsed.maxAgeSeconds)
         assertEquals("uuid:fixture", parsed.udn)
+        assertEquals(parsed, parseNaviampUpnpAdvertisement(response + "\r\n", "127.0.0.1"))
         assertEquals(parsed, parseNaviampUpnpAdvertisement(response.replace("CACHE-CONTROL", "BOOTID.UPNP.ORG: 1\r\nCACHE-CONTROL"), "127.0.0.1"))
         assertTrue(naviampUpnpSearchDatagram().contains("MAN: \"ssdp:discover\"\r\n"))
         for (bad in listOf(response.replace("CACHE-CONTROL", "Location: $location\r\nCACHE-CONTROL"), response.replace("127.0.0.1", "example.com"), response.replace("max-age=1800", "max-age=0"), response + "body")) {

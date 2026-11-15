@@ -17,7 +17,7 @@ fun naviampUpnpSearchDatagram(maxWaitSeconds: Int = 2): String {
 /** The socket adapter supplies the actual packet source address, never a device-supplied header. */
 fun parseNaviampUpnpAdvertisement(datagram: String, sourceHost: String): NaviampUpnpAdvertisement {
     upnpCheck(datagram.length <= 16_384 && datagram.endsWith("\r\n\r\n"))
-    val lines = datagram.removeSuffix("\r\n\r\n").split("\r\n")
+    val lines = datagram.removeSuffix("\r\n\r\n").split("\r\n").dropLastWhile(String::isEmpty)
     upnpCheck(lines.size in 2..65)
     val notify = lines[0] == "NOTIFY * HTTP/1.1"
     upnpCheck(notify || lines[0] == "HTTP/1.1 200 OK")

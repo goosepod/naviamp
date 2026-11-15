@@ -68,9 +68,13 @@ internal class DesktopComposition private constructor(
     private val engine: ReleasablePlaybackEngine,
     private val storage: DesktopStorageRepositories,
     private val castServer: DesktopNaviampCastHttpServerEffect,
+    private val upnpServer: DesktopNaviampCastHttpServerEffect,
+    private val upnpHttp: app.naviamp.app.NaviampUpnpKtorTransport,
+    private val upnpEngine: io.ktor.client.engine.HttpClientEngine,
 ) : AutoCloseable {
     override fun close() {
         castServer.close()
+        upnpServer.close(); upnpHttp.close(); upnpEngine.close()
         resetJvmPlatformCoverArtByteLoader()
         engine.release()
         storage.close()
@@ -99,6 +103,9 @@ internal class DesktopComposition private constructor(
             }
             val secureRandom = SecureRandom()
             val castServer = DesktopNaviampCastHttpServerEffect()
+            val upnpServer = DesktopNaviampCastHttpServerEffect()
+            val upnpEngine = io.ktor.client.engine.cio.CIO.create()
+            val upnpHttp = app.naviamp.app.NaviampUpnpKtorTransport(upnpEngine)
             val connectNetwork = DesktopNaviampConnectNetwork()
             val connectServices = NaviampCoreConnectServices(
                 deviceCapabilities = NaviampCoreBidirectionalConnectCapabilities,
@@ -304,6 +311,10 @@ internal class DesktopComposition private constructor(
                             java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(
                                 ByteArray(32).also(secureRandom::nextBytes))
                         },
+                    ), upnp = app.naviamp.presentation.NaviampCoreUpnpServices(
+                        http = upnpHttp, server = upnpServer,
+                        tokens = NaviampCastSecureTokenSource { java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(ByteArray(32).also(secureRandom::nextBytes)) },
+                        discovery = app.naviamp.app.JvmNaviampUpnpDiscoveryEffect(),
                     )),
                     providerSessions = sessions,
                     initialState = catalog.initialState,
@@ -321,6 +332,7 @@ internal class DesktopComposition private constructor(
                 engine = engine,
                 storage = storage,
                 castServer = castServer,
+                upnpServer = upnpServer, upnpHttp = upnpHttp, upnpEngine = upnpEngine,
             )
         }
     }

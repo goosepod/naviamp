@@ -4,8 +4,8 @@ Planning date: November 14, 2026. Source inspection baseline: `091fb73c4`.
 
 Requested outcome: select a WiiM from Naviamp's output picker, browse and queue music normally,
 and play lossless albums with verified gapless transitions. Users have requested this capability;
-the owner does not currently have a WiiM. No physical-device compatibility is established by this
-document. This remains an unreleased feature; the implementation status below distinguishes shared
+the owner does not currently have a WiiM. No WiiM compatibility is established by this
+document. AirPin receiver evidence is recorded separately below. This remains an unreleased feature; the implementation status below distinguishes shared
 foundations from a usable casting route.
 
 Implementation is tracked by [issue #607](https://github.com/goosepod/naviamp/issues/607), targeted
@@ -14,6 +14,18 @@ to milestone **v2.12.0**, on branch `codex/607-dlna-upnp`, following
 `main` commit `57c266612`; this work is separate from the ongoing tvOS work.
 
 ## Implementation status — November 15, 2026
+
+Current increment: Android and Desktop now supply the common UPnP service with native discovery,
+HTTP engine and a receiver-interface-bound relay. Native JVM multicast discovery and original FLAC
+delivery through the shared queue/session/provider relay passed against AirPin STD 5.7.1 on an Onn
+Android TV; the owner confirmed audible test tones. AirPin does **not** advertise
+`SetNextAVTransportURI`, so it cannot validate our gapless path. Android host compilation passes;
+Android app-to-receiver runtime and lifecycle testing, iOS host adapters/signing/privacy integration,
+and real WiiM lossless/gapless acceptance remain open. The minimum Android version remains API 26.
+See [the AirPin verification record](verification/607-airpin-2026-11-15.md) for evidence and limits.
+
+The sections below retain the verification history of earlier increments; their statements about
+absent native wiring describe those earlier commits, not the current branch.
 
 The initial shared foundation adds UPnP output identity and a protocol-neutral remote action contract
 to the existing Core router. Cast uses that contract; Connect retains its existing destination path.
@@ -476,3 +488,26 @@ Incoming head 579b277b2 passed the entire Verify matrix (run 43760143275). The n
 This increment defines the raw UDP discovery effect but does not yet supply or enable a native implementation. No live multicast discovery or native device test has been performed. Repository implementation order requires common Android/JVM/iOS validation before host wiring; the new discovery/picker source needs its own Apple CI result. Native UDP/interface adapters, Android multicast permission/lock handling and desktop HTTP-engine/listener bootstrap remain unfinished. Continue those after validation, keeping discovery policy in this common owner. Do not describe this as live discovery shipping in the app.
 
 Local verification: 330 app + 641 presentation tests (971), both modules' Android/common-metadata compilation, architecture and diff checks pass. Before enabling UPnP, replace the picker’s Google Cast-specific searching copy with protocol-neutral copy across maintained translations or an existing generic translated resource. Native host wiring and actual LAN validation remain unfinished.
+
+### Android/Desktop native integration and AirPin — November 15, 2026
+
+The preceding common discovery/picker head `db37c49d5` passed the full Verify matrix
+([run 43772690595](https://github.com/goosepod/naviamp/actions/runs/43772690595)), including iOS.
+Android and Desktop now inject the shared UPnP service with separate HTTP engines/listeners and
+native UDP effects. Android adds WifiManager multicast-lock lifetime and normal multicast permissions;
+its relay validates and binds the exact discovered local IPv4 interface. Desktop reuses its existing
+receiver-address-bound HTTP listener. Protocol, discovery refresh/expiry, format choice and queue
+policy remain in Core. The picker now reuses the translated generic local-network-search string.
+
+AirPin STD 5.7.1 on an Onn TV was discovered over actual multicast and requested original FLAC from
+the shared queue/relay. The owner confirmed audible tones. Pause, resume and Stop were observed
+through independent status requests. Seek was acknowledged, but reported position remained zero;
+it is not a passing position/seek result. AirPin omits `SetNextAVTransportURI`, so this receiver does
+not provide a physical gapless acceptance test. A common SSDP regression covers its trailing CRLF
+response variant. The opt-in live test is skipped in normal CI and leaves the receiver stopped.
+
+See [the detailed evidence, reproduction and platform-diff accounting](verification/607-airpin-2026-11-15.md).
+The native adapters compile for Android/Desktop locally. Android sender runtime, iOS wiring/signing,
+passive SSDP notifications/network rebinding, GENA callbacks, lifecycle and real WiiM acceptance
+remain open. Keep PR 608 draft and #607 open; this increment is not a completed multi-platform or
+verified gapless release feature.
