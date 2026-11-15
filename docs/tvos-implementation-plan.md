@@ -579,8 +579,14 @@ eight conditional skips and final packaging. Its muted real-output follow-up ini
 Windows driver initialization; after the real monitor endpoint became available, the unchanged
 suite passed all 13 cases and the upgraded packaged UI was visibly verified. Android emulator CI
 test dependency/manifest migration repairs now pass the API 26, 30 and 35 emulator jobs. Matched
-full-app animation measurements remain open; the local baseline observer launch supplied no
-accepted sample and its disposable configuration/profile were restored.
+full-app animation measurements are now recorded in the
+[November 14 comparison](verification/590-windows-performance-2026-11-14.md), superseding the
+earlier unaccepted observer launch. Both graphs retain zero parent frames during settled motion;
+the same upgraded paused app fell from 4.53% to 0.47% CPU after releasing a traced observation
+helper that survived JavaScript reset. The report retains CPU outliers, transition frames and
+whole-desktop GPU differences, so final budget acceptance remains open. Continue shared native
+preparation; keep host enablement/shipping gated on the remaining performance, producer deployment
+target and reproducible artifact prerequisites.
 
 Keep minimum Android API 26 during this work. Both newest-stable APK manifests retain minimum 26,
 target 36 and compile 37. API 29 is a meaningful native compositor boundary, already selected at

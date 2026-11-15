@@ -289,7 +289,12 @@ published branch. Do not reuse alpha-stack timings or omit archive validators.
   optimized Release archives, Windows native playback and normal visible rendering passed.
   The repaired Android API 26/30/35 runtime gates and full shared/iOS CI run passed.
 - Measure visible idle/individual/combined animation costs and lifecycle behavior with matching
-  window, refresh, scale and power conditions. Functional rendering does not establish a budget.
+  window, refresh, scale and power conditions. The [November 14 full-app comparison](590-windows-performance-2026-11-14.md)
+  now records that matrix, visible motion, lifecycle checks, payload hashes and cleanup. It found
+  and removed observation-helper interference. Settled combined samples had equal CPU and zero
+  parent frames in both graphs; process outliers and differing whole-desktop GPU readings remain
+  explicit limits. Final performance acceptance is still required; functional rendering alone
+  does not establish a budget.
 - The stable Compose/Material3 source port now compiles, links and visibly renders with packaged
   resources, as recorded below. Finish reproducible artifact production/cache identity and audit
   helper/vendor deployment targets before full-app integration. The fork delta is 306 files,
