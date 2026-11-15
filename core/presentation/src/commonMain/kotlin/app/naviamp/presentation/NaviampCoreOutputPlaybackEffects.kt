@@ -14,8 +14,10 @@ import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 
-/** Cast actions are scheduled by the shared product controller; this keeps local audio silent. */
-internal interface NaviampCoreCastPlaybackRoute {
+/** Protocol-independent actions scheduled by shared Core; hosts never choose the output. */
+internal interface NaviampCoreRemotePlaybackRoute {
+    val outputKind: NaviampRemoteOutputKind
+    val supportsVolume: Boolean get() = false
     val suppressLocalObservations: Boolean
     fun loadCurrent(positionSeconds: Double? = null): Boolean
     fun navigate(command: PlaybackQueueNavigationCommand)
@@ -31,23 +33,33 @@ internal class NaviampCoreOutputPlaybackEffects(
     private val local: NaviampCorePlaybackEffectPort,
     private val outputs: NaviampPlaybackOutputSelectionController,
 ) : NaviampCorePlaybackEffectPort {
-    var cast: NaviampCoreCastPlaybackRoute? = null
+    private val routes = mutableMapOf<NaviampRemoteOutputKind, NaviampCoreRemotePlaybackRoute>()
+
+    fun register(route: NaviampCoreRemotePlaybackRoute) {
+        // Connect delegates through its existing playback destination, rather than this route.
+        require(route.outputKind != NaviampRemoteOutputKind.Connect)
+        routes[route.outputKind] = route
+    }
+
     var beforeStart: () -> Unit = {}
 
-    private val castSelected: Boolean get() =
-        (outputs.state.value as? NaviampPlaybackOutputSelection.Remote)?.target?.kind == NaviampRemoteOutputKind.Cast
+    private val selectedKind: NaviampRemoteOutputKind? get() =
+        (outputs.state.value as? NaviampPlaybackOutputSelection.Remote)?.target?.kind
+    private val remoteSelected: Boolean get() =
+        selectedKind == NaviampRemoteOutputKind.Cast || selectedKind == NaviampRemoteOutputKind.Upnp
+    private val route: NaviampCoreRemotePlaybackRoute? get() = routes[selectedKind]
 
     override val capabilities: NaviampCorePlaybackCapabilities get() =
-        if (castSelected) local.capabilities.copy(
+        if (remoteSelected) local.capabilities.copy(
             supportsVisualizer = false,
-            supportsSoftwareVolume = true,
+            supportsSoftwareVolume = route?.supportsVolume == true,
         ) else local.capabilities
     override val playbackSource: PlaybackSource get() = local.playbackSource
     override val playbackQuality: StreamQuality? get() = local.playbackQuality
 
     override fun attach(observer: NaviampCorePlaybackObserver) = local.attach(object : NaviampCorePlaybackObserver {
-        private val remoteActive: Boolean get() = castSelected &&
-            (outputs.hasRemotePlaybackAuthority() || cast?.suppressLocalObservations == true)
+        private val remoteActive: Boolean get() = remoteSelected &&
+            (outputs.hasRemotePlaybackAuthority() || route?.suppressLocalObservations == true)
         override fun onStateChanged(state: PlaybackState) {
             if (!remoteActive) observer.onStateChanged(state)
         }
@@ -66,71 +78,73 @@ internal class NaviampCoreOutputPlaybackEffects(
     })
 
     override fun setVisualizerFramesEnabled(enabled: Boolean) =
-        local.setVisualizerFramesEnabled(enabled && !castSelected)
+        local.setVisualizerFramesEnabled(enabled && !remoteSelected)
 
     override fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean) {
-        if (!castSelected) local.applyQueue(queue, clearPreparedNext)
+        if (!remoteSelected) local.applyQueue(queue, clearPreparedNext)
     }
 
     override fun restoreQueue(queue: PlaybackQueue, startPositionSeconds: Double?) {
-        if (!castSelected) local.restoreQueue(queue, startPositionSeconds)
+        if (!remoteSelected) local.restoreQueue(queue, startPositionSeconds)
     }
 
     override fun restoreInternetRadio(station: InternetRadioStation) {
-        if (!castSelected) local.restoreInternetRadio(station)
+        if (!remoteSelected) local.restoreInternetRadio(station)
     }
 
     override fun applyNavigation(command: PlaybackQueueNavigationCommand) {
         beforeStart()
-        if (castSelected) cast?.navigate(command) else local.applyNavigation(command)
+        if (remoteSelected) route?.navigate(command) else local.applyNavigation(command)
     }
 
     override fun applyAutomaticNavigation(command: PlaybackQueueNavigationCommand) {
         beforeStart()
-        if (castSelected) cast?.navigate(command) else local.applyAutomaticNavigation(command)
+        if (remoteSelected) route?.navigate(command) else local.applyAutomaticNavigation(command)
     }
 
     override fun applyRepeatMode(mode: RepeatMode) {
-        if (!castSelected) local.applyRepeatMode(mode)
+        if (!remoteSelected) local.applyRepeatMode(mode)
     }
 
     override fun playQueueSelection(queue: PlaybackQueue, index: Int) {
         beforeStart()
-        if (castSelected) cast?.loadCurrent() else local.playQueueSelection(queue, index)
+        if (remoteSelected) route?.loadCurrent() else local.playQueueSelection(queue, index)
     }
 
     override fun prepareForPreview() = local.prepareForPreview()
 
     override fun pause() {
-        if (castSelected) cast?.pause() else local.pause()
+        if (remoteSelected) route?.pause() else local.pause()
     }
 
     override fun resume() {
         beforeStart()
-        if (castSelected) cast?.resume() else local.resume()
+        if (remoteSelected) route?.resume() else local.resume()
     }
 
     override fun startOrRestore(): Boolean {
         beforeStart()
-        return if (castSelected) cast?.loadCurrent() == true else local.startOrRestore()
+        return if (remoteSelected) route?.loadCurrent() == true else local.startOrRestore()
     }
 
     override fun seek(positionSeconds: Double) {
-        if (castSelected) cast?.seek(positionSeconds) else local.seek(positionSeconds)
+        if (remoteSelected) route?.seek(positionSeconds) else local.seek(positionSeconds)
     }
 
     override fun replayCurrent(positionSeconds: Double) {
         beforeStart()
-        if (castSelected) cast?.loadCurrent(positionSeconds) else local.replayCurrent(positionSeconds)
+        if (remoteSelected) route?.loadCurrent(positionSeconds) else local.replayCurrent(positionSeconds)
     }
 
     override fun setVolume(percent: Int) {
-        if (castSelected) cast?.setVolume(percent) else local.setVolume(percent)
+        if (remoteSelected) {
+            route?.takeIf { it.supportsVolume }?.setVolume(percent)
+        } else local.setVolume(percent)
     }
 
     override fun stop() {
         beforeStart()
-        if (castSelected) cast?.stop() else local.stop()
+        if (remoteSelected) route?.stop() else local.stop()
     }
 
     override fun diagnostics(): List<Pair<String, String>> = local.diagnostics()

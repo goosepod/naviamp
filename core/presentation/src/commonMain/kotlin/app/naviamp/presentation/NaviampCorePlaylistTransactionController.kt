@@ -230,7 +230,7 @@ class NaviampCorePlaylistTransactionController(
             // Read again on every attempt: a lost response may follow a successful or partial write.
             val currentTracks = provider.playlistTracks(playlist.id)
             val currentTrackIds = currentTracks.map(Track::id)
-            if (!isCurrent()) throw CancellationException()
+            if (!isCurrent()) throw CancellationException(null)
             // Reject a stale draft, but allow retrying a write whose response was lost.
             if (expectedTrackIds != null && currentTrackIds.map { it.value } != expectedTrackIds &&
                 currentTrackIds != requestedTrackIds) {
@@ -241,9 +241,9 @@ class NaviampCorePlaylistTransactionController(
                 currentTrackIds = currentTrackIds,
                 trackIds = requestedTrackIds,
             )
-            if (!isCurrent()) throw CancellationException()
+            if (!isCurrent()) throw CancellationException(null)
             onPlaylistTracksChanged(playlist.id)
-            if (!isCurrent()) throw CancellationException()
+            if (!isCurrent()) throw CancellationException(null)
             val tracksById = currentTracks.associateBy(Track::id)
             val savedTracks = requestedTrackIds.mapNotNull(tracksById::get)
             if (savedTracks.size == requestedTrackIds.size) browseController.reconcileContents(playlist.id, savedTracks)

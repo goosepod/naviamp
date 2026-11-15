@@ -37,7 +37,7 @@ class NaviampCoreOutputPlaybackEffectsTest {
         val local = RecordingLocalEffects()
         val routed = NaviampCoreOutputPlaybackEffects(local, outputs)
         val cast = RecordingCastRoute()
-        routed.cast = cast
+        routed.register(cast)
         val selection = outputs.select(NaviampRemoteOutputTarget(NaviampRemoteOutputKind.Cast, "tv", "TV"))
         outputs.connected(selection)
         val queue = PlaybackQueue()
@@ -54,6 +54,7 @@ class NaviampCoreOutputPlaybackEffectsTest {
         assertEquals(2, cast.loads)
         assertEquals(1, cast.pauses)
         assertEquals(15.0, cast.seekPosition)
+        assertTrue(routed.capabilities.supportsSoftwareVolume)
         assertFalse(routed.capabilities.supportsVisualizer)
 
         outputs.selectLocal()
@@ -80,10 +81,38 @@ class NaviampCoreOutputPlaybackEffectsTest {
         assertEquals(listOf<PlaybackState>(PlaybackState.Playing), observed)
     }
 
-    private class RecordingCastRoute : NaviampCoreCastPlaybackRoute {
+    @Test
+    fun upnpUsesItsOwnRouteAndUnavailableRouteNeverFallsBackToLocalPlayback() {
+        val outputs = NaviampPlaybackOutputSelectionController()
+        val local = RecordingLocalEffects()
+        val routed = NaviampCoreOutputPlaybackEffects(local, outputs)
+        val cast = RecordingCastRoute()
+        val upnp = RecordingCastRoute(NaviampRemoteOutputKind.Upnp)
+        routed.register(cast)
+        outputs.select(NaviampRemoteOutputTarget(NaviampRemoteOutputKind.Upnp, "uuid:renderer", "Renderer"))
+        assertFalse(routed.startOrRestore())
+        assertEquals(0, local.starts)
+        routed.register(upnp)
+        assertFalse(routed.capabilities.supportsSoftwareVolume)
+        assertTrue(routed.startOrRestore())
+        routed.seek(12.0)
+        routed.setVolume(50)
+        assertEquals(1, upnp.loads)
+        assertEquals(12.0, upnp.seekPosition)
+        assertEquals(0, upnp.volumes)
+        assertEquals(0, cast.loads)
+        assertEquals(0, local.starts)
+        outputs.selectLocal()
+        assertTrue(routed.startOrRestore())
+        assertEquals(1, local.starts)
+    }
+
+    private class RecordingCastRoute(override val outputKind: NaviampRemoteOutputKind = NaviampRemoteOutputKind.Cast) : NaviampCoreRemotePlaybackRoute {
+        override val supportsVolume get() = outputKind == NaviampRemoteOutputKind.Cast
         override val suppressLocalObservations = false
         var loads = 0
         var pauses = 0
+        var volumes = 0
         var seekPosition: Double? = null
         override fun loadCurrent(positionSeconds: Double?): Boolean { loads++; return true }
         override fun navigate(command: PlaybackQueueNavigationCommand) = Unit
@@ -91,7 +120,7 @@ class NaviampCoreOutputPlaybackEffectsTest {
         override fun resume() = Unit
         override fun seek(positionSeconds: Double) { seekPosition = positionSeconds }
         override fun stop() = Unit
-        override fun setVolume(percent: Int) = Unit
+        override fun setVolume(percent: Int) { volumes++ }
     }
 
     private class RecordingLocalEffects : NaviampCorePlaybackEffectPort {

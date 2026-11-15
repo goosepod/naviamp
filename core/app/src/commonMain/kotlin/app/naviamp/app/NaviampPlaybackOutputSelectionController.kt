@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-enum class NaviampRemoteOutputKind { Connect, Cast }
+enum class NaviampRemoteOutputKind { Connect, Cast, Upnp }
 
 data class NaviampRemoteOutputTarget(
     val kind: NaviampRemoteOutputKind,

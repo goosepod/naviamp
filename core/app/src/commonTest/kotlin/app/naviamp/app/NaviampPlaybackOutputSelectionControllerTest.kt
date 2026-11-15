@@ -7,6 +7,23 @@ import kotlin.test.assertTrue
 
 class NaviampPlaybackOutputSelectionControllerTest {
     @Test
+    fun upnpDisplacesOtherOutputsAndRequiresExplicitAuthority() {
+        val controller = NaviampPlaybackOutputSelectionController()
+        val cast = controller.select(target(NaviampRemoteOutputKind.Cast, "speaker"))
+        controller.connected(cast)
+        controller.activatePlaybackAuthority(cast)
+        val upnp = controller.select(target(NaviampRemoteOutputKind.Upnp, "uuid:renderer"))
+        assertFalse(controller.hasRemotePlaybackAuthority())
+        assertFalse(controller.connected(cast))
+        assertFalse(controller.activatePlaybackAuthority(upnp))
+        assertTrue(controller.connected(upnp))
+        assertFalse(controller.hasRemotePlaybackAuthority())
+        assertTrue(controller.activatePlaybackAuthority(upnp))
+        controller.selectLocal()
+        assertFalse(controller.connected(upnp))
+    }
+
+    @Test
     fun selectingCastDisplacesConnectAndInvalidatesItsSessionCallbacks() {
         val controller = NaviampPlaybackOutputSelectionController()
         val connectSelection = controller.select(target(NaviampRemoteOutputKind.Connect, "tv"))

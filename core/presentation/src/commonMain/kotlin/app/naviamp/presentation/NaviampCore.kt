@@ -793,7 +793,7 @@ class NaviampCore private constructor(
                     local = services.playback.effects,
                     publishNowPlaying = { nowPlayingPresenter.publish(playback.currentDisplay()) },
                 ).also { controller ->
-                    routedPlaybackEffects.cast = controller
+                    routedPlaybackEffects.register(controller)
                     controller.start()
                 }
             }

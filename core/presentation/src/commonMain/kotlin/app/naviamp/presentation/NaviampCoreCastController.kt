@@ -43,7 +43,9 @@ internal class NaviampCoreCastController(
     private val queue: NaviampPlaybackQueueCoordinator,
     private val local: NaviampCorePlaybackEffectPort,
     private val publishNowPlaying: () -> Unit,
-) : NaviampCoreCastPlaybackRoute {
+) : NaviampCoreRemotePlaybackRoute {
+    override val outputKind = NaviampRemoteOutputKind.Cast
+    override val supportsVolume = true
     private var loadJob: Job? = null
     private var outputJob: Job? = null
     private var statusJob: Job? = null
