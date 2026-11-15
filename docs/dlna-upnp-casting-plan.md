@@ -47,8 +47,8 @@ isolation retains its existing Cast byte-source coverage and still needs UPnP in
 
 The next increment adds common SSDP message parsing, descriptions, SOAP and GENA wire handling,
 plus actual HTTP loopback tests described below. No audible gapless or WiiM compatibility claim
-follows from these tests. Integration with the existing queue/lease owner remains the next step
-before native host wiring.
+follows from these tests. The shared queue/relay integration is recorded below; native host wiring
+still remains a separate step.
 
 ### Foundation verification
 
@@ -134,8 +134,85 @@ This renderer models transport/promotion and byte delivery; it does not decode a
 sample-clock continuity. SSDP packet parsing uses fixture datagrams, **not live multicast**. Live LAN
 discovery, a third-party renderer, native listener/permission integration, background subscription
 scheduling, queue/lease owner extraction, resync/takeover orchestration and WiiM physical tests
-remain open. The app still exposes no UPnP picker entry. No network device was controlled for these
-tests, and Android remains API 26 minimum.
+remained open at the end of the wire increment. The app still exposes no UPnP picker entry. No
+network device was controlled for these tests, and Android remains API 26 minimum.
+
+### Shared queue and media relay integration — November 15, 2026
+
+Incoming PR head `222083d14` passed the complete Verify matrix, including iOS, Windows, macOS,
+Linux, Android API 30/35 and coverage; evidence is in
+[run 43750537128](https://github.com/goosepod/naviamp/actions/runs/43750537128). That result verifies
+the earlier wire increment, not subsequent queue integration changes.
+
+`NaviampCoreRemotePlaybackController` now owns queue handoff, current/prepared media, relay leases,
+remote observations and explicit return to local for both Cast and UPnP. The old Cast controller is
+a small facade over this owner. `NaviampCoreCastRemoteSession` retains Cast's MP3 compatibility
+policy and native SDK translation; `NaviampCoreUpnpSession` supplies UPnP protocol operations and
+original-only format negotiation. There is no second UPnP playback queue: all advancement calls
+the existing `NaviampPlaybackQueueCoordinator` and updates `NaviampLivePlaybackController`.
+
+The common owner:
+
+- Prepares the next exact queue occurrence with a distinct scoped URL, even for repeated copies
+  of one song or repeat-one. Observed Playing on that URI advances the canonical queue once,
+  adopts the prepared media, and prepares the following occurrence without another Load/Play.
+- Watches structural queue/repeat changes. Superseded work is cancelled and guarded by selection,
+  source, queue and preparation revisions; the receiver's old next slot is cleared before its URL
+  is revoked. Metadata-only changes preserve playback and use current canonical metadata at
+  promotion. Progress updates take the unchanged-queue fast path rather than comparing every track.
+- Retains active/prepared leases until explicit release so long pauses and long tracks do not hit
+  the normal one-hour expiry. Retention remains in memory and subject to the existing eight-lease
+  quota; current/next artwork is included. A bounded previous resource survives replacement until
+  the new URI is observed. Selection loss, source changes, stop/replacement and disposal clean up
+  owned slots; no persisted renderer URL or credential is introduced.
+- Normalizes qualified MIME aliases in the shared HTTP endpoint so DIDL and relay response MIME
+  agree. An unexpected lossy upstream type is rejected before bytes are sent; no lossless source
+  is silently transcoded. Requests still use the existing authenticated provider byte source and
+  source namespace checks, including main/companion provider routing. Original streams are not
+  staged as complete temporary files. Playback/seek quality comes from the selected remote plan,
+  rather than the previous local engine's quality.
+- Verifies the loaded URI before Play or playback authority. Acknowledged-but-ignored loads cannot
+  play another controller's content. Polls and accepted events use serialized current-status reads;
+  stale observations cannot overwrite a newer load. Observed takeover releases our URLs without
+  sending Stop to the other controller. Source loss and UPnP failures pause without automatically
+  restarting local audio. Cast's existing return/reconnect behavior remains covered by its tests.
+- On explicit return from UPnP, waits for owned receiver cleanup before automatically resuming
+  local audio; failed cleanup leaves local paused. Shutdown waits for cleanup, and synchronous
+  disposal can revoke the relay even after the caller's scope has been cancelled. Late Cast
+  shutdown callbacks cannot displace a newer UPnP selection.
+
+`NaviampCoreServices.upnp` is an optional dependency group for a dedicated LAN HTTP transport,
+HTTP listener and secure token source. `NaviampCore.selectUpnpRenderer` describes/probes the chosen
+device and assembles the same owner through Core's composition root. It guards out-of-order
+selection and closed-Core completion. Hosts do not construct product controllers or duplicate the
+flow. Keep the UPnP listener/engine instance separate from Cast's native effect instance; common
+policy reuses the existing media endpoint/byte-source implementation (its legacy names remain).
+The optional service defaults to absent; no native host currently supplies it and no new picker
+entry is exposed. All production edits remain in common Core; minimum Android remains API 26.
+
+The UPnP adapter's common fallback polls every two seconds only while selected/connected; tests
+disable the timer and drive observations deterministically. Its event hook validates SID/sequence
+through the existing gate and reconciles against status before queue changes. This is not yet a
+native GENA callback listener or renewal scheduler. Stop completion requires explicit command
+intent or end-position evidence; ambiguous STOPPED observations are not invented track endings.
+
+Common integration tests exercise the real queue coordinator, shared owner, provider byte source,
+relay and UPnP client with deterministic wire responses. They cover repeated occurrences, repeat-one,
+queue edits, metadata refresh, long pauses, failed/stale preparation, source loss, ignored loads,
+takeover, selection races, return-to-local ordering, disposal and the public Core facade. The earlier
+TCP loopback tests continue to exercise actual HTTP/SOAP/NOTIFY/ranges. Neither fixture measures
+decoded sample continuity or establishes WiiM hardware support.
+
+Remaining: live SSDP/interface/expiry lifecycle and shared picker; native engine/listener/permission
+wiring; GENA callback/renewal lifecycle and platform background validation; broader codec/profile and
+seek-mode qualification; third-party renderer and physical WiiM lossless/audible-gapless evidence.
+The new queue integration requires its own complete CI result before host integration or merging.
+
+Local validation for this increment: **327 app + 640 presentation tests (967 total)**, zero failures
+or errors; `compileDebugKotlinAndroid` and `compileCommonMainKotlinMetadata` for both modules;
+`verifyCoreFirstArchitecture`; and `git diff --check`. These Windows commands keep native klib
+cross-compilation disabled, so the new source still requires native Apple verification in CI. No
+Android/Desktop/iOS production files or dependency versions changed in this increment.
 
 ## Product scope and protocol roles
 

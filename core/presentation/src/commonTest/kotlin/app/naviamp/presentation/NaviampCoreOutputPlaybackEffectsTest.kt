@@ -94,6 +94,7 @@ class NaviampCoreOutputPlaybackEffectsTest {
         assertEquals(0, local.starts)
         routed.register(upnp)
         assertFalse(routed.capabilities.supportsSoftwareVolume)
+        assertEquals(app.naviamp.domain.StreamQuality.Original, routed.playbackQuality)
         assertTrue(routed.startOrRestore())
         routed.seek(12.0)
         routed.setVolume(50)
@@ -108,6 +109,7 @@ class NaviampCoreOutputPlaybackEffectsTest {
     }
 
     private class RecordingCastRoute(override val outputKind: NaviampRemoteOutputKind = NaviampRemoteOutputKind.Cast) : NaviampCoreRemotePlaybackRoute {
+        override val playbackQuality = app.naviamp.domain.StreamQuality.Original
         override val supportsVolume get() = outputKind == NaviampRemoteOutputKind.Cast
         override val suppressLocalObservations = false
         var loads = 0

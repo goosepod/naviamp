@@ -80,14 +80,20 @@ class NaviampCastSessionController(
     private val mutableMediaStatus = MutableStateFlow<NaviampCastReceiverStatus?>(null)
 
     val mediaStatus: StateFlow<NaviampCastReceiverStatus?> = mutableMediaStatus.asStateFlow()
+    val receiverSelectionId: Long? get() = selectionId
 
     suspend fun shutdown() {
         if (!started) return
+        val ownedOutput = currentSelectionId()
         started = false
         ++lifecycleRevision
         selectionId = null
         mutableMediaStatus.value = null
-        try { effect.shutdown() } finally { outputs.selectLocal() }
+        try { effect.shutdown() } finally {
+            if ((outputs.state.value as? NaviampPlaybackOutputSelection.Remote)?.let {
+                    it.selectionId == ownedOutput && it.target.kind == NaviampRemoteOutputKind.Cast
+                } == true) outputs.selectLocal()
+        }
     }
 
     /** Optional sender failure must not prevent the rest of the application from starting. */

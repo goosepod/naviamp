@@ -18,6 +18,7 @@ import app.naviamp.domain.queue.RepeatMode
 internal interface NaviampCoreRemotePlaybackRoute {
     val outputKind: NaviampRemoteOutputKind
     val supportsVolume: Boolean get() = false
+    val playbackQuality: StreamQuality? get() = null
     val suppressLocalObservations: Boolean
     fun loadCurrent(positionSeconds: Double? = null): Boolean
     fun navigate(command: PlaybackQueueNavigationCommand)
@@ -54,8 +55,8 @@ internal class NaviampCoreOutputPlaybackEffects(
             supportsVisualizer = false,
             supportsSoftwareVolume = route?.supportsVolume == true,
         ) else local.capabilities
-    override val playbackSource: PlaybackSource get() = local.playbackSource
-    override val playbackQuality: StreamQuality? get() = local.playbackQuality
+    override val playbackSource: PlaybackSource get() = if (remoteSelected) PlaybackSource.ProviderStream else local.playbackSource
+    override val playbackQuality: StreamQuality? get() = if (remoteSelected) route?.playbackQuality else local.playbackQuality
 
     override fun attach(observer: NaviampCorePlaybackObserver) = local.attach(object : NaviampCorePlaybackObserver {
         private val remoteActive: Boolean get() = remoteSelected &&

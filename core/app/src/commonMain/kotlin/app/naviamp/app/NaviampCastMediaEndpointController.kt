@@ -51,11 +51,11 @@ class NaviampCastMediaEndpointController(
         }
     }
 
-    suspend fun issue(resource: NaviampCastMediaResource): String = lifetime.withLock {
+    suspend fun issue(resource: NaviampCastMediaResource, retainUntilRevoked: Boolean = false): String = lifetime.withLock {
         val base = checkNotNull(baseUrl) { "Cast media endpoint has not started." }
         source.prepare(resource)
         try {
-            (base + leases.issue(resource).receiverPath).also { issued[it] = resource }
+            (base + leases.issue(resource, retainUntilRevoked).receiverPath).also { issued[it] = resource }
         } catch (failure: Exception) {
             if (resource !in issued.values) withContext(NonCancellable) { source.release(resource) }
             throw failure
@@ -92,7 +92,7 @@ class NaviampCastMediaEndpointController(
                         range = decision.range,
                         headOnly = decision.headOnly,
                         onResponse = { upstream ->
-                            response.begin(upstream.statusCode, responseHeaders(upstream))
+                            response.begin(upstream.statusCode, responseHeaders(upstream, decision.resource.contentTypeOverride))
                             responseStarted = true
                         },
                         writeChunk = { bytes, count ->
@@ -112,10 +112,16 @@ class NaviampCastMediaEndpointController(
         }
     }
 
-    private fun responseHeaders(upstream: ProviderMediaByteResponse): Map<String, String> = buildMap {
+    private fun responseHeaders(upstream: ProviderMediaByteResponse, override: String?): Map<String, String> = buildMap {
         put("Accept-Ranges", "bytes")
         put("Access-Control-Allow-Origin", "*")
-        upstream.contentType?.takeIf { '\r' !in it && '\n' !in it }?.let { put("Content-Type", it) }
+        val upstreamType = upstream.contentType?.substringBefore(';')?.trim()?.lowercase()
+        val effectiveOverride = override.takeIf { upstream.statusCode == 200 || upstream.statusCode == 206 }
+        if (effectiveOverride != null && upstreamType != null && upstreamType != "application/octet-stream") {
+            fun canonical(value: String) = when (value) { "audio/x-flac" -> "audio/flac"; "audio/mp3" -> "audio/mpeg"; else -> value }
+            check(canonical(upstreamType) == canonical(effectiveOverride))
+        }
+        (effectiveOverride ?: upstream.contentType)?.takeIf { '\r' !in it && '\n' !in it }?.let { put("Content-Type", it) }
         upstream.contentLength?.takeIf { it >= 0 }?.let { put("Content-Length", it.toString()) }
         upstream.contentRange?.takeIf { '\r' !in it && '\n' !in it }?.let { put("Content-Range", it) }
     }

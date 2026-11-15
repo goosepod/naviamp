@@ -1,4 +1,7 @@
 package app.naviamp.presentation
+
+import app.naviamp.app.NaviampPlaybackOutputSelection
+import app.naviamp.app.NaviampRemoteOutputKind
 import app.naviamp.domain.isInternetRadioTrack
 
 import app.naviamp.app.NaviampConnectionController
@@ -107,6 +110,8 @@ class NaviampCore private constructor(
     private val connectController: NaviampCoreConnectController?,
     private val castController: NaviampCoreCastController?,
     private val castPicker: NaviampCoreCastPickerController?,
+    private val upnpController: NaviampCoreRemotePlaybackController?,
+    private val upnpSelection: (suspend (String, String, String) -> Boolean)?,
     private val showCastRoutePicker: (() -> Unit)?,
     internal val playbackOutputs: NaviampPlaybackOutputSelectionController,
 ) {
@@ -205,7 +210,7 @@ class NaviampCore private constructor(
     suspend fun shutdown() {
         if (closed) return
         castPicker?.close()
-        try { castController?.shutdown() } finally { close() }
+        try { try { upnpController?.shutdown() } finally { castController?.shutdown() } } finally { close() }
     }
 
     fun close() {
@@ -214,6 +219,7 @@ class NaviampCore private constructor(
         samplePlayback.close()
         castPicker?.close()
         castController?.close()
+        upnpController?.close()
         connectController?.close()
     }
 
@@ -225,7 +231,14 @@ class NaviampCore private constructor(
     fun retryCastDiscovery() { castPicker?.retry() }
     fun selectCastTarget(id: String) { castPicker?.select(id) }
 
-    fun selectLocalPlayback() { if (castPicker != null) castPicker.selectLocal() else castController?.selectLocal() }
+    fun selectLocalPlayback() {
+        if ((playbackOutputs.state.value as? NaviampPlaybackOutputSelection.Remote)?.target?.kind == NaviampRemoteOutputKind.Upnp) upnpController?.selectLocal()
+        else if (castPicker != null) castPicker.selectLocal() else castController?.selectLocal()
+    }
+
+    /** Called by a shared discovery/picker owner; hosts supply effects rather than recreate this flow. */
+    suspend fun selectUpnpRenderer(location: String, udn: String, localAddress: String): Boolean =
+        if (closed) false else upnpSelection?.invoke(location, udn, localAddress) ?: false
 
     /** Runs the shared sliding-session heartbeat until the mounted Core application is disposed. */
     suspend fun maintainProviderSession() {
@@ -797,6 +810,34 @@ class NaviampCore private constructor(
                     controller.start()
                 }
             }
+            val upnpServices = services.upnp
+            val upnpSession = upnpServices?.let { NaviampCoreUpnpSession(scope, playbackOutputs, it.pollIntervalMillis) }
+            val upnp = upnpServices?.let { port ->
+                NaviampCoreRemotePlaybackController(scope, checkNotNull(upnpSession), playbackOutputs,
+                    NaviampCastMediaEndpointController(port.server, NaviampCastMediaLeaseController(port.tokens, services.clockEpochMillis),
+                        NaviampCoreCastMediaByteSource(providerSource), localAddress = { upnpSession.localAddress }),
+                    providerSource, livePlayback, queue, services.playback.effects,
+                    { nowPlayingPresenter.publish(playback.currentDisplay()) }).also {
+                    routedPlaybackEffects.register(it)
+                    it.start()
+                }
+            }
+            var upnpSelectionRevision = 0L
+            val selectUpnp: (suspend (String, String, String) -> Boolean)? =
+                if (upnp != null && upnpSession != null && upnpServices != null) {
+                    val select: suspend (String, String, String) -> Boolean = { location, udn, address ->
+                        val revision = ++upnpSelectionRevision
+                        try {
+                            val receiver = app.naviamp.app.NaviampUpnpRendererClient.describe(upnpServices.http, location, udn)
+                            if (revision != upnpSelectionRevision || !upnp.canSelect) false else {
+                                upnp.disconnect()
+                                if (revision != upnpSelectionRevision || !upnp.canSelect) false else upnpSession.select(receiver, address)
+                            }
+                        } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+                        catch (_: Exception) { false }
+                    }
+                    select
+                } else null
             val commandHandler = NaviampCoreConnectCommandHandler(router, connect, samplePlayback::stop)
             pauseMainForSample = { commandHandler.dispatch(NaviampCoreCommand.NowPlaying.Playback(
                 NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.Pause))) }
@@ -821,6 +862,8 @@ class NaviampCore private constructor(
                 connectController = connect,
                 castController = cast,
                 castPicker = castPicker,
+                upnpController = upnp,
+                upnpSelection = selectUpnp,
                 showCastRoutePicker = availableCast?.showRoutePicker,
                 playbackOutputs = playbackOutputs,
             )
