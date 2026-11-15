@@ -38,6 +38,8 @@ kotlin {
         }
 
         commonMain.dependencies {
+            implementation(libs.xmlutil.core)
+            implementation(libs.ktor.client.core)
             implementation(libs.ktor.network)
             implementation(project(":core:domain"))
             implementation(libs.kotlinx.coroutines.core)
@@ -46,6 +48,9 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
+        }
+        jvmTest.dependencies {
+            implementation(libs.ktor.client.cio)
         }
     }
 }

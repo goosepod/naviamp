@@ -17,8 +17,9 @@ to milestone **v2.12.0**, on branch `codex/607-dlna-upnp`, following
 
 The initial shared foundation adds UPnP output identity and a protocol-neutral remote action contract
 to the existing Core router. Cast uses that contract; Connect retains its existing destination path.
-An absent UPnP route fails without starting local playback. No host files, runtime UI entry point,
-permission, setting, dependency or minimum Android version are changed.
+An absent UPnP route fails without starting local playback. No host production files, runtime UI
+entry point, permission, setting or minimum Android version are changed. Wire-layer dependencies
+are described below.
 
 `NaviampUpnpMediaPlan` parses bounded Sink protocol advertisements and chooses original FLAC or
 MP3 bytes only when the encoding has an explicit compatible HTTP advertisement. It preserves the
@@ -44,11 +45,10 @@ Play. An optional-next rejection cannot stage a next resource, and an account-fi
 fixture denies foreign-source bytes. This tests the relay contract; full provider authentication
 isolation retains its existing Cast byte-source coverage and still needs UPnP integration coverage.
 
-This is not yet a wire-level UPnP renderer test: SSDP, descriptions, SOAP, GENA, LAN sockets, live
-software-renderer interoperability and hardware playback are **not implemented or validated** by
-this slice. No audible gapless or WiiM compatibility claim follows from the ledger tests. The next
-slice is bounded common description/SOAP/event handling and a wire-level software-renderer fixture,
-then extraction/reuse of the existing queue/lease owner before any native host wiring.
+The next increment adds common SSDP message parsing, descriptions, SOAP and GENA wire handling,
+plus actual HTTP loopback tests described below. No audible gapless or WiiM compatibility claim
+follows from these tests. Integration with the existing queue/lease owner remains the next step
+before native host wiring.
 
 ### Foundation verification
 
@@ -64,7 +64,9 @@ Local Windows validation on the issue branch:
 Common-metadata validation exposed five existing calls to JVM's no-argument
 `CancellationException()` in `NaviampPlaybackStreamRelay` and
 `NaviampCorePlaylistTransactionController`. They now use the portable
-`CancellationException(null, null)` factory, preserving the null message/cause and cancellation behavior. The two arguments also disambiguate Native message/cause overloads; the initial single-null form passed JVM/common metadata but failed iOS CI.
+`CancellationException(null, null)` factory, preserving the null message/cause and cancellation
+behavior. The two arguments disambiguate Native message/cause overloads; the initial single-null
+form passed JVM/common metadata but failed iOS CI.
 The existing module regression suites cover these owners; metadata compilation exercises the API
 restriction that JVM compilation alone missed.
 
@@ -72,6 +74,67 @@ These commands use `-Pkotlin.native.enableKlibsCrossCompilation=false` on Window
 compilation is **not** native iOS compilation or execution; Apple target checks remain required in
 CI before native host integration. No TV/phone/device test or live LAN discovery was performed for
 this foundation. The milestone records release intent, with the physical release gates still open.
+
+### Wire-level increment and verification — November 15, 2026
+
+The wire layer stays in `core:app/commonMain`:
+
+- `NaviampUpnpDiscoveryWire`: bounded M-SEARCH generation and search/alive/byebye parsing,
+  including UPnP 1.1 extension headers, packet-source identity, bounded advertised lifetime and
+  rejection of duplicate headers or off-device description URLs. The eventual discovery registry
+  must retain source **and interface** identity, expiry and scan generations; byebye is not an
+  instruction to remove every endpoint with that UDN.
+- Description parsing verifies the selected UDN and namespace, locates embedded renderers and
+  resolves relative service/SCPD/event URLs including dot segments and query references. Endpoints
+  are conservatively pinned to the selected description origin. Cross-origin service URLs need an
+  explicit, tested policy before being supported.
+- `NaviampUpnpRendererClient`: SCPD action discovery, ConnectionManager Sink probing, namespaced
+  SOAP, DIDL metadata and AVTransport/RenderingControl commands/status. Missing optional actions
+  fail before sending; SOAP faults and unexpected response actions fail explicitly. Load/Play
+  acknowledgement never grants playback authority or substitutes for observed playback.
+- `NaviampUpnpEventSubscriptionClient` supplies subscribe/renew/unsubscribe operations and a
+  renewal deadline. `NaviampUpnpEventGate` validates selection/SID/NT/NTS/content type and SEQ,
+  rejects duplicate/old events, handles wrap from 4,294,967,295 to 1, and parses bounded nested
+  LastChange for InstanceID 0. Missing sequence numbers flag a resync requirement; the eventual
+  common session owner must poll/reconcile before treating those observations as authoritative.
+- `NaviampUpnpKtorTransport`: a dedicated, unauthenticated client with an injected native engine;
+  no provider-client authentication plugins are inherited. Core rejects redirects, bounds control
+  response bodies to 256 KiB before decoding UTF-8, and enforces a five-second exchange deadline.
+  These limits apply to control XML, **not streamed audio**. The creator owns the engine lifetime.
+
+Added [xmlutil core 1.0.2](https://github.com/pdvrieze/xmlutil/tree/v1.0.2.1#core) and the existing
+catalog's Ktor client core to `core:app`; CIO is test-only. The generic XML parser runs the same
+implementation on all hosts, without JDK/Android XML wrappers. DTD/entity declarations are rejected
+before parsing; namespace-aware traversal limits depth to 32, nodes to 4,096, attributes/namespaces
+to 32 per element and events/text/input size. Diagnostics exclude parser payloads/URLs. The
+[release notes](https://github.com/pdvrieze/xmlutil/releases/tag/v1.0.2.1) identify 1.0.2.1 as a BOM
+publication fix; the core artifact remains 1.0.2. Native behavior is verified in CI, rather than
+assuming equivalent behavior from JVM results or the library's platform support statement.
+
+The JVM-only **test renderer** binds a disposable loopback TCP socket. Its HTTP/SOAP service
+descriptions, control responses, SOAP faults and NOTIFY callback endpoint exercise the real common
+HTTP client, metadata codec, event gate, scoped media relay and handoff ledger together. It verifies:
+
+- Exact original FLAC transfer for repeated occurrences, HEAD, closed/open/suffix ranges and
+  revocation over HTTP; original FLAC metadata survives nested DIDL/SOAP escaping.
+- Observed STOPPED after load, explicit Play, current/next promotion, duplicate HTTP callbacks,
+  status polling, pause/seek/volume/stop and subscription renewal/unsubscribe.
+- Exactly one Load and one Play across a prepared transition; unsupported SetNext never sends an
+  action, and HTTP 500/UPnP fault 701 cannot be mistaken for successful preparation.
+- No redirect follow and bounded reads for both declared and chunked oversized responses.
+
+Local checks pass: **322 app + 627 presentation tests (949 total)**; both modules' Android and
+common-metadata compilation; the Core architecture check and diff check. The cancellation-fix CI
+run (`43748120294`, commit `fe31a5977`) passed common/device/simulator compilation, simulator tests,
+native TLS/BASS execution and production iOS build before this increment was pushed. The new wire
+increment must pass its own CI; earlier results do not verify a later source tree.
+
+This renderer models transport/promotion and byte delivery; it does not decode audio or measure
+sample-clock continuity. SSDP packet parsing uses fixture datagrams, **not live multicast**. Live LAN
+discovery, a third-party renderer, native listener/permission integration, background subscription
+scheduling, queue/lease owner extraction, resync/takeover orchestration and WiiM physical tests
+remain open. The app still exposes no UPnP picker entry. No network device was controlled for these
+tests, and Android remains API 26 minimum.
 
 ## Product scope and protocol roles
 

@@ -194,7 +194,7 @@ class NaviampUpnpSoftwareRendererTest {
         // ffmpeg -f lavfi -i 'aevalsrc=0.1*sin(2*PI*1000*t):s=44100:d=0.01' -ac 2
         //   -sample_fmt s16 -c:a flac -compression_level 8 -fflags +bitexact -flags:a +bitexact
         //   -map_metadata -1 -metadata_header_padding 0 original.flac
-        private val originalFlac = Base64.decode(
+        internal val originalFlac = Base64.decode(
             "ZkxhQwAAACIBuQG5AAC5AAC5CsRC8AAAAblid2NY9LqBxf9zUfX27u+yhAAADgYAAABmZm1wZWcAAAAA//h5iAABuGRGAAABSQKLA8DmookYWfIrmggAECSEIQhJJN41VR9zJIQhIQhCEJCSQzetFVbTkkkISEIQhCQkkJPSrVVtMmSEIQhIEIQhCSE57aqi9ySSQhCEIEISQJCSSbkYqtXzJCQkIQkIQhCSQnLai6t2SSQhIQhCEISEJMk9tVWj8yQhCEJCBISEhJJ9aqqr5kkhCQhCEhCEhJJPti1VvkwkJIEIEhIQkyTy1Fav8hJAAAAA2PM=",
         )
     }

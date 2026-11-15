@@ -21,8 +21,10 @@ bouncycastle = "1.85.2"
 jmdns = "3.6.3"
 dbus-java = "5.2.0"
 ksoup = "0.6.0"
+xmlutil = "1.0.2"
 
 [libraries]
+xmlutil-core = { module = "io.github.pdvrieze.xmlutil:core", version.ref = "xmlutil" }
 ksoup-entities = { module = "com.mohamedrejeb.ksoup:ksoup-entities", version.ref = "ksoup" }
 androidx-lifecycle-runtime-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test" }
