@@ -60,7 +60,9 @@ jobs:
           if-no-files-found: ignore
           path: |
             ${{ runner.temp }}/flatpak-smoke/application.png
+            ${{ runner.temp }}/flatpak-smoke/application-first.png
             ${{ runner.temp }}/flatpak-smoke/application.log
+            ${{ runner.temp }}/flatpak-smoke/paint-readiness.txt
             ${{ runner.temp }}/flatpak-smoke/native-audio.txt
             ${{ runner.temp }}/flatpak-smoke/mpris.txt
             ${{ runner.temp }}/flatpak-smoke/permissions.txt
