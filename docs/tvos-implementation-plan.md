@@ -650,3 +650,11 @@ Continue to key TV Native caches by the verified port artifact identity/compiler
 and keep the separate Compose producers out of ordinary application build graphs. A successful
 library compile or common-unit test does not close full-host linking, bounded durable preferences,
 native authenticated streaming, physical remote/audio or older-runtime acceptance.
+
+The next [producer checkpoint](verification/590-compose-artifact-delivery.md) now includes a
+pinned, licensed source snapshot and preparation command. Exact full-tree replay and fresh
+local UI/resources/plugin builds pass; a fresh Native consumer links both TV targets and original
+iOS and visibly renders on 27.2. The new candidate has a separate binary identity. Keep normal
+app builds on prebuilt verified inputs; fresh remote acquisition now passes, while bounded
+producer automation and trusted artifact delivery remain before production dependency adoption.
+Windows real-window performance/output and full host/persistence/device gates remain open.

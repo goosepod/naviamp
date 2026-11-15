@@ -11,3 +11,6 @@ platforms/ios/vendor/bass/**/PrivacyInfo.xcprivacy text eol=lf diff
 # Flatpak inputs can be built from a Windows checkout through WSL.
 packaging/flatpak/** text eol=lf
 scripts/flatpak/** text eol=lf
+
+# Hash-pinned source-only producer snapshot; preserve its exact archive bytes.
+build-support/tvos-compose/sources.zip -text

@@ -96,7 +96,11 @@ The previous raw ZIPs already contained their XML, despite incomplete extraction
 the Windows download command. That extraction discrepancy is not evidence of missing CI reports
 or a proven path-length defect. Replay of those real reports correctly rejects API 26's missing
 case and accepts API 30/35; six collector regressions and actionlint pass. Acceptance of the
-expanded API 26 list still requires the next CI run.
+expanded API 26 list now passes on source `9958353df1d4e439e02cefe46b3826755d40916d`:
+five UI cases, zero failures/errors/skips. API 30 and 35 each pass 47 UI cases. All three fresh
+collector summaries pass and retain the app-native optional skips (24/24/22 respectively).
+Source-replay helper work does not change the production animation implementation or replace
+the real-window performance gate below.
 The reusable init script also passed a missing-opt-in rejection and a positive resolution check,
 including its included-build guard.
 
