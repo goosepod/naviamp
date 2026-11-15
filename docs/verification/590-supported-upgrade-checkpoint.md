@@ -163,8 +163,9 @@ published branch. Do not reuse alpha-stack timings or omit archive validators.
 
 The 306-file tvOS port delta from `f29d2f99f3beafc60992c6a73dbbaa9f841c5d4c` to
 `6e266fe9e511c413e63d51011be1659c3696fee6` passed `git apply --cached --check --3way`
-against official Compose 1.12.2 (`2ccc76492a770d84008c93664a4f0c008f378107`) using an
-isolated index. No source checkout was modified, compiled, formatted or published. Some new/renamed
+against official Compose 1.12.2 (source commit `5f017375d926c73f1937408601b6cb28c12a8812`,
+annotated tag object `2ccc76492a770d84008c93664a4f0c008f378107`) using an
+isolated index. At that initial checkpoint no source checkout was modified or compiled. Some new/renamed
 files used direct application when Git could not find an ancestor blob; the complete check returned
 0 with no unresolved conflicts. This makes a stable UI source port plausible; it does not prove
 ABI, Gradle/resource-plugin compatibility or runtime behavior. Keep strict dependency diagnostics.
@@ -175,11 +176,12 @@ native, non-JVM, Skiko, JVM and web source sets. It must not be replaced by the 
 alpha under a stable coordinate. The inspected public source JAR SHA-256 is
 `a21ae02b0ec8ef4ef0eaead0d743f61474a5db85f6b193c15af401e78297c420`.
 All **327/327** published Kotlin files matched the Git blob hashes in official tag `v1.9.1`,
-commit `183fbac3a71a953e3d1bb1bd7c2bcbfbc48e91a0`, with no missing/mismatched files.
+source commit `6ba48befdf216eca527ea4209ec37bdf2ed838c9` (annotated tag object
+`183fbac3a71a953e3d1bb1bd7c2bcbfbc48e91a0`), with no missing/mismatched files.
 The comparison mapped each JAR `<sourceSet>/<package>.kt` entry to
 `compose/material3/material3/src/<sourceSet>/kotlin/<package>.kt` and computed the Git blob
 SHA-1 over its complete original bytes. This is full published-source provenance, not a sample.
-Native target/build wiring and the separate Compose resources/Gradle plugin still require builds.
+The subsequent source/native build evidence below supersedes that initial apply-only checkpoint.
 
 Use this as the port sequence: apply the tvOS UI/native delta to official UI 1.12.2; build stable
 Material3 1.9.0 from its verified 1.9.1-tag sources with tvOS/Darwin source-set wiring, rather than
@@ -194,4 +196,195 @@ Primary inputs:
 
 - [Official Material3 1.9.0 POM](https://repo.maven.apache.org/maven2/org/jetbrains/compose/material3/material3/1.9.0/material3-1.9.0.pom)
 - [Official Material3 1.9.0 source JAR](https://repo.maven.apache.org/maven2/org/jetbrains/compose/material3/material3/1.9.0/material3-1.9.0-sources.jar)
-- [Verified official Material3 source commit](https://github.com/JetBrains/compose-multiplatform-core/tree/183fbac3a71a953e3d1bb1bd7c2bcbfbc48e91a0/compose/material3/material3)
+- [Verified official Material3 source commit](https://github.com/JetBrains/compose-multiplatform-core/tree/6ba48befdf216eca527ea4209ec37bdf2ed838c9/compose/material3/material3)
+
+An actual uncommitted source worktree now exists at the Mac root's
+`build/590-compose-core-stable-source`, based on the peeled official 1.12.2 commit above.
+The pinned tvOS patch applied there without unresolved conflicts. No upstream commit or artifact
+publication was made. Stable Material3 overlay preparation and build checks are described below.
+
+The stable overlay is now prepared: all 327 published Kotlin files were copied byte-identically
+into the corresponding seven source sets, 37 alpha-only Kotlin files in those same sets were
+removed, and the stable annotation/UI-graphics dependencies were restored in the newer build DSL.
+The tvOS/Darwin target wiring remains. The first `help` configuration failed because the old
+`:annotation:annotation` project no longer exists in the selected upstream graph. The dependency
+now uses the existing stable `androidx.annotation:annotation:1.9.1` coordinate; its official metadata
+includes both ARM64 tvOS variants. Corrected configuration passed in 34 seconds, with configuration
+on demand disabled because upstream warns it is unsupported for KMP. No publication task ran.
+
+An initial native compile started with the default native home; changing the native home after
+that left old absolute platform-library paths in cached metadata. The subsequent 2m41s run failed
+on duplicate KLIB identities from the old/new homes, before providing accepted renderer evidence.
+The source experiment now uses one consistent dedicated native home from startup, **fresh**
+Gradle/project/output directories and `--no-build-cache`. No existing user cache was removed.
+Preserve these failed logs; do not diagnose the mixed-cache failure as missing tvOS support.
+
+Current layout at the Mac root: `build/590-compose-port-gradle-isolated`,
+`build/590-compose-port-project-cache-isolated`, `build/590-compose-port-output-isolated` and
+`build/590-compose-port-konan`. Native compile log:
+`/tmp/naviamp-590-compose-stable-native-fresh-layout.log`. The opt-in
+`scripts/probe-compose-tvos-source-graph.init.gradle` guard verified **20** device/simulator paths
+across ten required modules. Eight modules inherit real Common Main Kotlin sources. Runtime and
+Runtime Saveable deliberately use empty redirect proxies: the guard instead proves their resolved
+official AndroidX 1.12.1 variants have the exact requested native target attribute. An empty,
+unbacked compilation is rejected. Foundation has 354 common Kotlin files, Foundation Layout 32,
+and stable Material3 218 (327 across all seven overlaid source sets).
+
+The actual native build found one source incompatibility: the tvOS UIKit container supplied Skiko's
+theme enum where current Compose expects its own enum. It now uses the same shared
+`asComposeSystemTheme()` conversion as the current iOS container. Both tvOS device and simulator
+UI, Foundation and stable Material3 compiled successfully in **2m00s**, 148 tasks, 53 executed.
+All **403** added/modified Kotlin files were then formatted with upstream `:ktCheckFile`; the
+post-format native rebuild also passed in **2m24s**, 148 tasks, 109 executed, with the 20-path
+guard passing again. Logs: `/tmp/naviamp-590-compose-stable-native-theme-fixed.log`,
+`/tmp/naviamp-590-compose-all-source-format.log` and
+`/tmp/naviamp-590-compose-stable-native-formatted.log`. Formatting can change whitespace from the
+original source-JAR bytes; the 327/327 provenance result describes the verified input overlay.
+Public/native API checks and an actual renderer remain gates; original-target source results follow.
+
+The original-target source build subsequently passed in **2m19s**, 168 tasks, 33 executed:
+UI, Foundation and stable Material3 on Android and the iOS ARM64 simulator. The upstream rules
+name the former `compileDebugKotlinAndroid` task; task discovery showed this source tree now uses
+`compileAndroidMain`. The first invocation failed on that absent legacy task. The next failed
+because SDK 27.2 rejects the upstream Objective-C helper's iOS 13 deployment target. A build-only
+init-script override adds `IPHONEOS_DEPLOYMENT_TARGET=17.2` immediately before that helper's
+`xcodebuild` execution, matching Naviamp's existing minimum. An earlier override was overwritten
+during task configuration; the corrected execution-time override produced the passing build.
+No Naviamp platform requirement or production source changed. Log:
+`/tmp/naviamp-590-compose-source-original-targets-sdk27-fixed.log`.
+
+The first UI/Foundation `klibApiCheck` invocation **failed**, as expected for an unchanged baseline
+that does not contain the added targets, but its differences must still be reviewed. The UI dump
+includes tvOS target declarations, the private library unique name, UIKit APIs shared with tvOS,
+tvOS clipboard types and an additive `KeyEvent.isRepeat` property. Existing drag/drop declarations
+become explicitly restricted to the original targets. Do not overwrite golden files and call this
+compatibility proof. Foundation's check was not reached. The stable Material3 API reference must
+also come from its verified stable source, not the current alpha baseline. Evidence:
+`/tmp/naviamp-590-compose-source-api-check.log` and the source experiment's `build/api` outputs.
+
+`scripts/compare-klib-api-targets.py` projects BCV declarations onto explicitly named original
+targets, expanding aliases and preserving nested/member restrictions. Five regression cases
+exercise scope isolation, member overrides, target renaming, missing inputs and unknown targets.
+The actual UI comparison found **zero removed declarations** on iOS device/simulator, macOS ARM64,
+JS and Wasm. Each target has exactly two added declarations: `KeyEvent.isRepeat` and its getter.
+The tool still exits nonzero for additions; this is reviewed evidence, not a weakened API gate.
+It compares declaration inventories, not runtime behavior or binary link compatibility. JSON:
+`build/590-compose-stable-port-check/ui-original-target-api-comparison.json` on the Mac.
+
+Foundation's separate raw check also failed on the new targets/private library name. Its explicit
+per-target comparison found **zero added or removed declarations** on all five original targets.
+Material3's first full ABI merge found a missing `PlatformDateFormat` actual for JS/Wasm: its
+stable `webCommonW3C` source was not in the seven source-JAR directories overlaid earlier. The
+missing file was restored from the same verified stable source commit into the current `webMain`
+source set and formatted with upstream `:ktCheckFile` (30 seconds). The subsequent complete
+ABI merge passed in **1m04s**, 288 tasks, 22 executed. The 327 source-JAR provenance claim must
+not be treated as proof that platform sources outside that JAR were also complete.
+
+Stable Material3 comparison requires care: the current upstream ABI extractor hides
+`ExperimentalMaterial3Api` declarations, whereas the older reference includes them. The first
+unadjusted comparison therefore reported 894 removals and one addition per original target; that
+is not evidence of 894 deleted source APIs. The comparison-only
+`scripts/probe-material3-stable-api.init.gradle` explicitly includes those declarations on all
+seven KLIB targets and refuses normal check/golden-update tasks. An initial callback failed to
+bind the task properties; its corrected, verified extraction ran all seven API tasks and passed
+in 33s. The complete report still exits nonzero: 398 removed compiler-generated `$stableprop`
+declarations, one changed lowered `SliderDefaults.Thumb` signature, and three added lowered
+signatures (Thumb plus two tooltip overloads). Preserve these results and compare the actual
+published stable binary with equivalent extraction settings before approving compatibility.
+Do not claim source API deletion or binary compatibility from the raw historical golden alone.
+
+Official Skiko 0.150.2 Maven metadata already exposes both `skiko-tvosarm64` and
+`skiko-tvossimulatorarm64` API/source/metadata variants. Those exact coordinate metadata files
+were fetched successfully; an older Skiko fork or the rejected 0.153 override is not required
+merely to resolve those targets. Native linking/rendering and dependency closure still need tests.
+Keep any source-port build/cache pipeline separate from Naviamp's normal application builds:
+ordinary Android/Windows/iOS development must not rebuild AndroidX or resolve tvOS forks.
+
+## Matching resources and Gradle plugin source port
+
+The second public repository is `sajidalidev/compose-multiplatform`, not the former redirected
+`compose-multiplatform-tvos` name. Its pinned tvOS commit is
+`9897904fab44c811affcd818b14b653bac0cf1ea`, based on
+`d67175a3766c51caa673b220c74a4fb68a61fd31`. Its 17-file delta (581 additions, 129 deletions)
+passed a private-index three-way apply check against official 1.12.2 source commit
+`ab304f2538657d9f7077bdb40797f5db618b4c84`, then applied without unresolved conflicts to
+`build/590-compose-resources-stable-source` on the Mac. No upstream commit or publication was made.
+
+Do not accept that patch unchanged. It pins 1.12.0/Material3 alpha versions, fetches a moving
+manifest through a remote redirect plugin, and comments out **11** test source-set blocks.
+The experiment restores all 11 blocks, pins Compose/deploy 1.12.2 and Material3 1.9.0, and uses
+the reviewed local Naviamp redirect-plugin source with manifest fetching disabled and strict
+diagnostics enabled. Explicit same-version mappings use the private `app.naviamp.tvosprobe`
+namespace, not official coordinates. Repositories and Gradle/Native/Maven caches are isolated;
+no user Maven cache or normal app dependency graph is overwritten. Configuration/compilation,
+resource-reader tests and actual framework resource copying remain to be verified.
+
+The first configuration was intentionally stopped through its dedicated Gradle user home after
+building the local plugin: its local source artifacts did not exist yet, so continuing remote
+discovery could not prove a working graph. The interrupted log is retained at
+`/tmp/naviamp-590-compose-resources-frozen-configure.log`. The next step stages only explicit
+UI/Foundation/animation/ripple/Material3/NavigationEvent modules, umbrella metadata and the two
+tvOS publications into `build/590-compose-port-output-isolated/repository`. This is a local
+consumer experiment under `app.naviamp.tvosprobe`, not acceptance of the still-unreviewed API
+baseline, a central publication or an alteration to original-target app resolution.
+
+The initial staging succeeded in **3m39s**, 863 tasks (731 executed), and the resource library
+actually compiled on both tvOS targets, Desktop, Android and the iOS simulator in **8m07s**,
+37 tasks (17 executed), with strict diagnostics. Those compiles are **not accepted final-graph
+evidence**: inspection found NavigationEvent's unpinned `9999.0.0-SNAPSHOT` publication. No central
+publication occurred. Preserve the first repository and log instead of silently relabelling it.
+
+`scripts/probe-compose-tvos-local-publication.init.gradle` now requires an explicit canonical local
+path inside the experiment, the private namespace, and exact versions for all **48** publications
+from 16 selected modules. It rejects the real snapshot configuration before staging. The corrected
+producer pins `jetbrains.publication.version.NAVIGATION_EVENT=1.1.0`; the guard passed in 25s.
+That JetBrains stable wrapper delegates to AndroidX **1.1.1**, as its official POM confirms.
+Its own source JAR is an empty wrapper, not implementation provenance. All **6/6** implementation
+Kotlin files in Google's AndroidX 1.1.1 source JAR match the pinned official UI source commit;
+SHA-256 `25e36c0afa796e71ea2979ae37fff10db56bc3154df0bd90a0f3f1a19693ccaa`.
+Google's metadata also has real tvOS variants. The source module is a full redirect proxy to that
+official AndroidX coordinate; do not describe it as a new NavigationEvent implementation.
+
+Guarded staging into the fresh `build/590-compose-port-repository-reviewed` passed in **54s**,
+864 tasks (256 executed), producing 48 module metadata files in a 54-MiB local repository.
+The resource consumer now points only at this repository for private artifacts. Its repeated
+strict original/tvOS compiles passed in **6m09s**, 37 tasks (5 executed), with dependency refresh
+explicitly requested. Its restored test suite then **linked** for tvOS ARM64 simulator in
+**1m24s**, 34 tasks (12 executed). This establishes a real Native linker closure for this test
+binary, beyond individual KLIB compilation.
+
+On a disposable tvOS 27.2 simulator the suite then executed **51 actual cases**, **0 failures,
+errors or skips**, verified from seven XML reports. The warm test invocation took **36s**,
+35 tasks (4 executed). Tests cover shared resource selection, strings/plurals, font caches and
+vector XML; fixtures/fake readers are used where the tests specify them. This does not establish
+full host/framework bundle copying or visible television rendering. Owned simulator shutdown and
+delete both returned 0. Evidence: `/tmp/naviamp-590-compose-resources-native-test-link.log`,
+`/tmp/naviamp-590-compose-resources-native-tests.log`,
+`build/590-compose-resources-native-test-run/summary.json` and
+`build/590-compose-stable-port-check/resources-native-test-summary.json` on the Mac.
+
+The guarded repository audit verified **48** metadata modules and **34** KLIBs (32 main plus
+two UIKit C-interop artifacts), exact stable versions, no snapshot metadata, the correct tvOS
+device/simulator native manifests and SHA-256 hashes. The first audit expected only 32 KLIBs and
+correctly stopped on the extra two; inspection identified the required interop artifacts before
+the corrected inventory passed. Record: `build/590-compose-stable-port-check/guarded-artifact-inventory.json`.
+Next validate a Kotlin 2.4.21 consumer and actual renderer/resource bundle before wiring Naviamp.
+
+Reproduction flags for the source producer (retain its official Kotlin 2.3.20/Gradle 9.5 toolchain):
+
+```text
+-Pcompose.platforms=KotlinMultiplatform,Android,IosArm64,IosSimulatorArm64,TvosArm64,TvosSimulatorArm64
+-Pjetbrains.publication.version.COMPOSE=1.12.2
+-Pjetbrains.publication.version.COMPOSE_MATERIAL3=1.9.0
+-Pjetbrains.publication.version.NAVIGATION_EVENT=1.1.0
+-Ppublication.coordinateRoot=app.naviamp.tvosprobe
+-Pnaviamp.tvos.probeRepository=/absolute/owned/experiment/repository
+--init-script /absolute/path/scripts/probe-compose-tvos-local-publication.init.gradle
+```
+
+Run `verifyTvosCommonSourceGraph` with its separate init script and
+`verifyTvosProbePublicationCoordinates` before selected umbrella/device/simulator publications.
+Do not run a whole-repository release task or stage other Material3-group alpha modules beneath
+the stable main-module version. Keep configuration on demand off, explicit cache roots from job
+startup, limited workers and full logs. The app consumer must still prove compatibility with
+Kotlin 2.4.21; do not upgrade an upstream source producer solely to match its consumer version.

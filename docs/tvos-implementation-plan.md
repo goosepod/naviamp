@@ -517,10 +517,14 @@ stable library upgrades now pass the Android/JVM and iOS shared/native matrices.
 capability and preference preservation passed both the original and upgraded graphs; Domain's
 1,152 tests also pass on tvOS. See [the current checkpoint](verification/590-supported-upgrade-checkpoint.md)
 for reproduction, exact results, native simulator proof, verified renderer source provenance and
-remaining gates. Finish final host/Keychain/Release archive checks and matched runtime/build
-performance measurements before permanent dependency adoption. The earlier alpha stack's archive
-timings must not be reused as newest-stable evidence. Resolve the tvOS artifact mismatch before
-enabling the host; retain strict diagnostics and Core-first ownership.
+remaining gates. The final shared graph's iOS host/Keychain and fully optimized Release archive
+checks now pass. The matched cold archive totals were 855.229s baseline and 859.834s candidate;
+one pair is not a statistically significant performance claim. Final Windows visible animation
+measurements and API-26 runtime acceptance remain before permanent dependency adoption. The
+earlier alpha stack's archive timings must not be reused as newest-stable evidence. The stable
+source port now compiles UI/Foundation/Material3 on both tvOS targets and original Android/iOS;
+resource packaging, reviewed API baselines and actual Native linking/rendering remain gates.
+Resolve those before enabling the host; retain strict diagnostics and Core-first ownership.
 
 Keep minimum Android API 26 during this work. Both newest-stable APK manifests retain minimum 26,
 target 36 and compile 37. API 29 is a meaningful native compositor boundary, already selected at
