@@ -4,7 +4,7 @@
   "baselineCommit": "57c26661247facd5d3ddf43319b7f119d6683c22",
   "currentFieldMeaning": "Version in the baseline catalog before the issue 590 candidate",
   "issueBranchCatalog": "Candidate applied for branch verification; main acceptance pending",
-  "additionalBatchValidation": "Windows broad no-sound matrix, final packaging, 13 real-output cases and visible rendering passed; iOS shared/native matrix, final iOS host/Keychain and optimized archive passed; visible motion and Android emulator CI configuration/runtime acceptance pending",
+  "additionalBatchValidation": "Windows broad matrix, packaging, 13 real-output cases and visible rendering passed; complete CI run 885 passed at 595f6d45b including Android API 26/30/35, all Desktop jobs, shared coverage and iOS host/Keychain; matched full-app animation measurements and tvOS host integration remain pending",
   "dependencies": [
     {
       "key": "ksoup",

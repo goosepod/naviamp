@@ -139,6 +139,42 @@ and [Darwin implementation](https://github.com/ryanheise/just_audio/blob/minor/j
 This is an alternative playback-architecture reference, not proof of JellyBox tvOS support or a
 decision to replace Naviamp's BASS engine. Continue the owner-selected direct-BASS approach.
 
+### tvOS storage and credential constraints
+
+Checked against Apple's current documentation on November 14, 2026. Apple's tvOS engineering
+guidance says file-backed data belongs in the cache directory and can be purged between launches;
+using the Documents directory fails at runtime. A successful SQLite open is therefore insufficient
+proof of durable storage. See the [WWDC23 storage discussion](https://developer.apple.com/videos/play/wwdc2023/10256/?time=938).
+**Implementation inference:** initially treat library/artwork/audio databases as rebuildable cache,
+avoid promising persistent offline downloads, and test a cache purge between launches. Core must
+recover the selected connection, including its Aurral companion, rebuild derived data and avoid
+autoplay; the native factory only supplies paths and driver effects.
+
+The modern `URL.applicationSupportDirectory` property is listed for tvOS 16+, but its reference
+does not establish durable-file semantics on tvOS. Do not infer iOS-equivalent persistence merely
+from that property's availability. See [Apple's API reference](https://developer.apple.com/documentation/foundation/url/applicationsupportdirectory).
+
+Current Foundation documentation warns when a tvOS defaults database reaches **512 KB** and
+describes process termination at **1 MB**. Keep only small preferences/recovery identifiers there;
+do not move SQL data, audio, artwork or whole unbounded exports into defaults. Account for total
+database size, including encoding/other keys. Add a common preflight/failure contract before wiring
+bulk settings import to this effect; native code must not choose a different import policy.
+The newer typed notification is available on tvOS 26+, which is not a reason to raise the app's
+minimum; verify an older compatible notification/API if required. See
+[UserDefaults.SizeLimitExceededMessage](https://developer.apple.com/documentation/foundation/userdefaults/sizelimitexceededmessage).
+
+Apple's multi-user sample describes per-user defaults/CloudKit with the user-management
+entitlement on tvOS 16+, and a separate opt-in Keychain API for credentials shared across TV users.
+Do not silently adopt user-independent secrets or new OS-profile switching behavior. Keep the
+existing common in-app account switcher for the first host; defer an optional OS-user mapping until
+its common account ownership and tests are defined. Verify real tvOS Keychain reads/writes,
+relaunch and principal isolation before claiming persistence. See
+[Apple's profile and Keychain sample](https://developer.apple.com/documentation/tvservices/mapping-apple-tv-users-to-app-profiles).
+
+These are planning constraints, not completed storage tests or a selection of the tvOS deployment
+minimum. Keep settings export/import/sync shared, preserve unsupported playback preferences, and
+exercise purge recovery separately from ordinary process restart.
+
 ## Target graph and file placement
 
 Introduce device `tvosArm64` and simulator `tvosSimulatorArm64` only; Intel simulator is outside the
@@ -530,7 +566,8 @@ for reproduction, exact results, native simulator proof, verified renderer sourc
 remaining gates. The final shared graph's iOS host/Keychain and fully optimized Release archive
 checks now pass. The matched cold archive totals were 855.229s baseline and 859.834s candidate;
 one pair is not a statistically significant performance claim. Final Windows visible animation
-measurements and API-26 runtime acceptance remain before permanent dependency adoption. The
+measurements remain before permanent dependency adoption. The API-26 native/UI runtime gate now
+passes in the repaired hosted matrix. The
 earlier alpha stack's archive timings must not be reused as newest-stable evidence. The stable
 source port now compiles UI/Foundation/Material3 on both tvOS targets and original Android/iOS;
 the synthetic consumer also passes packaged-resource tests, Native links and visible rendering.
@@ -541,11 +578,17 @@ and Core-first ownership. The issue-branch repeat passes all 6,029 broad reporte
 eight conditional skips and final packaging. Its muted real-output follow-up initially failed
 Windows driver initialization; after the real monitor endpoint became available, the unchanged
 suite passed all 13 cases and the upgraded packaged UI was visibly verified. Android emulator CI
-test dependency/manifest migration repairs and final animation measurements remain in progress.
+test dependency/manifest migration repairs now pass the API 26, 30 and 35 emulator jobs. Matched
+full-app animation measurements remain open; the local baseline observer launch supplied no
+accepted sample and its disposable configuration/profile were restored.
 
 Keep minimum Android API 26 during this work. Both newest-stable APK manifests retain minimum 26,
 target 36 and compile 37. API 29 is a meaningful native compositor boundary, already selected at
 runtime where available, but raising the minimum alone does not speed up modern devices and would
 exclude Android-9-based Fire OS 7 TVs/sticks. A minimum-version change requires a separate concrete
-benefit/device-impact decision within #590; none has been made. Actual API-26 runtime acceptance
-remains outstanding.
+benefit/device-impact decision within #590; none has been made. Hosted API-26 acceptance now
+executes 23 app boundary cases and four UI cases, with 24 optional app acceptance cases skipped;
+this is not a complete physical-device feature matrix. Full Verify run 885 passed at
+`595f6d45bab1d3fd0166007802a5888580d18fe5`, including all three Android emulators, Desktop platforms,
+shared coverage and the original iOS host/Keychain. Keep #590 open and the preparatory PR in draft
+until the remaining scope is accepted.

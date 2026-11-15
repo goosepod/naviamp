@@ -159,7 +159,53 @@ min SDK 26, target SDK 34 and the original runner/package. A separate no-probe m
 passed in 5s and keeps ComponentActivity without the probe activities. Logs:
 `android-device-test-packaging-fixed.log`, `android-device-test-artifact-merge-generated-sdk.log`
 and `android-device-test-normal-manifest-fixed.log` in `build/590-feasibility`.
-Hosted emulator execution of this repair remains required.
+Hosted emulator execution of this repair passed in
+[Verify run 885](https://github.com/goosepod/naviamp/actions/runs/43680794888), at
+`595f6d45bab1d3fd0166007802a5888580d18fe5`:
+
+| Emulator | App cases executed | App opt-in skips | Shared UI cases executed | Failures/errors |
+| --- | ---: | ---: | ---: | ---: |
+| API 26 / Android 8.0 | 23 | 24 | 4 | 0 |
+| API 30 / Android 11 | 23 | 24 | 46 | 0 |
+| API 35 / Android 15 | 25 | 22 | 46 | 0 |
+
+Each app report inventories 47 cases; optional physical-device/live-provider/soak checks retain
+their existing explicit opt-ins. API 26's three selected UI classes contain four cases. API 30/35
+now execute the previously unlaunchable 46-case UI suite without skips. Preserve the distinction
+between API-26 native/UI boundary acceptance and a complete physical-phone/TV feature matrix.
+Local inventories: `build/590-feasibility/ci-api{26,30,35}-test-summary.json`; downloaded reports:
+`ci-43680794888-api{26,30,35}`. No minimum Android version was raised.
+
+The same run's Windows, macOS and Linux jobs also passed. The Windows integrated shared-widget
+probe reports static **0.469%**, marquee **0.469%**, waveform **0.156%** and combined **0.625%** of
+one core, each with zero parent frames in its interval. Its hosted window is 1000×740, scale 1.0,
+reported refresh 64 Hz; menu hover reports twelve visible-text samples passed. These are hosted
+synthetic/shared-widget results, not the missing matched full-application CPU/GPU acceptance.
+Evidence: `build/590-feasibility/ci-43680794888-windows/build/windows-{animation,menu-hover}-probe.txt`
+(PowerShell UTF-16 output).
+
+The vendored **redirect** plugin's own 25 regressions passed under Gradle 9.9.1/Kotlin 2.4.21
+(1m37s, seven executed tasks), covering diagnostic selection/bookkeeping and strict genuine gaps.
+This is separate from the resources producer's Compose Gradle plugin. Log:
+`build/590-feasibility/pinned-compose-tvos-plugin-tests.log`. The reproduction patch was also
+applied to `f52687f67` in an isolated scratch index and exactly reproduced all 18 current metadata
+files; the real index/checkout was unchanged.
+
+The local full-app performance attempt did not produce a sample: the instrumented baseline
+launcher failed twice to expose a targetable window, even after correcting test-copy CRCRLF
+configuration lines introduced during harness editing. Classpaths/runtime versions were checked;
+the startup failure remains unclassified. No blank/missing window or zero observation was counted
+as a performance pass. Both disposable launcher configurations and synthetic databases were
+restored byte-identically to their pre-attempt backups; the newly owned port-18087 fixture was
+stopped after verifying its process identity. The Computer Use observation helper was reset.
+No installed app/profile, system setting or production JAR/runtime was modified.
+
+The full run subsequently **passed**, including shared unit tests/coverage, iOS simulator/native
+checks, the production iOS app build, real Keychain test and verified-source-tree evidence.
+Every ordinary verification job passed; the explicitly opt-in diagnostic iOS fixture job was
+skipped. This records source commit `595f6d45bab1d3fd0166007802a5888580d18fe5`; later documentation
+updates do not retroactively change that source/evidence identity. The PR remains a draft because
+the tvOS host and matched full-app animation acceptance are unfinished.
 
 ### Mac and shared playback validation
 
@@ -241,7 +287,7 @@ published branch. Do not reuse alpha-stack timings or omit archive validators.
 
 - Finish original-app runtime checks for the accepted graph. Final iOS host/Keychain, both
   optimized Release archives, Windows native playback and normal visible rendering passed.
-  Fix the initial Android emulator CI configuration failures and run the API-26 runtime gate.
+  The repaired Android API 26/30/35 runtime gates and full shared/iOS CI run passed.
 - Measure visible idle/individual/combined animation costs and lifecycle behavior with matching
   window, refresh, scale and power conditions. Functional rendering does not establish a budget.
 - The stable Compose/Material3 source port now compiles, links and visibly renders with packaged
