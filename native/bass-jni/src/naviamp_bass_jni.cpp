@@ -368,49 +368,12 @@ jobjectArray output_devices(JNIEnv* env) {
     return array;
 }
 
-jfloatArray waveform_levels(JNIEnv* env, jint stream, jint bucketCount) {
-    int safeBucketCount = std::max(1, std::min(static_cast<int>(bucketCount), 4096));
-    DWORD handle = static_cast<DWORD>(stream);
-    QWORD lengthBytes = BASS_ChannelGetLength(handle, BASS_POS_BYTE);
-    if (lengthBytes == static_cast<QWORD>(-1)) return env->NewFloatArray(0);
-    double durationSeconds = BASS_ChannelBytes2Seconds(handle, lengthBytes);
-    if (durationSeconds <= 0.0 || !std::isfinite(durationSeconds)) return env->NewFloatArray(0);
-
-    BASS_ChannelSetPosition(handle, 0, BASS_POS_BYTE);
-
-    std::vector<float> levels(static_cast<size_t>(safeBucketCount), 0.0f);
-    double bucketSeconds = durationSeconds / safeBucketCount;
-    bool anyLevel = false;
-    bool complete = true;
-    for (int bucket = 0; bucket < safeBucketCount; ++bucket) {
-        double remaining = bucketSeconds;
-        double weightedSquareSum = 0.0;
-        double measuredSeconds = 0.0;
-        while (remaining > 0.0001) {
-            float level = 0.0f;
-            float windowSeconds = static_cast<float>(std::min(remaining, 1.0));
-            if (!BASS_ChannelGetLevelEx(handle, &level, windowSeconds, BASS_LEVEL_MONO | BASS_LEVEL_RMS)) {
-                complete = false;
-                break;
-            }
-            float clampedLevel = std::max(0.0f, std::min(level, 1.0f));
-            weightedSquareSum += static_cast<double>(clampedLevel) * clampedLevel * windowSeconds;
-            measuredSeconds += windowSeconds;
-            remaining -= windowSeconds;
-            anyLevel = true;
-        }
-        if (measuredSeconds > 0.0) {
-            levels[static_cast<size_t>(bucket)] = static_cast<float>(
-                std::sqrt(weightedSquareSum / measuredSeconds)
-            );
-        }
-        if (!complete) break;
+jfloat mono_rms_level(jint stream, jfloat seconds) {
+    float level = 0.0f;
+    if (!BASS_ChannelGetLevelEx(static_cast<DWORD>(stream), &level, seconds, BASS_LEVEL_MONO | BASS_LEVEL_RMS)) {
+        return std::numeric_limits<jfloat>::quiet_NaN();
     }
-
-    if (!anyLevel || !complete) return env->NewFloatArray(0);
-    jfloatArray result = env->NewFloatArray(static_cast<jsize>(safeBucketCount));
-    env->SetFloatArrayRegion(result, 0, static_cast<jsize>(safeBucketCount), levels.data());
-    return result;
+    return level;
 }
 
 BOOL configure_internet_streams() {
@@ -1226,10 +1189,11 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeFft(JNIEnv* env, jobject 
     return result;
 }
 
-extern "C" JNIEXPORT jfloatArray JNICALL
-Java_app_naviamp_android_playback_AndroidBassJni_nativeWaveformLevels(JNIEnv* env, jobject thiz, jint stream, jint bucketCount) {
+extern "C" JNIEXPORT jfloat JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeMonoRmsLevel(JNIEnv* env, jobject thiz, jint stream, jfloat seconds) {
+    (void)env;
     (void)thiz;
-    return waveform_levels(env, stream, bucketCount);
+    return mono_rms_level(stream, seconds);
 }
 
 extern "C" JNIEXPORT jint JNICALL
@@ -1637,10 +1601,11 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeFft(JNIEnv* e
     return result;
 }
 
-extern "C" JNIEXPORT jfloatArray JNICALL
-Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeWaveformLevels(JNIEnv* env, jobject thiz, jint stream, jint bucketCount) {
+extern "C" JNIEXPORT jfloat JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeMonoRmsLevel(JNIEnv* env, jobject thiz, jint stream, jfloat seconds) {
+    (void)env;
     (void)thiz;
-    return waveform_levels(env, stream, bucketCount);
+    return mono_rms_level(stream, seconds);
 }
 
 extern "C" JNIEXPORT jint JNICALL

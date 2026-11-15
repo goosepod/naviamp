@@ -87,6 +87,11 @@ class IosBassDecodeIntegrationTest {
                 val samples = FloatArray(256)
                 assertTrue(backend.readFloatData(stream, samples).getOrThrow() > 0)
                 assertTrue(samples.any { it != 0f })
+                // The shared owner must rewind the partly consumed decoder before bucketing.
+                val levels = backend.waveformLevels(stream, 8).getOrThrow()
+                assertEquals(8, levels.size)
+                assertTrue(levels.all { it in 0.17f..0.18f }, levels.toList().toString())
+                assertTrue(backend.readMonoRmsLevel(app.naviamp.domain.bass.BassStreamHandle(0), 0.1f).isFailure)
             } finally {
                 backend.freeStream(stream).getOrThrow()
             }

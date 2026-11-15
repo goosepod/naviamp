@@ -2,7 +2,9 @@
 
 Refs #590 / draft PR #606. Production code was unchanged during this experiment. The two
 disposable full applications use the final shared source with the original dependency graph
-(Compose 1.11.0 / Kotlin 2.4.10) and upgraded graph (Compose 1.12.2 / Kotlin 2.4.21).
+(Compose 1.11.0 / Kotlin 2.4.10 / Skiko 0.144.6) and upgraded graph
+(Compose 1.12.2 / Kotlin 2.4.21 / Skiko 0.150.2). These packages predate the subsequent shared
+waveform extraction; no animation implementation was changed by that extraction.
 Packaging logs are `build/590-feasibility/{original,upgraded}-graph-final-shared-windows-package.log`.
 After testing, all 275 original and 280 upgraded inventoried production files matched their
 SHA-256 inventories. Only disposable launcher configuration and added observer code differed.

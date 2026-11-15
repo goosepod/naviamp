@@ -131,7 +131,6 @@ import platform.Foundation.NSBundle
 import platform.Foundation.NSLog
 import platform.Foundation.NSURL
 import kotlin.math.max
-import kotlin.math.min
 
 /** Direct BASS C ABI adapter. Core owns every playback and feature decision above these calls. */
 class IosBassAudioBackend : BassAudioBackend {
@@ -526,36 +525,17 @@ class IosBassAudioBackend : BassAudioBackend {
         }
     }
 
-    override fun waveformLevels(stream: BassStreamHandle, bucketCount: Int): Result<FloatArray> {
-        val duration = durationSeconds(stream) ?: return failure("BASS waveform duration failed")
-        val count = bucketCount.coerceIn(1, 4_096)
-        val bucketSeconds = duration / count
-        val output = FloatArray(count)
-        BASS_ChannelSetPosition(stream.uint, 0uL, BASS_POS_BYTE.toUInt())
-        for (bucket in 0 until count) {
-            var remaining = bucketSeconds
-            var squareSum = 0.0
-            var measured = 0.0
-            while (remaining > 0.0001) {
-                val window = min(remaining, 1.0).toFloat()
-                val level = FloatArray(1)
-                val success = level.usePinned { pinned ->
-                    BASS_ChannelGetLevelEx(
-                        stream.uint,
-                        pinned.addressOf(0),
-                        window,
-                        (BASS_LEVEL_MONO or BASS_LEVEL_RMS).toUInt(),
-                    )
-                }
-                if (success == 0) return failure("BASS_ChannelGetLevelEx failed")
-                val sample = level[0].coerceIn(0f, 1f)
-                squareSum += sample * sample * window
-                measured += window
-                remaining -= window
-            }
-            output[bucket] = if (measured > 0.0) kotlin.math.sqrt(squareSum / measured).toFloat() else 0f
+    override fun readMonoRmsLevel(stream: BassStreamHandle, seconds: Float): Result<Float> {
+        val level = FloatArray(1)
+        val success = level.usePinned { pinned ->
+            BASS_ChannelGetLevelEx(
+                stream.uint,
+                pinned.addressOf(0),
+                seconds,
+                (BASS_LEVEL_MONO or BASS_LEVEL_RMS).toUInt(),
+            )
         }
-        return Result.success(output)
+        return if (success != 0) Result.success(level[0]) else failure("BASS_ChannelGetLevelEx failed")
     }
 
     // BASS returns native NUL-separated UTF-8 tag arrays and a single ICY metadata block.

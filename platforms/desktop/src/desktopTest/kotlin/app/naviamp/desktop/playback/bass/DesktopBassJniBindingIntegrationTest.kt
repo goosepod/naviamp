@@ -189,6 +189,37 @@ class DesktopBassJniBindingIntegrationTest {
         }
     }
 
+    @Test
+    fun sharedWaveformAnalysisRewindsAndReadsNativeRmsThroughJni() {
+        val binding = requireBinding()
+        val wav = createSilentWavFile()
+        try {
+            val bytes = wav.readBytes()
+            val pcm = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+            for (frame in 0 until 44_100) {
+                val sample = (kotlin.math.sin(2 * Math.PI * 1_000 * frame / 44_100) * 1600).toInt().toShort()
+                pcm.putShort(44 + frame * 4, sample)
+                pcm.putShort(46 + frame * 4, sample)
+            }
+            wav.writeBytes(bytes)
+            assertTrue(binding.initForIntegrationTest())
+            val backend = DesktopBassAudioBackend(binding)
+            val stream = backend.createFileDecodeStream(wav.absolutePath).getOrThrow()
+            try {
+                backend.seek(stream, 0.5).getOrThrow()
+                val levels = backend.waveformLevels(stream, 8).getOrThrow()
+                assertEquals(8, levels.size)
+                assertTrue(levels.all { it in 0.033f..0.036f }, levels.toList().toString())
+                assertTrue(backend.readMonoRmsLevel(app.naviamp.domain.bass.BassStreamHandle(0), 0.1f).isFailure)
+            } finally {
+                backend.freeStream(stream).getOrThrow()
+            }
+        } finally {
+            binding.free()
+            wav.delete()
+        }
+    }
+
     private fun decodedToneRms(binding: DesktopBassJniBinding, frequency: Int, changes: List<FloatArray>): Double {
         val wav = createSilentWavFile()
         try {

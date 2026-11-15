@@ -318,8 +318,20 @@ interface BassAudioBackend {
 
     fun lengthBytes(stream: BassStreamHandle): Long?
 
-    fun waveformLevels(stream: BassStreamHandle, bucketCount: Int): Result<FloatArray> =
-        unsupportedBassOperation("BASS waveform level analysis")
+    /** Consumes one mono RMS window from a decoder; the common waveform owner chooses its size. */
+    fun readMonoRmsLevel(stream: BassStreamHandle, seconds: Float): Result<Float> =
+        unsupportedBassOperation("BASS mono RMS read")
+
+    fun waveformLevels(stream: BassStreamHandle, bucketCount: Int): Result<FloatArray> {
+        val duration = durationSeconds(stream)
+            ?: return Result.failure(IllegalStateException(bassFailureMessage("BASS waveform duration failed")))
+        return analyzeBassWaveformLevels(
+            durationSeconds = duration,
+            bucketCount = bucketCount,
+            rewind = { seek(stream, 0.0) },
+            readRms = { seconds -> readMonoRmsLevel(stream, seconds) },
+        )
+    }
 
     fun readFloatData(stream: BassStreamHandle, buffer: FloatArray): Result<Int>
 

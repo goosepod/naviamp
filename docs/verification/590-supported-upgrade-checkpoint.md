@@ -310,6 +310,59 @@ published branch. Do not reuse alpha-stack timings or omit archive validators.
 - Connect only native ABI/audio-session effects to the complete shared application after the
   remaining original-app and stable-renderer prerequisites pass.
 
+## Shared waveform prerequisite for the Apple BASS adapter
+
+Before moving the iOS native adapter into an Apple owner, its portable waveform bucketing loop
+was found duplicated in shared JNI C++. That algorithm now lives in Domain's
+`BassWaveformAnalysis.kt`, with the complete `BassAudioBackend` default and a narrow
+`readMonoRmsLevel` effect. All three existing hosts use the common duration-weighted RMS buckets,
+one-second native windows, normalized bucket limits and fail-fast rewind/read validation.
+Zero-length input and invalid/non-finite values have explicit common tests. No partial waveform
+is returned after a native failure. The existing waveform service retains its fallback policy.
+
+Core implementation/tests compiled for Android, JVM and both iOS architectures **before**
+native wiring. Eleven new common cases bring Domain to **1,163 passing cases on each of JVM,
+Android host and iOS simulator**, with zero failures/errors/skips. The actual Windows BASS/JNI
+suite reported 11 cases: **ten executed/pass, one real-output recovery case skipped** under the
+explicit no-sound device. The new generated-tone test exercises the Core default, native RMS,
+rewind of a partly consumed decoder and invalid-handle failure. Android instrumentation APK
+assembly passed, followed by actual debug APK native-package verification for every packaged ABI;
+the added Android runtime assertion awaits CI rather than being represented as locally executed.
+
+The unchanged 18-case required iOS native inventory **passed with zero failures/errors/skips**,
+including the added waveform assertions, real mutual TLS, codecs, storage and main-queue delivery.
+Its fresh prebuilt execution took 7.780s, binary SHA-256
+`3589330340f31635f4184411b68eca726d10b90135a97f9ed7303bf2a49c3aa9`.
+The first local native invocation omitted TLS bootstrap and failed that case; the first fixture
+retry omitted the readiness evidence report and stopped before native execution. Both setup
+failures are retained. The corrected invocation supplied the repository's disposable fixture,
+fresh readiness reports and bootstrap, and ran all required cases. Owned simulators and fixture
+were cleaned up; the existing user simulator was left alone.
+
+Evidence: `build/590-feasibility/common-waveform-{contract-windows,native-windows,android-package}.log`,
+`common-waveform-domain-reports-v2.zip`, `common-waveform-desktop-native.xml` and
+`common-waveform-ios-summary.json`. The first flattened report ZIP is superseded by the V2 archive
+that preserves separate platform directories. Mac evidence is in the isolated
+`build/590-apple-native` checkout, including all initial/corrected logs and fresh native XML.
+
+Platform production diff audit:
+
+- `platforms/android/.../AndroidBassJni.kt`: declares the JNI RMS symbol and translates its native
+  failure sentinel into a nullable result.
+- `platforms/android/.../AndroidBassAudioBackend.kt`: maps that JNI result/error code into the
+  shared RMS effect; it no longer owns waveform orchestration.
+- `platforms/desktop/.../DesktopBassJniBinding.kt`: declares the Desktop JNI RMS symbol and
+  translates its native failure sentinel.
+- `platforms/desktop/.../DesktopBassAudioBackend.kt`: maps the Desktop native result/error code
+  into the shared effect.
+- `platforms/ios/.../IosBassPlayback.kt`: pins the native output buffer and invokes the BASS C ABI;
+  the portable bucketing loop was removed.
+- `native/bass-jni/{include/naviamp_bass_jni.h,src/naviamp_bass_jni.cpp}`: exports the two JNI entry
+  points and performs one BASS mono RMS read; the duplicated C++ bucket algorithm was deleted.
+
+No setting, export schema, user-facing copy, animation cadence or Android minimum changed. This
+is an Apple-adapter prerequisite, not a claim that the Naviamp tvOS host is implemented.
+
 ## Stable renderer source feasibility
 
 The 306-file tvOS port delta from `f29d2f99f3beafc60992c6a73dbbaa9f841c5d4c` to

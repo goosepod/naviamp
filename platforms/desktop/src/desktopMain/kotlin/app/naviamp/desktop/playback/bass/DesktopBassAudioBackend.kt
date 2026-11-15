@@ -312,14 +312,9 @@ class DesktopBassAudioBackend(
     override fun fft(stream: BassStreamHandle, bins: Int): Result<FloatArray> =
         Result.success(bass.fft(stream.value, bins))
 
-    override fun waveformLevels(stream: BassStreamHandle, bucketCount: Int): Result<FloatArray> {
-        val levels = bass.waveformLevels(stream.value, bucketCount)
-        return if (levels.isNotEmpty()) {
-            Result.success(levels)
-        } else {
-            Result.failure(IllegalStateException(errorMessage("BASS_ChannelGetLevelEx failed")))
-        }
-    }
+    override fun readMonoRmsLevel(stream: BassStreamHandle, seconds: Float): Result<Float> =
+        bass.monoRmsLevel(stream.value, seconds)?.let { Result.success(it) }
+            ?: Result.failure(IllegalStateException(errorMessage("BASS_ChannelGetLevelEx failed")))
 
     override fun streamMetadata(stream: BassStreamHandle): Map<String, String> =
         bassStreamProperties(bass.streamTags(stream.value).asIterable())

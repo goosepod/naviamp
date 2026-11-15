@@ -120,7 +120,8 @@ class DesktopBassJniBinding private constructor(
 
     fun fft(stream: Int, bins: Int): FloatArray = nativeFft(stream, bins)
 
-    fun waveformLevels(stream: Int, bucketCount: Int): FloatArray = nativeWaveformLevels(stream, bucketCount)
+    fun monoRmsLevel(stream: Int, seconds: Float): Float? =
+        nativeMonoRmsLevel(stream, seconds).takeIf { it.isFinite() }
 
     fun readFloatData(stream: Int, buffer: FloatArray): Int = nativeReadFloatData(stream, buffer)
 
@@ -190,7 +191,7 @@ class DesktopBassJniBinding private constructor(
     private external fun nativeFilePosition(stream: Int, mode: Int): Long
     private external fun nativeStreamTags(stream: Int): Array<String>
     private external fun nativeFft(stream: Int, bins: Int): FloatArray
-    private external fun nativeWaveformLevels(stream: Int, bucketCount: Int): FloatArray
+    private external fun nativeMonoRmsLevel(stream: Int, seconds: Float): Float
     private external fun nativeReadFloatData(stream: Int, buffer: FloatArray): Int
     private external fun nativeLoadPlugin(path: String): Int
 

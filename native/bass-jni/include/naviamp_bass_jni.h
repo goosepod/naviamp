@@ -4,6 +4,11 @@
 
 extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved);
 
+extern "C" JNIEXPORT jfloat JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeMonoRmsLevel(JNIEnv*, jobject, jint stream, jfloat seconds);
+extern "C" JNIEXPORT jfloat JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeMonoRmsLevel(JNIEnv*, jobject, jint stream, jfloat seconds);
+
 extern "C" JNIEXPORT jboolean JNICALL
 Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeReinitializeOutput(JNIEnv*, jobject, jint stream);
 extern "C" JNIEXPORT jboolean JNICALL
