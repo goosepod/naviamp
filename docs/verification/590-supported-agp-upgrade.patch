@@ -51,7 +51,7 @@ index 5e0c464ad..8226dfca3 100644
 -            cp -R core/ui/build/outputs/androidTest-results/connected/debug "$evidence/run-$attempt"
 +            cp -R core/ui/build/outputs/androidTest-results/connected "$evidence/run-$attempt"
 diff --git a/apps/android/build.gradle.kts b/apps/android/build.gradle.kts
-index aa8c09472..0504777d2 100644
+index aa8c09472..94f1f9d59 100644
 --- a/apps/android/build.gradle.kts
 +++ b/apps/android/build.gradle.kts
 @@ -25 +24,0 @@ plugins {
@@ -74,6 +74,9 @@ index aa8c09472..0504777d2 100644
 @@ -141 +148 @@ dependencies {
 -    testImplementation(kotlin("test"))
 +    testImplementation(kotlin("test-junit"))
+@@ -148 +155 @@ dependencies {
+-    androidTestImplementation(kotlin("test"))
++    androidTestImplementation(kotlin("test-junit"))
 diff --git a/apps/desktop/build.gradle.kts b/apps/desktop/build.gradle.kts
 index 088da3b81..cd35cc0d8 100644
 --- a/apps/desktop/build.gradle.kts
@@ -342,14 +345,53 @@ index addd8c0e1..565a44b2b 100644
 -    }
 -}
 diff --git a/core/ui/build.gradle.kts b/core/ui/build.gradle.kts
-index b42ad11f1..ee6da2fc5 100644
+index b42ad11f1..8ea3f3e9b 100644
 --- a/core/ui/build.gradle.kts
 +++ b/core/ui/build.gradle.kts
-@@ -8 +7,0 @@ plugins {
+@@ -1,0 +2,4 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
++import com.android.build.api.artifact.SingleArtifact
++import com.android.manifmerger.ManifestMerger2
++import com.android.manifmerger.MergingReport
++import com.android.utils.StdLogger
+@@ -8 +11,0 @@ plugins {
 -    alias(libs.plugins.android.library)
-@@ -9,0 +9 @@ plugins {
+@@ -9,0 +13 @@ plugins {
 +    alias(libs.plugins.android.multiplatform.library)
-@@ -16,3 +16,30 @@ kotlin {
+@@ -14,0 +19,33 @@ plugins {
++// AGP 9.5.1's KMP test merger omits additional Sources.manifests entries. Apply the
++// existing fixture through the public artifact pipeline, preserving the generated
++// runner, package, SDK and dependency declarations and the normal merger diagnostics.
++@CacheableTask
++abstract class MergeUiTestHostManifest : DefaultTask() {
++    @get:InputFile @get:PathSensitive(PathSensitivity.NONE)
++    abstract val mergedManifest: RegularFileProperty
++
++    @get:InputFile @get:PathSensitive(PathSensitivity.NONE)
++    abstract val fixtureManifest: RegularFileProperty
++
++    @get:OutputFile
++    abstract val outputManifest: RegularFileProperty
++
++    @TaskAction
++    fun merge() {
++        val fixture = fixtureManifest.get().asFile
++        check("<uses-sdk" !in fixture.readText()) { "Fixture SDK versions must remain in the Gradle DSL." }
++        val diagnostics = StdLogger(StdLogger.Level.WARNING)
++        val report = ManifestMerger2.newMerger(
++            mergedManifest.get().asFile, diagnostics, ManifestMerger2.MergeType.APPLICATION,
++        )
++            // The input is AGP's already-validated output, including its generated <uses-sdk>.
++            // The original source-manifest SDK check stays enabled; the fixture cannot override it.
++            .withFeatures(ManifestMerger2.Invoker.Feature.USES_SDK_IN_MANIFEST_LENIENT_HANDLING)
++            .addFlavorAndBuildTypeManifests(fixture).merge()
++        report.log(diagnostics)
++        check(report.result != MergingReport.Result.ERROR) { report.reportString }
++        val xml = checkNotNull(report.getMergedDocument(MergingReport.MergedManifestKind.MERGED))
++        outputManifest.get().asFile.apply { parentFile.mkdirs(); writeText(xml) }
++    }
++}
++
+@@ -16,3 +53,30 @@ kotlin {
 -    androidTarget {
 -        compilerOptions {
 -            jvmTarget.set(JvmTarget.JVM_17)
@@ -383,15 +425,15 @@ index b42ad11f1..ee6da2fc5 100644
 +                    "app.naviamp.ui.NaviampLanguageResourcesUiTest",
 +                ).joinToString(",")
 +            }
-@@ -34 +61,3 @@ kotlin {
+@@ -34 +98,3 @@ kotlin {
 -        androidInstrumentedTest.get().kotlin.srcDir(renderedUiTests)
 +        val androidDeviceTest = getByName("androidDeviceTest")
 +        androidDeviceTest.kotlin.srcDirs(renderedUiTests, "src/androidInstrumentedTest/kotlin")
 +        if (animationProbe) androidDeviceTest.kotlin.srcDir("src/animationProbeAndroid/kotlin")
-@@ -39 +68 @@ kotlin {
+@@ -39 +105 @@ kotlin {
 -        androidInstrumentedTest.dependencies {
 +        androidDeviceTest.dependencies {
-@@ -86,40 +114,0 @@ compose.resources {
+@@ -86,40 +151,0 @@ compose.resources {
 -android {
 -    namespace = "app.naviamp.ui"
 -    compileSdk = 36
@@ -432,15 +474,20 @@ index b42ad11f1..ee6da2fc5 100644
 -    }
 -}
 -
-@@ -191,0 +181,11 @@ tasks.register<JavaExec>("playerAnimationProbe") {
+@@ -191,0 +218,16 @@ tasks.register<JavaExec>("playerAnimationProbe") {
 +
 +androidComponents {
 +    onVariants { variant ->
 +        variant.deviceTests.values.forEach { deviceTest ->
-+            deviceTest.sources.manifests.addStaticManifestFile(
-+                if (animationProbe) "src/animationProbeAndroid/AndroidManifest.xml"
-+                else "src/androidInstrumentedTest/AndroidManifest.xml",
-+            )
++            val mergeFixture = tasks.register<MergeUiTestHostManifest>("merge${deviceTest.name.replaceFirstChar(Char::uppercase)}HostManifest") {
++                fixtureManifest.set(layout.projectDirectory.file(
++                    if (animationProbe) "src/animationProbeAndroid/AndroidManifest.xml"
++                    else "src/androidInstrumentedTest/AndroidManifest.xml",
++                ))
++            }
++            deviceTest.artifacts.use(mergeFixture)
++                .wiredWithFiles(MergeUiTestHostManifest::mergedManifest, MergeUiTestHostManifest::outputManifest)
++                .toTransform(SingleArtifact.MERGED_MANIFEST)
 +        }
 +    }
 +}

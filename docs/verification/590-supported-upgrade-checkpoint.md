@@ -87,16 +87,35 @@ the Desktop XML directory: `build/590-feasibility/root-upgrade-broad-test-report
 `root-upgrade-test-summary.json`. Logs: `root-upgrade-verification.log` and
 `root-upgrade-verification-native-fixed.log`.
 
-The 13-case muted real-output follow-up **failed**: 11 failures at driver initialization or
+The first 13-case muted real-output follow-up **failed**: 11 failures at driver initialization or
 dependent playback timeouts, with `BASS_ERROR_DRIVER` (3). An outside-sandbox repeat using the
 default output, rather than explicit `-1`, also failed (2m19s, 57 tasks). The Windows audio services
 were running, but BASS's inventory listed only no-sound and the default placeholder. Direct
 initialization was inconsistent: two byte-identical current/previously passing BASS DLLs yielded
-one success and one driver failure. This is not enough to accept the real-output path or attribute
-the failure to the upgrade. Leave it unresolved until a usable output is available and the tests
-pass; do not weaken the assertions or substitute no-sound acceptance. Evidence:
+one success and one driver failure. Those attempts do not establish an upgrade regression or
+real-output acceptance. Evidence:
 `root-upgrade-real-output.log`, `root-upgrade-real-output-default.log`,
 `root-real-output-driver-failure-reports.zip` and `root-windows-audio-endpoint-check.json`.
+
+After the owner confirmed normal visible rendering, BASS's inventory included the BenQ monitor's
+real audio endpoint and default initialization succeeded. The unchanged muted real-output suite
+then **passed all 13 cases, zero failures/errors/skips**, in **2m19s**, 57 tasks (17 executed): all
+ten JNI cases plus preview, shared discovery preview and persisted radio playback. No output
+assertion, native source, system setting or test volume was changed. Log:
+`build/590-feasibility/root-upgrade-real-output-connected.log`; exact XML inventory:
+`root-real-output-connected-summary.json`. Keep the earlier failures as evidence of the
+unavailable/intermittent endpoint. This validates native clock/control behavior, not acoustic
+output: generated WAV fixtures are silent and test volume is zero.
+
+Computer Use also observed the real upgraded packaged window after bringing it to the foreground:
+artwork, title/metadata, player/volume controls, progress and Home panel were painted normally.
+An earlier capture included the overlapping Codex window; it is not rendering acceptance.
+The owner's independent physical-display confirmation agrees with the unobscured capture.
+This resolves functional presentation, while motion/compositor measurements remain outstanding.
+Replacing the same 13 task/class/method entries in the preserved broad inventory gives **6,029
+cases, zero failures/errors and four remaining conditional Linux/live-service skips**. This is
+a combined run inventory, not 6,029 plus 13 distinct behaviors. Evidence:
+`root-upgrade-combined-test-summary.json` and `root-real-output-connected-reports.zip`.
 
 Final issue-branch lint, Debug native package verification, optimized Release APK/AAB validation
 and Windows release-distributable packaging **passed in 10m01s**, 434 tasks (261 executed).
@@ -108,6 +127,39 @@ The five ABI-comparator, six tvOS feasibility/runtime-parser and six translation
 passed, together with actionlint 1.7.12. The three POSIX workflow-scope tests passed on the Mac
 with canonical LF checkout semantics; initial Windows WSL-shim access and raw-CRLF transfer
 failures were setup failures, not passing test runs. No test or script was weakened.
+
+### First hosted CI run and Android test packaging repairs
+
+[Verify run 884](https://github.com/goosepod/naviamp/actions/runs/43667019529), at
+`c7cbf855093002c6b7b81d45d4cd73fae6fdd0e6`, passed shared/Android unit tests and coverage,
+Windows/macOS/Linux native jobs and the full iOS simulator/host/Keychain job. All three Android
+emulator jobs failed in test setup, so this run does **not** establish API-26 runtime acceptance:
+
+- API 26 stopped compiling the app's instrumented tests because `kotlin.test.Test` was unresolved.
+  The standalone app's `androidTestImplementation` also needs explicit `kotlin("test-junit")`,
+  just like its migrated unit tests. No test source/import or assertion changed.
+- API 30/35 each reported 46 UI cases with 45 failures: the test APK omitted ComponentActivity
+  and the three native probe activities, so tests could not launch their host. The added manifest
+  appeared in `Sources.manifests.all` but not in `ProcessTestManifest`'s inputs. The primary
+  source remained the nonexistent default `src/androidDeviceTest/AndroidManifest.xml`.
+
+The repair uses the public `SingleArtifact.MERGED_MANIFEST` transformation with AGP's manifest
+merger to apply the existing selected fixture. It preserves the generated runner, application ID,
+SDK values, dependency components and merger diagnostics; it does not reconstruct product UI.
+The initial direct-task-input experiment was overwritten by AGP's task creation and was discarded.
+The second-stage merger must accept the first stage's generated `<uses-sdk>`: its lenient handling
+is limited to that generated input, and the fixture is rejected if it declares `<uses-sdk>`.
+The original AGP source-manifest SDK validation remains enabled. No original merge errors or test
+assertions were suppressed.
+
+Both instrumented APKs assembled after the test-dependency fix (4m56s, 220 tasks/92 executed).
+The final artifact transformation, both APKs and architecture/source ownership guards then passed
+in 16s, 223 tasks/23 executed. Actual APK manifest inspection confirms all four fixture activities,
+min SDK 26, target SDK 34 and the original runner/package. A separate no-probe manifest invocation
+passed in 5s and keeps ComponentActivity without the probe activities. Logs:
+`android-device-test-packaging-fixed.log`, `android-device-test-artifact-merge-generated-sdk.log`
+and `android-device-test-normal-manifest-fixed.log` in `build/590-feasibility`.
+Hosted emulator execution of this repair remains required.
 
 ### Mac and shared playback validation
 
@@ -187,9 +239,9 @@ published branch. Do not reuse alpha-stack timings or omit archive validators.
 
 ## Remaining work
 
-- Finish original-app runtime checks for the accepted graph. Final iOS host/Keychain and both
-  optimized Release archives passed; final Windows visible comparison and real-output playback
-  remain unresolved. Run the API-26 emulator gate on CI.
+- Finish original-app runtime checks for the accepted graph. Final iOS host/Keychain, both
+  optimized Release archives, Windows native playback and normal visible rendering passed.
+  Fix the initial Android emulator CI configuration failures and run the API-26 runtime gate.
 - Measure visible idle/individual/combined animation costs and lifecycle behavior with matching
   window, refresh, scale and power conditions. Functional rendering does not establish a budget.
 - The stable Compose/Material3 source port now compiles, links and visibly renders with packaged

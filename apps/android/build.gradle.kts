@@ -152,7 +152,7 @@ dependencies {
     androidTestImplementation(libs.sqldelight.android.driver)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.ext.junit)
-    androidTestImplementation(kotlin("test"))
+    androidTestImplementation(kotlin("test-junit"))
     androidTestImplementation(libs.ktor.client.core)
     androidTestImplementation("org.jetbrains.compose.ui:ui-test:$composeVersion")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")

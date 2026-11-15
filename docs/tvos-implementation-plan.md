@@ -538,8 +538,10 @@ The checkpoint records the lowered Material3 ABI differences and the rebuilt-con
 this does not establish drop-in Native binary compatibility. Finish the producer deployment-target
 audit and reproducible artifact/cache pipeline before enabling the host. Retain strict diagnostics
 and Core-first ownership. The issue-branch repeat passes all 6,029 broad reported cases with
-eight conditional skips and final packaging; its muted real-output follow-up currently fails
-Windows driver initialization and remains unresolved.
+eight conditional skips and final packaging. Its muted real-output follow-up initially failed
+Windows driver initialization; after the real monitor endpoint became available, the unchanged
+suite passed all 13 cases and the upgraded packaged UI was visibly verified. Android emulator CI
+test dependency/manifest migration repairs and final animation measurements remain in progress.
 
 Keep minimum Android API 26 during this work. Both newest-stable APK manifests retain minimum 26,
 target 36 and compile 37. API 29 is a meaningful native compositor boundary, already selected at

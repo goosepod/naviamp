@@ -1,4 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import com.android.build.api.artifact.SingleArtifact
+import com.android.manifmerger.ManifestMerger2
+import com.android.manifmerger.MergingReport
+import com.android.utils.StdLogger
 
 val composeVersion = libs.versions.compose.get()
 val visualizerMountProbe = providers.gradleProperty("naviamp.visualizerMountProbe").orNull == "true"
@@ -10,6 +14,39 @@ plugins {
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kover)
+}
+
+// AGP 9.5.1's KMP test merger omits additional Sources.manifests entries. Apply the
+// existing fixture through the public artifact pipeline, preserving the generated
+// runner, package, SDK and dependency declarations and the normal merger diagnostics.
+@CacheableTask
+abstract class MergeUiTestHostManifest : DefaultTask() {
+    @get:InputFile @get:PathSensitive(PathSensitivity.NONE)
+    abstract val mergedManifest: RegularFileProperty
+
+    @get:InputFile @get:PathSensitive(PathSensitivity.NONE)
+    abstract val fixtureManifest: RegularFileProperty
+
+    @get:OutputFile
+    abstract val outputManifest: RegularFileProperty
+
+    @TaskAction
+    fun merge() {
+        val fixture = fixtureManifest.get().asFile
+        check("<uses-sdk" !in fixture.readText()) { "Fixture SDK versions must remain in the Gradle DSL." }
+        val diagnostics = StdLogger(StdLogger.Level.WARNING)
+        val report = ManifestMerger2.newMerger(
+            mergedManifest.get().asFile, diagnostics, ManifestMerger2.MergeType.APPLICATION,
+        )
+            // The input is AGP's already-validated output, including its generated <uses-sdk>.
+            // The original source-manifest SDK check stays enabled; the fixture cannot override it.
+            .withFeatures(ManifestMerger2.Invoker.Feature.USES_SDK_IN_MANIFEST_LENIENT_HANDLING)
+            .addFlavorAndBuildTypeManifests(fixture).merge()
+        report.log(diagnostics)
+        check(report.result != MergingReport.Result.ERROR) { report.reportString }
+        val xml = checkNotNull(report.getMergedDocument(MergingReport.MergedManifestKind.MERGED))
+        outputManifest.get().asFile.apply { parentFile.mkdirs(); writeText(xml) }
+    }
 }
 
 kotlin {
@@ -182,10 +219,15 @@ tasks.register<JavaExec>("playerAnimationProbe") {
 androidComponents {
     onVariants { variant ->
         variant.deviceTests.values.forEach { deviceTest ->
-            deviceTest.sources.manifests.addStaticManifestFile(
-                if (animationProbe) "src/animationProbeAndroid/AndroidManifest.xml"
-                else "src/androidInstrumentedTest/AndroidManifest.xml",
-            )
+            val mergeFixture = tasks.register<MergeUiTestHostManifest>("merge${deviceTest.name.replaceFirstChar(Char::uppercase)}HostManifest") {
+                fixtureManifest.set(layout.projectDirectory.file(
+                    if (animationProbe) "src/animationProbeAndroid/AndroidManifest.xml"
+                    else "src/androidInstrumentedTest/AndroidManifest.xml",
+                ))
+            }
+            deviceTest.artifacts.use(mergeFixture)
+                .wiredWithFiles(MergeUiTestHostManifest::mergedManifest, MergeUiTestHostManifest::outputManifest)
+                .toTransform(SingleArtifact.MERGED_MANIFEST)
         }
     }
 }
