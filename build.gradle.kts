@@ -13,6 +13,7 @@ plugins {
 
 dependencies {
     kover(project(":core:app"))
+    kover(project(":core:bootstrap"))
     kover(project(":core:domain"))
     kover(project(":core:presentation"))
     kover(project(":core:storage"))

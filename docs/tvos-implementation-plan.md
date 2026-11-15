@@ -644,8 +644,10 @@ new source; the November 14 comparison is not its sign-off.
 
 Keep the future TV framework's Swift-facing API narrow: expose the UIKit controller and the
 small lifecycle entry points, while provider/repository/settings assembly stays in shared Kotlin.
-Do not copy iOS's eleven exported modules into TV merely for convenience. The original iOS
-export list remains unchanged until a separately measured compatibility change is justified.
+Do not export Core/provider implementation modules into TV merely for convenience. The original
+iOS framework explicitly exports `core:storage`; its public constructor/storage export remains
+unchanged. Its eleven native BASS frameworks are a separate linker inventory, not eleven exported
+Kotlin modules. Measure any future Swift-facing export change separately.
 Continue to key TV Native caches by the verified port artifact identity/compiler/SDK/GC flags,
 and keep the separate Compose producers out of ordinary application build graphs. A successful
 library compile or common-unit test does not close full-host linking, bounded durable preferences,
@@ -658,3 +660,27 @@ iOS and visibly renders on 27.2. The new candidate has a separate binary identit
 app builds on prebuilt verified inputs; fresh remote acquisition now passes, while bounded
 producer automation and trusted artifact delivery remain before production dependency adoption.
 Windows real-window performance/output and full host/persistence/device gates remain open.
+
+The [November 15 Windows rerun](verification/590-windows-performance-2026-11-15.md) closes the
+missing physical-output gate: all thirteen real-output cases now pass on the BenQ endpoint.
+Current static/text/progress intervals have zero parent frames and inexpensive settled CPU.
+The active visualizer still consumes about a core and redraws the parent at display cadence in
+both dependency graphs; this is pre-existing, and its budget remains open. Current restore
+geometry and full native accessibility also remain unaccepted. Do not treat the completed
+measurement run as universal performance approval.
+
+Before copying any iOS host code into TV, move its remaining portable assembly into
+`core:bootstrap`: provider sessions, repository/cache/download composition, artwork loading,
+playback/sidecar setup and settings callbacks. Move audio asset lookup, relocated-path mapping
+and deletion ownership checks into `core:storage`. Compile/test that owner on original targets,
+then make the existing iOS host consume it. TV must consume the same complete owner, supplying
+only verified native effects. Keep the existing Swift-facing iOS constructor/export contract.
+The new bootstrap's opt-in TV compilations still require the diagnostic shared UI/port graph;
+they do not make private artifacts available in normal or hosted production builds.
+
+The [shared bootstrap checkpoint](verification/590-shared-host-bootstrap.md) now passes JVM/Android
+regressions, original iOS device/simulator compilation, rebuilt visible iOS startup and Keychain,
+and both TV compilations with strict original-iOS/private-TV graph isolation. TV executes two
+bootstrap, eleven storage and three direct BASS cases; iOS executes two bootstrap and twelve
+storage cases. All pass without failures/errors/skips and owned simulator cleanup succeeds.
+The full TV scene host and bounded authoritative persistence remain the next implementation gates.
