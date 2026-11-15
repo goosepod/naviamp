@@ -337,19 +337,31 @@ jobs:
       - name: Exercise native boundaries and shared UI
         if: needs.changes.outputs.run_full == 'true'
         run: |
+          python3 - <<'PY'
+          import time
+          from pathlib import Path
+          Path('build').mkdir(exist_ok=True)
+          Path('build/android-device-test-start').write_text(str(time.time()))
+          PY
           control_port="$(python3 scripts/mobile-mtls-fixture.py control-port "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE")"
           if [ "${{ matrix.api-level }}" = 26 ]; then
             ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false \
               "-Pandroid.testInstrumentationRunnerArguments.naviamp.mtls.controlPort=$control_port" \
               :apps:android:connectedDebugAndroidTest
             ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false \
-              -Pandroid.testInstrumentationRunnerArguments.class=app.naviamp.ui.NaviampRasterAttachmentTest,app.naviamp.ui.NaviampDialogInitialFocusTest,app.naviamp.ui.NaviampLanguageResourcesUiTest \
+              -Pandroid.testInstrumentationRunnerArguments.class=app.naviamp.ui.NaviampRasterAttachmentTest,app.naviamp.ui.NaviampDialogInitialFocusTest,app.naviamp.ui.NaviampLanguageResourcesUiTest,app.naviamp.ui.VisualizerCompositionClockTest \
               :core:ui:connectedAndroidDeviceTest
           else
             ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.animationProbe=true \
               "-Pandroid.testInstrumentationRunnerArguments.naviamp.mtls.controlPort=$control_port" \
               :apps:android:connectedDebugAndroidTest :core:ui:connectedAndroidDeviceTest
           fi
+
+      - name: Require fresh shared-runtime execution and retain portable reports
+        if: always() && needs.changes.outputs.run_full == 'true'
+        run: |
+          python3 scripts/collect-android-device-evidence.py \
+            --started-file build/android-device-test-start --output build/android-device-evidence
 
       - name: Require repeated API 30 smart-playlist UI execution
         if: needs.changes.outputs.run_full == 'true' && matrix.api-level == 30 && contains(github.event.pull_request.labels.*.name, 'verify:android-ui-repeat')
@@ -416,6 +428,10 @@ jobs:
         timeout-minutes: 2
         run: python3 scripts/capture-android-diagnostics.py
 
+      - name: Retain portable emulator diagnostics
+        if: always() && needs.changes.outputs.run_full == 'true'
+        run: python3 scripts/collect-android-device-evidence.py --diagnostics-only --output build/android-device-evidence
+
       - name: Upload device reports
         if: always() && needs.changes.outputs.run_full == 'true'
         uses: actions/upload-artifact@v7
@@ -423,18 +439,11 @@ jobs:
           name: android-device-api-${{ matrix.api-level }}-test-reports
           if-no-files-found: error
           path: |
-            apps/android/build/reports/androidTests/**
-            apps/android/build/outputs/androidTest-results/**
-            core/ui/build/reports/androidTests/**
-            core/ui/build/outputs/androidTest-results/**
+            build/android-device-evidence/**
             build/android-emulator-diagnostics/**
             build/android-compose-replays/**
             build/android-raster-replays/**
             build/mobile-mtls-run.*/fixture.log
-            /tmp/naviamp-dnssd-repeat-*.txt
-            /tmp/naviamp-emulator.log
-            /tmp/naviamp-sdkmanager.log
-            /tmp/naviamp-avdmanager.log
 
   desktop-windows:
     name: Desktop native tests (Windows)

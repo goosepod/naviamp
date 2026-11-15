@@ -77,7 +77,26 @@ device-test wrapper rather than a mockable host stub. That wrapper compiles and 
 the existing emulator class list. Its single headless scenario also passed on the connected
 **Pixel 6a**, `OK (1 test)` in 0.097s; the prior test APK was restored successfully. The normal
 Naviamp application was not replaced and the connected Android TV was untouched. Canonical
-emulator coverage still requires the new CI run.
+emulator results for source `5e3a5c351a26e31a799df4a777b5eadf5252dd0c` passed on API 30
+and 35 (one new case each, 0.046s and 0.026s). The complete Verify run
+[43716519403](https://github.com/goosepod/naviamp/actions/runs/43716519403) passed,
+including Windows/macOS/Linux native tests, original iOS and all three Android versions.
+The separate tvOS foundation and Flatpak runs passed too.
+
+Review of the raw Android artifact ZIPs found that API 26's explicit class list omitted this
+new case: its four existing UI cases passed, but that was insufficient evidence for the new
+behavior. API 26 now includes the wrapper explicitly. A verification collector also requires
+exactly one executed, passing, non-skipped composition-clock case on every API, fresh app/UI
+JUnit XML and no test failures/errors. Missing or stale reports fail the job. Existing optional
+app-native skips remain visible rather than being counted as passes.
+
+The collector retains XML under short portable names with source paths and SHA-256 in a summary;
+module HTML is retained as separate ZIPs and emulator logs are staged under the same build root.
+The previous raw ZIPs already contained their XML, despite incomplete extraction observed with
+the Windows download command. That extraction discrepancy is not evidence of missing CI reports
+or a proven path-length defect. Replay of those real reports correctly rejects API 26's missing
+case and accepts API 30/35; six collector regressions and actionlint pass. Acceptance of the
+expanded API 26 list still requires the next CI run.
 The reusable init script also passed a missing-opt-in rejection and a positive resolution check,
 including its included-build guard.
 

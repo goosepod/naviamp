@@ -106,3 +106,24 @@ The 18.5 host declaration is still a candidate, not older-runtime acceptance.
 Evidence: Mac `build/590-tvos-lifecycle-2_11-probe`,
 `590-tvos-lifecycle-2_11{,-retry}.log`, `590-renderer-lifecycle-2_11-visible`; local
 `build/590-feasibility/tvos-lifecycle-2_11{.png,-link-summary.json,-runtime-summary.json}`.
+
+## Independent source replay checkpoint
+
+The owned `build/590-compose-source-replay` directory reconstructs both producers from their
+official base commits in fresh local shared clones. Full binary patches plus the eight explicit
+UI source additions reproduce all **696 changed UI paths** and **17 resources paths** byte for
+byte, including deletions. The existing producer worktrees and sealed artifact repositories
+remain unchanged. This establishes that the current overlays can be reapplied; it does not
+establish independent remote source acquisition or a clean artifact rebuild.
+
+The reconstructed UI candidate then ran the upstream `:ktCheckFile --format --file ...` task
+against 404 relative Kotlin paths successfully (17s). An initial absolute-path invocation was
+`NO-SOURCE`, because the upstream formatter excludes paths containing a `build` component, and
+is explicitly not accepted as formatting evidence. The real formatting run changed only
+`UIKitWindowInsetsManager.ios.kt`. This candidate now differs from the previously compiled
+producer and therefore requires fresh compilation/API checks and artifact verification before
+replacing any accepted input. No artifact identity was updated or package published.
+
+Evidence in that owned directory: `summary.json`, `{ui,resources}-manifest.json`, the binary
+patches, `format-relative{.log,-summary.json}` and `post-format-summary.json`. These local inputs
+are a preparation checkpoint for the delivery work above, not a completed distribution service.
