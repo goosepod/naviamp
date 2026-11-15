@@ -602,3 +602,20 @@ this is not a complete physical-device feature matrix. Full Verify run 885 passe
 `595f6d45bab1d3fd0166007802a5888580d18fe5`, including all three Android emulators, Desktop platforms,
 shared coverage and the original iOS host/Keychain. Keep #590 open and the preparatory PR in draft
 until the remaining scope is accepted.
+
+### Deployment and native implementation follow-up, November 15
+
+The shared Apple/direct-BASS implementation now passes the full original-app Verify matrix and
+its dedicated hosted tvOS native job at `418de3cb8`; the latter runs on 26.5, complementing local
+27.2 tests. See [native integration](verification/590-apple-bass-integration.md).
+
+The [deployment audit](verification/590-tvos-deployment-audit.md) identifies/fixes the helper's
+SDK-derived 27.2 minimum, checks all vendor/consumer objects and stages the rebuilt private
+UIKit artifacts. An 18.5 candidate floor covers the actual tvOS 18 accessibility API and Skiko's
+18.5-tagged data objects. The synthetic consumer links both TV targets and official iOS, packages
+resources and visibly renders on 27.2 with that corrected host declaration. This is not older
+runtime or full Naviamp host acceptance; both requested 18.5 runtime packages were unavailable
+in the installed catalog. Keep the original Android/iOS minimums unchanged. The next common-first
+work remains trusted artifact delivery and bounded tvOS storage/runtime/UI/provider closure,
+followed by the thin scene/remote/system host and its physical acceptance matrix. Windows output
+and final animation/compositor budget limits remain open.

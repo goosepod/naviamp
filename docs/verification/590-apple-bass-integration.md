@@ -141,7 +141,12 @@ tests pass on their intended Mac host. It was not counted as a Windows pass or h
 Verify run **888** fully passed at preceding source
 `5a57042511fdc5a4679a3c13d3f09a173433137f` (all Android levels/Desktop/shared/iOS/evidence).
 That is the position/network prerequisite, not CI proof for this subsequent Apple extraction.
-Fresh full Verify and the new tvOS workflow must validate the committed extraction independently.
+The extraction subsequently passed [Verify run 889](https://github.com/goosepod/naviamp/actions/runs/43699967506)
+and [tvOS native run 1](https://github.com/goosepod/naviamp/actions/runs/43699967582) at canonical
+source `418de3cb8cb4447e4eeaca60ea331a07e364fc97`. All required original-app checks and source
+evidence succeeded. The hosted tvOS run executed 1,176 Core cases and all three native cases on
+**26.5**, zero failures/errors/skips, no mixer linkage and cleanup 0/0. All five hosted source
+hashes match the canonical Git blobs independently of local Windows line endings.
 
 ## Remaining acceptance
 
@@ -151,7 +156,12 @@ runtime/provider/UI target closure. Native authenticated tvOS range/TLS streams,
 interruption/route changes, Now Playing, remote/focus/VoiceOver, signing and physical HDMI output
 remain explicit tests. iOS mutual TLS passing is not tvOS mutual TLS evidence.
 
-The public native tests use tvOS 27.2 only. They do not select a supported app minimum or prove
+Local native tests use tvOS 27.2; hosted native tests also pass on 26.5. They do not select a
+supported app minimum or prove
 physical audibility. Windows real-output driver initialization and final animation/compositor
 budget acceptance remain open; the recorded measurements are not a universal performance sign-off.
 No new issues, store claims or release artifacts were created for this milestone.
+
+The subsequent [deployment audit](590-tvos-deployment-audit.md) fixes the helper's SDK-derived
+minimum, audits vendor objects and re-renders a conservative 18.5 compatibility probe on 27.2.
+That candidate floor remains unverified on an older runtime.
