@@ -469,3 +469,10 @@ Required matrix before release:
 The principal unresolved acceptance dependency is access to real WiiM hardware or an authorized
 tester with an appropriate capture setup. The first model, supported format combinations and host
 background guarantees must be selected from actual evidence, not assumed from the protocol name.
+
+### Discovery and combined picker foundation — November 15, 2026
+Incoming head 579b277b2 passed the entire Verify matrix (run 43760143275). The new common discovery owner tracks packet source plus local interface, expiry and scan generations; bounds the registry to 64 entries; fetches/validates renderer descriptions; and rejects completion from stopped or replaced scans. The shared Cast picker can now merge UPnP targets, or operate with UPnP alone, and routes selection through Core's existing UPnP facade. Closing the picker stops discovery without disconnecting playback. Existing translated picker controls are reused.
+
+This increment defines the raw UDP discovery effect but does not yet supply or enable a native implementation. No live multicast discovery or native device test has been performed. Repository implementation order requires common Android/JVM/iOS validation before host wiring; the new discovery/picker source needs its own Apple CI result. Native UDP/interface adapters, Android multicast permission/lock handling and desktop HTTP-engine/listener bootstrap remain unfinished. Continue those after validation, keeping discovery policy in this common owner. Do not describe this as live discovery shipping in the app.
+
+Local verification: 330 app + 641 presentation tests (971), both modules' Android/common-metadata compilation, architecture and diff checks pass. Before enabling UPnP, replace the picker’s Google Cast-specific searching copy with protocol-neutral copy across maintained translations or an existing generic translated resource. Native host wiring and actual LAN validation remain unfinished.

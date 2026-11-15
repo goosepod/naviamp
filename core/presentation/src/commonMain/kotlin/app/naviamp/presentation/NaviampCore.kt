@@ -781,11 +781,6 @@ class NaviampCore private constructor(
                 NaviampCastSessionController(it, playbackOutputs).takeIf { sessions -> sessions.start() }
             }
             val availableCast = services.cast?.takeIf { castSessions != null }
-            val castPicker = availableCast?.discovery?.let { effect ->
-                NaviampCoreCastPickerController(scope,
-                    app.naviamp.app.NaviampCastDiscoveryController(effect, services.clockEpochMillis),
-                    checkNotNull(castSessions), playbackOutputs)
-            }
             val cast = availableCast?.let { castServices ->
                 NaviampCoreCastController(
                     scope = scope,
@@ -838,6 +833,13 @@ class NaviampCore private constructor(
                     }
                     select
                 } else null
+            val upnpDiscovery = upnpServices?.discovery?.let {
+                app.naviamp.app.NaviampUpnpDiscoveryController(scope, it, upnpServices.http, services.clockEpochMillis)
+            }
+            val castDiscovery = availableCast?.discovery?.let { app.naviamp.app.NaviampCastDiscoveryController(it, services.clockEpochMillis) }
+            val castPicker = if (castDiscovery != null || upnpDiscovery != null) NaviampCoreCastPickerController(scope,
+                castDiscovery, castSessions, playbackOutputs, upnpDiscovery,
+                selectUpnp = { target -> selectUpnp?.invoke(target.location, target.renderer.udn, target.localAddress) == true }) else null
             val commandHandler = NaviampCoreConnectCommandHandler(router, connect, samplePlayback::stop)
             pauseMainForSample = { commandHandler.dispatch(NaviampCoreCommand.NowPlaying.Playback(
                 NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.Pause))) }

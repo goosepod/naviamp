@@ -16,20 +16,24 @@ import kotlinx.coroutines.launch
 /** Shared scan/picker lifetime. Dismissing the picker never tears down active receiver playback. */
 internal class NaviampCoreCastPickerController(
     private val scope: CoroutineScope,
-    private val discovery: NaviampCastDiscoveryController,
-    private val sessions: NaviampCastSessionController,
+    private val discovery: NaviampCastDiscoveryController?,
+    private val sessions: NaviampCastSessionController?,
     private val outputs: NaviampPlaybackOutputSelectionController,
+    private val upnp: NaviampUpnpDiscoveryController? = null,
+    private val selectUpnp: (suspend (NaviampUpnpDiscoveredRenderer) -> Boolean)? = null,
 ) {
     private val mutableState = MutableStateFlow(NaviampCastPickerUi())
     val state: StateFlow<NaviampCastPickerUi> = mutableState.asStateFlow()
     private var scan: Job? = null
+    private var upnpScan: Job? = null
     private var expiry: Job? = null
     private var selection: Job? = null
     private var revision = 0L
     private val output = scope.launch {
         outputs.state.collect { value ->
-            val cast = (value as? NaviampPlaybackOutputSelection.Remote)?.takeIf { it.target.kind == NaviampRemoteOutputKind.Cast }
-            mutableState.value = state.value.copy(selectedTargetId = cast?.target?.id)
+            val remote = value as? NaviampPlaybackOutputSelection.Remote
+            val id = if (remote?.target?.kind == NaviampRemoteOutputKind.Upnp) upnp?.state?.value?.targets?.firstOrNull { it.renderer.udn == remote.target.id }?.id else remote?.target?.id
+            mutableState.value = state.value.copy(selectedTargetId = id)
         }
     }
 
@@ -37,28 +41,37 @@ internal class NaviampCoreCastPickerController(
         if (state.value.visible) return
         mutableState.value = state.value.copy(visible = true, problem = null)
         scan = scope.launch {
-            discovery.state.collect { discovered ->
+            discovery?.state?.collect { discovered ->
                 mutableState.value = state.value.copy(
-                    targets = discovered.targets.map { NaviampCastPickerTargetUi(it.target.id, it.target.displayName) },
+                    targets = discovered.targets.map { NaviampCastPickerTargetUi(it.target.id, it.target.displayName) } + upnpTargets(),
                     problem = if (discovered.problem != null) NaviampCastPickerProblemUi.Discovery else state.value.problem,
                 )
             }
         }
-        discovery.start()
+        upnpScan = scope.launch { upnp?.state?.collect { discovered ->
+            mutableState.value = state.value.copy(targets = discovery?.state?.value?.targets.orEmpty().map { NaviampCastPickerTargetUi(it.target.id, it.target.displayName) } + upnpTargets(),
+                selectedTargetId = (outputs.state.value as? NaviampPlaybackOutputSelection.Remote)?.let { remote ->
+                    if (remote.target.kind == NaviampRemoteOutputKind.Upnp) discovered.targets.firstOrNull { it.renderer.udn == remote.target.id }?.id else remote.target.id
+                },
+                problem = if (discovered.failed) NaviampCastPickerProblemUi.Discovery else state.value.problem)
+        } }
+        discovery?.start()
+        upnp?.start()
         expiry = scope.launch {
             var refreshTick = 0
             while (true) {
                 delay(1_000)
-                discovery.refreshExpiry()
-                if (++refreshTick % 30 == 0) discovery.refresh()
+                discovery?.refreshExpiry(); upnp?.refreshExpiry()
+                if (++refreshTick % 30 == 0) { discovery?.refresh(); upnp?.refresh() }
             }
         }
     }
 
     fun dismiss() {
         scan?.cancel(); scan = null
+        upnpScan?.cancel(); upnpScan = null
         expiry?.cancel(); expiry = null
-        discovery.stop()
+        discovery?.stop(); upnp?.stop()
         mutableState.value = state.value.copy(visible = false, targets = emptyList())
     }
 
@@ -69,13 +82,14 @@ internal class NaviampCoreCastPickerController(
 
     fun select(id: String) {
         if (!state.value.visible || selection?.isActive == true) return
-        val target = discovery.target(id)
-        if (target == null) { mutableState.value = state.value.copy(problem = NaviampCastPickerProblemUi.TargetLost); return }
+        val target = discovery?.target(id)
+        val renderer = upnp?.target(id)
+        if (target == null && renderer == null) { mutableState.value = state.value.copy(problem = NaviampCastPickerProblemUi.TargetLost); return }
         val current = ++revision
         mutableState.value = state.value.copy(connectingTargetId = id, problem = null)
         selection = scope.launch {
             try {
-                val accepted = sessions.selectTarget(target)
+                val accepted = if (renderer != null) selectUpnp?.invoke(renderer) == true else sessions?.selectTarget(checkNotNull(target)) == true
                 if (current != revision) return@launch
                 mutableState.value = state.value.copy(connectingTargetId = null,
                     problem = if (accepted) null else NaviampCastPickerProblemUi.Connection)
@@ -89,7 +103,8 @@ internal class NaviampCoreCastPickerController(
     fun selectLocal() {
         ++revision
         selection?.cancel(); selection = null
-        sessions.selectLocal()
+        outputs.selectLocal()
+        sessions?.selectLocal()
         mutableState.value = state.value.copy(connectingTargetId = null, problem = null)
         dismiss()
     }
@@ -100,4 +115,6 @@ internal class NaviampCoreCastPickerController(
         output.cancel()
         dismiss()
     }
+
+    private fun upnpTargets() = upnp?.state?.value?.targets.orEmpty().map { NaviampCastPickerTargetUi(it.id, it.renderer.name) }
 }

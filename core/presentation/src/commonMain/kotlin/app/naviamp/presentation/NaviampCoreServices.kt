@@ -112,6 +112,7 @@ data class NaviampCoreUpnpServices(
     val server: NaviampCastHttpServerEffect,
     val tokens: NaviampCastSecureTokenSource,
     val pollIntervalMillis: Long? = 2_000,
+    val discovery: app.naviamp.app.NaviampUpnpDiscoveryEffect? = null,
 )
 
 /** Portable persistence effects for Core-owned generated-radio recency policy. */
