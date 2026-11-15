@@ -633,3 +633,20 @@ close/reopen and simulated-purge cases pass on both TV and iOS; the expanded TV 
 1,809 passing cases. The renderer fixture also links/visibly paints with the app's official
 Lifecycle 2.11 dependency. These close specific foundation gaps, not full-host or storage durability
 acceptance; see the updated shared-foundation and artifact reports for the native file audit and limits.
+
+The [shared UI/ownership report](verification/590-visualizer-common-ownership.md) now records six
+actual UI/presentation compilations across both TV targets and original iOS, with official
+Lifecycle 2.11 and no private artifacts in iOS. Before host wiring, portable visualizer clock,
+history and Canvas behavior found in native adapters was extracted into Core. Local TV/iOS UI
+suites pass 210/211 cases, including twelve new regressions; original Android/desktop builds and
+iOS host compilation/link pass. Real-window motion/CPU/GPU acceptance must be repeated for this
+new source; the November 14 comparison is not its sign-off.
+
+Keep the future TV framework's Swift-facing API narrow: expose the UIKit controller and the
+small lifecycle entry points, while provider/repository/settings assembly stays in shared Kotlin.
+Do not copy iOS's eleven exported modules into TV merely for convenience. The original iOS
+export list remains unchanged until a separately measured compatibility change is justified.
+Continue to key TV Native caches by the verified port artifact identity/compiler/SDK/GC flags,
+and keep the separate Compose producers out of ordinary application build graphs. A successful
+library compile or common-unit test does not close full-host linking, bounded durable preferences,
+native authenticated streaming, physical remote/audio or older-runtime acceptance.

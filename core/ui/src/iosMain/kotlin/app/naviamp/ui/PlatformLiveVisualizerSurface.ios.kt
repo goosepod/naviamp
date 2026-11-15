@@ -5,12 +5,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
@@ -72,28 +70,10 @@ internal actual fun PlatformLiveVisualizerSurface(
         return
     }
 
-    var frameMillis by remember { mutableLongStateOf(0L) }
+    val frameMillis by rememberVisualizerFrameClock(active, renderPolicy.targetFrameIntervalMillis, visualizer)
     val albumArtOwner = remember { NaviampOwnedResource<Image>(Image::close) }
     val albumArtRetirementScope = rememberCoroutineScope()
     var albumArtImage by remember { mutableStateOf<Image?>(null) }
-    LaunchedEffect(active, visualizer, renderPolicy.targetFrameIntervalMillis) {
-        if (!active) {
-            frameMillis = 0L
-            return@LaunchedEffect
-        }
-        var lastRenderedFrameMillis = 0L
-        while (true) {
-            withFrameMillis { nextFrameMillis ->
-                if (
-                    lastRenderedFrameMillis == 0L ||
-                    nextFrameMillis - lastRenderedFrameMillis >= renderPolicy.targetFrameIntervalMillis
-                ) {
-                    lastRenderedFrameMillis = nextFrameMillis
-                    frameMillis = nextFrameMillis
-                }
-            }
-        }
-    }
     LaunchedEffect(coverArtUrl, visualizer) {
         val next = if (
             coverArtUrl != null &&
@@ -201,11 +181,10 @@ private class IosSkiaVisualizerRenderer(
     private val uniformBands = FloatArray(VisualizerFrameBandCount)
     private val smoothBands = FloatArray(VisualizerFrameBandCount)
     private val historyPixels = ByteArray(VisualizerHistoryColumns * VisualizerHistoryRows * 4)
-    private val previousHistoryBands = FloatArray(VisualizerFrameBandCount)
+    private val history = VisualizerHistoryBuffer(visualizer, renderPolicy)
     private var shader: Shader? = null
     private var historyShader: Shader? = null
     private var historyImage: Image? = null
-    private var lastHistoryPushSeconds = -1f
 
     fun draw(
         canvas: org.jetbrains.skia.Canvas,
@@ -275,30 +254,9 @@ private class IosSkiaVisualizerRenderer(
     }
 
     private fun updateHistoryTexture(timeSeconds: Float, active: Boolean) {
-        if (!active || !visualizer.usesHistoryShader) return
-        if (lastHistoryPushSeconds >= 0f && timeSeconds - lastHistoryPushSeconds < renderPolicy.historyIntervalSeconds) return
-        val changed = uniformBands.indices.any { index ->
-            kotlin.math.abs(uniformBands[index] - previousHistoryBands[index]) > 0.006f
-        }
-        if (!changed && lastHistoryPushSeconds >= 0f) return
-        lastHistoryPushSeconds = timeSeconds
-        uniformBands.copyInto(previousHistoryBands)
+        if (!history.update(timeSeconds, active, uniformBands)) return
+        history.copyRgbaTo(historyPixels)
         val rowBytes = VisualizerHistoryColumns * 4
-        historyPixels.copyInto(
-            destination = historyPixels,
-            destinationOffset = rowBytes,
-            startIndex = 0,
-            endIndex = rowBytes * (VisualizerHistoryRows - 1),
-        )
-        repeat(VisualizerHistoryColumns) { column ->
-            val sourceIndex = ((column / (VisualizerHistoryColumns - 1f)) * (VisualizerFrameBandCount - 1)).toInt()
-            val value = (uniformBands[sourceIndex].coerceIn(0f, 1f) * 255f).toInt().toByte()
-            val pixel = column * 4
-            historyPixels[pixel] = value
-            historyPixels[pixel + 1] = value
-            historyPixels[pixel + 2] = value
-            historyPixels[pixel + 3] = 255.toByte()
-        }
         val nextImage = Image.makeRaster(
             ImageInfo(VisualizerHistoryColumns, VisualizerHistoryRows, ColorType.RGBA_8888, ColorAlphaType.OPAQUE),
             historyPixels,
@@ -307,7 +265,7 @@ private class IosSkiaVisualizerRenderer(
         val nextShader = nextImage.makeShader(
             FilterTileMode.CLAMP,
             FilterTileMode.CLAMP,
-            SamplingMode.LINEAR,
+            if (visualizer.historyUsesNearestSampling) SamplingMode.DEFAULT else SamplingMode.LINEAR,
             null,
         )
         historyShader?.close()
@@ -334,9 +292,3 @@ private class IosSkiaVisualizerRenderer(
         }
     }
 }
-
-private val NaviampVisualizer.usesHistoryShader: Boolean
-    get() = this == NaviampVisualizer.SpectralRidge ||
-        this == NaviampVisualizer.FftMountain ||
-        this == NaviampVisualizer.PixelRidge ||
-        this == NaviampVisualizer.PixelMountain

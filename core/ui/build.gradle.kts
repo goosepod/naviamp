@@ -68,6 +68,7 @@ kotlin {
                     "app.naviamp.ui.AndroidAnimationProbeTest",
                     "app.naviamp.ui.AndroidRasterPlacementTest",
                     "app.naviamp.ui.AndroidVisualizerMountTest",
+                    "app.naviamp.ui.VisualizerCompositionClockTest",
                     "app.naviamp.ui.NaviampMenuAttachmentTest",
                     "app.naviamp.ui.NaviampDialogInitialFocusTest",
                     "app.naviamp.ui.NaviampSmartPlaylistReferencePickerTest",
@@ -124,6 +125,7 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
         }
         jvmTest.dependencies {
             implementation(compose.desktop.currentOs)
