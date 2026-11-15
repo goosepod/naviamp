@@ -37,6 +37,7 @@ gradle.projectsEvaluated {
                 logger.lifecycle("Verified $name: ${modules.size()} selected modules")
             }
             def output = rootProject.layout.buildDirectory.file('verified-consumer-variants.json').get().asFile
+            output.parentFile.mkdirs()
             output.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(report))
         }
     }

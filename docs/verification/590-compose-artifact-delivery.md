@@ -74,10 +74,35 @@ the reproducible producer/distribution gate. Before enabling the full host:
    shared artifact or cache. No public package/release was created at this checkpoint.
 4. Pin the artifact identity in reviewed source, verify before repository use, and retain strict
    target-scoped mapping. Prove Android/JVM/iOS stay official in the complete app graph.
-5. Rebuild/link the full tvOS app with matching Native caches. The fixture's transitive Lifecycle
-   2.9.6 is not acceptance of the app's Lifecycle 2.11 graph. Retain cold/warm app measurements.
+5. Rebuild/link the full tvOS app with matching Native caches. The original fixture's transitive
+   Lifecycle 2.9.6 was not acceptance of the app's Lifecycle 2.11 graph. The separate follow-up
+   below now covers 2.11 in that fixture, but full app closure and cold/warm measurements remain.
 
 Local Mac evidence lives in `build/590-deployment-inputs/compose-artifact-{provenance,manifest}.json`.
 The manifest records the exact binary inputs and is intentionally not checked in as a large
 generated inventory. See the [deployment audit](590-tvos-deployment-audit.md) for every-object
 minimum-OS inspection and visible renderer limits; 18.5 remains a compatibility candidate.
+
+## Lifecycle 2.11 follow-up
+
+A fresh owned copy of the renderer fixture added the app's actual
+`org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose:2.11.0` dependency after verifying
+the artifact identity above. Strict resolution selected **official** Lifecycle 2.11 Native leaves,
+including runtime/runtime-compose/common/viewmodel/savedstate on TV. No extra port or version
+downgrade is needed for this dependency. The actual reports contain 95 iOS components with zero
+private port artifacts and 96 TV components; every selected JetBrains Lifecycle component is 2.11.
+
+Both TV frameworks and the original iOS simulator framework compiled/linked in 178.956 seconds
+with the existing identity-compatible caches. The first fresh-directory attempt exposed a graph
+reporter bug before compilation: it did not create its `build` output directory. The init script
+now creates that directory; the successful repeat retains the failed initial log as evidence.
+
+The rebuilt TV simulator fixture packages its `.cvr` resources through the actual Compose sync
+task and visibly renders strings, Material3 slider, button and checked checkbox on **27.2**.
+The retrieved **3840×2160** image was inspected; owned simulator cleanup returned 0/0.
+Framework SHA-256: `86b4fead68974e19e501466c07036a74fcfb229036dfa76b505493213fd72a27`.
+The 18.5 host declaration is still a candidate, not older-runtime acceptance.
+
+Evidence: Mac `build/590-tvos-lifecycle-2_11-probe`,
+`590-tvos-lifecycle-2_11{,-retry}.log`, `590-renderer-lifecycle-2_11-visible`; local
+`build/590-feasibility/tvos-lifecycle-2_11{.png,-link-summary.json,-runtime-summary.json}`.
