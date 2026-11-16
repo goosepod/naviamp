@@ -327,6 +327,26 @@ internal class NaviampCoreRemotePlaybackController(
         loadJob?.cancelAndJoin(); prepareJob?.cancelAndJoin()
         operations.withLock { try { withTimeoutOrNull(8_000) { session.disconnect() } } finally { endpoint.stop(); active = null; prepared = null; previousLeases = emptyList() } }
     }
+    /** End a foreground-only relay without automatically starting the local speaker. */
+    suspend fun suspendForBackground() {
+        if (selected() == null) return
+        val hadMedia = active != null || outputs.hasRemotePlaybackAuthority()
+        ++requestRevision; ++prepareRevision
+        val loading = loadJob.also { it?.cancel() }; loadJob = null
+        val preparing = prepareJob.also { it?.cancel() }; prepareJob = null
+        remoteWasPlaying = false; explicitlyStopped = true
+        active = null; prepared = null; previousLeases = emptyList()
+        session.selectLocal()
+        if (hadMedia) playback.updatePlaybackState(PlaybackState.Paused)
+        publishNowPlaying()
+        withContext(NonCancellable) {
+            loading?.join(); preparing?.join()
+            operations.withLock {
+                try { withTimeoutOrNull(8_000) { session.disconnect(true) } }
+                finally { endpoint.stop() }
+            }
+        }
+    }
     suspend fun shutdown() {
         if (closed) return
         closed = true

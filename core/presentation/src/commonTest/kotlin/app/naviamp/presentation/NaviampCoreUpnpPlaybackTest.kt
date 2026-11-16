@@ -11,6 +11,53 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreUpnpPlaybackTest {
+    @Test fun foregroundOnlyHostStopsRevokesAndDoesNotAutomaticallyResumeEitherOutput() = runTest {
+        val f = Fixture(this); var token = 0
+        val core = NaviampCore.create(f.ownScope, fakeCoreServices(f.provider, f.local).copy(
+            upnp = NaviampCoreUpnpServices(f.wire, f.server,
+                NaviampCastSecureTokenSource { "background-${(++token).toString().padStart(32, '0')}" },
+                pollIntervalMillis = null, backgroundExecutionAvailable = false)))
+        try {
+            runCurrent()
+            core.updateLivePlayback { it.copy(currentTrack = f.track, queue = PlaybackQueue(listOf(f.track), 0),
+                playbackState = PlaybackState.Playing, progress = PlaybackProgress(0.0, 180.0)) }
+            assertTrue(core.selectUpnpRenderer("http://192.0.2.2/device.xml", "uuid:fixture", "192.0.2.1")); advanceUntilIdle()
+            val url = f.wire.current
+            assertTrue((core.playbackOutputState.value as NaviampPlaybackOutputSelection.Remote).playbackAuthorityActive)
+            core.onHostForegroundChanged(false); advanceUntilIdle()
+            assertEquals(NaviampPlaybackOutputSelection.Local, core.playbackOutputState.value)
+            assertEquals(404, f.server.get(url).status)
+            assertTrue(f.wire.stops > 0); assertEquals(0, f.local.starts)
+            assertFalse(core.selectUpnpRenderer("http://192.0.2.2/device.xml", "uuid:fixture", "192.0.2.1"))
+            core.onHostForegroundChanged(true); advanceUntilIdle()
+            assertEquals(1, f.wire.loads); assertEquals(0, f.local.starts)
+            assertEquals(NaviampExternalPlaybackState.Paused, core.externalPlaybackBridge().snapshot().state)
+        } finally { core.shutdown(); f.ownScope.cancel() }
+    }
+
+    @Test fun backgroundInvalidatesPendingDescriptionAndControllerCanBeSelectedAgain() = runTest {
+        val f = Fixture(this); val gate = CompletableDeferred<Unit>(); var token = 0
+        val core = NaviampCore.create(f.ownScope, fakeCoreServices(f.provider, f.local).copy(
+            upnp = NaviampCoreUpnpServices(NaviampUpnpHttpTransport { request -> gate.await(); f.wire.exchange(request) },
+                f.server, NaviampCastSecureTokenSource { "background-pending-${(++token).toString().padStart(32, '0')}" },
+                pollIntervalMillis = null, backgroundExecutionAvailable = false)))
+        try {
+            runCurrent()
+            val selecting = async { core.selectUpnpRenderer("http://192.0.2.2/device.xml", "uuid:fixture", "192.0.2.1") }
+            runCurrent(); core.onHostForegroundChanged(false); gate.complete(Unit)
+            assertFalse(selecting.await()); assertEquals(0, f.wire.loads)
+        } finally { core.shutdown(); f.ownScope.cancel() }
+        val capable = Fixture(this)
+        try {
+            capable.connect(); advanceUntilIdle()
+            // The common controller remains usable after a foreground suspension as well.
+            capable.controller.suspendForBackground(); advanceUntilIdle()
+            assertEquals(0, capable.local.starts)
+            capable.connect(); advanceUntilIdle()
+            assertTrue(capable.outputs.hasRemotePlaybackAuthority())
+        } finally { capable.close() }
+    }
+
     @Test fun zeroReceiverDurationPreservesKnownTrackDurationAndExternalSeekReachesTheWire() = runTest {
         val f = Fixture(this)
         f.wire.duration = "00:00:00"
@@ -123,6 +170,10 @@ class NaviampCoreUpnpPlaybackTest {
             advanceUntilIdle()
             assertTrue(core.playbackOutputs.hasRemotePlaybackAuthority())
             assertEquals(1, f.wire.loads)
+            core.onHostForegroundChanged(false); advanceUntilIdle()
+            assertTrue((core.playbackOutputState.value as NaviampPlaybackOutputSelection.Remote).playbackAuthorityActive)
+            assertEquals(0, f.wire.stops)
+            core.onHostForegroundChanged(true)
             assertEquals(200, f.server.get(f.wire.current).status)
             core.dispatch(NaviampCoreCommand.NowPlaying.Playback(app.naviamp.ui.NowPlayingPlaybackActionRequest(app.naviamp.ui.NowPlayingPlaybackAction.Pause)))
             advanceUntilIdle()

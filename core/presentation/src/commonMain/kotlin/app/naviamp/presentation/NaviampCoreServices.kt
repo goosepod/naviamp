@@ -114,6 +114,10 @@ data class NaviampCoreUpnpServices(
     val pollIntervalMillis: Long? = 2_000,
     val discovery: app.naviamp.app.NaviampUpnpDiscoveryEffect? = null,
     val discoveryEffectContext: kotlin.coroutines.CoroutineContext = kotlin.coroutines.EmptyCoroutineContext,
+    /** Host execution fact: a suspended host cannot keep a silent LAN relay alive. */
+    val backgroundExecutionAvailable: Boolean = true,
+    /** Native signing/build capability, independent of a user's runtime local-network consent. */
+    val multicastDiscoveryAvailable: Boolean = true,
 )
 
 /** Portable persistence effects for Core-owned generated-radio recency policy. */

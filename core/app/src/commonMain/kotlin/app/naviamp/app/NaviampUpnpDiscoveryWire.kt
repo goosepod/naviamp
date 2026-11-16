@@ -1,5 +1,8 @@
 package app.naviamp.app
 
+const val NAVIAMP_UPNP_MULTICAST_HOST = "239.255.255.250"
+const val NAVIAMP_UPNP_MULTICAST_PORT = 1900
+
 const val NAVIAMP_UPNP_RENDERER_TYPE = "urn:schemas-upnp-org:device:MediaRenderer:1"
 
 sealed interface NaviampUpnpAdvertisement {
@@ -11,7 +14,7 @@ sealed interface NaviampUpnpAdvertisement {
 
 fun naviampUpnpSearchDatagram(maxWaitSeconds: Int = 2): String {
     require(maxWaitSeconds in 1..5)
-    return "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: $maxWaitSeconds\r\nST: $NAVIAMP_UPNP_RENDERER_TYPE\r\n\r\n"
+    return "M-SEARCH * HTTP/1.1\r\nHOST: $NAVIAMP_UPNP_MULTICAST_HOST:$NAVIAMP_UPNP_MULTICAST_PORT\r\nMAN: \"ssdp:discover\"\r\nMX: $maxWaitSeconds\r\nST: $NAVIAMP_UPNP_RENDERER_TYPE\r\n\r\n"
 }
 
 /** The socket adapter supplies the actual packet source address, never a device-supplied header. */

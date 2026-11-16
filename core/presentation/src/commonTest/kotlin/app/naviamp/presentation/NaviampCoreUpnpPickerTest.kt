@@ -7,6 +7,23 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreUpnpPickerTest {
+    @Test fun missingNativeMulticastCapabilityDoesNotExposeAnUnusablePicker() = runTest {
+        val discovery = object : NaviampUpnpDiscoveryEffect {
+            override fun start(search: String, receive: (NaviampUpnpDiscoveryPacket) -> Unit) = error("Unavailable capability must not start")
+            override fun refresh(search: String) = Unit
+            override fun stop() = Unit
+        }
+        val server = object : NaviampCastHttpServerEffect {
+            override suspend fun start(handler: suspend (NaviampCastHttpRequest, NaviampCastHttpResponse) -> Unit): String = error("No selection")
+            override suspend fun stop() = Unit
+        }
+        val core = NaviampCore.create(backgroundScope, fakeCoreServices().copy(upnp = NaviampCoreUpnpServices(
+            NaviampUpnpHttpTransport { error("No network request") }, server,
+            NaviampCastSecureTokenSource { "capability-test-token-0000000000000000" }, discovery = discovery, multicastDiscoveryAvailable = false)))
+        try { runCurrent(); assertFalse(core.castAvailable); core.showCastPicker(); runCurrent(); assertNull(core.castPickerState) }
+        finally { core.shutdown() }
+    }
+
     @Test fun upnpOnlyPickerDiscoversSelectsAndDismissesWithoutChangingActiveOutput() = runTest {
         lateinit var receive: (NaviampUpnpDiscoveryPacket) -> Unit
         var stops = 0

@@ -112,11 +112,13 @@ class NaviampCore private constructor(
     private val castPicker: NaviampCoreCastPickerController?,
     private val upnpController: NaviampCoreRemotePlaybackController?,
     private val upnpSelection: (suspend (String, String, String) -> Boolean)?,
+    private val hostForegroundChanged: suspend (Boolean) -> Unit,
     private val showCastRoutePicker: (() -> Unit)?,
     internal val playbackOutputs: NaviampPlaybackOutputSelectionController,
 ) {
     val state: StateFlow<NaviampCoreState> = stateStore.state
     val playbackOutputState: StateFlow<NaviampPlaybackOutputSelection> get() = playbackOutputs.state
+    suspend fun onHostForegroundChanged(foreground: Boolean) = hostForegroundChanged(foreground)
 
     fun dispatch(command: NaviampCoreCommand) = commands.dispatch(command)
 
@@ -819,22 +821,23 @@ class NaviampCore private constructor(
                 }
             }
             var upnpSelectionRevision = 0L
+            var upnpForeground = true
             val selectUpnp: (suspend (String, String, String) -> Boolean)? =
                 if (upnp != null && upnpSession != null && upnpServices != null) {
                     val select: suspend (String, String, String) -> Boolean = { location, udn, address ->
                         val revision = ++upnpSelectionRevision
-                        try {
+                        if (!upnpForeground) false else try {
                             val receiver = app.naviamp.app.NaviampUpnpRendererClient.describe(upnpServices.http, location, udn)
-                            if (revision != upnpSelectionRevision || !upnp.canSelect) false else {
+                            if (!upnpForeground || revision != upnpSelectionRevision || !upnp.canSelect) false else {
                                 upnp.disconnect()
-                                if (revision != upnpSelectionRevision || !upnp.canSelect) false else upnpSession.select(receiver, address)
+                                if (!upnpForeground || revision != upnpSelectionRevision || !upnp.canSelect) false else upnpSession.select(receiver, address)
                             }
                         } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
                         catch (_: Exception) { false }
                     }
                     select
                 } else null
-            val upnpDiscovery = upnpServices?.discovery?.let {
+            val upnpDiscovery = upnpServices?.discovery?.takeIf { upnpServices.multicastDiscoveryAvailable }?.let {
                 app.naviamp.app.NaviampUpnpDiscoveryController(scope, it, upnpServices.http, services.clockEpochMillis,
                     upnpServices.discoveryEffectContext)
             }
@@ -868,6 +871,16 @@ class NaviampCore private constructor(
                 castPicker = castPicker,
                 upnpController = upnp,
                 upnpSelection = selectUpnp,
+                hostForegroundChanged = { foreground ->
+                    if (upnpServices?.backgroundExecutionAvailable == false && upnpForeground != foreground) {
+                        upnpForeground = foreground
+                        if (!foreground) {
+                            ++upnpSelectionRevision
+                            castPicker?.dismiss()
+                            upnp?.suspendForBackground()
+                        }
+                    }
+                },
                 showCastRoutePicker = availableCast?.showRoutePicker,
                 playbackOutputs = playbackOutputs,
             )
