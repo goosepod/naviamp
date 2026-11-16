@@ -10,6 +10,16 @@ Build one shared Naviamp application with an additional tvOS host. Reuse the Tel
 Core runtime, providers, queue, connection provisioning (including Aurral), navigation and settings.
 No second tvOS controller, provider implementation or persistence policy is permitted.
 
+Owner acceptance decision (November 15, 2026): no physical Apple TV is available or expected.
+Use Apple's tvOS Simulator as the runtime acceptance environment for #590. Lack of physical
+hardware testing does not block issue completion, PR readiness or the initial release. Retain
+device-target compilation/archive and distribution validation, and exercise remote input, native
+text entry, playback, recovery, lifecycle, accessibility and performance as far as the simulator
+supports them. Record physical Siri Remote feel, HDMI/output-route behavior, hardware performance
+and device-only behavior as unverified limitations, not required gates. Do not describe simulator
+results as hardware validation. This decision supersedes physical-test requirements in earlier
+checkpoints; the remaining simulator, build, security and distribution requirements still apply.
+
 The owner's additional [official Kotlin/Native target reference](https://kotlinlang.org/docs/native-target-support.html)
 confirms `tvosArm64` and `tvosSimulatorArm64` are Tier 2: compilation is regularly checked in
 Kotlin's CI, with best-effort source/binary compatibility. The ARM64 simulator supports running
@@ -227,8 +237,8 @@ user-facing feature setting. Remove the gate when the supported graph and CI are
   including SQLDelight, Ktor, coroutines, serialization and resource variants; reject platform fallbacks.
 - Render a real shared Television page, circular artist/square album artwork, editable connection
   form and moving progress/marquee. Prove select/back/play-pause and directional focus restoration.
-- Install a tvOS simulator runtime for launch verification. Run on a physical Apple TV before claiming
-  Siri Remote, accessibility, GPU/compositor or HDMI audio acceptance. Preserve existing shared tests.
+- Use the tvOS simulator for launch, remote, accessibility and rendering verification. Record its
+  runtime and host conditions; leave hardware-specific claims unverified. Preserve existing shared tests.
 
 ### 3. Native playback gate
 
@@ -293,8 +303,9 @@ Continue with the remaining requirements below; do not copy the former iOS adapt
   dependencies. Do not rename an IPA or treat an unsigned archive as App Store acceptance.
 - Configure the App Store platform, bundle identity, icons, remote requirements, signing and
   provisioning only after simulator/native feasibility. Validate distribution with Apple's tools.
-- Record a physical acceptance matrix: focus/back, VoiceOver, empty/error/loading states, lifecycle,
-  process restoration, Wi-Fi failure/recovery, output changes and no accidental autoplay.
+- Record a simulator acceptance matrix: focus/back, accessible semantics and supported accessibility
+  tools, empty/error/loading states, lifecycle, process restoration, simulated network/output changes
+  and no accidental autoplay. List unsupported and hardware-only scenarios as unverified limitations.
 - Update product support statements only when verified. #590 stays the parent acceptance record.
 
 ## Build performance: apply measured iOS lessons from day one
@@ -702,6 +713,7 @@ accessibility trees, per-stage authentication results and source identities.
 
 Next work stays under #590: system Home/return and remote playback controls, shared native
 media/lifecycle and discovery effects, broader certificate/settings/error GUI recovery scenarios,
-authenticated streaming, physical remote/HDMI/VoiceOver, older-runtime proof, trusted port delivery
-and hosted full-scene CI. Keep normal builds and release claims unchanged until those gates close.
+authenticated streaming, simulator accessibility, older-runtime proof, trusted port delivery
+and hosted full-scene CI. Physical remote/HDMI and hardware-specific accessibility remain unverified,
+optional follow-up checks. Keep normal builds and release claims unchanged until required gates close.
 Android 8 support remains.

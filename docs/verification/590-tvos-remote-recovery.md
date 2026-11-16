@@ -4,6 +4,12 @@ This extends the [bounded storage/scene checkpoint](590-tvos-recovery-storage.md
 under #590 and draft PR 606. Android's runtime minimum remains API 26; the TV deployment candidate
 remains 18.5. Normal builds still exclude the private Compose TV scene.
 
+Owner acceptance update (November 15, 2026): #590 uses Apple's tvOS Simulator for runtime
+acceptance because no physical Apple TV is available or expected. Physical remote/HDMI/hardware
+checks are optional and remain explicitly unverified; their absence does not block completion,
+PR readiness or the initial release. The [current plan](../tvos-implementation-plan.md) defines
+the remaining simulator/build/distribution requirements. Earlier physical-test gates are superseded.
+
 ## Accepted CI baseline
 
 Commit `c8aa7a8b9c63106c900f780c10a8fbecccb0eadb` passes the complete
@@ -150,8 +156,9 @@ The reviewed native hosting controller also suppresses superclass press forwardi
 boundary in the lifecycle/port review rather than adding app navigation policy to Swift. The final
 regression uses normal short Back. Shared repeated-key protection is not proof of system long-press behavior.
 
-These tests do not establish physical Siri Remote/HDMI audibility, VoiceOver, older-runtime
-compatibility, background/interruption handling or system media commands. Remote playback buttons,
+Physical Siri Remote/HDMI behavior and hardware performance remain unverified, nonblocking
+limitations. Simulator accessibility, older-runtime compatibility, background/interruption handling
+and system media commands still need verification. Remote playback buttons,
 authenticated range/TLS streaming, native lifecycle/media integration, document/certificate selection,
 discovery/pairing and signing/distribution remain explicit host acceptance work under #590.
 Component tests continue to cover certificate relocation, settings normalization/import rollback,

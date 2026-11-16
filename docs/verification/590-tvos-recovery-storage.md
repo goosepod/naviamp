@@ -274,6 +274,11 @@ Its guarded cache deletion, pre-launch probes, native cryptography, fresh authen
 provider content pass together. It also records the two common remote fixes and current system
 Home/lifecycle limits. The following list retains broader host acceptance work.
 
+Per the owner's November 15 acceptance update, runtime acceptance uses Apple's tvOS Simulator.
+Physical Apple TV testing is optional; unavailable hardware does not block #590, PR readiness or
+the initial release. Hardware-only results remain unverified limitations. This supersedes earlier
+physical-test gates; simulator, native build and distribution requirements remain.
+
 The shared Apple UI/filesystem adapters and initial UIKit scene are implemented. The current host
 mounts foreground direct BASS, shared repositories/providers and the television UI. Native media
 commands, background/interruption integration, discovery/pairing, document selection and durable
@@ -281,7 +286,7 @@ offline downloads are not mounted or advertised as accepted capabilities. Contin
 following work under #590; no additional issues are needed:
 
 1. Extend the passing owned XCUIRemote/navigation/text suite to system Home/return, playback
-   buttons, more layouts, accessibility and physical remote behavior. Keep UIKit input translation
+   buttons, more layouts and simulator accessibility. Keep UIKit input translation
    native and product focus/back policy shared.
 2. Extend the passing main/Aurral password-account cache-purge flow to GUI certificate selection,
    custom transport configuration, general settings/imports, nonempty-queue exclusion, failed
@@ -291,9 +296,10 @@ following work under #590; no additional issues are needed:
    and MediaPlayer effects. Publish OS facts into Core. Verify interruption, background/foreground,
    scene disconnect, retry while playing and native resource disposal. Add Bonjour/local-network
    effects through existing shared connection contracts and the required localized privacy copy.
-4. Verify authenticated range/TLS streaming, physical Apple TV remote/HDMI audio and VoiceOver.
-   Test the 18.5 compatibility candidate on an older runtime/device. Simulator output is not
-   physical audibility or a guarantee about the oldest supported hardware.
+4. Verify authenticated range/TLS streaming, simulator audio/remote behavior and the accessibility
+   checks supported by the simulator. Test the 18.5 compatibility candidate on an older simulator
+   runtime. Physical remote/HDMI audibility and hardware performance remain unverified, optional
+   follow-up checks; simulator results do not establish them.
 5. Close reviewed artifact delivery and bounded producer automation, then add the full scene build,
    native storage and remote tests to hosted CI. Keep the current headless public-BASS lane separate.
    Finish signing/provisioning, icons, version automation and archive/install/distribution checks
