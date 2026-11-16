@@ -19,13 +19,17 @@ Current increment: Android and Desktop now supply the common UPnP service with n
 HTTP engine and a receiver-interface-bound relay. Native JVM multicast discovery and original FLAC
 delivery through the shared queue/session/provider relay passed against AirPin STD 5.7.1 on an Onn
 Android TV; the owner confirmed audible test tones. AirPin does **not** advertise
-`SetNextAVTransportURI`, so it cannot validate our gapless path. Android host compilation passes;
-Android app-to-receiver runtime and lifecycle testing, iOS host adapters/signing/privacy integration,
+`SetNextAVTransportURI`, so it cannot validate our gapless path. Foreground Pixel-to-AirPin discovery,
+shared picker, original FLAC relay, audible playback and forward seeking passed with the receiver
+awake, the television on and Tailscale temporarily disconnected; Tailscale was restored afterward.
+Android background/network lifecycle testing, iOS host adapters/signing/privacy integration,
 and real WiiM lossless/gapless acceptance remain open. The minimum Android version remains API 26.
 See [the AirPin verification record](verification/607-airpin-2026-11-15.md) for evidence and limits.
 The [Pixel/seek follow-up](verification/607-pixel-seek-2026-11-15.md) records the native main-thread
 discovery fix, common zero-duration/phone-seek regression, longer FLAC/MP3 timing probes and the
-remaining Pixel VPN-route isolation gate. Preserve known provider duration when the renderer
+passing awake Pixel test. Earlier zero-time reports were collected without validating power state;
+they do not prove that AirPin cannot seek. The tested Tailscale-active setup remains unsupported by
+this acceptance evidence. Preserve known provider duration when the renderer
 reports zero; do not synthesize position or claim successful audible seeking from an acknowledgment.
 
 The sections below retain the verification history of earlier increments; their statements about
