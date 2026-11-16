@@ -19,7 +19,6 @@ import app.naviamp.ui.NaviampApplicationUpdateChecker
 import app.naviamp.ui.NaviampApplicationSurface
 import app.naviamp.ui.LocalNaviampApplicationSurface
 import app.naviamp.ui.NaviampBusyDialog
-import app.naviamp.ui.NaviampCastOutputUi
 import app.naviamp.ui.defaultNaviampApplicationUpdateChecker
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampSharedAppShell
@@ -27,9 +26,6 @@ import app.naviamp.ui.NaviampStatsForNerdsDialog
 import app.naviamp.ui.NaviampTelevisionAppShell
 import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.CoroutineScope
-import app.naviamp.app.NaviampPlaybackOutputSelection
-import app.naviamp.app.NaviampRemoteOutputKind
-import app.naviamp.app.NaviampRemoteOutputPhase
 
 /**
  * Complete, host-neutral input boundary for the Naviamp product.
@@ -109,16 +105,8 @@ fun NaviampCoreApp(
         core = core,
         visible = state.shell.shellChrome.selectedRoute == SharedRoute.Settings,
     )
-    val playbackOutput by core.playbackOutputs.state.collectAsState()
-    val selectedCast = (playbackOutput as? NaviampPlaybackOutputSelection.Remote)
-        ?.takeIf { it.target.kind == NaviampRemoteOutputKind.Cast }
-    val castOutput = NaviampCastOutputUi(
-        available = core.castAvailable,
-        selectedTargetName = selectedCast?.target?.displayName,
-        selected = selectedCast != null,
-        playbackActive = selectedCast?.playbackAuthorityActive == true,
-        unavailable = selectedCast?.phase == NaviampRemoteOutputPhase.Unavailable,
-    )
+    val playbackOutput by core.playbackOutputState.collectAsState()
+    val castOutput = naviampCoreRemoteOutputUi(core.castAvailable, playbackOutput)
     LaunchedEffect(core, state.shell.connectionSettings.currentSourceId) {
         if (state.shell.connectionSettings.currentSourceId != null) {
             core.maintainProviderSession()

@@ -116,6 +116,7 @@ class NaviampCore private constructor(
     internal val playbackOutputs: NaviampPlaybackOutputSelectionController,
 ) {
     val state: StateFlow<NaviampCoreState> = stateStore.state
+    val playbackOutputState: StateFlow<NaviampPlaybackOutputSelection> get() = playbackOutputs.state
 
     fun dispatch(command: NaviampCoreCommand) = commands.dispatch(command)
 
