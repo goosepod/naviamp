@@ -265,7 +265,8 @@ class AndroidNaviampCoreCatalog private constructor(
                         upnp = app.naviamp.presentation.NaviampCoreUpnpServices(
                             http = upnpHttp, server = AndroidNaviampCastHttpServerEffect(appContext),
                             tokens = AndroidNaviampCastSecureTokenSource(),
-                            discovery = AndroidNaviampUpnpDiscoveryEffect(appContext)),
+                            discovery = AndroidNaviampUpnpDiscoveryEffect(appContext),
+                            discoveryEffectContext = kotlinx.coroutines.Dispatchers.IO),
                     ),
                     initialState = storedCatalog.initialState,
                     actionAvailability = AndroidCapabilityPresentation.toCoreActionAvailability(),

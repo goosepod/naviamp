@@ -11,6 +11,30 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreUpnpPlaybackTest {
+    @Test fun zeroReceiverDurationPreservesKnownTrackDurationAndExternalSeekReachesTheWire() = runTest {
+        val f = Fixture(this)
+        f.wire.duration = "00:00:00"
+        var token = 0
+        val core = NaviampCore.create(f.ownScope, fakeCoreServices(f.provider, f.local).copy(
+            upnp = NaviampCoreUpnpServices(f.wire, f.server,
+                NaviampCastSecureTokenSource { "duration-test-${(++token).toString().padStart(32, '0')}" }, pollIntervalMillis = null)))
+        try {
+            runCurrent()
+            core.updateLivePlayback { it.copy(currentTrack = f.track, queue = PlaybackQueue(listOf(f.track), 0),
+                playbackState = PlaybackState.Playing, progress = PlaybackProgress(0.0, 180.0)) }
+            assertTrue(core.selectUpnpRenderer("http://192.0.2.2/device.xml", "uuid:fixture", "192.0.2.1"))
+            advanceUntilIdle()
+            val external = core.externalPlaybackBridge()
+            assertEquals(180_000L, external.snapshot().durationMillis)
+            assertTrue(external.snapshot().canSeek)
+            external.pause(); advanceUntilIdle()
+            external.seekTo(30_000); advanceUntilIdle()
+            assertEquals("00:00:30", f.wire.seekTarget?.substringBefore('.'))
+            assertEquals(1, f.wire.loads)
+            assertEquals(0L, external.snapshot().positionMillis, "Keep observed position; do not invent successful seeking")
+        } finally { core.shutdown(); f.ownScope.cancel() }
+    }
+
     @Test fun returningToLocalWaitsForTheOwnedReceiverToStopBeforeStartingLocalAudio() = runTest {
         val f = Fixture(this)
         try {
@@ -335,6 +359,8 @@ class NaviampCoreUpnpPlaybackTest {
     private class Renderer : NaviampUpnpHttpTransport {
         var current = ""; var next: String? = null; var state = "STOPPED"
         var loads = 0; var plays = 0; var position = 0L; var stops = 0
+        var duration = "00:03:00"
+        var seekTarget: String? = null
         var ignoreLoad = false
         var sink = "http-get:*:audio/flac:*"
         var failNext = false
@@ -365,11 +391,11 @@ class NaviampCoreUpnpPlaybackTest {
                 "Play" -> { state = "PLAYING"; plays++ }
                 "Pause" -> state = "PAUSED_PLAYBACK"
                 "Stop" -> { stopGate?.await(); state = "STOPPED"; position = 180_000; stops++ }
-                "Seek" -> position = 0
+                "Seek" -> { seekTarget = field("Target"); position = 0 }
             }
             val fields = when (action) {
                 "GetProtocolInfo" -> "<Source/><Sink>$sink</Sink>"
-                "GetPositionInfo" -> "<TrackURI>$current</TrackURI><RelTime>00:00:${(position / 1_000 % 60).toString().padStart(2, '0')}</RelTime><TrackDuration>00:03:00</TrackDuration>".let {
+                "GetPositionInfo" -> "<TrackURI>$current</TrackURI><RelTime>00:00:${(position / 1_000 % 60).toString().padStart(2, '0')}</RelTime><TrackDuration>$duration</TrackDuration>".let {
                     if (position == 180_000L) it.replace("<RelTime>00:00:00</RelTime>", "<RelTime>00:03:00</RelTime>") else it
                 }
                 "GetTransportInfo" -> "<CurrentTransportState>$state</CurrentTransportState>"

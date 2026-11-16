@@ -23,6 +23,10 @@ Android TV; the owner confirmed audible test tones. AirPin does **not** advertis
 Android app-to-receiver runtime and lifecycle testing, iOS host adapters/signing/privacy integration,
 and real WiiM lossless/gapless acceptance remain open. The minimum Android version remains API 26.
 See [the AirPin verification record](verification/607-airpin-2026-11-15.md) for evidence and limits.
+The [Pixel/seek follow-up](verification/607-pixel-seek-2026-11-15.md) records the native main-thread
+discovery fix, common zero-duration/phone-seek regression, longer FLAC/MP3 timing probes and the
+remaining Pixel VPN-route isolation gate. Preserve known provider duration when the renderer
+reports zero; do not synthesize position or claim successful audible seeking from an acknowledgment.
 
 The sections below retain the verification history of earlier increments; their statements about
 absent native wiring describe those earlier commits, not the current branch.

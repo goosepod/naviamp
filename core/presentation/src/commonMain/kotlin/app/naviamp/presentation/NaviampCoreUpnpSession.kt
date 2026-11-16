@@ -139,7 +139,8 @@ internal class NaviampCoreUpnpSession(
             else -> PlaybackState.Stopped
         }
         return NaviampCoreRemoteStatus(id, ++revision, position.trackUri, mapped,
-            position.positionMillis ?: 0, position.durationMillis,
+            // A renderer's unknown/zero duration must not erase the provider's known finite length.
+            position.positionMillis ?: 0, position.durationMillis?.takeIf { it > 0 },
             finished = state == NaviampUpnpTransportState.STOPPED && position.durationMillis?.let { it > 0 && (position.positionMillis ?: 0) >= it } == true)
             .also { mutableStatus.value = it }
     }

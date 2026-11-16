@@ -315,6 +315,7 @@ internal class DesktopComposition private constructor(
                         http = upnpHttp, server = upnpServer,
                         tokens = NaviampCastSecureTokenSource { java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(ByteArray(32).also(secureRandom::nextBytes)) },
                         discovery = app.naviamp.app.JvmNaviampUpnpDiscoveryEffect(),
+                        discoveryEffectContext = kotlinx.coroutines.Dispatchers.IO,
                     )),
                     providerSessions = sessions,
                     initialState = catalog.initialState,
