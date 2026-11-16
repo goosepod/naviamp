@@ -126,6 +126,7 @@ dependencies {
     implementation(project(":core:domain"))
     implementation(project(":core:presentation"))
     implementation(project(":core:ui"))
+    implementation(libs.ktor.client.cio)
     implementation(libs.activity.compose)
     implementation(libs.androidx.fragment)
     implementation(libs.androidx.media)

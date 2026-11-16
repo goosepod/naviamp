@@ -12,10 +12,13 @@ data class NaviampCastMediaResource(
     val sourceId: String,
     val id: String,
     val quality: StreamQuality = StreamQuality.Original,
+    val contentTypeOverride: String? = null,
 ) {
     init {
         require(sourceId.isNotBlank()) { "A Cast media source ID is required." }
         require(id.isNotBlank()) { "A Cast media resource ID is required." }
+        require(contentTypeOverride == null || (kind == NaviampCastMediaKind.Track && quality == StreamQuality.Original &&
+            contentTypeOverride in setOf("audio/flac", "audio/x-flac", "audio/mpeg", "audio/mp3")))
     }
 }
 
@@ -28,6 +31,7 @@ data class NaviampCastMediaLease(
     val token: String,
     val resource: NaviampCastMediaResource,
     val expiresAtEpochMillis: Long,
+    val retainedUntilRevoked: Boolean = false,
 ) {
     val receiverPath: String get() = "/cast/media/$token"
 }
@@ -47,7 +51,7 @@ class NaviampCastMediaLeaseController(
     private val leases = mutableMapOf<String, NaviampCastMediaLease>()
     private val mutex = Mutex()
 
-    suspend fun issue(resource: NaviampCastMediaResource): NaviampCastMediaLease = mutex.withLock {
+    suspend fun issue(resource: NaviampCastMediaResource, retainUntilRevoked: Boolean = false): NaviampCastMediaLease = mutex.withLock {
         val now = nowEpochMillis()
         removeExpired(now)
         check(leases.size < maxActiveLeases) { "Too many active Cast media leases." }
@@ -59,14 +63,14 @@ class NaviampCastMediaLeaseController(
             "Cast media token must be an opaque URL-safe value of at least 32 characters."
         }
         check(token !in leases) { "Cast media token was reused." }
-        NaviampCastMediaLease(token, resource, now + lifetimeMillis).also {
+        NaviampCastMediaLease(token, resource, now + lifetimeMillis, retainUntilRevoked).also {
             leases[token] = it
         }
     }
 
     suspend fun resolve(token: String): NaviampCastMediaResource? = mutex.withLock {
         val lease = leases[token] ?: return@withLock null
-        if (lease.expiresAtEpochMillis <= nowEpochMillis()) {
+        if (!lease.retainedUntilRevoked && lease.expiresAtEpochMillis <= nowEpochMillis()) {
             leases.remove(token)
             return@withLock null
         }
@@ -82,6 +86,6 @@ class NaviampCastMediaLeaseController(
     }
 
     private fun removeExpired(now: Long) {
-        leases.entries.removeAll { (_, lease) -> lease.expiresAtEpochMillis <= now }
+        leases.entries.removeAll { (_, lease) -> !lease.retainedUntilRevoked && lease.expiresAtEpochMillis <= now }
     }
 }

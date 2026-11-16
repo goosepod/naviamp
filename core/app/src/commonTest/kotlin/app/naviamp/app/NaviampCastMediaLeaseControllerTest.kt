@@ -7,6 +7,23 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 class NaviampCastMediaLeaseControllerTest {
+    @Test fun activeRetainedLeaseSurvivesClockExpiryButStillCountsAgainstQuotaAndIsRevocable() = runTest {
+        var now = 0L
+        var token = 0
+        val leases = NaviampCastMediaLeaseController(NaviampCastSecureTokenSource { (++token).toString().padStart(32, 'a') },
+            { now }, lifetimeMillis = 100, maxActiveLeases = 1)
+        val resource = NaviampCastMediaResource(NaviampCastMediaKind.Track, "source", "long-paused-song")
+        val active = leases.issue(resource, retainUntilRevoked = true)
+        now = 10_000
+        assertEquals(resource, leases.resolve(active.token))
+        assertFailsWith<IllegalStateException> { leases.issue(resource) }
+        leases.revoke(active.token)
+        assertNull(leases.resolve(active.token))
+        val ordinary = leases.issue(resource)
+        now += 100
+        assertNull(leases.resolve(ordinary.token))
+    }
+
     @Test
     fun receiverPathContainsOnlyOpaqueTokenAndExpires() = runTest {
         var now = 1_000L

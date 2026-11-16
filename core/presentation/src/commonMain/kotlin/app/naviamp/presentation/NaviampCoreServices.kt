@@ -106,6 +106,20 @@ data class NaviampCoreCastChannelServices(
     val crypto: app.naviamp.app.NaviampCastCryptoEffect,
 )
 
+/** Dedicated LAN HTTP/socket/randomness effects; all receiver and queue behavior is assembled by Core. */
+data class NaviampCoreUpnpServices(
+    val http: app.naviamp.app.NaviampUpnpHttpTransport,
+    val server: NaviampCastHttpServerEffect,
+    val tokens: NaviampCastSecureTokenSource,
+    val pollIntervalMillis: Long? = 2_000,
+    val discovery: app.naviamp.app.NaviampUpnpDiscoveryEffect? = null,
+    val discoveryEffectContext: kotlin.coroutines.CoroutineContext = kotlin.coroutines.EmptyCoroutineContext,
+    /** Host execution fact: a suspended host cannot keep a silent LAN relay alive. */
+    val backgroundExecutionAvailable: Boolean = true,
+    /** Native signing/build capability, independent of a user's runtime local-network consent. */
+    val multicastDiscoveryAvailable: Boolean = true,
+)
+
 /** Portable persistence effects for Core-owned generated-radio recency policy. */
 data class NaviampCoreGeneratedRadioRecentsPort(
     val load: () -> List<RecentRadioStream>,
@@ -134,4 +148,5 @@ data class NaviampCoreServices(
     val connect: NaviampCoreConnectServices? = null,
     val cast: NaviampCoreCastServices? = null,
     val certificateFiles: NaviampCoreCertificateFilePort? = null,
+    val upnp: NaviampCoreUpnpServices? = null,
 )

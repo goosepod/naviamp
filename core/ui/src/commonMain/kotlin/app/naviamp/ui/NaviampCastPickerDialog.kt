@@ -54,7 +54,7 @@ fun NaviampCastPickerDialog(
                         NaviampCastPickerProblemUi.Discovery -> Text(stringResource(Res.string.cast_picker_discovery_failed))
                         NaviampCastPickerProblemUi.Connection -> Text(stringResource(Res.string.cast_picker_connection_failed))
                         NaviampCastPickerProblemUi.TargetLost -> Text(stringResource(Res.string.cast_picker_target_lost))
-                        null -> if (state.targets.isEmpty()) Text(stringResource(Res.string.cast_picker_searching))
+                        null -> if (state.targets.isEmpty()) Text(stringResource(Res.string.connect_status_searching_this_local_network))
                     }
                     if (state.connectingTargetId != null) Text(stringResource(Res.string.common_connecting))
                     LazyColumn(Modifier.heightIn(max = 300.dp)) {

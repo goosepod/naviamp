@@ -13,6 +13,36 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCastSessionControllerTest {
+    @Test fun lateCastShutdownCompletionCannotDisplaceANewerUpnpSelection() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        val effect = object : NaviampCastSessionEffect {
+            override fun start(listener: NaviampCastSessionListener) = Unit
+            override fun stop() = Unit
+            override fun disconnect() = Unit
+            override suspend fun shutdown() { gate.await() }
+        }
+        val outputs = NaviampPlaybackOutputSelectionController()
+        val sessions = NaviampCastSessionController(effect, outputs)
+        sessions.start()
+        sessions.onTargetSelected(NaviampCastTarget("cast", "Cast"))
+        val closing = launch { sessions.shutdown() }
+        runCurrent()
+        val upnp = outputs.select(NaviampRemoteOutputTarget(NaviampRemoteOutputKind.Upnp, "uuid:renderer", "Renderer"))
+        gate.complete(Unit); closing.join()
+        assertEquals(upnp, (outputs.state.value as NaviampPlaybackOutputSelection.Remote).selectionId)
+    }
+
+    @Test fun shuttingDownDisplacedCastCannotSelectLocalOverAnUpnpOutput() = runTest {
+        val outputs = NaviampPlaybackOutputSelectionController()
+        val sessions = NaviampCastSessionController(FakeCastEffect(), outputs)
+        sessions.start()
+        sessions.onTargetSelected(NaviampCastTarget("cast", "Cast"))
+        val upnp = outputs.select(NaviampRemoteOutputTarget(NaviampRemoteOutputKind.Upnp, "uuid:renderer", "Renderer"))
+        outputs.connected(upnp)
+        sessions.shutdown()
+        assertEquals(upnp, (outputs.state.value as NaviampPlaybackOutputSelection.Remote).selectionId)
+    }
+
     @Test
     fun unavailableSenderCleansUpRejectsCallbacksAndCanStartAgain() = runTest {
         val effect = FakeCastEffect()

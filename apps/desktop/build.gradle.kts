@@ -84,6 +84,7 @@ kotlin {
                 implementation(compose.desktop.currentOs)
                 implementation(libs.compose.material3)
                 implementation(libs.kotlinx.coroutines.core)
+                implementation(libs.ktor.client.cio)
             }
         }
         val desktopTest by getting {

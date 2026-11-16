@@ -10,6 +10,22 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NaviampCastMediaEndpointControllerTest {
+    @Test fun remoteContentTypeOverrideAcceptsAliasesAndRejectsAnUnexpectedLossyStreamBeforeBody() = runTest {
+        val server = FakeServer()
+        val source = FakeSource().apply { contentType = "audio/x-flac" }
+        val endpoint = NaviampCastMediaEndpointController(server,
+            NaviampCastMediaLeaseController(NaviampCastSecureTokenSource { "abcdefghijklmnopqrstuvwxyz012345" }, { 0L }), source)
+        endpoint.start()
+        val url = endpoint.issue(NaviampCastMediaResource(NaviampCastMediaKind.Track, "source", "song", contentTypeOverride = "audio/flac"))
+        val path = url.substringAfter("192.0.2.1:54321")
+        assertEquals("audio/flac", server.request("HEAD", path, null).headers["Content-Type"])
+        source.contentType = "audio/mpeg"
+        val rejected = server.request("GET", path, null)
+        assertEquals(502, rejected.status)
+        assertTrue(rejected.bytes.isEmpty())
+        endpoint.stop()
+    }
+
     @Test
     fun concurrentStartsBindOnceAndCancelledStartCleansUp() = runTest {
         val entered = CompletableDeferred<Unit>()
@@ -147,6 +163,7 @@ class NaviampCastMediaEndpointControllerTest {
     }
 
     private class FakeSource : NaviampCastMediaByteSource {
+        var contentType = "audio/mpeg"
         var range: NaviampCastRequestedRange? = null
         var calls = 0
         override suspend fun stream(
@@ -160,7 +177,7 @@ class NaviampCastMediaEndpointControllerTest {
             this.range = range
             onResponse(ProviderMediaByteResponse(
                 if (range == null) 200 else 206,
-                "audio/mpeg",
+                contentType,
                 3,
                 if (range == null) null else "bytes 10-12/100",
             ))
