@@ -3,9 +3,14 @@ package app.naviamp.app
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
 data class NaviampUpnpDiscoveryPacket(val sourceHost: String, val localAddress: String, val datagram: String)
 interface NaviampUpnpDiscoveryEffect {
+    /** Blocking native operations; Core dispatches these on its injected effect context. */
     fun start(search: String, receive: (NaviampUpnpDiscoveryPacket) -> Unit)
     fun refresh(search: String)
     fun stop()
@@ -20,6 +25,7 @@ class NaviampUpnpDiscoveryController(
     private val effect: NaviampUpnpDiscoveryEffect,
     private val http: NaviampUpnpHttpTransport,
     private val nowMillis: () -> Long,
+    private val effectContext: CoroutineContext = EmptyCoroutineContext,
 ) {
     private data class Key(val udn: String, val host: String, val local: String)
     private class Entry(val location: String, var expires: Long, var target: NaviampUpnpDiscoveredRenderer? = null, var job: Job? = null)
@@ -28,30 +34,53 @@ class NaviampUpnpDiscoveryController(
     val state = mutableState.asStateFlow()
     private var generation = 0L
     private var running = false
+    private val operations = Mutex()
 
     fun start() {
         if (running) return
         running = true
         val current = ++generation
-        try {
-            effect.start(naviampUpnpSearchDatagram()) { packet ->
-                scope.launch { if (running && current == generation) receive(packet, current) }
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            operations.withLock {
+                if (!running || current != generation) return@withLock
+                try {
+                    withContext(effectContext) {
+                        effect.start(naviampUpnpSearchDatagram()) { packet ->
+                            scope.launch { if (running && current == generation) receive(packet, current) }
+                        }
+                    }
+                } catch (failure: Exception) {
+                    withContext(NonCancellable + effectContext) { runCatching { effect.stop() } }
+                    if (current == generation) {
+                        running = false; ++generation
+                        entries.values.forEach { it.job?.cancel() }; entries.clear()
+                        mutableState.value = NaviampUpnpDiscoveryState(failed = true)
+                    }
+                    if (failure is CancellationException) throw failure
+                }
             }
-        } catch (failure: Exception) {
-            stop()
-            mutableState.value = NaviampUpnpDiscoveryState(failed = true)
-            if (failure is CancellationException) throw failure
         }
     }
     fun refresh() {
         if (!running) return
-        try { effect.refresh(naviampUpnpSearchDatagram()) }
-        catch (failure: Exception) { if (failure is CancellationException) throw failure; mutableState.value = state.value.copy(failed = true) }
+        val current = generation
+        scope.launch(start = CoroutineStart.UNDISPATCHED) { operations.withLock {
+            if (!running || current != generation) return@withLock
+            try { withContext(effectContext) { effect.refresh(naviampUpnpSearchDatagram()) } }
+            catch (failure: Exception) {
+                if (failure is CancellationException) throw failure
+                if (current == generation) mutableState.value = state.value.copy(failed = true)
+            }
+        } }
     }
     fun stop() {
         running = false; ++generation
         entries.values.forEach { it.job?.cancel() }; entries.clear()
-        try { effect.stop() } finally { mutableState.value = NaviampUpnpDiscoveryState() }
+        mutableState.value = NaviampUpnpDiscoveryState()
+        // A cancelled UI scope must still release sockets/locks, after any in-flight startup.
+        scope.launch(NonCancellable, start = CoroutineStart.UNDISPATCHED) {
+            operations.withLock { withContext(effectContext) { runCatching { effect.stop() } } }
+        }
     }
     fun refreshExpiry() {
         val expired = entries.filterValues { it.expires <= nowMillis() }.keys

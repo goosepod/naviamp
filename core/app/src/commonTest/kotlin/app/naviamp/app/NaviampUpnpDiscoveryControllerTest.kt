@@ -6,6 +6,49 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampUpnpDiscoveryControllerTest {
+    @Test fun nativeOperationsUseInjectedContextAndRestartWaitsForCleanup() = runTest {
+        val calls = mutableListOf<String>()
+        val callbacks = mutableListOf<(NaviampUpnpDiscoveryPacket) -> Unit>()
+        val effect = object : NaviampUpnpDiscoveryEffect {
+            override fun start(search: String, receive: (NaviampUpnpDiscoveryPacket) -> Unit) { calls += "start"; callbacks += receive }
+            override fun refresh(search: String) { calls += "refresh" }
+            override fun stop() { calls += "stop" }
+        }
+        val controller = NaviampUpnpDiscoveryController(backgroundScope, effect,
+            NaviampUpnpHttpTransport { NaviampUpnpHttpResponse(200, emptyMap(), upnpFixtureDescription()) }, { 0L },
+            StandardTestDispatcher(testScheduler))
+        controller.start()
+        assertTrue(calls.isEmpty(), "Blocking native startup must not run inline on the UI context")
+        controller.stop(); controller.start(); runCurrent()
+        assertEquals(listOf("start", "stop", "start"), calls)
+        callbacks.first()(packet("192.0.2.10")); runCurrent()
+        assertTrue(controller.state.value.targets.isEmpty())
+        callbacks.last()(packet("192.0.2.10")); runCurrent()
+        assertEquals(1, controller.state.value.targets.size)
+        controller.refresh()
+        assertEquals("start", calls.last(), "Refresh also uses the injected context")
+        runCurrent(); assertEquals("refresh", calls.last())
+        controller.stop(); runCurrent(); assertEquals("stop", calls.last())
+    }
+
+    @Test fun failedOldStartupCannotPoisonRestartAndCancelledUiStillCleansUp() = runTest {
+        var starts = 0; var stops = 0
+        val effect = object : NaviampUpnpDiscoveryEffect {
+            override fun start(search: String, receive: (NaviampUpnpDiscoveryPacket) -> Unit) { if (++starts == 1) error("old native startup failed") }
+            override fun refresh(search: String) = Unit
+            override fun stop() { stops++ }
+        }
+        val owner = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
+        val controller = NaviampUpnpDiscoveryController(owner, effect,
+            NaviampUpnpHttpTransport { error("No description requested") }, { 0L }, StandardTestDispatcher(testScheduler))
+        controller.start(); controller.stop(); controller.start(); runCurrent()
+        assertEquals(2, starts)
+        assertFalse(controller.state.value.failed)
+        val before = stops
+        owner.cancel(); controller.stop(); runCurrent()
+        assertEquals(before + 1, stops)
+    }
+
     @Test fun failedDescriptionCanBeRetriedByALaterAnnouncement() = runTest {
         val effect = Effect(); var calls = 0
         val controller = NaviampUpnpDiscoveryController(backgroundScope, effect, NaviampUpnpHttpTransport {

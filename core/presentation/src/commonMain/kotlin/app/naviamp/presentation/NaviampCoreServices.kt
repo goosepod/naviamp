@@ -113,6 +113,7 @@ data class NaviampCoreUpnpServices(
     val tokens: NaviampCastSecureTokenSource,
     val pollIntervalMillis: Long? = 2_000,
     val discovery: app.naviamp.app.NaviampUpnpDiscoveryEffect? = null,
+    val discoveryEffectContext: kotlin.coroutines.CoroutineContext = kotlin.coroutines.EmptyCoroutineContext,
 )
 
 /** Portable persistence effects for Core-owned generated-radio recency policy. */

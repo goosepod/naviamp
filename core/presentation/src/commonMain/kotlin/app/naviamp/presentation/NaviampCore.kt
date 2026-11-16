@@ -834,7 +834,8 @@ class NaviampCore private constructor(
                     select
                 } else null
             val upnpDiscovery = upnpServices?.discovery?.let {
-                app.naviamp.app.NaviampUpnpDiscoveryController(scope, it, upnpServices.http, services.clockEpochMillis)
+                app.naviamp.app.NaviampUpnpDiscoveryController(scope, it, upnpServices.http, services.clockEpochMillis,
+                    upnpServices.discoveryEffectContext)
             }
             val castDiscovery = availableCast?.discovery?.let { app.naviamp.app.NaviampCastDiscoveryController(it, services.clockEpochMillis) }
             val castPicker = if (castDiscovery != null || upnpDiscovery != null) NaviampCoreCastPickerController(scope,
