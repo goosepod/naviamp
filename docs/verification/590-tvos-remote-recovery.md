@@ -10,6 +10,10 @@ checks are optional and remain explicitly unverified; their absence does not blo
 PR readiness or the initial release. The [current plan](../tvos-implementation-plan.md) defines
 the remaining simulator/build/distribution requirements. Earlier physical-test gates are superseded.
 
+The later [system Home/foreground transport checkpoint](590-tvos-system-input.md) adds passing
+Home/background/return checks, native BASS playback-clock and remote Play/Pause/held-button tests,
+plus shared loading-focus fixes. The evidence below records the preceding recovery checkpoint.
+
 ## Accepted CI baseline
 
 Commit `c8aa7a8b9c63106c900f780c10a8fbecccb0eadb` passes the complete
@@ -151,7 +155,8 @@ harness postcondition is not reported as complete acceptance.
 A separate diagnostic held Menu for 1.2 seconds while expecting a one-page Back action. That
 expectation is incorrect: [Apple defines held Back/Menu as a system Home gesture](https://support.apple.com/en-gb/102337).
 The diagnostic checked the app hierarchy rather than its foreground/background state, so it does
-not establish whether the system gesture succeeded. System Home exit/return remains **unaccepted**.
+not establish whether the system gesture succeeded. The later system-input report accepts the
+explicit `.home` exit/return path; it does not claim this legacy held Menu gesture.
 The reviewed native hosting controller also suppresses superclass press forwarding; include that
 boundary in the lifecycle/port review rather than adding app navigation policy to Swift. The final
 regression uses normal short Back. Shared repeated-key protection is not proof of system long-press behavior.

@@ -62,6 +62,7 @@ def main():
             assert rows and not any(row['authenticated'] is False for row in rows), 'Authentication failure'
             routes = ['/main/rest/ping', '/companion/api/auth/login', '/companion/api/discover']
             if stage != 'relaunch': routes.append('/main/rest/getArtists')
+            if stage == 'purged': routes.append('/main/rest/stream')
             for route in routes:
                 assert any(row['route'] == route and row['authenticated'] is True for row in rows), route
         report['stages'], report['purge'], report['rebuilt'] = state['stages'], state['purge'], state['rebuilt']
@@ -114,7 +115,7 @@ def main():
         for path in (root/'apps/tvos').rglob('*'):
             if path.is_file() and path.suffix in ('.swift','.plist','.xcprivacy','.pbxproj','.xcscheme','.kt','.kts') and 'build' not in path.relative_to(root/'apps/tvos').parts:
                 report['sources'][str(path.relative_to(root))] = hashlib.sha256(path.read_bytes().replace(b'\r\n',b'\n')).hexdigest()
-        for name in ('core/ui/src/commonMain/kotlin/app/naviamp/ui/NaviampTelevisionAppShell.kt','core/ui/src/commonMain/kotlin/app/naviamp/ui/NaviampBackNavigation.kt','scripts/tvos-scene-fixture.py','scripts/run-tvos-scene-tests.py'):
+        for name in ('core/ui/src/commonMain/kotlin/app/naviamp/ui/NaviampTelevisionAppShell.kt','core/ui/src/commonMain/kotlin/app/naviamp/ui/NaviampBackNavigation.kt','core/ui/src/commonMain/kotlin/app/naviamp/ui/NaviampTelevisionPlaybackKeys.kt','core/ui/src/commonMain/kotlin/app/naviamp/ui/NaviampTelevisionContent.kt','scripts/tvos-scene-fixture.py','scripts/run-tvos-scene-tests.py'):
             report['sources'][name] = hashlib.sha256((root/name).read_bytes().replace(b'\r\n',b'\n')).hexdigest()
         image = 'scripts/animation-probe/fixtures/artwork-0.png'
         report['sources'][image] = hashlib.sha256((root/image).read_bytes()).hexdigest()

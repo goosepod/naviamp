@@ -6,6 +6,8 @@ from pathlib import Path
 import runpy
 import threading
 import unittest
+import io
+import wave
 
 
 class TvosSceneFixtureTest(unittest.TestCase):
@@ -74,6 +76,33 @@ class TvosSceneFixtureTest(unittest.TestCase):
 
     def test_preflight_cannot_inspect_a_simulator_without_explicit_runner_ownership(self):
         self.assertEqual(503, self.request('/_test/control', dict(action='purge'))[0])
+
+    def test_stream_requires_main_authentication_and_returns_decodable_pcm(self):
+        self.assertEqual('failed', self.request('/main/rest/stream.view?id=590-song')[1]['subsonic-response']['status'])
+        token = hashlib.md5(b'Main!590salt590').hexdigest()
+        path = '/main/rest/stream.view?id=590-song&u=primary590&s=salt590&t='+token
+        status, audio = self.request(path)
+        self.assertEqual(200, status)
+        with wave.open(io.BytesIO(audio)) as wav:
+            self.assertEqual((1, 2, 16000), (wav.getnchannels(), wav.getsampwidth(), wav.getframerate()))
+            self.assertEqual(180 * 16000, wav.getnframes())
+        self.assertEqual(b'RIFF', self.request(path, headers={'Range':'bytes=0-3'})[1])
+        self.assertEqual(self.fixture['AUDIO'][-8:], self.request(path, headers={'Range':'bytes=-8'})[1])
+
+    def test_invalid_audio_ranges_are_rejected_and_valid_ranges_have_exact_headers(self):
+        token = hashlib.md5(b'Main!590salt590').hexdigest()
+        path = '/main/rest/stream.view?id=590-song&u=primary590&s=salt590&t='+token
+        for requested in ('bytes=', 'bytes=8-2', 'bytes=-0', 'bytes=999999999-', 'bytes=0-1,4-5'):
+            self.assertEqual(416, self.request(path, headers={'Range':requested})[0])
+        connection = http.client.HTTPConnection('127.0.0.1', self.server.server_port, timeout=5)
+        try:
+            connection.request('GET', path, headers={'Range':'bytes=44-63'})
+            response = connection.getresponse()
+            self.assertEqual(206, response.status)
+            self.assertEqual('20', response.getheader('Content-Length'))
+            self.assertEqual(f"bytes 44-63/{len(self.fixture['AUDIO'])}", response.getheader('Content-Range'))
+            self.assertEqual(self.fixture['AUDIO'][44:64], response.read())
+        finally: connection.close()
 
 
 if __name__ == '__main__': unittest.main()

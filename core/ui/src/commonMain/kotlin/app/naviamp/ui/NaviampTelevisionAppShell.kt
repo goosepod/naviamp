@@ -84,7 +84,9 @@ fun NaviampTelevisionAppShell(
     actions: NaviampAppShellActions,
     syncActions: NaviampSettingsSyncActions,
 ) {
-    NaviampBackNavigation(uiState, actions, modifier, remoteKeys = true) { contentModifier ->
+    NaviampBackNavigation(uiState, actions,
+        modifier.naviampTelevisionPlaybackKeys(uiState.nowPlaying, actions.nowPlayingActions.onPlaybackAction),
+        remoteKeys = true) { contentModifier ->
         NaviampTelevisionAppShellContent(modifier = contentModifier, uiState = uiState, settingsSync = settingsSync, playbackProgress = playbackProgress, visualizerBandsProvider = visualizerBandsProvider, actions = actions, syncActions = syncActions)
     }
 }

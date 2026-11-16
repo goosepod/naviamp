@@ -79,6 +79,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalInputModeManager
+import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -2225,6 +2227,8 @@ internal fun TelevisionIconButton(
     var focused by remember { mutableStateOf(false) }
     val localFocusRequester = remember { FocusRequester() }
     val effectiveFocusRequester = focusRequester ?: localFocusRequester
+    var initialFocusGranted by remember { mutableStateOf(false) }
+    val inputMode = LocalInputModeManager.current
     val shape = RoundedCornerShape(999.dp)
     val usesLightSurface = televisionIconButtonUsesLightSurface(
         focused = focused,
@@ -2232,11 +2236,15 @@ internal fun TelevisionIconButton(
         whiteHighlight = whiteHighlight,
         selectedKeepsDarkBackground = selectedKeepsDarkBackground,
     )
-    LaunchedEffect(Unit) {
-        if (initiallyFocused && enabled) {
+    LaunchedEffect(initiallyFocused, enabled, effectiveFocusRequester, inputMode) {
+        if (initiallyFocused && enabled && !initialFocusGranted) {
+            inputMode.requestInputMode(InputMode.Keyboard)
             repeat(TelevisionFocusRequestAttempts) {
                 withFrameNanos { }
-                if (effectiveFocusRequester.requestFocus()) return@LaunchedEffect
+                if (effectiveFocusRequester.requestFocus()) {
+                    initialFocusGranted = true
+                    return@LaunchedEffect
+                }
             }
         }
     }

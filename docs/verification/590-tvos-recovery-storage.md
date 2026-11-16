@@ -286,7 +286,10 @@ offline downloads are not mounted or advertised as accepted capabilities. Contin
 following work under #590; no additional issues are needed:
 
 1. Extend the passing owned XCUIRemote/navigation/text suite to system Home/return, playback
-   buttons, more layouts and simulator accessibility. Keep UIKit input translation
+   buttons, more layouts and simulator accessibility. The subsequent
+   [system-input checkpoint](590-tvos-system-input.md) now passes idle/paused Home/return and
+   foreground Play/Pause/held input with actual clock assertions. Other transport/legacy Menu
+   gestures and broader layouts/accessibility remain. Keep UIKit input translation
    native and product focus/back policy shared.
 2. Extend the passing main/Aurral password-account cache-purge flow to GUI certificate selection,
    custom transport configuration, general settings/imports, nonempty-queue exclusion, failed

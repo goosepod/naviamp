@@ -129,11 +129,87 @@ final class TvosRemoteRecoveryTests: XCTestCase {
         verifyBothAccounts("created")
     }
 
+    private func verifySystemHomeReturn(_ stage: String) {
+        XCTAssertTrue(app.staticTexts["Recommendations"].exists)
+        remote.press(.home)
+        XCTAssertTrue(app.wait(for: .runningBackground, timeout: 10) ||
+                      app.wait(for: .runningBackgroundSuspended, timeout: 5), "Home backgrounds the app")
+        app.activate()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+        XCTAssertTrue(app.staticTexts["Recommendations"].waitForExistence(timeout: 10), "Return retains navigation")
+        XCTAssertTrue(app.buttons["Accounts: primary590"].exists)
+        XCTAssertTrue(app.staticTexts["Choose something to play"].exists, "Return must not start playback")
+        record(stage + "-home-return")
+    }
+
+    private func verifyRemotePlayback() throws {
+        // Start from the documented launch focus instead of guessing focus after discovery/Home.
+        app.terminate()
+        XCTAssertEqual(app.state, .notRunning)
+        app.launch()
+        XCTAssertTrue(app.buttons["Home"].waitForExistence(timeout: 30))
+        XCTAssertTrue(app.staticTexts["Recovered main library Mix"].waitForExistence(timeout: 20))
+        remote.press(.down)
+        remote.press(.down)
+        record("remote-mix-focused")
+        remote.press(.select)
+        record("remote-play-started")
+        XCTAssertTrue(app.buttons["Pause"].waitForExistence(timeout: 20), "Native BASS playback starts from the main mix")
+        try verifyPlaybackClockAdvances()
+        remote.press(.playPause)
+        remote.press(.up) // Reveal controls if listening mode has hidden them; never changes playback.
+        XCTAssertTrue(app.buttons["Play"].waitForExistence(timeout: 10))
+        record("remote-paused")
+        try verifyPlaybackClockRemainsPaused()
+        remote.press(.playPause)
+        remote.press(.up)
+        XCTAssertTrue(app.buttons["Pause"].waitForExistence(timeout: 10))
+        remote.press(.playPause, forDuration: 1.2)
+        remote.press(.up)
+        XCTAssertTrue(app.buttons["Play"].waitForExistence(timeout: 10), "A held media button toggles once")
+        remote.press(.home)
+        XCTAssertTrue(app.wait(for: .runningBackground, timeout: 10) ||
+                      app.wait(for: .runningBackgroundSuspended, timeout: 5))
+        app.activate()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+        try verifyPlaybackClockRemainsPaused()
+        // The first remote input after return is MediaPlayPause, without a directional-focus workaround.
+        remote.press(.playPause)
+        try verifyPlaybackClockAdvances()
+        remote.press(.up)
+        XCTAssertTrue(app.buttons["Pause"].waitForExistence(timeout: 10), "Remote still works after Home/return")
+        remote.press(.playPause)
+        remote.press(.up)
+        XCTAssertTrue(app.buttons["Play"].waitForExistence(timeout: 10))
+        record("remote-home-return-paused")
+    }
+
+    private func verifyPlaybackClockAdvances() throws {
+        let position = field("Playback position")
+        let before = try XCTUnwrap(position.value as? String)
+        let changed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == true AND value != nil AND value != %@", before), object: position)
+        XCTAssertEqual(XCTWaiter.wait(for: [changed], timeout: 8), .completed, "Native playback clock advances")
+        let initialPercent = try XCTUnwrap(Double(before.replacingOccurrences(of: "%", with: "")))
+        let after = try XCTUnwrap(position.value as? String)
+        let finalPercent = try XCTUnwrap(Double(after.replacingOccurrences(of: "%", with: "")))
+        XCTAssertGreaterThan(finalPercent, initialPercent, "Clock moves forward, rather than resetting")
+    }
+
+    private func verifyPlaybackClockRemainsPaused() throws {
+        let position = field("Playback position")
+        let before = try XCTUnwrap(position.value as? String)
+        let changed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == true AND value != nil AND value != %@", before), object: position)
+        XCTAssertEqual(XCTWaiter.wait(for: [changed], timeout: 2), .timedOut, "Paused clock stays still")
+        XCTAssertTrue(position.exists)
+        XCTAssertEqual(position.value as? String, before)
+    }
+
     func testMainAndCompanionRemoteRecovery() async throws {
         let fresh = try await control("create")
         XCTAssertEqual(fresh["databaseExists"] as? Bool, false)
         app.launch()
         createAccountsThroughRemote()
+        verifySystemHomeReturn("created")
         app.terminate()
         XCTAssertEqual(app.state, .notRunning)
 
@@ -151,6 +227,8 @@ final class TvosRemoteRecoveryTests: XCTestCase {
         XCTAssertEqual(purged["recoveryRecordExists"] as? Bool, true)
         app.launch()
         verifyBothAccounts("purged")
+        verifySystemHomeReturn("purged")
+        try verifyRemotePlayback()
         app.terminate()
         XCTAssertEqual(app.state, .notRunning)
         let rebuilt = try await control("finish")

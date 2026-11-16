@@ -13,6 +13,9 @@ import subprocess
 import plistlib
 import uuid
 import shutil
+import io
+import re
+import wave
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
@@ -24,9 +27,16 @@ lock = threading.Lock()
 events = []
 acceptance = dict(current=None, stages={})
 ARTIST = dict(id='590-artist', name='Recovered main library', albumCount=1)
-ALBUM = dict(id='590-album', name='Recovery 590', artist=ARTIST['name'], artistId=ARTIST['id'], songCount=1, duration=60)
+ALBUM = dict(id='590-album', name='Recovery 590', artist=ARTIST['name'], artistId=ARTIST['id'], songCount=1, duration=180)
 SONG = dict(id='590-song', title='Recovery proof', albumId=ALBUM['id'], album=ALBUM['name'],
-            artistId=ARTIST['id'], artist=ARTIST['name'], duration=60, suffix='wav', contentType='audio/wav', isDir=False)
+            artistId=ARTIST['id'], artist=ARTIST['name'], duration=180, suffix='wav', contentType='audio/wav', isDir=False)
+
+# Real, finite PCM/WAV decoded by BASS; silent so unattended simulator tests do not play sound.
+with io.BytesIO() as output:
+    with wave.open(output, 'wb') as wav:
+        wav.setparams((1, 2, 16000, 0, 'NONE', 'not compressed'))
+        wav.writeframes(bytes(16000 * 2 * SONG['duration']))
+    AUDIO = output.getvalue()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -50,6 +60,36 @@ class Handler(BaseHTTPRequestHandler):
 
     def record(self, route, authenticated):
         with lock: events.append(dict(route=route, authenticated=authenticated))
+
+    def audio(self):
+        start, end = 0, len(AUDIO) - 1
+        requested = self.headers.get('Range')
+        if requested is not None:
+            match = re.fullmatch(r'bytes=(\d*)-(\d*)', requested) if len(requested) < 128 else None
+            valid = match is not None and bool(match[1] or match[2])
+            if valid:
+                if match[1]:
+                    start = int(match[1])
+                    end = min(int(match[2]), end) if match[2] else end
+                    valid = start <= end and start < len(AUDIO)
+                else:
+                    count = int(match[2])
+                    valid = count > 0
+                    start = max(0, len(AUDIO) - count)
+            if not valid:
+                self.send_response(416)
+                self.send_header('Content-Range', f'bytes */{len(AUDIO)}')
+                self.send_header('Content-Length', '0')
+                self.end_headers()
+                return
+        self.send_response(206 if requested is not None else 200)
+        self.send_header('Content-Type', 'audio/wav')
+        self.send_header('Accept-Ranges', 'bytes')
+        self.send_header('Content-Length', str(end - start + 1))
+        if requested is not None: self.send_header('Content-Range', f'bytes {start}-{end}/{len(AUDIO)}')
+        self.end_headers()
+        try: self.wfile.write(AUDIO[start:end+1])
+        except (BrokenPipeError, ConnectionResetError): pass  # BASS may cancel a read after probing or seeking.
 
     def do_CONNECT(self): self.send_error(403)
 
@@ -170,6 +210,9 @@ class Handler(BaseHTTPRequestHandler):
         if not valid:
             result.update(status='failed', error=dict(code=40, message='Wrong synthetic account'))
         else:
+            if action in ('stream', 'download'):
+                if one('id') != SONG['id']: return self.send_error(404)
+                return self.audio()
             first_page = int(one('offset') or 0) == 0
             responses = {
                 'getMusicFolders': dict(musicFolders=dict(musicFolder=[dict(id=1, name='Fixture')])),

@@ -711,9 +711,16 @@ The two discovered focus/Back defects were fixed in common UI code, with four re
 The complete shared UI suite passes 784 cases; the reproducible app test retains screenshots,
 accessibility trees, per-stage authentication results and source identities.
 
-Next work stays under #590: system Home/return and remote playback controls, shared native
+The [system Home and foreground transport checkpoint](verification/590-tvos-system-input.md) now
+passes idle/paused background-return state checks and actual BASS clock/remote Play/Pause/held
+input after main/Aurral cache recovery. Shared transport handling and touch-mode loading-focus
+policy live in Core, with five regressions and 789 passing UI cases. All seven strict fixture
+tests pass; both original iOS targets and Android/TV UI compilations pass. No native production
+file or Compose-port artifact changes for this checkpoint.
+
+Next work stays under #590: other transport/legacy Menu gestures, shared native
 media/lifecycle and discovery effects, broader certificate/settings/error GUI recovery scenarios,
-authenticated streaming, simulator accessibility, older-runtime proof, trusted port delivery
+TLS streaming and range/seek recovery, simulator accessibility, older-runtime proof, trusted port delivery
 and hosted full-scene CI. Physical remote/HDMI and hardware-specific accessibility remain unverified,
 optional follow-up checks. Keep normal builds and release claims unchanged until required gates close.
 Android 8 support remains.
