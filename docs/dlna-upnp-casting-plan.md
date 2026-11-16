@@ -519,3 +519,70 @@ The native adapters compile for Android/Desktop locally. Android sender runtime,
 passive SSDP notifications/network rebinding, GENA callbacks, lifecycle and real WiiM acceptance
 remain open. Keep PR 608 draft and #607 open; this increment is not a completed multi-platform or
 verified gapless release feature.
+
+### iOS relay and lifecycle foundation — November 15, 2026
+
+The incoming PR head `d737eaca0` passed the complete Verify matrix
+([run 43803717410](https://github.com/goosepod/naviamp/actions/runs/43803717410)).
+Shared commit `118434fd1` adds a multiplatform Ktor TCP media server with bounded clients and
+request headers, HEAD/range and chunked-response handling, cancellation, stop and restart tests.
+This gives iOS the same HTTP framing owner that Android will delegate to after the Apple compile
+gate. The existing Android raw-socket HTTP framing must be removed during that delegation; portable
+HTTP behavior does not belong in an Android adapter.
+
+Core now accepts a host foreground event and native execution/capability facts. For a host that
+cannot keep the relay alive in the background, Core invalidates pending selection, closes discovery,
+stops remote playback, revokes media leases and leaves playback paused. Returning to the foreground
+does not reconnect or automatically start local playback. Background-capable hosts retain their
+existing behavior. Common tests cover active playback, stale description completion, re-selection
+and a missing multicast build capability.
+
+Local JVM tests, Android debug compilation and architecture validation passed. Native iOS validation
+for that commit is pending in [run 43808186762](https://github.com/goosepod/naviamp/actions/runs/43808186762).
+Windows common-metadata compilation is not evidence that Darwin socket code compiles or runs.
+Do not add native production wiring until the common implementation passes the Apple target gate.
+
+#### iOS entitlement and signing gate
+
+The owner does not know whether Apple has approved the Multicast Networking entitlement for
+`app.naviamp.ios`. Record that status as **unconfirmed**. The repository cannot establish account
+approval from an entitlement file. SSDP multicast needs the restricted
+`com.apple.developer.networking.multicast` entitlement; normal local-network consent is a separate
+requirement. Apple's [TN3179](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy)
+also explains why simulator tests cannot validate device local-network privacy.
+
+The Xcode app configurations default `NAVIAMP_UPNP_MULTICAST_AVAILABLE` to `NO` and do not select
+`CODE_SIGN_ENTITLEMENTS`. `Info.plist` exposes that build fact as `NaviampUpnpMulticastAvailable`.
+The prepared `iosApp/NaviampUpnp.entitlements` file is opt-in. Native bootstrap must pass the build
+fact into Core's `multicastDiscoveryAvailable`; Core then hides an unusable UPnP picker rather than
+running discovery without the required signing capability. No Apple account capability or provisioning
+profile has been changed or requested by this work.
+
+For a device acceptance build, first verify approval for the exact App ID in the Apple developer
+account and regenerate the provisioning profile with that entitlement. Then build the Naviamp app
+target with these overrides (relative to `apps/ios`):
+
+```text
+NAVIAMP_UPNP_MULTICAST_AVAILABLE=YES
+CODE_SIGN_ENTITLEMENTS=iosApp/NaviampUpnp.entitlements
+```
+
+Inspect the resulting signed app with `codesign -d --entitlements :- /path/to/Naviamp.app` and its
+embedded profile with `security cms -D -i /path/to/Naviamp.app/embedded.mobileprovision`. Verify the
+entitlement is present and permitted by the profile. A build flag is not proof of either fact.
+Do not publish profile contents, signing identities or private account data in verification reports.
+
+`NSLocalNetworkUsageDescription` and its native `InfoPlist.strings` translations reuse the shared
+`permission_local_network_usage` resource in every maintained language. Refresh/check them using:
+
+```text
+python scripts/configure-macos-local-network.py --app apps/ios/iosApp --platform ios
+python scripts/configure-macos-local-network.py --app apps/ios/iosApp --platform ios --check
+```
+
+The existing macOS generator mode remains the default. iOS SSDP does not declare unused Bonjour
+service types. Packaging tests check translated resources, the Xcode resource phase, the opt-in flag
+and the entitlement contents. Native iOS UDP/interface effects, Darwin HTTP-engine injection and
+scene/background-task forwarding remain the next implementation step. Real-device tests must cover
+local-network allow/deny, background/foreground, sleep, network loss and cleanup; simulator success
+does not close those checks. WiiM lossless/gapless hardware acceptance remains open as well.

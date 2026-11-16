@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate/check Mac local-network declarations from shared strings and service constants."""
+"""Generate/check Apple local-network declarations from shared strings and service constants."""
 import argparse
 import json
 from pathlib import Path
@@ -36,7 +36,7 @@ def shared_metadata(repo):
     ]
     services = []
     for relative, pattern in sources:
-        match = re.search(pattern, (repo / relative).read_text())
+        match = re.search(pattern, (repo / relative).read_text(encoding='utf-8'))
         if match is None:
             raise ValueError(f'Cannot read shared Bonjour service in {relative}')
         service = match.group(1).removesuffix('.local.')
@@ -51,27 +51,31 @@ def strings_entry(text):
     return f'"{PLIST_KEY}" = "{escaped}";'
 
 
-def configure(repo, app, check=False):
+def configure(repo, app, check=False, platform='macos'):
+    if platform not in ('macos', 'ios'):
+        raise ValueError(f'Unknown Apple platform: {platform}')
     translations, services = shared_metadata(repo)
-    plist_path = app / 'Contents/Info.plist'
+    plist_path = app / ('Contents/Info.plist' if platform == 'macos' else 'Info.plist')
+    resource_root = app / 'Contents/Resources' if platform == 'macos' else app
     with plist_path.open('rb') as handle:
         plist = plistlib.load(handle)
     if check:
         if plist.get(PLIST_KEY) != translations['en']:
             raise ValueError('Missing or outdated local-network usage description')
-        if sorted(plist.get('NSBonjourServices', [])) != services:
+        if platform == 'macos' and sorted(plist.get('NSBonjourServices', [])) != services:
             raise ValueError('Bonjour declarations do not match the shared discovery service types')
         if not set(translations).issubset(plist.get('CFBundleLocalizations', [])):
-            raise ValueError('Missing declared Mac localizations')
+            raise ValueError('Missing declared Apple localizations')
     else:
         plist[PLIST_KEY] = translations['en']
-        plist['NSBonjourServices'] = services
+        if platform == 'macos':
+            plist['NSBonjourServices'] = services
         plist['CFBundleLocalizations'] = sorted(set(plist.get('CFBundleLocalizations', [])) | set(translations))
         with plist_path.open('wb') as handle:
             plistlib.dump(plist, handle, sort_keys=False)
     for language, text in translations.items():
-        path = app / 'Contents/Resources' / f'{language}.lproj/InfoPlist.strings'
-        existing = path.read_text() if path.exists() else ''
+        path = resource_root / f'{language}.lproj/InfoPlist.strings'
+        existing = path.read_text(encoding='utf-8') if path.exists() else ''
         matches = list(ENTRY.finditer(existing))
         if len(matches) > 1:
             raise ValueError(f'Duplicate local-network usage entries in {path}')
@@ -82,7 +86,7 @@ def configure(repo, app, check=False):
             entry = strings_entry(text)
             updated = ENTRY.sub(lambda _: entry, existing) if matches else existing.rstrip() + '\n' + entry + '\n'
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(updated)
+            path.write_text(updated, encoding='utf-8')
     return len(translations)
 
 
@@ -91,9 +95,10 @@ def main():
     parser.add_argument('--repo', type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument('--app', type=Path, required=True)
     parser.add_argument('--check', action='store_true')
+    parser.add_argument('--platform', choices=['macos', 'ios'], default='macos')
     args = parser.parse_args()
-    count = configure(args.repo, args.app, check=args.check)
-    print(f'Mac local-network declarations {"verified" if args.check else "configured"}: {count} languages')
+    count = configure(args.repo, args.app, check=args.check, platform=args.platform)
+    print(f'{"Mac" if args.platform == "macos" else "iOS"} local-network declarations {"verified" if args.check else "configured"}: {count} languages')
 
 
 if __name__ == '__main__':
