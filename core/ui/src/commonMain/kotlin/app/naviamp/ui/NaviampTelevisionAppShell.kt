@@ -63,6 +63,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.InputMode
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -82,7 +84,7 @@ fun NaviampTelevisionAppShell(
     actions: NaviampAppShellActions,
     syncActions: NaviampSettingsSyncActions,
 ) {
-    NaviampBackNavigation(uiState, actions, modifier) { contentModifier ->
+    NaviampBackNavigation(uiState, actions, modifier, remoteKeys = true) { contentModifier ->
         NaviampTelevisionAppShellContent(modifier = contentModifier, uiState = uiState, settingsSync = settingsSync, playbackProgress = playbackProgress, visualizerBandsProvider = visualizerBandsProvider, actions = actions, syncActions = syncActions)
     }
 }
@@ -754,7 +756,7 @@ private fun TelevisionConnectedContent(
 }
 
 @Composable
-private fun TelevisionNavigationButton(
+internal fun TelevisionNavigationButton(
     destination: NaviampTelevisionDestination,
     colors: NaviampColors,
     modifier: Modifier = Modifier,
@@ -762,10 +764,14 @@ private fun TelevisionNavigationButton(
     onFocused: () -> Unit,
     onDown: (() -> Unit)? = null,
 ) {
+    val inputModeManager = LocalInputModeManager.current
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(10.dp)
     Button(
-        onClick = onClick,
+        onClick = {
+            inputModeManager.requestInputMode(InputMode.Keyboard)
+            onClick()
+        },
         colors = ButtonDefaults.buttonColors(
             containerColor = if (focused) colors.primaryText else Color.Transparent,
             contentColor = if (focused) colors.background else colors.secondaryText,
@@ -775,6 +781,9 @@ private fun TelevisionNavigationButton(
         modifier = modifier
             .onPreviewKeyEvent { event ->
                 if (onDown != null && naviampTelevisionNavigationEntersContent(event.key, event.type)) {
+                    // We consume this direction before Compose's default traversal can switch modes.
+                    // System-defined content cards otherwise reject focus after native text/pointer input.
+                    inputModeManager.requestInputMode(InputMode.Keyboard)
                     onDown()
                     true
                 } else {

@@ -692,7 +692,16 @@ The new Swift API exports only the small host effects, keeping the provider/prod
 Native storage/cryptography, original-platform regressions and bounded build measurements are
 recorded in that report. This is an initial foreground scene, not full TV release acceptance.
 
-Next work stays under #590: actual remote/text entry, GUI-driven main/Aurral encrypted cache-purge
-recovery, shared native media/lifecycle and discovery effects, authenticated streaming, physical
-remote/HDMI/VoiceOver, older-runtime proof, trusted port delivery and hosted full-scene CI. Keep
-normal builds and release claims unchanged until those gates close. Android 8 support remains.
+The [remote and complete-app recovery checkpoint](verification/590-tvos-remote-recovery.md) now
+passes actual remote navigation, native text entry, main/Aurral creation and process relaunch,
+then encrypted cache-purge recovery with fresh authentication and visible provider content.
+Pre-launch probes prove database absence before recovery; a final probe proves it was rebuilt.
+The two discovered focus/Back defects were fixed in common UI code, with four regressions.
+The complete shared UI suite passes 784 cases; the reproducible app test retains screenshots,
+accessibility trees, per-stage authentication results and source identities.
+
+Next work stays under #590: system Home/return and remote playback controls, shared native
+media/lifecycle and discovery effects, broader certificate/settings/error GUI recovery scenarios,
+authenticated streaming, physical remote/HDMI/VoiceOver, older-runtime proof, trusted port delivery
+and hosted full-scene CI. Keep normal builds and release claims unchanged until those gates close.
+Android 8 support remains.

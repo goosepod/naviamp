@@ -268,20 +268,25 @@ not changed by the source-set move.
 
 ## Remaining host work and build controls
 
+The subsequent [remote and app-recovery report](590-tvos-remote-recovery.md) verifies actual remote
+navigation/native text entry and main/Aurral password-account recovery through the complete app.
+Its guarded cache deletion, pre-launch probes, native cryptography, fresh authentication and visible
+provider content pass together. It also records the two common remote fixes and current system
+Home/lifecycle limits. The following list retains broader host acceptance work.
+
 The shared Apple UI/filesystem adapters and initial UIKit scene are implemented. The current host
 mounts foreground direct BASS, shared repositories/providers and the television UI. Native media
 commands, background/interruption integration, discovery/pairing, document selection and durable
 offline downloads are not mounted or advertised as accepted capabilities. Continue with the
 following work under #590; no additional issues are needed:
 
-1. Exercise real remote focus/select/back/play-pause and native text entry through the visible
-   scene. Add an owned XCUIRemote test target, with retained accessibility trees/screenshots on
-   failures. Fix behavior in shared TV focus/text contracts; keep UIKit input translation native.
-2. Drive actual settings/connection edits, main plus Aurral authentication and encrypted persistence
-   through the app. Terminate it, remove only its owned cache projection, relaunch, and verify
-   restored credentials/certificates/settings and no recovered queue. Include failed writes,
-   explicit reset, process relaunch and native key unavailability; component tests are not this
-   complete GUI-driven acceptance.
+1. Extend the passing owned XCUIRemote/navigation/text suite to system Home/return, playback
+   buttons, more layouts, accessibility and physical remote behavior. Keep UIKit input translation
+   native and product focus/back policy shared.
+2. Extend the passing main/Aurral password-account cache-purge flow to GUI certificate selection,
+   custom transport configuration, general settings/imports, nonempty-queue exclusion, failed
+   writes, explicit reset and native key unavailability. Existing component tests cover those
+   storage cases; the broader complete GUI acceptance remains open.
 3. Reuse the existing common lifecycle/media bridge with the smallest shared Apple AVAudioSession
    and MediaPlayer effects. Publish OS facts into Core. Verify interruption, background/foreground,
    scene disconnect, retry while playing and native resource disposal. Add Bonjour/local-network
