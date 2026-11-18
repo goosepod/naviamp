@@ -19,6 +19,21 @@ val naviampNativePackageVersion = nativeDistributionPackageVersion(naviampVersio
 val naviampWindowsPackageVersion = windowsDistributionPackageVersion(naviampVersionName, naviampVersionCode)
 val naviampLinuxPackageVersion = linuxDistributionPackageVersion(naviampVersionName)
 val desktopExecutableDescription = "Naviamp"
+// CVE-2026-114938 is fixed in the OpenJDK 21.0.13.1 security update.
+val minimumDesktopPackagingJdk = Runtime.Version.parse("21.0.13.1+2")
+val verifyDesktopReleaseJdk by tasks.registering {
+    group = "verification"
+    description = "Verifies the Windows and Linux release packaging JDK."
+    doLast {
+        val version = Runtime.version()
+        check(version.feature() == 21 && version.pre().isEmpty() &&
+            version.compareToIgnoreOptional(minimumDesktopPackagingJdk) >= 0
+        ) {
+            "Windows and Linux release packaging requires patched Java 21 " +
+                "($minimumDesktopPackagingJdk or later). Active JDK: $version."
+        }
+    }
+}
 // Skiko backend initialization is native to the Windows JVM host, including transparent HWNDs.
 val windowsSkikoRenderApi = providers.gradleProperty("naviamp.windows.skiko.renderApi")
     .orElse("OPENGL").map(String::trim)
@@ -242,8 +257,11 @@ tasks.matching {
         "packageReleaseDistributionForCurrentOS",
     )
 }.configureEach {
+    val releaseArtifact = name.contains("Release")
+    if (releaseArtifact && desktopNativePlatform.get() in setOf("windows-x64", "linux-x64")) {
+        dependsOn(verifyDesktopReleaseJdk)
+    }
     doLast {
-        val releaseArtifact = name.contains("Release")
         val appDirectory = if (releaseArtifact) {
             desktopReleasePackagedAppDir.get().asFile
         } else {
@@ -259,12 +277,36 @@ tasks.matching {
     inputs.property("naviampMacSigningIdentity", macSigningIdentity)
 }
 
+val verifyDesktopReleaseRuntime by tasks.registering {
+    group = "verification"
+    description = "Verifies the Java runtime bundled in the Windows or Linux release app image."
+    dependsOn("createReleaseDistributable")
+    doLast {
+        val platform = desktopNativePlatform.get()
+        val runtimePath = when (platform) {
+            "windows-x64" -> "runtime/release"
+            "linux-x64" -> "lib/runtime/release"
+            else -> return@doLast
+        }
+        // jlink's release file records the version number without the build suffix.
+        val activeVersion = Runtime.version()
+        val runtimeRelease = desktopReleasePackagedAppDir.get().file(runtimePath).asFile
+        val javaVersion = runtimeRelease.useLines { lines ->
+            lines.first { it.startsWith("JAVA_VERSION=") }.substringAfter('=').trim('"')
+        }
+        check(Runtime.Version.parse(javaVersion).version() == activeVersion.version()) {
+            "Bundled Java $javaVersion differs from the verified packaging JDK $activeVersion."
+        }
+        logger.lifecycle("Verified bundled Java $javaVersion for $platform.")
+    }
+}
+
 fun Zip.packageDesktopApp(
     archiveNameSuffix: String,
     release: Boolean = false,
 ) {
     group = "distribution"
-    dependsOn(if (release) "createReleaseDistributable" else "verifyDesktopDistributable")
+    dependsOn(if (release) "verifyDesktopReleaseRuntime" else "verifyDesktopDistributable")
     archiveFileName.set(
         desktopNativePlatform.map { platform -> "Naviamp-$naviampVersionName-$platform-$archiveNameSuffix.zip" },
     )
@@ -420,7 +462,7 @@ tasks.register<Zip>("packageReleaseDistributable") {
 fun registerWindowsInstaller(format: String) = tasks.register("packageReleaseWindows${format.uppercase()}") {
     group = "distribution"
     description = "Builds the per-user Windows ${format.uppercase()} installer with an optional post-install launch."
-    dependsOn("createReleaseDistributable")
+    dependsOn(verifyDesktopReleaseRuntime)
 
     val outputDirectory = layout.buildDirectory.dir("compose/binaries/main-release/$format")
     val outputFile = outputDirectory.map { it.file("Naviamp-$naviampWindowsPackageVersion.$format") }
