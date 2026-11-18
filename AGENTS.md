@@ -109,10 +109,12 @@ Follow [`docs/development-workflow.md`](docs/development-workflow.md). GitHub is
 home for source, issues, pull requests, checks, tags, and releases. Forgejo is a manually maintained
 secondary mirror and must not be used to merge changes or publish releases.
 
-Use a GitHub issue and a dedicated short-lived branch for each feature, bug fix, or meaningful
-update. Merge completed work into `main` through a linked pull request, use milestones to select
-release scope, and cut a short-lived release branch from an accepted `main` commit for final
-stabilization.
+Use one GitHub issue, short-lived branch, and linked pull request for each independently scoped
+change. Fix problems within a feature's scope on its existing branch and include them in the same
+pull request. Track unrelated bugs separately. Keep iteration and testing local, and squash local
+work-in-progress commits before pushing ready work to GitHub. Merge completed work into `main`, use
+milestones to select release scope, and cut a short-lived release branch from an accepted `main`
+commit for final stabilization.
 
 ## GitHub CLI Authentication on Windows
 
