@@ -11,7 +11,9 @@ Forgejo ref is an error to investigate, never a reason to force or delete remote
 
 ## Work tracking
 
-- Create a GitHub issue for every feature, bug fix, or meaningful update before implementation.
+- Create one GitHub issue before implementing an independently scoped feature, bug fix, or
+  meaningful update. Handle fixes discovered during implementation or testing that fall within the
+  active feature's scope in its existing issue, branch, and pull request.
 - Document the problem, intended behavior, scope, acceptance criteria, platform impact, and relevant
   evidence in the issue. Keep design decisions and material scope changes in the issue so it remains
   the durable record of the work.
@@ -30,8 +32,11 @@ when they affect released behavior, dependencies, packaging, security, or user d
 
 - Give each issue its own short-lived branch, normally named `feature/<issue>-<slug>`,
   `fix/<issue>-<slug>`, or `chore/<issue>-<slug>`.
-- Keep a branch limited to its issue. If implementation uncovers unrelated work, create and link a
-  separate issue instead of silently expanding the branch.
+- Track unrelated bugs in their own linked issues and address them on separate branches with their
+  own pull requests.
+- Keep implementation, builds, and tests local until the work is ready. Use local checkpoint
+  commits as needed and squash them into one coherent commit before the first push. For later
+  pushes, consolidate unpublished fixups while preserving published history.
 - Open a pull request against `main`, link the issue, and keep the issue's acceptance criteria and
   the pull request's verification results current.
 - Merge only complete, reviewed work whose required automated checks and proportionate manual tests
