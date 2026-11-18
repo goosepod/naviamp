@@ -437,7 +437,12 @@ jobs:
         with:
           ref: ${{ inputs.source_ref || github.sha }}
 
-      - name: Set up JDK
+      - name: Install the Windows release JDK
+        if: hashFiles('.github/actions/release-corretto/action.yml') != ''
+        uses: ./.github/actions/release-corretto
+
+      - name: Set up JDK for older release sources
+        if: hashFiles('.github/actions/release-corretto/action.yml') == ''
         uses: actions/setup-java@v5
         with:
           distribution: temurin

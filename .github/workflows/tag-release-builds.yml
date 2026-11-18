@@ -218,21 +218,15 @@ jobs:
           ref: ${{ inputs.release_tag && format('refs/tags/{0}', inputs.release_tag) || github.ref }}
 
       - name: Install pinned Corretto 21
-        shell: powershell
-        run: |
-          $name = 'amazon-corretto-21.0.13.1.2-windows-x64-jdk.zip'
-          $archive = Join-Path $env:RUNNER_TEMP $name
-          $jdk = Join-Path $env:RUNNER_TEMP 'naviamp-corretto'
-          curl.exe --fail --location --retry 3 --silent --show-error "https://corretto.aws/downloads/resources/21.0.13.1.2/$name" -o $archive
-          if ($LASTEXITCODE -ne 0) { throw 'Corretto download failed.' }
-          if ((Get-FileHash -Algorithm SHA256 $archive).Hash -ne 'e91d8d38fe7af1e13ddde5c65d6c0cdd62d68fe091e9003464f5b45c422fb683') {
-            throw 'Corretto archive SHA-256 mismatch.'
-          }
-          New-Item -ItemType Directory $jdk | Out-Null
-          tar.exe -xf $archive -C $jdk --strip-components=1
-          if ($LASTEXITCODE -ne 0) { throw 'Corretto extraction failed.' }
-          "JAVA_HOME=$jdk" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          (Join-Path $jdk 'bin') | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        if: hashFiles('.github/actions/release-corretto/action.yml') != ''
+        uses: ./.github/actions/release-corretto
+
+      - name: Set up JDK for older release sources
+        if: hashFiles('.github/actions/release-corretto/action.yml') == ''
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
 
       - name: Install WiX Toolset
         shell: powershell
@@ -301,17 +295,15 @@ jobs:
           ref: ${{ inputs.release_tag && format('refs/tags/{0}', inputs.release_tag) || github.ref }}
 
       - name: Install pinned Corretto 21
-        shell: bash
-        run: |
-          name=amazon-corretto-21.0.13.1.2-linux-x64.tar.gz
-          archive="$RUNNER_TEMP/$name"
-          jdk="$RUNNER_TEMP/naviamp-corretto"
-          curl --fail --location --retry 3 --silent --show-error "https://corretto.aws/downloads/resources/21.0.13.1.2/$name" -o "$archive"
-          printf '%s  %s\n' 2aaa2a9a43143b20ff0b28c8d0da27407b97dc40b160d9a2f60a26965815e948 "$archive" | sha256sum --check
-          mkdir "$jdk"
-          tar -xzf "$archive" -C "$jdk" --strip-components=1
-          printf 'JAVA_HOME=%s\n' "$jdk" >> "$GITHUB_ENV"
-          printf '%s/bin\n' "$jdk" >> "$GITHUB_PATH"
+        if: hashFiles('.github/actions/release-corretto/action.yml') != ''
+        uses: ./.github/actions/release-corretto
+
+      - name: Set up JDK for older release sources
+        if: hashFiles('.github/actions/release-corretto/action.yml') == ''
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
 
       - name: Install Linux packaging and secure-storage tools
         run: sudo apt-get update && sudo apt-get install -y fakeroot rpm libsecret-tools libx11-dev libxrender-dev
