@@ -5,15 +5,19 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class NaviampChangelogTest {
-    @Test fun release2112ContainsOnlyTheBackgroundHotfix() {
+    @Test fun release2113ContainsTheJava4ShellHotfix() {
         val about = NaviampAboutUi()
-        assertEquals("v2.11.2", about.version)
-        assertEquals("63", about.buildNumber)
+        assertEquals("v2.11.3", about.version)
+        assertEquals("64", about.buildNumber)
         assertEquals(listOf("Bug fixes", "Upgrade notes", "Known issues"), about.changelog.map { it.title })
-        val fix = about.changelog.first().entries.single()
-        assertTrue(fix.contains("white bands") && fix.contains("Android"))
-        assertTrue(fix.contains("Now Playing artwork") && fix.contains("controls safely inset"))
-        assertEquals(listOf("No special upgrade steps are required."), about.changelog[1].entries)
+        assertEquals(
+            listOf(
+                "Update the bundled Java runtime on Windows and Linux to fix Java4Shell (CVE-2026-114938).",
+                "Remove the blue background behind the taskbar icon in the Microsoft Store build.",
+            ),
+            about.changelog.first().entries,
+        )
+        assertEquals(listOf("Install the updated Naviamp package to replace its bundled Java runtime."), about.changelog[1].entries)
         assertTrue(about.changelog[2].entries.single().contains("No new known issues"))
         val entries = about.changelog.flatMap { it.entries }
         assertTrue(entries.none { it.contains("http") || it.contains("@") || it.contains("Android Auto") })

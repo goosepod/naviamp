@@ -2925,13 +2925,14 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Bug fixes",
         entries = listOf(
-            "Remove white bands above and below the Android app by extending the selected background and filled Now Playing artwork behind the system bars while keeping controls safely inset.",
+            "Update the bundled Java runtime on Windows and Linux to fix Java4Shell (CVE-2026-114938).",
+            "Remove the blue background behind the taskbar icon in the Microsoft Store build.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Upgrade notes",
         entries = listOf(
-            "No special upgrade steps are required.",
+            "Install the updated Naviamp package to replace its bundled Java runtime.",
         ),
     ),
     NaviampChangelogSectionUi(

@@ -6,6 +6,24 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 No changes yet.
 
+## v2.11.3
+
+Naviamp 2.11.3 fixes Java4Shell on Windows and Linux and corrects the Microsoft Store taskbar icon.
+
+### Bug fixes
+
+- Update the bundled Java runtime on Windows and Linux to fix Java4Shell (CVE-2026-114938).
+- Remove the blue background behind the taskbar icon in the Microsoft Store build.
+
+### Upgrade notes
+
+- Install the updated Naviamp package to replace its bundled Java runtime.
+- Store and Flatpak updates may arrive separately.
+
+### Known issues
+
+- No new known issues.
+
 ## v2.11.2
 
 Naviamp 2.11.2 fixes white bands at the top and bottom of the Android app.

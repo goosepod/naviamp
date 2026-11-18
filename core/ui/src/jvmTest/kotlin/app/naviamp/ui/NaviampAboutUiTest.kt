@@ -49,22 +49,23 @@ class NaviampAboutUiTest {
             }
         }
 
-        onNodeWithText("v2.11.2", substring = true).assertIsDisplayed()
+        onNodeWithText("v2.11.3", substring = true).assertIsDisplayed()
         onNodeWithText("Changelog").assertIsDisplayed().performClick()
         onNodeWithText("Latest Changes").assertIsDisplayed()
-        onNodeWithText("Remove white bands above and below the Android app by extending the selected background and filled Now Playing artwork behind the system bars while keeping controls safely inset.").assertIsDisplayed()
+        onNodeWithText("Update the bundled Java runtime on Windows and Linux to fix Java4Shell (CVE-2026-114938).").assertIsDisplayed()
         val roots = onAllNodes(isRoot())
         var rendered: androidx.compose.ui.graphics.ImageBitmap? = null
         waitUntil(timeoutMillis = 5_000) {
             val image = roots[roots.fetchSemanticsNodes().lastIndex].captureToImage()
-            val body = onNodeWithText(NaviampAboutUi().changelog.first().entries.single()).captureToImage()
+            val body = onNodeWithText(NaviampAboutUi().changelog.first().entries.first()).captureToImage()
             if (changelogBodyHasPainted(body)) {
                 rendered = image
                 true
             } else false
         }
         writeAboutReleaseImage(requireNotNull(rendered))
-        onNodeWithText("No special upgrade steps are required.").performScrollTo().assertIsDisplayed()
+        onNodeWithText("Remove the blue background behind the taskbar icon in the Microsoft Store build.").performScrollTo().assertIsDisplayed()
+        onNodeWithText("Install the updated Naviamp package to replace its bundled Java runtime.").performScrollTo().assertIsDisplayed()
         onNodeWithText("Known issues").performScrollTo().assertIsDisplayed()
     }
 }
@@ -87,7 +88,7 @@ private fun writeAboutReleaseImage(image: androidx.compose.ui.graphics.ImageBitm
     val pixels = image.toPixelMap()
     val output = java.awt.image.BufferedImage(pixels.width, pixels.height, java.awt.image.BufferedImage.TYPE_INT_ARGB)
     for (y in 0 until pixels.height) for (x in 0 until pixels.width) output.setRGB(x, y, pixels[x, y].toArgb())
-    val file = java.io.File("build/reports/release-2.11.2/about-changelog.png")
+    val file = java.io.File("build/reports/release-2.11.3/about-changelog.png")
     file.parentFile.mkdirs()
     javax.imageio.ImageIO.write(output, "png", file)
 }
