@@ -5,6 +5,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 
+fun mediaArtworkIsCircular(kind: SharedMediaItemKind): Boolean = kind == SharedMediaItemKind.Artist
+
 /** Shared artwork preference, provided by each shared shell including its dialogs. */
 internal val LocalSquareAlbumArtwork = staticCompositionLocalOf { false }
 
@@ -15,7 +17,7 @@ internal fun mediaArtworkCornerRadius(
     squareCornerRadius: Dp,
     squareAlbumArtwork: Boolean = false,
 ): Dp = when {
-    kind == SharedMediaItemKind.Artist -> size / 2
+    mediaArtworkIsCircular(kind) -> size / 2
     squareAlbumArtwork && (kind == SharedMediaItemKind.Album || kind == SharedMediaItemKind.Track) -> 0.dp
     else -> squareCornerRadius
 }

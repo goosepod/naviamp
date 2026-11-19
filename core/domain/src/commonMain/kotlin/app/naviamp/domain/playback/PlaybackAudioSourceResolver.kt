@@ -110,6 +110,9 @@ fun emptyPlaybackAudioAssetRepository(): PlaybackAudioAssetRepository =
         ): PlaybackLocalAudio? = null
     }
 
+/** A local-only intent must never silently become a provider stream. */
+class DownloadedAudioUnavailableException : Exception()
+
 suspend fun resolvePlaybackAudioSource(
     sourceId: String?,
     track: Track,
@@ -119,11 +122,13 @@ suspend fun resolvePlaybackAudioSource(
     downloadedTrackPlayback: DownloadedTrackPlayback = DownloadedTrackPlayback.PreferDownloaded,
     allowMismatchedCachedAudio: Boolean = true,
     startPositionSeconds: Double? = null,
+    downloadedOnly: Boolean = false,
 ): PlaybackAudioSourcePlan =
     resolvePlaybackAudioSource(
         sourceId = sourceId,
         track = track,
         quality = quality,
+        downloadedOnly = downloadedOnly,
         audioCachingEnabled = audioCachingEnabled,
         startPositionSeconds = startPositionSeconds,
         downloadedTrackPlayback = downloadedTrackPlayback,
@@ -144,10 +149,12 @@ suspend fun resolvePlaybackAudioSource(
     downloadedAudio: suspend (sourceId: String, trackId: TrackId, quality: StreamQuality) -> PlaybackLocalAudio?,
     cachedAudio: suspend (sourceId: String, trackId: TrackId, quality: StreamQuality) -> PlaybackLocalAudio?,
     cachedAudioForTrack: suspend (sourceId: String, trackId: TrackId) -> PlaybackLocalAudio? = { _, _ -> null },
+    downloadedOnly: Boolean = false,
 ): PlaybackAudioSourcePlan {
-    if (track.id.isDiscoveryPreview()) return providerPlaybackAudioSourcePlan(track, quality, startPositionSeconds)
+    if (track.id.isDiscoveryPreview() && !downloadedOnly) return providerPlaybackAudioSourcePlan(track, quality, startPositionSeconds)
     val downloaded = sourceId?.let { id -> downloadedAudio(id, track.id, quality) }
-    if (downloaded != null && downloadedTrackPlayback == DownloadedTrackPlayback.PreferDownloaded) {
+    if (downloadedOnly && downloaded == null) throw DownloadedAudioUnavailableException()
+    if (downloaded != null && (downloadedOnly || downloadedTrackPlayback == DownloadedTrackPlayback.PreferDownloaded)) {
         return playbackAudioSourcePlan(
             track = track,
             quality = quality,

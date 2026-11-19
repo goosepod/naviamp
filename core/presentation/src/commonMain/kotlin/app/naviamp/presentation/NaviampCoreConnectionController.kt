@@ -16,9 +16,12 @@ import app.naviamp.ui.NaviampLibrarySourcePickerError
 import app.naviamp.ui.NaviampAccountSwitcherUi
 import app.naviamp.ui.NaviampAccountSwitcherError
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.ensureActive
 
 /** Core owns provider-session renewal timing; hosts only execute and persist one renewal attempt. */
 class NaviampCoreProviderSessionLifecycle(
@@ -26,6 +29,17 @@ class NaviampCoreProviderSessionLifecycle(
     private val refreshIntervalMillis: Long = ProviderSessionRefreshIntervalMillis,
     private val waitForNextRefresh: suspend (Long) -> Unit = { delay(it) },
 ) {
+    private var maintenanceJob: Job? = null
+
+    /** Runtime ownership keeps renewal alive when a phone or external scene disconnects. */
+    fun start(scope: CoroutineScope): Job = maintenanceJob?.takeIf { it.isActive }
+        ?: scope.launch { maintainWhileMounted() }.also { maintenanceJob = it }
+
+    fun close() {
+        maintenanceJob?.cancel()
+        maintenanceJob = null
+    }
+
     suspend fun refreshNow() {
         runCatching { sessionPort.refreshActiveSession() }
     }
@@ -51,6 +65,7 @@ class NaviampCoreConnectionController(
     private val onOfflineRestored: (String) -> Unit = {},
     private val certificateFiles: NaviampCoreCertificateFilePort? = null,
     private val onCompanionChanged: (String) -> Unit = {},
+    private val onSavedSourceSelected: (String, Boolean) -> Unit = { id, _ -> onConnected(id) },
 ) : NaviampCoreCommandController {
     private var inventory = initialInventory
     private var editingConnectionId: String? = null
@@ -181,6 +196,7 @@ class NaviampCoreConnectionController(
             is NaviampCoreCommand.Connection.Delete,
             is NaviampCoreCommand.Connection.ConnectSaved,
             is NaviampCoreCommand.Connection.SwitchAccount,
+            is NaviampCoreCommand.Connection.SelectSavedSource,
             -> return NaviampCoreImmediateCommandResult.Deferred
             is NaviampCoreCommand.Library.ToggleSource -> toggleLibrarySource(command.id)
             NaviampCoreCommand.Library.CancelSources -> closeLibrarySources()
@@ -221,6 +237,25 @@ class NaviampCoreConnectionController(
                         }
                     }
                 } else if (accountSwitcher().addingAccount) connectAccount(request) else connect(request)
+            }
+            is NaviampCoreCommand.Connection.SelectSavedSource -> {
+                val runtime = connection.state.value
+                if (command.id.isBlank() || runtime.isConnecting || stateStore.state.value.shell.connect.remotePlaybackAuthorityActive ||
+                    inventory.connections.none { it.id == command.id } ||
+                    (command.reconnect && command.id != inventory.currentSourceId))
+                    return NaviampCoreCommandResult.SavedSourceSelected(false)
+                if (!command.reconnect && command.id == inventory.currentSourceId && runtime.connected)
+                    return NaviampCoreCommandResult.SavedSourceSelected(true)
+                val previousId = inventory.currentSourceId
+                val selected = kotlinx.coroutines.withTimeoutOrNull(30_000L) {
+                    connect(NaviampCoreConnectionRequest.Saved(command.id), preserveExistingSession = true,
+                        userInitiated = false, preserveEditor = true,
+                        onSessionConnected = { id -> onSavedSourceSelected(id, id != previousId) })
+                } == true
+                if (selected && previousId != command.id) stateStore.updateShell { shell -> shell.copy(
+                    connectionSettings = shell.connectionSettings.copy(
+                        accountSelectionGeneration = shell.connectionSettings.accountSelectionGeneration + 1L)) }
+                return NaviampCoreCommandResult.SavedSourceSelected(selected)
             }
             is NaviampCoreCommand.Connection.SwitchAccount -> {
                 val id = command.connection.id
@@ -292,6 +327,8 @@ class NaviampCoreConnectionController(
         userInitiated: Boolean = true,
         forceSourceRefresh: Boolean = false,
         onPreservedFailure: () -> Unit = {},
+        preserveEditor: Boolean = false,
+        onSessionConnected: (String) -> Unit = onConnected,
     ): Boolean {
         if (request is NaviampCoreConnectionRequest.Form) {
             connectionFormError(
@@ -317,20 +354,23 @@ class NaviampCoreConnectionController(
         val previousSourceId = stateStore.state.value.shell.connectionSettings.currentSourceId
         publishConnection()
         var connected = false
-        runCatching { sessionPort.connect(request, plan) }
-            .onSuccess { session ->
+        runCatching {
+            sessionPort.connect(request, plan).also { kotlinx.coroutines.currentCoroutineContext().ensureActive() }
+        }.onSuccess { session ->
                 if (previousSourceId != session.sourceId || plan.clearExistingPlayback || forceSourceRefresh) {
                     onSourceChanging(previousSourceId, session.sourceId)
                 }
                 inventory = session.inventory
-                editingConnectionId = null
-                originalEditingForm = null
+                if (!preserveEditor) {
+                    editingConnectionId = null
+                    originalEditingForm = null
+                }
                 connection.connected(
                     sourceId = session.sourceId,
                     serverVersion = session.serverVersion,
                     status = "Connected to ${session.displayName}.",
                 )
-                stateStore.updateShell { shell ->
+                if (!preserveEditor) stateStore.updateShell { shell ->
                     shell.copy(
                         connectionSettings = shell.connectionSettings.copy(
                             connection = shell.connectionSettings.connection.copy(
@@ -342,7 +382,7 @@ class NaviampCoreConnectionController(
                     )
                 }
                 publishConnection()
-                onConnected(session.sourceId)
+                onSessionConnected(session.sourceId)
                 if (userInitiated) onUserConnected(session.sourceId)
                 connected = true
             }
@@ -633,6 +673,7 @@ class NaviampCoreConnectionController(
                         statusIsError = runtime.phase == NaviampConnectionPhase.Failed,
                         serverVersion = runtime.serverVersion,
                         connected = runtime.connected,
+                        offline = runtime.offline,
                         restoringConnection = runtime.restoringConnection,
                         isConnecting = runtime.isConnecting,
                         savedConnections = savedConnections,

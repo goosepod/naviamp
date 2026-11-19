@@ -27,11 +27,13 @@ data class NaviampCorePlaybackCapabilities(
     val supportsSeek: Boolean = true,
     val supportsSoftwareVolume: Boolean = true,
     val supportsVisualizer: Boolean = false,
+    val supportsDownloadedOnly: Boolean = false,
 )
 
 /** Native audio boundary. Queue and navigation policy have already been resolved by Core. */
 interface NaviampCorePlaybackEffectPort : NaviampPlaybackExecution {
     val capabilities: NaviampCorePlaybackCapabilities
+    val downloadedOnlyQueue: Boolean get() = false
     val playbackSource: PlaybackSource
     val playbackQuality: StreamQuality?
         get() = null
@@ -46,6 +48,8 @@ interface NaviampCorePlaybackEffectPort : NaviampPlaybackExecution {
     fun prepareForPreview() = Unit
 
     fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean)
+    /** A successful explicit provider-radio intent may preserve current audio while changing upcoming sources. */
+    fun applyProviderQueue(queue: PlaybackQueue, clearPreparedNext: Boolean) = applyQueue(queue, clearPreparedNext)
     fun restoreQueue(queue: PlaybackQueue, startPositionSeconds: Double?) {
         applyQueue(queue, clearPreparedNext = true)
     }
@@ -53,6 +57,10 @@ interface NaviampCorePlaybackEffectPort : NaviampPlaybackExecution {
     fun applyNavigation(command: PlaybackQueueNavigationCommand)
     fun applyAutomaticNavigation(command: PlaybackQueueNavigationCommand) = applyNavigation(command)
     fun applyRepeatMode(mode: RepeatMode)
+    /** Hosts without the common engine adapter fail closed for local-only playback. */
+    fun playDownloadedQueueSelection(queue: PlaybackQueue, index: Int) = Unit
+    /** Existing queue navigation retains the current audio-source intent. */
+    fun selectExistingQueueItem(queue: PlaybackQueue, index: Int) = playQueueSelection(queue, index)
     fun playQueueSelection(queue: PlaybackQueue, index: Int)
     fun diagnostics(): List<Pair<String, String>> = emptyList()
 }

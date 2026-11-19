@@ -1419,6 +1419,7 @@ data class NaviampShellConnectionUi(
     val savedConnections: List<NaviampSavedConnectionUi> = emptyList(),
     val hasSavedConnection: Boolean = false,
     val saveWithoutReconnect: Boolean = false,
+    val offline: Boolean = false,
 )
 
 data class NaviampConnectionSettingsUi(

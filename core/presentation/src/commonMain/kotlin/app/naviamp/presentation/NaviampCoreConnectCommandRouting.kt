@@ -232,24 +232,52 @@ private fun NaviampPlaylistDetailCommand.playlistSelection(id: String) = when (t
 internal class NaviampCoreConnectCommandHandler(
     private val delegate: NaviampCoreCommandHandler,
     private val connect: NaviampCoreConnectController?,
-    private val beforeMainPlayback: () -> Unit = {},
+    private val beforeMainPlayback: () -> Unit,
+    private val onPlaybackIntent: () -> Unit,
+    private val closeDelegate: () -> Unit,
 ) : NaviampCoreCommandHandler {
+    constructor(delegate: NaviampCoreCommandHandler, connect: NaviampCoreConnectController?, beforeMainPlayback: () -> Unit = {}) :
+        this(delegate, connect, beforeMainPlayback, {}, {})
+
+    private var closed = false
+    fun close() { if (!closed) { closed = true; closeDelegate() } }
+
     override fun dispatch(command: NaviampCoreCommand) {
+        if (closed) return
         preparePlayback(command)
         if (connect?.routeProductCommand(command) != true) delegate.dispatch(command)
     }
 
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult {
+        if (closed) throw kotlinx.coroutines.CancellationException("Core playback command owner is closed")
         preparePlayback(command)
         return if (connect?.routeProductCommand(command) == true) NaviampCoreCommandResult.Completed
         else delegate.execute(command)
     }
 
     private fun preparePlayback(command: NaviampCoreCommand) {
+        if (command.invalidatesInterruptionResume()) onPlaybackIntent()
         val action = (command as? NaviampCoreCommand.NowPlaying.Playback)?.request?.action
         if (command.connectMediaSelectionOrNull() != null || action in setOf(
             app.naviamp.ui.NowPlayingPlaybackAction.TogglePlayPause, app.naviamp.ui.NowPlayingPlaybackAction.Resume,
             app.naviamp.ui.NowPlayingPlaybackAction.PlayCurrent, app.naviamp.ui.NowPlayingPlaybackAction.Next,
             app.naviamp.ui.NowPlayingPlaybackAction.Previous)) beforeMainPlayback()
     }
+}
+
+/** Intent is recorded before deferred work, so a later OS callback cannot overtake a phone/car click. */
+private fun NaviampCoreCommand.invalidatesInterruptionResume(): Boolean = when (this) {
+    is NaviampCoreCommand.NowPlaying.Playback -> request.action in setOf(
+        app.naviamp.ui.NowPlayingPlaybackAction.Pause, app.naviamp.ui.NowPlayingPlaybackAction.Stop,
+        app.naviamp.ui.NowPlayingPlaybackAction.Resume, app.naviamp.ui.NowPlayingPlaybackAction.PlayCurrent,
+        app.naviamp.ui.NowPlayingPlaybackAction.TogglePlayPause, app.naviamp.ui.NowPlayingPlaybackAction.Seek,
+        app.naviamp.ui.NowPlayingPlaybackAction.Next, app.naviamp.ui.NowPlayingPlaybackAction.Previous)
+    is NaviampCoreCommand.NowPlaying.Selection, is NaviampCoreCommand.NowPlaying.Queue,
+    is NaviampCoreCommand.NowPlaying.SleepTimer -> true
+    is NaviampCoreCommand.NowPlaying.CurrentTrack -> request.action == app.naviamp.ui.NowPlayingCurrentTrackAction.StartRadio
+    is NaviampCoreCommand.NowPlaying.QueueItem -> request.action in setOf(
+        app.naviamp.ui.NowPlayingItemAction.StartRadio, app.naviamp.ui.NowPlayingItemAction.RemoveFromQueue)
+    NaviampCoreCommand.Connection.Connect, is NaviampCoreCommand.Connection.ConnectSaved,
+    is NaviampCoreCommand.Connection.SwitchAccount, is NaviampCoreCommand.Connection.SelectSavedSource -> true
+    else -> connectMediaSelectionOrNull() != null
 }

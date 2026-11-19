@@ -497,4 +497,25 @@
     <string name="connection_aurral_companion_invalid">Aurral HTTP veya HTTPS sunucu adresini ve kullanıcı adını girin.</string>
     <string name="discovery_find_in_aurral">Aurral’da bul</string>
     <string name="connection_aurral_companion_save_failed">Aurral yardımcısı kaydedilemedi. Müzik bağlantınız değişmedi.</string>
+    <string name="transport_play">Oynat</string>
+    <string name="library_title">Kitaplık</string>
+    <string name="mix_bias_favorites">Favoriler</string>
+    <string name="common_unavailable">Kullanılamıyor</string>
+    <string name="search_music_label">Müzik ara</string>
+    <string name="search_no_matches">Sonuç bulunamadı.</string>
+    <string name="settings_category_downloads_title">İndirilenler</string>
+    <string name="home_empty">Bağlantı kurulduktan sonra ana sayfa bölümleri görünecek.</string>
+    <string name="home_music_title">Ana sayfa</string>
+    <string name="playlists_title">Çalma listeleri</string>
+    <string name="transport_next">Sonraki</string>
+    <string name="transport_previous">Önceki</string>
+    <string name="tv_loading">Yükleniyor…</string>
+    <string name="tv_this_collection_is_empty">Bu koleksiyon boş.</string>
+
+    <string name="settings_source_connections_title">Bağlantılar</string>
+    <string name="common_reconnect">Yeniden bağlan</string>
+    <string name="common_current">Geçerli</string>
+    <string name="common_connecting">Bağlanıyor</string>
+    <string name="vehicle_connection_setup_on_phone">Bağlantıları telefonunuzdan ekleyin veya güncelleyin.</string>
+    <string name="vehicle_connection_offline">Çevrimdışı</string>
 </resources>

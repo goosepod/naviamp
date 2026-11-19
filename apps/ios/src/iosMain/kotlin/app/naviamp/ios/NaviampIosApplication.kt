@@ -21,6 +21,7 @@ import app.naviamp.presentation.NaviampCoreApp
 import app.naviamp.presentation.NaviampCoreEnvironment
 import app.naviamp.presentation.createNaviampCore
 import app.naviamp.presentation.externalPlaybackBridge
+import app.naviamp.presentation.vehicleBrowseController
 import app.naviamp.presentation.naviampCoreSettingsValueCatalog
 import app.naviamp.presentation.naviampCoreProviderIdentitySettingsMigrationRepository
 import app.naviamp.presentation.naviampCorePlaybackServiceCatalog
@@ -69,11 +70,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import platform.UIKit.UIViewController
+import kotlin.native.ref.WeakReference
 
 /**
  * Process-level iOS owner for native database lifetime and the shared Core environment.
  * Product state, actions, navigation, provider policy, and UI remain in common code.
  */
+@OptIn(kotlin.experimental.ExperimentalNativeApi::class)
 class NaviampIosApplication(
     applicationSupportDirectory: String,
     credentialProtector: StorageCredentialProtector,
@@ -86,10 +89,11 @@ class NaviampIosApplication(
     private val database = NaviampStorageDatabase(driver)
     private val settingsValueStore = IosCoreSettingsValueStore()
     private val settings = naviampCoreSettingsValueCatalog(settingsValueStore)
-    private var contentViewController: UIViewController? = null
+    private val contentViewControllers = mutableListOf<WeakReference<UIViewController>>()
     private val settingsSyncPort = IosCoreSettingsSyncPort(
         settingsStore = settingsValueStore,
-        presenter = { contentViewController },
+        presenter = { contentViewControllers.mapNotNull { it.get() }
+            .lastOrNull { it.viewIfLoaded?.window?.isKeyWindow() == true } },
     )
     private var cacheSettings = settings.storedSettings.loadCache()
     private val audioCacheDirectory = "${databaseLocation.directoryPath}/audio-cache"
@@ -282,7 +286,9 @@ class NaviampIosApplication(
         favoritedAtIso8601 = ::naviampNowIso8601,
     )
     private val environment = NaviampCoreEnvironment(
-        services = storedCatalog.services,
+        services = storedCatalog.services.copy(content = storedCatalog.services.content.copy(
+            artwork = app.naviamp.presentation.NaviampCoreArtworkServices(artworkCache, httpClient),
+        )),
         initialState = storedCatalog.initialState,
         actionAvailability = IosCapabilityPresentation.actionAvailability,
         onAsyncFailure = { command, cause ->
@@ -296,19 +302,45 @@ class NaviampIosApplication(
         artworkBytes = ::loadProviderArtwork,
     )
 
-    fun viewController(): UIViewController = contentViewController ?: ComposeUIViewController {
-        NaviampIosRasterHost(rootLayer = { contentViewController?.view?.layer }) {
-            NaviampCoreApp(
-                core = core,
-                screenAwakeEffect = remember { IosScreenAwakeEffect() },
-                applicationUpdateChecker = environment.applicationUpdateChecker,
-            )
+    init {
+        core.startRuntimeServices()
+    }
+
+    fun viewController(): UIViewController {
+        var reference: WeakReference<UIViewController>? = null
+        val controller = ComposeUIViewController {
+            NaviampIosRasterHost(rootLayer = { reference?.get()?.view?.layer }) {
+                NaviampCoreApp(
+                    core = core,
+                    screenAwakeEffect = remember { IosScreenAwakeEffect() },
+                    applicationUpdateChecker = environment.applicationUpdateChecker,
+                )
+            }
         }
-    }.also { contentViewController = it }
+        val controllerReference = WeakReference(controller)
+        reference = controllerReference
+        contentViewControllers.removeAll { it.get() == null }
+        contentViewControllers.add(controllerReference)
+        return controller
+    }
+
+    fun releaseViewController(controller: UIViewController) {
+        contentViewControllers.removeAll { it.get() == null || it.get() === controller }
+    }
+
+    /** Swift ABI entry point; capabilities are read from Apple's connected template environment. */
+    fun vehicleBrowseSession(
+        maximumItems: Int,
+        maximumTabs: Int,
+        supportsSearch: Boolean = false,
+        changed: (NaviampIosVehicleBrowseState) -> Unit,
+    ): NaviampIosVehicleBrowseSession = NaviampIosVehicleBrowseSession(scope,
+        { core.vehicleBrowseController(scope, maximumItems, maximumTabs, supportsSearch) }, changed)
 
     fun close() {
         resetIosPlatformCoverArtByteLoader()
         nativePlayback.close()
+        core.close()
         playbackEngine.release()
         scope.cancel()
         driver.close()

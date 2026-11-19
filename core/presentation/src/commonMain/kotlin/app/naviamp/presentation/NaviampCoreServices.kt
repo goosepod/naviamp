@@ -31,6 +31,7 @@ data class NaviampCoreContentServices(
     val libraryGenreRefresh: NaviampCoreLibraryGenreRefreshPort = NaviampCoreLibraryGenreRefreshPort { },
     val libraryIndex: LocalLibraryIndexRepository? = null,
     val albumIndex: AlbumLibraryIndex? = null,
+    val artwork: NaviampCoreArtworkServices? = null,
     val discoveryAcquisitions: app.naviamp.domain.provider.DiscoveryAcquisitionRepository = app.naviamp.domain.provider.MemoryDiscoveryAcquisitionRepository(),
 )
 
@@ -134,4 +135,10 @@ data class NaviampCoreServices(
     val connect: NaviampCoreConnectServices? = null,
     val cast: NaviampCoreCastServices? = null,
     val certificateFiles: NaviampCoreCertificateFilePort? = null,
+)
+
+/** Shared authenticated artwork/cache dependencies; native hosts only supply initialized effects. */
+data class NaviampCoreArtworkServices(
+    val cache: app.naviamp.domain.cache.ImageCacheRepository,
+    val http: app.naviamp.domain.network.SharedHttpClient,
 )

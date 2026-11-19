@@ -26,6 +26,8 @@ data class NaviampCoreDownloadStorageSnapshot(
 /** Filesystem and database effects. Core owns when and why each operation occurs. */
 interface NaviampCoreDownloadStoragePort {
     suspend fun snapshot(sourceId: String): NaviampCoreDownloadStorageSnapshot
+    /** Read-only completed downloads whose native files are currently available; null if unverifiable. */
+    suspend fun availableDownloads(sourceId: String): List<NaviampCoreDownloadedTrack>? = null
     suspend fun pruneMissing(sourceId: String): Int
     suspend fun remove(sourceId: String, track: Track)
     suspend fun deleteAll(sourceId: String): Int

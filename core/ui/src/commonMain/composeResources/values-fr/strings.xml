@@ -497,4 +497,25 @@
     <string name="connection_aurral_companion_invalid">Saisissez une URL de serveur Aurral HTTP ou HTTPS et un nom d’utilisateur.</string>
     <string name="discovery_find_in_aurral">Rechercher dans Aurral</string>
     <string name="connection_aurral_companion_save_failed">Impossible d’enregistrer Aurral complémentaire. Votre connexion musicale reste inchangée.</string>
+    <string name="transport_play">Lire</string>
+    <string name="library_title">Bibliothèque</string>
+    <string name="mix_bias_favorites">Favoris</string>
+    <string name="common_unavailable">Indisponible</string>
+    <string name="search_music_label">Rechercher de la musique</string>
+    <string name="search_no_matches">Aucun résultat.</string>
+    <string name="settings_category_downloads_title">Téléchargements</string>
+    <string name="home_empty">Les sections Accueil apparaîtront après la connexion.</string>
+    <string name="home_music_title">Accueil</string>
+    <string name="playlists_title">Listes de lecture</string>
+    <string name="transport_next">Suivant</string>
+    <string name="transport_previous">Précédent</string>
+    <string name="tv_loading">Chargement…</string>
+    <string name="tv_this_collection_is_empty">Cette collection est vide.</string>
+
+    <string name="settings_source_connections_title">Connexions</string>
+    <string name="common_reconnect">Reconnecter</string>
+    <string name="common_current">Actuelle</string>
+    <string name="common_connecting">Connexion en cours</string>
+    <string name="vehicle_connection_setup_on_phone">Ajoutez ou mettez à jour les connexions sur votre téléphone.</string>
+    <string name="vehicle_connection_offline">Hors ligne</string>
 </resources>

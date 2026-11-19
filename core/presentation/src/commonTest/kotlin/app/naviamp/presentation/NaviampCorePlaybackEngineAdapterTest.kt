@@ -64,6 +64,109 @@ import kotlin.test.assertTrue
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackEngineAdapterTest {
+    private fun localAssets(available: Set<String>) = object : PlaybackAudioAssetRepository {
+        override suspend fun downloadedAudio(sourceId: String, trackId: TrackId) =
+            if (trackId.value in available) PlaybackLocalAudio("/downloads/${trackId.value}", "file:///downloads/${trackId.value}", quality = StreamQuality.Original) else null
+        override suspend fun downloadedAudio(sourceId: String, trackId: TrackId, quality: StreamQuality) = downloadedAudio(sourceId, trackId)
+        override suspend fun cachedAudio(sourceId: String, trackId: TrackId, quality: StreamQuality): PlaybackLocalAudio? = error("Local-only intent read the audio cache")
+    }
+
+    @Test fun downloadedOnlyQueueIgnoresServerPreferenceAndRetainsLocalIntentAcrossNextAndPreparedAudio() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val tracks = listOf(provider.track, provider.track.copy(id = TrackId("next")))
+        val engine = RecordingPlaybackEngine()
+        var caching = true
+        val adapter = NaviampCorePlaybackEngineAdapter(this, engine, NaviampCoreMediaProviderSource { provider },
+            { PlaybackSettings(downloadedTrackPlayback = DownloadedTrackPlayback.PreferServer, gaplessEnabled = true) },
+            activeSourceId = { "source" }, audioAssets = localAssets(tracks.map { it.id.value }.toSet()),
+            cacheSettings = { CacheSettings(audioCachingEnabled = caching, audioPrefetchDepth = 4) },
+            cacheAudio = { _, _, _, _ -> error("Downloaded-only queue started network prefetch") })
+        adapter.playDownloadedQueueSelection(PlaybackQueue(tracks, 0), 0)
+        runCurrent()
+        assertEquals("file:///downloads/core-track", engine.request?.url)
+        engine.emitProgress(PlaybackProgress(175.0, 180.0))
+        runCurrent()
+        assertEquals("file:///downloads/next", engine.preparedRequest?.url)
+        adapter.selectExistingQueueItem(PlaybackQueue(tracks, 1), 1)
+        runCurrent()
+        assertEquals("file:///downloads/next", engine.request?.url)
+        adapter.applyNavigation(PlaybackQueueNavigationCommand.Previous)
+        runCurrent()
+        assertEquals("file:///downloads/core-track", engine.request?.url)
+        adapter.applyNavigation(PlaybackQueueNavigationCommand.Next)
+        runCurrent()
+        assertEquals("file:///downloads/next", engine.request?.url)
+        assertEquals(PlaybackSource.DownloadedFile, adapter.playbackSource)
+        assertTrue(provider.streamRequests.isEmpty())
+        // An ordinary new selection restores the saved streaming preference.
+        caching = false
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track), 0), 0)
+        runCurrent()
+        assertEquals("https://example.test/core-track", engine.request?.url)
+        assertEquals(1, provider.streamRequests.size)
+    }
+
+    @Test fun downloadedOnlyMissingFileAndUnsupportedCodecNeverRequestServerFallbackOrTranscoding() = runTest {
+        val provider = FakeCoreMediaProvider(supportsStreamingTranscode = true)
+        val missing = provider.track.copy(id = TrackId("missing"))
+        val engine = RecordingPlaybackEngine()
+        val states = mutableListOf<PlaybackState>()
+        val adapter = NaviampCorePlaybackEngineAdapter(this, engine, NaviampCoreMediaProviderSource { provider },
+            { PlaybackSettings(downloadedTrackPlayback = DownloadedTrackPlayback.PreferServer) },
+            activeSourceId = { "source" }, audioAssets = localAssets(setOf(provider.track.id.value)))
+        adapter.attach(object : NaviampCorePlaybackObserver {
+            override fun onStateChanged(state: PlaybackState) { states += state }
+            override fun onProgressChanged(progress: PlaybackProgress) = Unit
+            override fun onMetadataChanged(metadata: PlaybackStreamMetadata) = Unit
+            override fun onSourceChanged(source: PlaybackSource, quality: StreamQuality?) = Unit
+        })
+        adapter.playDownloadedQueueSelection(PlaybackQueue(listOf(provider.track, missing), 0), 0)
+        runCurrent()
+        engine.emitState(PlaybackState.Error("Unsupported", app.naviamp.domain.playback.PlaybackFailureReason.UnsupportedFormat))
+        runCurrent()
+        assertEquals(1, engine.requests.size)
+        adapter.applyNavigation(PlaybackQueueNavigationCommand.Next)
+        runCurrent()
+        assertEquals(1, engine.requests.size)
+        assertTrue(states.last() is PlaybackState.Error)
+        assertTrue(provider.streamRequests.isEmpty())
+    }
+
+    @Test fun downloadedOnlyPlaybackNeedsNoProviderAndDoesNotChangeSavedPlaybackSettings() = runTest {
+        val track = FakeCoreMediaProvider().track
+        val engine = RecordingPlaybackEngine()
+        val saved = PlaybackSettings(downloadedTrackPlayback = DownloadedTrackPlayback.PreferServer)
+        val adapter = NaviampCorePlaybackEngineAdapter(this, engine, NaviampCoreMediaProviderSource { null }, { saved },
+            activeSourceId = { "source" }, audioAssets = localAssets(setOf(track.id.value)))
+        adapter.playDownloadedQueueSelection(PlaybackQueue(listOf(track), 0), 0)
+        runCurrent()
+        assertEquals("file:///downloads/core-track", engine.request?.url)
+        assertEquals(DownloadedTrackPlayback.PreferServer, saved.downloadedTrackPlayback)
+        assertEquals(null, engine.request?.fallbackUrl)
+    }
+
+    @Test fun explicitProviderQueueIntentReleasesLocalOnlyModeWithoutRestartingThePlayingSeed() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val next = provider.track.copy(id = TrackId("next"))
+        val queue = PlaybackQueue(listOf(provider.track, next), 0)
+        val engine = RecordingPlaybackEngine()
+        val adapter = NaviampCorePlaybackEngineAdapter(this, engine, NaviampCoreMediaProviderSource { provider },
+            { PlaybackSettings(downloadedTrackPlayback = DownloadedTrackPlayback.PreferServer) },
+            activeSourceId = { "source" }, audioAssets = localAssets(setOf(provider.track.id.value, next.id.value)))
+        adapter.playDownloadedQueueSelection(queue, 0)
+        runCurrent()
+        assertTrue(adapter.downloadedOnlyQueue)
+        assertEquals(1, engine.requests.size)
+        adapter.applyProviderQueue(queue, clearPreparedNext = true)
+        runCurrent()
+        assertTrue(!adapter.downloadedOnlyQueue)
+        assertEquals(1, engine.requests.size, "Changing upcoming intent must not restart the retained seed")
+        assertTrue(provider.streamRequests.isEmpty())
+        adapter.applyNavigation(PlaybackQueueNavigationCommand.Next)
+        runCurrent()
+        assertEquals("https://example.test/next", engine.request?.url)
+    }
+
     @Test fun restoredSeeksWaitForExplicitPlayOnEveryEngine() = runTest {
         for (restartOnSeek in listOf(false, true)) {
             val provider = FakeCoreMediaProvider()

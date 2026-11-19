@@ -15,6 +15,32 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NaviampCoreOutputPlaybackEffectsTest {
+    @Test fun downloadedOnlyExecutionIsLocalAndDoesNotStartOnCast() {
+        val outputs = NaviampPlaybackOutputSelectionController()
+        var downloaded = 0
+        var existing = 0
+        val base = RecordingLocalEffects()
+        val local = object : NaviampCorePlaybackEffectPort by base {
+            override val capabilities = base.capabilities.copy(supportsDownloadedOnly = true)
+            override fun playDownloadedQueueSelection(queue: PlaybackQueue, index: Int) { downloaded++ }
+            override fun selectExistingQueueItem(queue: PlaybackQueue, index: Int) { existing++ }
+        }
+        val routed = NaviampCoreOutputPlaybackEffects(local, outputs)
+        var selected = 0
+        routed.onSelectionStarted = { selected++ }
+        assertTrue(routed.capabilities.supportsDownloadedOnly)
+        routed.playDownloadedQueueSelection(PlaybackQueue(), 0)
+        routed.selectExistingQueueItem(PlaybackQueue(), 0)
+        assertEquals(1, downloaded)
+        assertEquals(1, existing)
+        val remote = outputs.select(NaviampRemoteOutputTarget(NaviampRemoteOutputKind.Cast, "cast", "TV"))
+        outputs.connected(remote)
+        assertFalse(routed.capabilities.supportsDownloadedOnly)
+        routed.playDownloadedQueueSelection(PlaybackQueue(), 0)
+        assertEquals(1, downloaded)
+        assertEquals(2, selected)
+    }
+
     @Test fun mainPlaybackRestartsStopSamplesButPausingMainDoesNotStopAnIndependentSample() {
         val local = RecordingLocalEffects()
         val routed = NaviampCoreOutputPlaybackEffects(local, NaviampPlaybackOutputSelectionController())

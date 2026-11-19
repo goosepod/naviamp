@@ -107,6 +107,17 @@ class OpenSubsonicAuditTest {
         assertEquals(2, http.calls.count { it.first == "getStarred2.view" })
     }
 
+    @Test fun favoriteTrackPagesUseSharedFolderFilteredSnapshotAndAdvancePastFirstPage() = runTest {
+        val http = Http().apply { payload = "\"starred2\":{\"song\":[${song("one")},${song("two")},${song("three")}]}" }
+        val p = provider(http)
+        val first = p.favoriteTracksPage(app.naviamp.domain.provider.MediaPageRequest(limit = 2))
+        assertEquals(listOf("one", "two"), first.items.map { it.id.value })
+        val second = p.favoriteTracksPage(assertNotNull(first.nextRequest))
+        assertEquals(listOf("three"), second.items.map { it.id.value })
+        assertTrue(!second.hasMore)
+        assertEquals(1, http.calls.count { it.first == "getStarred2.view" })
+    }
+
     @Test fun favoriteDownloadPagesIncludeStarredAlbumsAndArtists() = runTest {
         val http = Http().apply {
             payload = "\"starred2\":{\"album\":[{\"id\":\"album\",\"name\":\"Album\"}],\"artist\":[{\"id\":\"artist\",\"name\":\"Artist\"}]}"

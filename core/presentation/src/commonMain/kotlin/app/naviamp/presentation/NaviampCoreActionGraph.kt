@@ -52,6 +52,8 @@ fun createNaviampCoreActions(
             is NaviampCoreCommandResult.SmartPlaylistPreviewed -> result.preview
             NaviampCoreCommandResult.Completed,
             is NaviampCoreCommandResult.SmartPlaylistLoaded,
+            is NaviampCoreCommandResult.PlaybackActionApplied,
+            is NaviampCoreCommandResult.SavedSourceSelected,
             is NaviampCoreCommandResult.SmartPlaylistInspected,
             is NaviampCoreCommandResult.SmartPlaylistReferencesLoaded,
             -> error("Core did not return a smart-playlist preview.")
@@ -60,6 +62,8 @@ fun createNaviampCoreActions(
     suspend fun loadSmartPlaylist(command: NaviampCoreCommand.SmartPlaylist.Load) =
         when (val result = handler.execute(command)) {
             is NaviampCoreCommandResult.SmartPlaylistLoaded -> result.definition
+            is NaviampCoreCommandResult.PlaybackActionApplied,
+            is NaviampCoreCommandResult.SavedSourceSelected,
             is NaviampCoreCommandResult.SmartPlaylistInspected,
             is NaviampCoreCommandResult.SmartPlaylistReferencesLoaded,
             is NaviampCoreCommandResult.SmartPlaylistPreviewed ->

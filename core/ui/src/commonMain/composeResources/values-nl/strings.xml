@@ -497,4 +497,25 @@
     <string name="connection_aurral_companion_invalid">Voer een HTTP- of HTTPS-serveradres en gebruikersnaam voor Aurral in.</string>
     <string name="discovery_find_in_aurral">Zoeken in Aurral</string>
     <string name="connection_aurral_companion_save_failed">De Aurral-aanvulling kon niet worden opgeslagen. Je muziekverbinding blijft ongewijzigd.</string>
+    <string name="transport_play">Afspelen</string>
+    <string name="library_title">Bibliotheek</string>
+    <string name="mix_bias_favorites">Favorieten</string>
+    <string name="common_unavailable">Niet beschikbaar</string>
+    <string name="search_music_label">Muziek zoeken</string>
+    <string name="search_no_matches">Geen resultaten gevonden.</string>
+    <string name="settings_category_downloads_title">Downloads</string>
+    <string name="home_empty">De secties op de startpagina verschijnen na het verbinden.</string>
+    <string name="home_music_title">Start</string>
+    <string name="playlists_title">Afspeellijsten</string>
+    <string name="transport_next">Volgende</string>
+    <string name="transport_previous">Vorige</string>
+    <string name="tv_loading">Laden…</string>
+    <string name="tv_this_collection_is_empty">Deze collectie is leeg.</string>
+
+    <string name="settings_source_connections_title">Verbindingen</string>
+    <string name="common_reconnect">Opnieuw verbinden</string>
+    <string name="common_current">Huidig</string>
+    <string name="common_connecting">Verbinden</string>
+    <string name="vehicle_connection_setup_on_phone">Voeg verbindingen toe of werk ze bij op je telefoon.</string>
+    <string name="vehicle_connection_offline">Offline</string>
 </resources>

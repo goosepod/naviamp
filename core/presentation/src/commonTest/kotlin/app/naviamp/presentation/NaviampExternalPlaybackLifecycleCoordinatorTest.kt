@@ -49,11 +49,75 @@ class NaviampExternalPlaybackLifecycleCoordinatorTest {
         assertEquals(listOf("pause", "pause"), commands)
     }
 
+    private fun identity() = NaviampExternalPlaybackResumeIdentity("source", 1, 1, 1, 1, "track", 0, false)
+    private fun playing() = NaviampExternalPlaybackSnapshot(state = NaviampExternalPlaybackState.Playing,
+        current = NaviampExternalMediaItem("track", "Track", ""), canPlayPause = true, resumeIdentity = identity())
+
+    @Test fun sourceSelectionIntentOccurrenceAndSleepTimerChangesPreventResume() {
+        val original = identity()
+        for (replacement in listOf(original.copy(sourceId = "other"), original.copy(sourceGeneration = 2),
+            original.copy(accountGeneration = 2), original.copy(selectionGeneration = 2),
+            original.copy(intentGeneration = 2), original.copy(mediaId = "other"), original.copy(queueIndex = 1),
+            original.copy(sleepTimerActive = true))) {
+            var value = playing(); val actions = mutableListOf<String>()
+            val owner = NaviampExternalPlaybackLifecycleCoordinator({ value }, { actions += "play" }, { actions += "pause" })
+            owner.interruptionBegan()
+            value = value.copy(state = NaviampExternalPlaybackState.Paused, resumeIdentity = replacement)
+            owner.interruptionEnded(true)
+            assertEquals(listOf("pause"), actions, replacement.toString())
+        }
+    }
+    @Test fun duplicateBeganCannotRearmAChangedTrack() {
+        var value = playing(); val actions = mutableListOf<String>()
+        val owner = NaviampExternalPlaybackLifecycleCoordinator({ value }, { actions += "play" }, { actions += "pause" })
+        owner.interruptionBegan()
+        value = value.copy(resumeIdentity = identity().copy(mediaId = "other"))
+        owner.interruptionBegan(); value = value.copy(state = NaviampExternalPlaybackState.Paused)
+        owner.interruptionEnded(true); assertEquals(listOf("pause"), actions)
+    }
+    @Test fun remoteOutputsAndPendingConnectionsNeverResumeFromLocalAudioEvents() {
+        for (mode in listOf("remote", "connecting", "uncontrollable", "already-playing", "idle")) {
+            var value = playing(); val actions = mutableListOf<String>()
+            val owner = NaviampExternalPlaybackLifecycleCoordinator({ value }, { actions += "play" }, { actions += "pause" })
+            owner.interruptionBegan()
+            value = value.copy(state = NaviampExternalPlaybackState.Paused)
+            value = when (mode) {
+                "remote" -> value.copy(localPlayback = false)
+                "connecting" -> value.copy(connectionPending = true)
+                "uncontrollable" -> value.copy(canPlayPause = false)
+                "already-playing" -> value.copy(state = NaviampExternalPlaybackState.Playing)
+                else -> value.copy(state = NaviampExternalPlaybackState.Idle)
+            }
+            owner.interruptionEnded(true); assertEquals(listOf("pause"), actions, mode)
+        }
+        val actions = mutableListOf<String>()
+        val owner = NaviampExternalPlaybackLifecycleCoordinator({ playing().copy(localPlayback = false) }, { actions += "play" }, { actions += "pause" })
+        owner.interruptionBegan(); owner.outputDisconnected(); owner.interruptionEnded(true)
+        assertEquals(emptyList(), actions)
+    }
+    @Test fun loadingIsStoppedAndNeverAutomaticallyStartedAfterInterruptionOrOutputLoss() {
+        for (outputLoss in listOf(false, true)) {
+            val actions = mutableListOf<String>()
+            val owner = NaviampExternalPlaybackLifecycleCoordinator({ playing().copy(state = NaviampExternalPlaybackState.Loading, canPlayPause = false) },
+                { actions += "play" }, { actions += "pause" }, { actions += "stop" })
+            if (outputLoss) owner.outputDisconnected() else owner.interruptionBegan()
+            owner.interruptionEnded(true); assertEquals(listOf("stop"), actions)
+        }
+    }
+    @Test fun disconnectWhilePausedCancelsEngineResumeAndCloseRejectsQueuedNotifications() {
+        var value = playing(); val actions = mutableListOf<String>()
+        val owner = NaviampExternalPlaybackLifecycleCoordinator({ value }, { actions += "play" }, { actions += "pause" })
+        owner.interruptionBegan(); value = value.copy(state = NaviampExternalPlaybackState.Paused)
+        owner.outputDisconnected(); owner.interruptionEnded(true); owner.close()
+        value = playing(); owner.interruptionBegan(); owner.interruptionEnded(true); owner.outputDisconnected()
+        assertEquals(listOf("pause", "pause"), actions)
+    }
+
     private fun coordinator(
         state: () -> NaviampExternalPlaybackState,
         commands: MutableList<String>,
     ) = NaviampExternalPlaybackLifecycleCoordinator(
-        snapshot = { NaviampExternalPlaybackSnapshot(state = state()) },
+        snapshot = { NaviampExternalPlaybackSnapshot(state = state(), current = NaviampExternalMediaItem("track", "Track", ""), canPlayPause = true) },
         play = { commands += "play" },
         pause = { commands += "pause" },
     )

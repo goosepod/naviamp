@@ -220,6 +220,10 @@ class JellyfinProvider(
     override suspend fun track(trackId: TrackId): Track? =
         runCatching { item(trackId.value).toTrack() }.getOrNull()
 
+    override suspend fun favoriteTracksPage(request: MediaPageRequest): MediaPage<Track> =
+        itemPage(request = request, includeItemTypes = "Audio",
+            extraParameters = listOf("isFavorite" to "true"), mapper = { it.toTrack() })
+
     override suspend fun tracksPage(request: MediaPageRequest): MediaPage<Track> =
         trackPage(request)
 
