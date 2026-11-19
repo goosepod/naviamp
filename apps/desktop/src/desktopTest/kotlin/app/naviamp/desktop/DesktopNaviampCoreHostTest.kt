@@ -34,11 +34,15 @@ class DesktopNaviampCoreHostTest {
 
         val core = createNaviampCore(this, environment)
 
-        assertEquals(SharedRoute.Search, core.state.value.shell.shellChrome.selectedRoute)
-        assertNotNull(core.actions.settingsSync.onImportFile)
-        assertNotNull(core.actions.settingsSync.onChooseFolder)
-        assertNotNull(core.actions.settingsSync.onImportFolder)
-        assertNotNull(core.actions.settingsSync.onExportFolder)
+        try {
+            assertEquals(SharedRoute.Search, core.state.value.shell.shellChrome.selectedRoute)
+            assertNotNull(core.actions.settingsSync.onImportFile)
+            assertNotNull(core.actions.settingsSync.onChooseFolder)
+            assertNotNull(core.actions.settingsSync.onImportFolder)
+            assertNotNull(core.actions.settingsSync.onExportFolder)
+        } finally {
+            core.close()
+        }
     }
 
     @Test
@@ -66,25 +70,29 @@ class DesktopNaviampCoreHostTest {
         )
         val core = createNaviampCore(this, environment)
 
-        core.execute(
-            NaviampCoreCommand.Connection.Edit(
-                core.state.value.shell.connectionSettings.connection.savedConnections.single(),
-            ),
-        )
+        try {
+            core.execute(
+                NaviampCoreCommand.Connection.Edit(
+                    core.state.value.shell.connectionSettings.connection.savedConnections.single(),
+                ),
+            )
 
-        assertEquals(
-            "https://music.example",
-            core.state.value.shell.connectionSettings.connection.form.serverUrl,
-        )
-        assertEquals("source-1", environment.initialState.connectionInventory.connections.single().id)
-        assertEquals(
-            NaviampConnectionCapabilitiesUi(true, true, true),
-            core.state.value.shell.connectionSettings.capabilities,
-        )
-        assertEquals(true, core.state.value.shell.playback.replayGainAvailable)
-        assertEquals(true, core.state.value.shell.playback.crossfadeAvailable)
-        assertEquals(true, core.state.value.shell.playback.equalizerAvailable)
-        assertNotNull(environment.applicationUpdateChecker)
+            assertEquals(
+                "https://music.example",
+                core.state.value.shell.connectionSettings.connection.form.serverUrl,
+            )
+            assertEquals("source-1", environment.initialState.connectionInventory.connections.single().id)
+            assertEquals(
+                NaviampConnectionCapabilitiesUi(true, true, true),
+                core.state.value.shell.connectionSettings.capabilities,
+            )
+            assertEquals(true, core.state.value.shell.playback.replayGainAvailable)
+            assertEquals(true, core.state.value.shell.playback.crossfadeAvailable)
+            assertEquals(true, core.state.value.shell.playback.equalizerAvailable)
+            assertNotNull(environment.applicationUpdateChecker)
+        } finally {
+            core.close()
+        }
     }
 }
 

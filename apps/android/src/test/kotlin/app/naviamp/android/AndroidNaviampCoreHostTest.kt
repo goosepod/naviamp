@@ -29,10 +29,14 @@ class AndroidNaviampCoreHostTest {
 
         val core = createNaviampCore(this, environment)
 
-        assertEquals(SharedRoute.Search, core.state.value.shell.shellChrome.selectedRoute)
-        assertNotNull(core.actions.settingsSync.onImportFile)
-        assertNotNull(core.actions.settingsSync.onChooseFolder)
-        assertNotNull(core.actions.settingsSync.onImportFolder)
-        assertNotNull(core.actions.settingsSync.onExportFolder)
+        try {
+            assertEquals(SharedRoute.Search, core.state.value.shell.shellChrome.selectedRoute)
+            assertNotNull(core.actions.settingsSync.onImportFile)
+            assertNotNull(core.actions.settingsSync.onChooseFolder)
+            assertNotNull(core.actions.settingsSync.onImportFolder)
+            assertNotNull(core.actions.settingsSync.onExportFolder)
+        } finally {
+            core.close()
+        }
     }
 }
