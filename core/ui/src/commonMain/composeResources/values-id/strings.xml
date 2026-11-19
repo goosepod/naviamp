@@ -497,4 +497,25 @@
     <string name="connection_aurral_companion_invalid">Masukkan URL server Aurral HTTP atau HTTPS dan nama pengguna.</string>
     <string name="discovery_find_in_aurral">Cari di Aurral</string>
     <string name="connection_aurral_companion_save_failed">Pendamping Aurral tidak dapat disimpan. Koneksi musik Anda tidak berubah.</string>
+    <string name="transport_play">Putar</string>
+    <string name="library_title">Pustaka</string>
+    <string name="mix_bias_favorites">Favorit</string>
+    <string name="common_unavailable">Tidak tersedia</string>
+    <string name="search_music_label">Cari musik</string>
+    <string name="search_no_matches">Tidak ada hasil.</string>
+    <string name="settings_category_downloads_title">Unduhan</string>
+    <string name="home_empty">Bagian Beranda akan muncul setelah terhubung.</string>
+    <string name="home_music_title">Beranda</string>
+    <string name="playlists_title">Daftar putar</string>
+    <string name="transport_next">Berikutnya</string>
+    <string name="transport_previous">Sebelumnya</string>
+    <string name="tv_loading">Memuat…</string>
+    <string name="tv_this_collection_is_empty">Koleksi ini kosong.</string>
+
+    <string name="settings_source_connections_title">Koneksi</string>
+    <string name="common_reconnect">Hubungkan ulang</string>
+    <string name="common_current">Saat ini</string>
+    <string name="common_connecting">Menghubungkan</string>
+    <string name="vehicle_connection_setup_on_phone">Tambahkan atau perbarui koneksi di ponsel Anda.</string>
+    <string name="vehicle_connection_offline">Luring</string>
 </resources>

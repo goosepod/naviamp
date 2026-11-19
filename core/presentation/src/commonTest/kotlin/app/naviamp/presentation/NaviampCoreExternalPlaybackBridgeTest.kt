@@ -32,6 +32,32 @@ import kotlin.test.assertTrue
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCoreExternalPlaybackBridgeTest {
     @Test
+    fun placeholderNowPlayingDoesNotInventAnExternalQueueOrHideTheBrowseCatalog() {
+        val commands = mutableListOf<NaviampCoreCommand>()
+        val state = MutableStateFlow(NaviampCoreState(shell = NaviampAppShellUiState(
+            nowPlaying = NowPlayingUi(title = "Choose something to play", subtitle = "Nothing Playing", stateLabel = "Idle",
+                canChangeVolume = true, volumePercent = 37),
+            home = NaviampHomeScreenUi(SharedHomeUi(playlists = listOf(SharedMediaItemUi("saved", "Saved", "")))),
+        )))
+        val bridge = NaviampCoreExternalPlaybackBridge(state, commands::add)
+        val snapshot = bridge.snapshot()
+        assertNull(snapshot.current)
+        assertTrue(snapshot.queue.isEmpty())
+        assertEquals(-1, snapshot.currentQueueIndex)
+        assertEquals(NaviampExternalPlaybackState.Idle, snapshot.state)
+        assertFalse(snapshot.canPlayPause)
+        assertTrue(snapshot.canChangeVolume)
+        assertEquals(37, snapshot.volumePercent)
+        assertFalse(snapshot.shouldRetainPlaybackService)
+        assertEquals(listOf(NaviampExternalPlaylistsId), bridge.browseChildren(NaviampExternalMediaRootId).map { it.mediaId })
+        assertFalse(bridge.playMediaId(QueueMediaIdPrefix))
+        bridge.selectQueueItem(0)
+        assertTrue(commands.isEmpty())
+        bridge.setVolumePercent(42)
+        assertEquals(42, assertIs<NaviampCoreCommand.NowPlaying.Playback>(commands.single()).request.volumePercent)
+    }
+
+    @Test
     fun libraryControlsKeepRadioBesideFavoriteAtEveryQueueBoundary() {
         val library = bridge().snapshot().copy(canFavorite = true, durationMillis = null)
         for ((previous, next) in listOf(false to true, true to true, true to false, false to false)) {

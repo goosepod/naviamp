@@ -61,6 +61,8 @@ sealed interface NaviampCoreCommand {
         data class Edit(val connection: NaviampSavedConnectionUi) : Connection
         data class Delete(val connection: NaviampSavedConnectionUi) : Connection
         data class ConnectSaved(val connection: NaviampSavedConnectionUi) : Connection
+        /** Uses stored credentials without opening or navigating a settings/account surface. */
+        data class SelectSavedSource(val id: String, val reconnect: Boolean = false) : Connection
         data object CancelForm : Connection
         data object OpenAccounts : Connection
         data object CloseAccounts : Connection
@@ -300,9 +302,12 @@ sealed interface NaviampCoreCommand {
 }
 
 sealed interface NaviampCoreCommandResult {
+    /** Explicit acknowledgement for asynchronous current-media mutations. */
+    data class PlaybackActionApplied(val applied: Boolean) : NaviampCoreCommandResult
     data class SmartPlaylistReferencesLoaded(
         val references: List<app.naviamp.domain.smartplaylist.SmartPlaylistReference>,
     ) : NaviampCoreCommandResult
+    data class SavedSourceSelected(val selected: Boolean) : NaviampCoreCommandResult
     data object Completed : NaviampCoreCommandResult
     data class SmartPlaylistInspected(val editing: app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult) : NaviampCoreCommandResult
     data class SmartPlaylistLoaded(val definition: SmartPlaylistDefinition) : NaviampCoreCommandResult

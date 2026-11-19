@@ -1,6 +1,11 @@
 package app.naviamp.presentation
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 
 sealed interface NaviampCoreImmediateCommandResult {
@@ -33,27 +38,50 @@ class NaviampCoreCommandRouter(
         throw IllegalStateException("Core command failed: $command", cause)
     },
 ) : NaviampCoreCommandHandler {
+    private val executing = mutableSetOf<Job>()
+    private val dispatched = mutableSetOf<Job>()
+    private var closed = false
+
+    fun close() {
+        if (closed) return
+        closed = true
+        executing.toList().forEach { it.cancel() }
+        dispatched.toList().forEach { it.cancel() }
+    }
     override fun dispatch(command: NaviampCoreCommand) {
+        if (closed) return
         val owner = requireSingleOwner(command)
         when (owner.immediateResult) {
             is NaviampCoreImmediateCommandResult.Handled -> Unit
             NaviampCoreImmediateCommandResult.Deferred -> {
-                scope.launch {
+                val job = scope.launch(start = CoroutineStart.LAZY) {
+                    try {
                     runCatching { executeDeferred(owner.controller, command) }
-                        .onFailure { cause -> onAsyncFailure(command, cause) }
+                        .onFailure { cause ->
+                            if (cause is CancellationException) throw cause
+                            onAsyncFailure(command, cause)
+                        }
+                    } finally { currentCoroutineContext()[Job]?.let { dispatched -= it } }
                 }
+                dispatched += job
+                job.start()
             }
             NaviampCoreImmediateCommandResult.Unhandled -> error("Unreachable command ownership state")
         }
     }
 
-    override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult {
-        val owner = requireSingleOwner(command)
-        return when (val immediate = owner.immediateResult) {
-            is NaviampCoreImmediateCommandResult.Handled -> immediate.result
-            NaviampCoreImmediateCommandResult.Deferred -> executeDeferred(owner.controller, command)
-            NaviampCoreImmediateCommandResult.Unhandled -> error("Unreachable command ownership state")
-        }
+    override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult = coroutineScope {
+        if (closed) throw CancellationException("Core command router is closed")
+        val job = currentCoroutineContext()[Job]!!
+        executing += job
+        try {
+            val owner = requireSingleOwner(command)
+            when (val immediate = owner.immediateResult) {
+                is NaviampCoreImmediateCommandResult.Handled -> immediate.result
+                NaviampCoreImmediateCommandResult.Deferred -> executeDeferred(owner.controller, command)
+                NaviampCoreImmediateCommandResult.Unhandled -> error("Unreachable command ownership state")
+            }
+        } finally { executing -= job }
     }
 
     private fun requireSingleOwner(command: NaviampCoreCommand): CommandOwner {

@@ -1,5 +1,7 @@
 package app.naviamp.presentation
 
+import kotlinx.coroutines.test.runCurrent
+
 import app.naviamp.app.NaviampConnectionAttemptPlan
 import app.naviamp.app.NaviampConnectionController
 import app.naviamp.domain.settings.ConnectionFormState
@@ -18,6 +20,27 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 
 class NaviampCoreConnectionControllerTest {
+    @Test
+    fun runtimeRenewalIsSharedAndSurvivesSceneWaiterCancellation() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        val lifecycle = NaviampCoreProviderSessionLifecycle(fixture.port, refreshIntervalMillis = 100L)
+        val runtime = lifecycle.start(backgroundScope)
+        kotlin.test.assertSame(runtime, lifecycle.start(backgroundScope))
+        val scene = launch { runtime.join() }
+        runCurrent()
+        scene.cancelAndJoin()
+        advanceTimeBy(100L)
+        runCurrent()
+        assertEquals(1, fixture.port.refreshCalls)
+        assertTrue(runtime.isActive)
+        lifecycle.close()
+        runtime.join()
+        advanceTimeBy(200L)
+        runCurrent()
+        assertEquals(1, fixture.port.refreshCalls)
+        assertFalse(runtime.isActive)
+    }
+
     @Test fun provisioningAnAlreadyConnectedPrimaryStillSavesItsCompanionWithoutReconnecting() = kotlinx.coroutines.test.runTest {
         var changes = 0
         val f = fixture(onCompanionChanged = { changes++ })
@@ -866,10 +889,80 @@ class NaviampCoreConnectionControllerTest {
         assertEquals("source-1", fixture.store.state.value.shell.connectionSettings.currentSourceId)
     }
 
+    @Test fun inPlaceSelectionUsesStoredCredentialsAndPreservesPhoneEditorAndAccountState() = kotlinx.coroutines.test.runTest {
+        val callbacks = mutableListOf<Pair<String, Boolean>>()
+        var home = 0
+        val f = fixture(savedRecords = listOf(savedRecord(), savedRecord(id = "source-2")),
+            onUserConnected = { home++ }, onSavedSourceSelected = { id, changed -> callbacks += id to changed })
+        f.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        f.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        f.controller.dispatch(NaviampCoreCommand.Connection.OpenAccounts)
+        val before = f.store.state.value.shell.connectionSettings
+        home = 0; f.port.connectRequests.clear()
+        assertEquals(NaviampCoreCommandResult.SavedSourceSelected(true), f.controller.execute(NaviampCoreCommand.Connection.SelectSavedSource("source-2")))
+        val after = f.store.state.value.shell.connectionSettings
+        assertEquals("source-2", after.currentSourceId)
+        assertEquals(before.connection.form, after.connection.form)
+        assertEquals(before.connection.editingConnection, after.connection.editingConnection)
+        assertEquals(before.accountSwitcher, after.accountSwitcher)
+        assertEquals(0, home); assertEquals(listOf("source-2" to true), callbacks)
+        assertEquals(NaviampCoreConnectionRequest.Saved("source-2"), f.port.connectRequests.single().first)
+        assertFalse(f.port.connectRequests.single().second.clearProviderData)
+    }
+    @Test fun failedInPlaceSelectionKeepsCurrentSessionAndDoesNotOpenPhoneFailureUi() = kotlinx.coroutines.test.runTest {
+        var changes = 0
+        val f = fixture(savedRecords = listOf(savedRecord(), savedRecord(id = "source-2")), onSourceChanging = { _, _ -> changes++ })
+        f.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        val before = f.store.state.value.shell.connectionSettings
+        changes = 0; f.port.connectFailure = IllegalStateException("expired credential")
+        assertEquals(NaviampCoreCommandResult.SavedSourceSelected(false), f.controller.execute(NaviampCoreCommand.Connection.SelectSavedSource("source-2")))
+        assertEquals(before, f.store.state.value.shell.connectionSettings)
+        assertEquals("source-1", f.port.inventory.currentSourceId); assertEquals(0, changes)
+    }
+    @Test fun inPlaceSelectionRejectsMissingBusyAndStaleRecoveryAndKeepsCurrentSelectionIdempotent() = kotlinx.coroutines.test.runTest {
+        val f = fixture(savedRecords = listOf(savedRecord(), savedRecord(id = "source-2")))
+        f.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi())); f.port.connectRequests.clear()
+        assertEquals(NaviampCoreCommandResult.SavedSourceSelected(true), f.controller.execute(NaviampCoreCommand.Connection.SelectSavedSource("source-1")))
+        for (request in listOf(NaviampCoreCommand.Connection.SelectSavedSource("missing"), NaviampCoreCommand.Connection.SelectSavedSource("source-2", reconnect = true)))
+            assertEquals(NaviampCoreCommandResult.SavedSourceSelected(false), f.controller.execute(request))
+        assertTrue(f.port.connectRequests.isEmpty())
+        f.store.updateShell { it.copy(connect = it.connect.copy(remotePlaybackAuthorityActive = true)) }
+        assertEquals(NaviampCoreCommandResult.SavedSourceSelected(false), f.controller.execute(NaviampCoreCommand.Connection.SelectSavedSource("source-2")))
+        assertTrue(f.port.connectRequests.isEmpty())
+    }
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test fun cancelledInPlaceSelectionRestoresConnectionAndDoesNotSelectTarget() = kotlinx.coroutines.test.runTest {
+        val f = fixture(savedRecords = listOf(savedRecord(), savedRecord(id = "source-2")))
+        f.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        val before = f.store.state.value.shell.connectionSettings
+        f.port.connectGate = CompletableDeferred()
+        val job = launch { f.controller.execute(NaviampCoreCommand.Connection.SelectSavedSource("source-2")) }
+        runCurrent()
+        assertEquals(NaviampCoreCommandResult.SavedSourceSelected(false), f.controller.execute(NaviampCoreCommand.Connection.SelectSavedSource("source-1", reconnect = true)))
+        job.cancel(); job.join()
+        assertEquals(before, f.store.state.value.shell.connectionSettings)
+        assertEquals("source-1", f.port.inventory.currentSourceId)
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test fun inPlaceSelectionTimeoutRestoresThePreviousSession() = kotlinx.coroutines.test.runTest {
+        val f = fixture(savedRecords = listOf(savedRecord(), savedRecord(id = "source-2")))
+        f.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        val before = f.store.state.value.shell.connectionSettings
+        f.port.connectGate = CompletableDeferred()
+        var result: NaviampCoreCommandResult? = null
+        val job = launch { result = f.controller.execute(NaviampCoreCommand.Connection.SelectSavedSource("source-2")) }
+        runCurrent(); testScheduler.advanceTimeBy(30_001); runCurrent(); job.join()
+        assertEquals(NaviampCoreCommandResult.SavedSourceSelected(false), result)
+        assertEquals(before, f.store.state.value.shell.connectionSettings)
+        assertEquals("source-1", f.port.inventory.currentSourceId)
+    }
+
     private fun fixture(
         connectFailure: Throwable? = null,
         musicFoldersLoadFailed: Boolean = false,
         onConnected: (String) -> Unit = {},
+        onSavedSourceSelected: (String, Boolean) -> Unit = { id, _ -> onConnected(id) },
         onCompanionChanged: (String) -> Unit = {},
         onUserConnected: (String) -> Unit = {},
         onOfflineRestored: (String) -> Unit = {},
@@ -903,6 +996,7 @@ class NaviampCoreConnectionControllerTest {
                 initialInventory = inventory,
                 onSourceChanging = onSourceChanging,
                 onConnected = onConnected,
+                onSavedSourceSelected = onSavedSourceSelected,
                 onCompanionChanged = onCompanionChanged,
                 onUserConnected = onUserConnected,
                 onOfflineRestored = onOfflineRestored,

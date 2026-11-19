@@ -497,4 +497,25 @@
     <string name="connection_aurral_companion_invalid">Введите HTTP- или HTTPS-адрес сервера Aurral и имя пользователя.</string>
     <string name="discovery_find_in_aurral">Найти в Aurral</string>
     <string name="connection_aurral_companion_save_failed">Не удалось сохранить подключение Aurral. Подключение к музыкальному серверу не изменилось.</string>
+    <string name="transport_play">Воспроизвести</string>
+    <string name="library_title">Медиатека</string>
+    <string name="mix_bias_favorites">Избранное</string>
+    <string name="common_unavailable">Недоступно</string>
+    <string name="search_music_label">Поиск музыки</string>
+    <string name="search_no_matches">Ничего не найдено.</string>
+    <string name="settings_category_downloads_title">Загрузки</string>
+    <string name="home_empty">Разделы главной страницы появятся после подключения.</string>
+    <string name="home_music_title">Главная</string>
+    <string name="playlists_title">Плейлисты</string>
+    <string name="transport_next">Далее</string>
+    <string name="transport_previous">Назад</string>
+    <string name="tv_loading">Загрузка…</string>
+    <string name="tv_this_collection_is_empty">Эта коллекция пуста.</string>
+
+    <string name="settings_source_connections_title">Подключения</string>
+    <string name="common_reconnect">Подключиться снова</string>
+    <string name="common_current">Текущее</string>
+    <string name="common_connecting">Подключение</string>
+    <string name="vehicle_connection_setup_on_phone">Добавьте или обновите подключения на телефоне.</string>
+    <string name="vehicle_connection_offline">Не в сети</string>
 </resources>

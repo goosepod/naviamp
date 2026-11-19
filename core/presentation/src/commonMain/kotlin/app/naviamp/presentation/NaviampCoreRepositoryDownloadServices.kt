@@ -35,6 +35,10 @@ fun <DownloadedFile, StoredDownload> repositoryNaviampCoreDownloadServices(
             return storageStats().copy(downloads = downloads)
         }
 
+        override suspend fun availableDownloads(sourceId: String): List<NaviampCoreDownloadedTrack> =
+            downloadRepository.downloadedTracks(sourceId).filter(isStoredDownloadAvailable).map(toCoreDownload)
+                .filter { it.sizeBytes > 0L }
+
         override suspend fun pruneMissing(sourceId: String): Int {
             val missing = downloadRepository.downloadedTracks(sourceId).filterNot(isStoredDownloadAvailable)
             missing.forEach { stored ->

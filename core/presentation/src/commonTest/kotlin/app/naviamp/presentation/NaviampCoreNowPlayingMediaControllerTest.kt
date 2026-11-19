@@ -70,6 +70,44 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreNowPlayingMediaControllerTest {
+    @Test fun delayedFavoriteCannotReplaceANewerTrackOrCrossSourceOrCancellation() = runTest {
+        for (mode in listOf("track", "source", "cancel")) {
+            val fixture = mediaFixture(this)
+            val gate = CompletableDeferred<Unit>()
+            fixture.provider.favoriteGate = gate
+            val request = async { fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.ToggleFavorite)) }
+            runCurrent()
+            when (mode) {
+                "track" -> fixture.live.updateCurrentTrack(nowPlayingTrack("new-current"))
+                "source" -> fixture.store.update { it.copy(sourceGeneration = it.sourceGeneration + 1) }
+                else -> request.cancel()
+            }
+            gate.complete(Unit)
+            if (mode == "cancel") request.join() else request.await()
+            assertEquals(if (mode == "track") "new-current" else "current", fixture.live.state.value.currentTrack?.id?.value)
+            if (mode != "track") assertNull(fixture.live.state.value.currentTrack?.favoritedAtIso8601)
+            else assertEquals("now", fixture.live.state.value.queue.tracks.first { it.id.value == "current" }.favoritedAtIso8601)
+        }
+    }
+
+    @Test fun vehicleRadioAcknowledgementDistinguishesReadyFailedEmptyAndBusy() = runTest {
+        val fixture = mediaFixture(this)
+        fun applied(result: NaviampCoreCommandResult?) = (result as NaviampCoreCommandResult.PlaybackActionApplied).applied
+        assertTrue(applied(fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))))
+        fixture.provider.trackRadioFailure = IllegalStateException("failed")
+        assertFalse(applied(fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))))
+        fixture.provider.trackRadioFailure = null
+        fixture.provider.trackRadioTracks = listOf(nowPlayingTrack("current"))
+        assertFalse(applied(fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))))
+        val gate = CompletableDeferred<Unit>()
+        fixture.provider.trackRadioGate = gate
+        val pending = async { fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio)) }
+        runCurrent()
+        assertFalse(applied(fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))))
+        gate.complete(Unit)
+        pending.await()
+    }
+
     @Test fun automotiveRecentTrackTapAndVoiceSearchPlayHistoryWithEmptySearchResults() = runTest {
         val fixture = mediaFixture(this)
         val tracks = listOf(nowPlayingTrack("recent-first"), nowPlayingTrack("recent-second"))
@@ -1236,6 +1274,7 @@ private class NowPlayingTestProvider : MediaProvider {
         supportsTrackRatings = true,
     )
     val added = mutableListOf<String>()
+    var favoriteGate: CompletableDeferred<Unit>? = null
     val favorites = mutableListOf<String>()
     val ratings = mutableListOf<String>()
     var trackRadioFailure: Throwable? = null
@@ -1314,7 +1353,7 @@ private class NowPlayingTestProvider : MediaProvider {
         playlistContents[playlistId] = trackIds.map { nowPlayingTrack(it.value) }.toMutableList()
     }
     override suspend fun createPlaylist(name: String, trackIds: List<TrackId>) = Playlist("created", name, trackIds.size)
-    override suspend fun setTrackFavorite(trackId: TrackId, favorite: Boolean) { favorites += "${trackId.value}:$favorite" }
+    override suspend fun setTrackFavorite(trackId: TrackId, favorite: Boolean) { favoriteGate?.await(); favorites += "${trackId.value}:$favorite" }
     override suspend fun setTrackRating(trackId: TrackId, rating: Int?) { ratings += "${trackId.value}:$rating" }
     override suspend fun streamUrl(request: StreamRequest) = "https://stream.example"
     val heroArtworkRequests = mutableListOf<String>()

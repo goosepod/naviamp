@@ -78,6 +78,8 @@ interface MediaProvider {
         tracks(limit = 5_000).firstOrNull { it.id == trackId }
     /** Bulk metadata enumeration, or null when the provider requires album-detail traversal. */
     suspend fun libraryTracksPage(request: MediaPageRequest): MediaPage<Track>? = null
+    /** Null means this source cannot enumerate favorite tracks completely. */
+    suspend fun favoriteTracksPage(request: MediaPageRequest): MediaPage<Track>? = null
     suspend fun favoriteTracks(limit: Int = 5000): List<Track> =
         tracks(limit).filter { it.favoritedAtIso8601 != null }
     suspend fun tracksPage(request: MediaPageRequest = MediaPageRequest()): MediaPage<Track> =

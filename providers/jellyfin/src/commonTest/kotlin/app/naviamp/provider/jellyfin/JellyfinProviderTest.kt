@@ -51,6 +51,19 @@ class JellyfinProviderTest {
         assertTrue(fixture.http.requestedUrls.none { "parentId=" in it })
     }
     @Test
+    fun favoriteTrackPagesUseServerFilterAndPreserveContinuationAndFolderScope() = runTest {
+        val fixture = fixture(responses = mapOf(
+            "includeItemTypes=Audio" to """{"Items":[{"Id":"track","Name":"Track"}],"TotalRecordCount":4}""",
+        ), selectedMusicFolderIds = listOf("folder"))
+        val page = fixture.provider.favoriteTracksPage(MediaPageRequest(offset = 2, limit = 1))
+        assertEquals("track", page.items.single().id.value)
+        assertEquals(3, page.nextRequest?.offset)
+        val url = fixture.http.requestedUrls.single()
+        assertTrue("isFavorite=true" in url)
+        assertTrue("startIndex=2" in url && "limit=1" in url && "parentId=folder" in url)
+    }
+
+    @Test
     fun favoriteDownloadPagesRequestFilteredAlbumsAndArtists() = runTest {
         val fixture = fixture(responses = mapOf(
             "includeItemTypes=MusicAlbum" to """{"Items":[{"Id":"album","Name":"Album"}],"TotalRecordCount":1}""",

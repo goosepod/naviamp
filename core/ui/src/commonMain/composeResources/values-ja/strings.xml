@@ -497,4 +497,25 @@
     <string name="connection_aurral_companion_invalid">Aurral の HTTP または HTTPS サーバー URL とユーザー名を入力してください。</string>
     <string name="discovery_find_in_aurral">Aurral で検索</string>
     <string name="connection_aurral_companion_save_failed">Aurral 連携を保存できませんでした。音楽サーバーへの接続は変更されていません。</string>
+    <string name="transport_play">再生</string>
+    <string name="library_title">ライブラリ</string>
+    <string name="mix_bias_favorites">お気に入り</string>
+    <string name="common_unavailable">利用できません</string>
+    <string name="search_music_label">音楽を検索</string>
+    <string name="search_no_matches">一致する結果がありません。</string>
+    <string name="settings_category_downloads_title">ダウンロード</string>
+    <string name="home_empty">接続後にホームのセクションが表示されます。</string>
+    <string name="home_music_title">ホーム</string>
+    <string name="playlists_title">プレイリスト</string>
+    <string name="transport_next">次へ</string>
+    <string name="transport_previous">前へ</string>
+    <string name="tv_loading">読み込み中…</string>
+    <string name="tv_this_collection_is_empty">このコレクションは空です。</string>
+
+    <string name="settings_source_connections_title">接続</string>
+    <string name="common_reconnect">再接続</string>
+    <string name="common_current">現在</string>
+    <string name="common_connecting">接続中</string>
+    <string name="vehicle_connection_setup_on_phone">接続の追加や更新はスマートフォンで行ってください。</string>
+    <string name="vehicle_connection_offline">オフライン</string>
 </resources>

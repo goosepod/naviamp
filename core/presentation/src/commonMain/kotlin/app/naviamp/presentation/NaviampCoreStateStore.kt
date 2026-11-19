@@ -12,6 +12,11 @@ data class NaviampCoreState(
     val shell: NaviampAppShellUiState = NaviampAppShellUiState(),
     val settingsSync: NaviampSettingsSyncUi = NaviampSettingsSyncUi(),
     val overlays: NaviampCoreOverlayState = NaviampCoreOverlayState(),
+    val sourceGeneration: Long = 0L,
+    val playbackSelectionGeneration: Long = 0L,
+    val readyPlaybackSelectionGeneration: Long = -1L,
+    val failedPlaybackSelectionGeneration: Long = -1L,
+    val playbackIntentGeneration: Long = 0L,
 )
 
 data class NaviampCoreOverlayState(

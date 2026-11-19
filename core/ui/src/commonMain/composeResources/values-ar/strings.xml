@@ -497,4 +497,25 @@
     <string name="connection_aurral_companion_invalid">أدخل عنوان خادم Aurral ببروتوكول HTTP أو HTTPS واسم المستخدم.</string>
     <string name="discovery_find_in_aurral">البحث في Aurral</string>
     <string name="connection_aurral_companion_save_failed">تعذّر حفظ خدمة Aurral المرافقة. لم يتغير اتصال الموسيقى.</string>
+    <string name="transport_play">تشغيل</string>
+    <string name="library_title">المكتبة</string>
+    <string name="mix_bias_favorites">المفضلة</string>
+    <string name="common_unavailable">غير متاح</string>
+    <string name="search_music_label">ابحث عن الموسيقى</string>
+    <string name="search_no_matches">لم يتم العثور على نتائج.</string>
+    <string name="settings_category_downloads_title">التنزيلات</string>
+    <string name="home_empty">تظهر أقسام الصفحة الرئيسية بعد الاتصال.</string>
+    <string name="home_music_title">الرئيسية</string>
+    <string name="playlists_title">قوائم التشغيل</string>
+    <string name="transport_next">التالي</string>
+    <string name="transport_previous">السابق</string>
+    <string name="tv_loading">جارٍ التحميل…</string>
+    <string name="tv_this_collection_is_empty">هذه المجموعة فارغة.</string>
+
+    <string name="settings_source_connections_title">الاتصالات</string>
+    <string name="common_reconnect">إعادة الاتصال</string>
+    <string name="common_current">الحالي</string>
+    <string name="common_connecting">جارٍ الاتصال</string>
+    <string name="vehicle_connection_setup_on_phone">أضف الاتصالات أو حدّثها على هاتفك.</string>
+    <string name="vehicle_connection_offline">غير متصل</string>
 </resources>

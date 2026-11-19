@@ -3,6 +3,7 @@
 package app.naviamp.ios.playback
 
 import app.naviamp.presentation.NaviampCoreExternalPlaybackBridge
+import app.naviamp.presentation.NaviampExternalPlaybackArtworkController
 import app.naviamp.presentation.NaviampExternalPlaybackLifecycleCoordinator
 import app.naviamp.presentation.NaviampExternalPlaybackSnapshot
 import app.naviamp.presentation.NaviampExternalPlaybackState
@@ -74,10 +75,11 @@ class IosNativePlaybackIntegration(
     private val notificationObservers = mutableListOf<Any>()
     private val commandTargets = mutableListOf<Pair<MPRemoteCommand, Any>>()
     private val publicationJob: Job
-    private var artworkJob: Job? = null
-    private var artworkMediaId: String? = null
-    private var artworkUrl: String? = null
     private var artwork: MPMediaItemArtwork? = null
+    private val artworkController = NaviampExternalPlaybackArtworkController(scope, bridge::snapshot, artworkBytes) { bytes ->
+        artwork = bytes?.toImage()?.let { image -> MPMediaItemArtwork(image.size) { image } }
+        publishNowPlaying(bridge.snapshot(), artwork)
+    }
 
     init {
         installAudioSessionObservers()
@@ -88,13 +90,15 @@ class IosNativePlaybackIntegration(
     }
 
     fun close() {
+        lifecycle.close()
         publicationJob.cancel()
+        artworkController.close()
         notificationObservers.forEach(notificationCenter::removeObserver)
         notificationObservers.clear()
         commandTargets.forEach { (command, target) -> command.removeTarget(target) }
         commandTargets.clear()
         publicationPlanner.reset()
-        clearArtwork()
+        artwork = null
         nowPlayingCenter.nowPlayingInfo = null
         nowPlayingCenter.playbackState = MPNowPlayingPlaybackStateStopped
     }
@@ -196,20 +200,8 @@ class IosNativePlaybackIntegration(
     private fun publish(snapshot: NaviampExternalPlaybackSnapshot) {
         val publication = publicationPlanner.plan(snapshot)
         updateRemoteCommandAvailability(snapshot)
-        val current = snapshot.current
-        if (current?.mediaId != artworkMediaId) clearArtwork()
+        artworkController.update(snapshot)
         if (publication.sessionContent || publication.playbackState) publishNowPlaying(snapshot, artwork)
-        current ?: return
-        val nextArtworkUrl = current.artworkUrl ?: return
-        if (artworkMediaId == current.mediaId && artworkUrl == nextArtworkUrl) return
-        artworkMediaId = current.mediaId
-        artworkUrl = nextArtworkUrl
-        artworkJob = scope.launch {
-            val image = artworkBytes(nextArtworkUrl)?.toImage() ?: return@launch
-            if (bridge.snapshot().current?.mediaId != current.mediaId || artworkUrl != nextArtworkUrl) return@launch
-            artwork = MPMediaItemArtwork(image.size) { image }
-            publishNowPlaying(bridge.snapshot(), artwork)
-        }
     }
 
     private fun publishNowPlaying(snapshot: NaviampExternalPlaybackSnapshot, artwork: MPMediaItemArtwork?) {
@@ -249,11 +241,11 @@ class IosNativePlaybackIntegration(
         commandCenter.stopCommand.enabled = snapshot.current != null
         commandCenter.previousTrackCommand.enabled = snapshot.hasPrevious
         commandCenter.nextTrackCommand.enabled = snapshot.hasNext
-        commandCenter.changePlaybackPositionCommand.enabled = snapshot.current != null && snapshot.durationMillis != null
-        commandCenter.changeShuffleModeCommand.enabled = snapshot.current != null
+        commandCenter.changePlaybackPositionCommand.enabled = snapshot.canSeek
+        commandCenter.changeShuffleModeCommand.enabled = snapshot.canShuffle
         commandCenter.changeShuffleModeCommand.currentShuffleType =
             if (snapshot.shuffleActive) MPShuffleType.MPShuffleTypeItems else MPShuffleType.MPShuffleTypeOff
-        commandCenter.changeRepeatModeCommand.enabled = snapshot.current != null
+        commandCenter.changeRepeatModeCommand.enabled = snapshot.canRepeat
         commandCenter.changeRepeatModeCommand.currentRepeatType = when (snapshot.repeatMode) {
             NaviampRepeatMode.Off -> MPRepeatType.MPRepeatTypeOff
             NaviampRepeatMode.Queue -> MPRepeatType.MPRepeatTypeAll
@@ -261,14 +253,6 @@ class IosNativePlaybackIntegration(
         }
         commandCenter.likeCommand.enabled = snapshot.canFavorite
         commandCenter.likeCommand.active = snapshot.favorite
-    }
-
-    private fun clearArtwork() {
-        artworkJob?.cancel()
-        artworkJob = null
-        artworkMediaId = null
-        artworkUrl = null
-        artwork = null
     }
 
     private fun NSNotification.number(key: String?): NSNumber? = userInfo?.get(key) as? NSNumber

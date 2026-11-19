@@ -2,6 +2,9 @@ package app.naviamp.presentation
 
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import app.naviamp.domain.Track
 import app.naviamp.domain.media.resolveTrackArtistNavigation
 import app.naviamp.domain.media.favoriteTrackUpdate
@@ -79,7 +82,7 @@ class NaviampCoreNowPlayingMediaController(
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? {
         when (command) {
             is NaviampCoreCommand.NowPlaying.Display -> display(command.request)
-            is NaviampCoreCommand.NowPlaying.CurrentTrack -> currentTrack(command.request)
+            is NaviampCoreCommand.NowPlaying.CurrentTrack -> return currentTrack(command.request)
             is NaviampCoreCommand.NowPlaying.Selection -> selection(command.request)
             is NaviampCoreCommand.NowPlaying.QueueItem -> queueItem(command.request)
             is NaviampCoreCommand.NowPlaying.TogglePlaylistMembership -> membership.toggle(command.playlistId)
@@ -179,25 +182,27 @@ class NaviampCoreNowPlayingMediaController(
         }
     }
 
-    private suspend fun currentTrack(request: NowPlayingCurrentTrackUiActionRequest) {
-        val track = currentTrackOrPublish() ?: return
+    private suspend fun currentTrack(request: NowPlayingCurrentTrackUiActionRequest): NaviampCoreCommandResult {
+        val track = currentTrackOrPublish() ?: return NaviampCoreCommandResult.PlaybackActionApplied(false)
         request.target?.let { target ->
             if (target.trackId != track.id.value ||
                 target.sourceId != stateStore.state.value.shell.connectionSettings.currentSourceId ||
                 stateStore.state.value.shell.connect.remotePlaybackAuthorityActive ||
-                target.queue?.let { it != playback.state.value.queue } == true) return
+                target.queue?.let { it != playback.state.value.queue } == true) return NaviampCoreCommandResult.PlaybackActionApplied(false)
         }
         when (request.action) {
-            NowPlayingCurrentTrackAction.StartRadio -> generatedRadio.startTrackRadio(track)
+            NowPlayingCurrentTrackAction.StartRadio -> return NaviampCoreCommandResult.PlaybackActionApplied(generatedRadio.startTrackRadio(track))
             NowPlayingCurrentTrackAction.AddToPlaylist -> request.playlistChoice?.id?.let { addToPlaylist(track, it) }
                 ?: membership.open(track)
             NowPlayingCurrentTrackAction.CreatePlaylistAndAdd -> createPlaylist(track, request.playlistName)
             NowPlayingCurrentTrackAction.Download -> downloads.downloadTracks(track.title, listOf(track), includeCompletedCount = false)
             NowPlayingCurrentTrackAction.GoToAlbum -> openAlbum(track)
             NowPlayingCurrentTrackAction.GoToArtist -> openArtist(track, request.artistId, request.artistName)
-            NowPlayingCurrentTrackAction.ToggleFavorite -> toggleFavorite(track)
+            NowPlayingCurrentTrackAction.ToggleFavorite -> return NaviampCoreCommandResult.PlaybackActionApplied(toggleFavorite(track))
             NowPlayingCurrentTrackAction.SetRating -> setRating(track, request.rating)
         }
+        presenter.publish(playbackController.currentDisplay())
+        return NaviampCoreCommandResult.Completed
     }
 
     private suspend fun selection(request: NowPlayingSelectionActionRequest) {
@@ -210,7 +215,7 @@ class NaviampCoreNowPlayingMediaController(
                     val update = queue.selectIndex(index)
                     if (update.changed) {
                         playback.updateCurrentTrack(update.queue.current)
-                        effects.playQueueSelection(update.queue, update.queue.currentIndex)
+                        effects.selectExistingQueueItem(update.queue, update.queue.currentIndex)
                     }
                 }
             }
@@ -320,16 +325,30 @@ class NaviampCoreNowPlayingMediaController(
             .onFailure { publishPlaylistStatus(it.message ?: "Could not create playlist.") }
     }
 
-    private suspend fun toggleFavorite(track: Track) {
-        val provider = providerOrPublish() ?: return
-        runCatching { favoriteTrackUpdate(provider, track, favoritedAtIso8601()) }
-            .onSuccess { updated ->
-                if (updated == null) publishStatus("Track favorites are not supported.") else {
-                    mediaRegistry.updateTrack(updated)
-                    replaceTrack(updated)
-                }
+    private suspend fun toggleFavorite(track: Track): Boolean {
+        val provider = providerOrPublish() ?: return false
+        val source = stateStore.state.value.vehicleSourceKey()
+        try {
+            val updated = favoriteTrackUpdate(provider, track, favoritedAtIso8601())
+            currentCoroutineContext().ensureActive()
+            if (source != stateStore.state.value.vehicleSourceKey() || !providerSource.isCurrent(provider)) return false
+            if (updated == null) {
+                publishStatus("Track favorites are not supported.")
+                return false
             }
-            .onFailure { publishStatus(it.message ?: "Could not update favorite.") }
+            mediaRegistry.updateTrack(updated)
+            // A delayed favorite must never replace a newly selected song.
+            if (currentTrack()?.id == updated.id) playback.updateCurrentTrack(updated)
+            val mutation = queue.updateTrack(updated)
+            if (mutation.changed) effects.applyQueue(mutation.queue, mutation.clearPreparedNext)
+            presenter.publish(playbackController.currentDisplay())
+            return true
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            if (source == stateStore.state.value.vehicleSourceKey()) publishStatus(error.message ?: "Could not update favorite.")
+            return false
+        }
     }
 
     private suspend fun setRating(track: Track, rating: Int?) {

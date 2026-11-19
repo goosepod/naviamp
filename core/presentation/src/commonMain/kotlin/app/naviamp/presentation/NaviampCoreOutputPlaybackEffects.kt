@@ -33,6 +33,7 @@ internal class NaviampCoreOutputPlaybackEffects(
 ) : NaviampCorePlaybackEffectPort {
     var cast: NaviampCoreCastPlaybackRoute? = null
     var beforeStart: () -> Unit = {}
+    var onSelectionStarted: () -> Unit = {}
 
     private val castSelected: Boolean get() =
         (outputs.state.value as? NaviampPlaybackOutputSelection.Remote)?.target?.kind == NaviampRemoteOutputKind.Cast
@@ -40,8 +41,10 @@ internal class NaviampCoreOutputPlaybackEffects(
     override val capabilities: NaviampCorePlaybackCapabilities get() =
         if (castSelected) local.capabilities.copy(
             supportsVisualizer = false,
+            supportsDownloadedOnly = false,
             supportsSoftwareVolume = true,
         ) else local.capabilities
+    override val downloadedOnlyQueue: Boolean get() = !castSelected && local.downloadedOnlyQueue
     override val playbackSource: PlaybackSource get() = local.playbackSource
     override val playbackQuality: StreamQuality? get() = local.playbackQuality
 
@@ -67,6 +70,10 @@ internal class NaviampCoreOutputPlaybackEffects(
 
     override fun setVisualizerFramesEnabled(enabled: Boolean) =
         local.setVisualizerFramesEnabled(enabled && !castSelected)
+
+    override fun applyProviderQueue(queue: PlaybackQueue, clearPreparedNext: Boolean) {
+        if (!castSelected) local.applyProviderQueue(queue, clearPreparedNext)
+    }
 
     override fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean) {
         if (!castSelected) local.applyQueue(queue, clearPreparedNext)
@@ -94,7 +101,21 @@ internal class NaviampCoreOutputPlaybackEffects(
         if (!castSelected) local.applyRepeatMode(mode)
     }
 
+    override fun playDownloadedQueueSelection(queue: PlaybackQueue, index: Int) {
+        if (castSelected || !local.capabilities.supportsDownloadedOnly) return
+        onSelectionStarted()
+        beforeStart()
+        local.playDownloadedQueueSelection(queue, index)
+    }
+
+    override fun selectExistingQueueItem(queue: PlaybackQueue, index: Int) {
+        onSelectionStarted()
+        beforeStart()
+        if (castSelected) cast?.loadCurrent() else local.selectExistingQueueItem(queue, index)
+    }
+
     override fun playQueueSelection(queue: PlaybackQueue, index: Int) {
+        onSelectionStarted()
         beforeStart()
         if (castSelected) cast?.loadCurrent() else local.playQueueSelection(queue, index)
     }

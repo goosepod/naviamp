@@ -497,4 +497,25 @@
     <string name="connection_aurral_companion_invalid">Aurral HTTP 또는 HTTPS 서버 URL과 사용자 이름을 입력하세요.</string>
     <string name="discovery_find_in_aurral">Aurral에서 찾기</string>
     <string name="connection_aurral_companion_save_failed">Aurral 연동을 저장하지 못했습니다. 음악 서버 연결은 변경되지 않았습니다.</string>
+    <string name="transport_play">재생</string>
+    <string name="library_title">라이브러리</string>
+    <string name="mix_bias_favorites">즐겨찾기</string>
+    <string name="common_unavailable">사용할 수 없음</string>
+    <string name="search_music_label">음악 검색</string>
+    <string name="search_no_matches">검색 결과가 없습니다.</string>
+    <string name="settings_category_downloads_title">다운로드</string>
+    <string name="home_empty">연결 후 홈 섹션이 표시됩니다.</string>
+    <string name="home_music_title">홈</string>
+    <string name="playlists_title">재생목록</string>
+    <string name="transport_next">다음</string>
+    <string name="transport_previous">이전</string>
+    <string name="tv_loading">불러오는 중…</string>
+    <string name="tv_this_collection_is_empty">이 컬렉션은 비어 있습니다.</string>
+
+    <string name="settings_source_connections_title">연결</string>
+    <string name="common_reconnect">다시 연결</string>
+    <string name="common_current">현재</string>
+    <string name="common_connecting">연결 중</string>
+    <string name="vehicle_connection_setup_on_phone">휴대전화에서 연결을 추가하거나 업데이트하세요.</string>
+    <string name="vehicle_connection_offline">오프라인</string>
 </resources>

@@ -369,6 +369,12 @@ class NaviampCorePlaybackController(
         }
         effects.attach(object : NaviampCorePlaybackObserver {
             override fun onStateChanged(state: PlaybackState) {
+                stateStore.update { current -> current.copy(
+                    readyPlaybackSelectionGeneration = if (state == PlaybackState.Playing)
+                        current.playbackSelectionGeneration else -1L,
+                    failedPlaybackSelectionGeneration = if (state is PlaybackState.Error)
+                        current.playbackSelectionGeneration else -1L,
+                ) }
                 if (state == PlaybackState.Playing) connectHandoffAwaitingStart = false
                 val repeatedFinished = state == PlaybackState.Finished &&
                     playback.state.value.playbackState == PlaybackState.Finished
@@ -470,8 +476,10 @@ class NaviampCorePlaybackController(
         presenter.publish(display)
     }
 
-    suspend fun restoreSession(sourceId: String): Boolean {
-        when (val restored = sessions.restorePlan(sourceId)) {
+    suspend fun restoreSession(sourceId: String, allowAutoPlay: Boolean = true): Boolean {
+        val restored = sessions.restorePlan(sourceId)
+        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        when (restored) {
             PlaybackSessionRestorePlan.None -> {
                 if (sourceTransitionTargetId == sourceId) sourceTransitionTargetId = null
                 presenter.publish(display)
@@ -495,7 +503,7 @@ class NaviampCorePlaybackController(
                 // lyrics, and tag loading can be expensive for long tracks, so resume that work
                 // in the controller's cancellable background sidecar job.
                 loadCurrentTrackSidecars()
-                if (stateStore.state.value.shell.general.interfaceSettings.startPlayingOnLaunch) {
+                if (allowAutoPlay && stateStore.state.value.shell.general.interfaceSettings.startPlayingOnLaunch) {
                     effects.startOrRestore()
                 }
                 publishStatus(restored.status)
@@ -516,7 +524,7 @@ class NaviampCorePlaybackController(
                 effects.restoreInternetRadio(restored.station)
                 persistedQueue = restoredQueue
                 persistedStationId = restored.station.id
-                if (stateStore.state.value.shell.general.interfaceSettings.startPlayingOnLaunch) {
+                if (allowAutoPlay && stateStore.state.value.shell.general.interfaceSettings.startPlayingOnLaunch) {
                     effects.startOrRestore()
                 }
                 publishStatus(restored.status)

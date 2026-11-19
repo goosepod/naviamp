@@ -2,15 +2,9 @@ import NaviampShared
 import SwiftUI
 
 struct NaviampRootView: UIViewControllerRepresentable {
+    @MainActor
     final class Coordinator {
-        let application = NaviampIosApplication(
-            applicationSupportDirectory: IosApplicationDirectories.supportDirectory(),
-            credentialProtector: IosKeychainCredentialProtector()
-        )
-
-        deinit {
-            application.close()
-        }
+        let application = NaviampApplicationDelegate.runtime.application()
     }
 
     func makeCoordinator() -> Coordinator {
@@ -22,4 +16,8 @@ struct NaviampRootView: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
+
+    static func dismantleUIViewController(_ uiViewController: UIViewController, coordinator: Coordinator) {
+        coordinator.application.releaseViewController(controller: uiViewController)
+    }
 }
