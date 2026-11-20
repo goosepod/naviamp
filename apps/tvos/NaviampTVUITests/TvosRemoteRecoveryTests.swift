@@ -379,6 +379,72 @@ final class TvosRemoteRecoveryTests: XCTestCase {
         record("system-track-navigation-return")
     }
 
+    private func press(_ button: XCUIRemote.Button, _ count: Int) {
+        for _ in 0..<count { remote.press(button) }
+    }
+
+    /// Compose focus is not exposed to XCTest, so this follows the fixed TV layout: the top
+    /// navigation (Home ... Search) and the editor's three letter rows above its action row.
+    private func openLiveSearchEditor() {
+        app.terminate()
+        app.launch()
+        let search = app.buttons["Search"].firstMatch
+        if !search.waitForExistence(timeout: 5) { remote.press(.menu) }
+        XCTAssertTrue(search.waitForExistence(timeout: 20), "Shell navigation")
+        press(.up, 3)
+        press(.left, 6)
+        press(.right, 5)
+        remote.press(.select)
+        XCTAssertTrue(field("television-search-query").waitForExistence(timeout: 10), "Search query field")
+        remote.press(.select)
+        XCTAssertTrue(app.buttons["Backspace"].firstMatch.waitForExistence(timeout: 5), "Search editor")
+    }
+
+    /// Opt-in live check of the Search editor's remote actions on a configured simulator
+    /// (TEST_RUNNER_TV590_LIVE=1). XCTest cannot type a hardware Return into the Compose editor
+    /// because no UIKit text input holds keyboard focus; the shared TV workflow test covers Return.
+    func testLiveSearchEditorRemoteActions() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["TV590_LIVE"] == "1", "Live configured simulator only")
+        openLiveSearchEditor()
+        let draft = { (text: String) in self.app.staticTexts[text].firstMatch }
+        let editor = app.buttons["Backspace"].firstMatch
+        press(.select, 3)
+        XCTAssertTrue(draft("aaa").waitForExistence(timeout: 5), "Remote Select types the focused letter")
+        record("live-search-remote-letters")
+        press(.down, 3) // Space
+        remote.press(.right) // Backspace
+        remote.press(.select)
+        XCTAssertTrue(draft("aa").waitForExistence(timeout: 5), "Backspace deletes a character")
+        XCTAssertTrue(editor.exists, "Backspace keeps the editor open")
+        record("live-search-backspace")
+        press(.right, 2) // System keyboard, Cancel
+        remote.press(.select)
+        XCTAssertTrue(editor.waitForNonExistence(timeout: 5), "Cancel closes the editor")
+        XCTAssertFalse(draft("aa").exists, "Cancel does not submit the draft")
+        record("live-search-cancel")
+        remote.press(.select)
+        XCTAssertTrue(editor.waitForExistence(timeout: 5), "Select reopens the editor")
+        remote.press(.select)
+        press(.down, 3)
+        press(.right, 4) // Search
+        remote.press(.select)
+        XCTAssertTrue(editor.waitForNonExistence(timeout: 5), "Search submits the draft")
+        record("live-search-submitted")
+    }
+
+    /// Opt-in live helper that toggles playback and opens Now Playing for animation measurements (TEST_RUNNER_TV590_LIVE=1).
+    func testLiveTogglePlayback() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["TV590_LIVE"] == "1", "Live configured simulator only")
+        app.activate()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+        remote.press(.playPause)
+        press(.up, 3)
+        press(.left, 6)
+        remote.press(.right) // Now Playing
+        remote.press(.select)
+        record("live-toggle-playback")
+    }
+
     func testMainAndCompanionRemoteRecovery() async throws {
         let fresh = try await control("create")
         XCTAssertEqual(fresh["databaseExists"] as? Bool, false)
