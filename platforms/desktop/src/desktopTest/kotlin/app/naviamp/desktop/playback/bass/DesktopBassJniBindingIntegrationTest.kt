@@ -35,9 +35,18 @@ class DesktopBassJniBindingIntegrationTest {
             val playing = assertNotNull(backend.audiblePositionSeconds(handle, handle))
             assertTrue(kotlin.math.abs(native - playing) < 0.05, "Native=$native reported=$playing")
             assertTrue(binding.pause(stream))
-            val paused = assertNotNull(binding.positionSeconds(stream))
+            // Real output can retire one more frame after pause returns; compare the settled cursor.
+            var paused = assertNotNull(binding.positionSeconds(stream))
+            val settleDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1)
+            while (System.nanoTime() < settleDeadline) {
+                Thread.sleep(50)
+                val next = assertNotNull(binding.positionSeconds(stream))
+                if (next == paused) break
+                paused = next
+            }
             assertEquals(paused, backend.audiblePositionSeconds(handle, handle))
             Thread.sleep(200)
+            assertEquals(paused, backend.audiblePositionSeconds(handle, handle), "Paused clock must stay fixed")
             assertTrue(binding.play(stream))
             assertTrue(assertNotNull(backend.audiblePositionSeconds(handle, handle)) >= paused)
         } finally { binding.free(); wav.delete() }

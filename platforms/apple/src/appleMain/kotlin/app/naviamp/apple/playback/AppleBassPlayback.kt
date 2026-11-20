@@ -2,6 +2,7 @@
 
 package app.naviamp.apple.playback
 
+import app.naviamp.domain.bass.bassPluginLoadDiagnostic
 import app.naviamp.domain.bass.BassFilePosition
 import app.naviamp.domain.bass.BassInternetStreamPolicy
 import app.naviamp.apple.bass.native.BASS_StreamGetFilePosition
@@ -165,10 +166,8 @@ open class AppleBassAudioBackend(
             ensureCodecPluginsLoaded()
             return bundledFrameworks.map { framework ->
                 when (framework) {
-                    in codecPlugins -> BassPluginDiagnostic(
-                        stem = framework,
-                        loaded = pluginHandles[framework] != null,
-                        errorCode = failedPlugins[framework],
+                    in codecPlugins -> bassPluginLoadDiagnostic(
+                        framework, pluginHandles[framework] != null, failedPlugins[framework],
                     )
                     else -> BassPluginDiagnostic(stem = framework, loaded = true)
                 }

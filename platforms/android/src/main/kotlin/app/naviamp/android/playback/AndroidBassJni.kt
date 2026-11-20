@@ -1,5 +1,6 @@
 package app.naviamp.android.playback
 
+import app.naviamp.domain.bass.bassPluginLoadDiagnostic
 import app.naviamp.domain.bass.BassInternetStreamPolicy
 
 import android.util.Log
@@ -145,11 +146,7 @@ object AndroidBassJni {
                 BassPluginDiagnostic(stem = stem, loaded = false)
             } else {
                 val handle = nativeLoadPlugin(androidBassPluginFileName(stem))
-                BassPluginDiagnostic(
-                    stem = stem,
-                    loaded = handle != 0,
-                    errorCode = if (handle == 0) nativeLastErrorCode() else null,
-                )
+                bassPluginLoadDiagnostic(stem, handle != 0, if (handle == 0) nativeLastErrorCode() else null)
             }
         }.also { diagnostics ->
             val loaded = diagnostics.count(BassPluginDiagnostic::loaded)

@@ -892,6 +892,12 @@ class BassAudioBackendTest {
             backend.calls,
         )
     }
+    @Test
+    fun pluginAlreadyRegisteredInTheProcessCountsAsLoaded() {
+        assertEquals(BassPluginDiagnostic("bassflac", loaded = true), bassPluginLoadDiagnostic("bassflac", true, null))
+        assertEquals(BassPluginDiagnostic("bassflac", loaded = true), bassPluginLoadDiagnostic("bassflac", false, BassErrorAlready))
+        assertEquals(BassPluginDiagnostic("bassflac", loaded = false, errorCode = 2), bassPluginLoadDiagnostic("bassflac", false, 2))
+    }
 }
 
 private class RecordingBassAudioBackend(

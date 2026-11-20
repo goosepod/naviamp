@@ -1,5 +1,6 @@
 package app.naviamp.desktop.playback.bass
 
+import app.naviamp.domain.bass.bassPluginLoadDiagnostic
 import app.naviamp.domain.bass.BassInternetStreamPolicy
 
 import app.naviamp.domain.bass.BassCodecPluginInventory
@@ -139,12 +140,13 @@ class DesktopBassJniBinding private constructor(
             if (!file.isFile) return@mapNotNull null
 
             val handle = nativeLoadPlugin(file.absolutePath)
+            val diagnostic = bassPluginLoadDiagnostic(stem, handle != 0, if (handle == 0) lastErrorCode else null)
             DesktopBassJniPlugin(
                 stem = stem,
                 file = file,
                 handle = handle,
-                loaded = handle != 0,
-                errorCode = if (handle == 0) lastErrorCode else null,
+                loaded = diagnostic.loaded,
+                errorCode = diagnostic.errorCode,
             ).also { loadedPlugins[stem] = it }
         }
 

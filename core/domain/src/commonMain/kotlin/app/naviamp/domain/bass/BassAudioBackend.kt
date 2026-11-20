@@ -116,6 +116,17 @@ data class BassPluginDiagnostic(
     val errorCode: Int? = null,
 )
 
+/** BASS_PluginLoad's BASS_ERROR_ALREADY: the plugin is already registered in this process. */
+const val BassErrorAlready: Int = 14
+
+/**
+ * Interprets one BASS_PluginLoad attempt. BASS registers plugins per process, so a plugin that an
+ * earlier engine already loaded reports BASS_ERROR_ALREADY but remains usable.
+ */
+fun bassPluginLoadDiagnostic(stem: String, loaded: Boolean, errorCode: Int?): BassPluginDiagnostic =
+    if (loaded || errorCode == BassErrorAlready) BassPluginDiagnostic(stem, loaded = true)
+    else BassPluginDiagnostic(stem, loaded = false, errorCode = errorCode)
+
 /**
  * BASS add-ons that extend the standard stream creation APIs through BASS_PluginLoad.
  *
