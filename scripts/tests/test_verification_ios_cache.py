@@ -23,6 +23,17 @@ class CacheCompatibilityTest(unittest.TestCase):
             simulator_sdk='24A1', device_sdk='24A1'):
         return CACHE.compatibility(root, architecture, xcode, simulator_sdk, device_sdk)[1]
 
+    def test_cache_population_skips_the_same_booted_simulator_tests_as_verify(self):
+        import re
+        workflow = (ROOT / '.github/workflows/verify.yml').read_text()
+        verify = set(re.findall(r'-x (:\S+:iosSimulatorArm64Test)', workflow))
+        cache = {task for flag, task in zip(CACHE.BOOTED_SIMULATOR_TEST_EXCLUSIONS[::2],
+                                            CACHE.BOOTED_SIMULATOR_TEST_EXCLUSIONS[1::2])}
+        self.assertEqual(verify, cache)
+        for task in cache - {':platforms:ios:iosSimulatorArm64Test'}:
+            self.assertIn(task.replace('iosSimulatorArm64Test', 'linkDebugTestIosSimulatorArm64'),
+                          CACHE.BOOTED_SIMULATOR_TEST_BINARIES)
+
     def test_each_native_abi_input_invalidates_the_entire_restore_prefix(self):
         baseline = self.key()
         for argument, value in [('architecture', 'x86_64'), ('xcode', 'Xcode 27.3\nBuild 27C1'),
