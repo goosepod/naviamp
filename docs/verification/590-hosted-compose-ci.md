@@ -73,7 +73,7 @@ permission. The explicit attestation read scope follows the
 
 ## Scene workflow and cleanup
 
-`.github/workflows/tvos-scene.yml` covers relevant PR changes and manual verification. It checks
+`.github/workflows/tvos-scene.yml` is manual-only while the pin is pending, then covers relevant PR changes. It checks
 out accepted policy from the PR's base SHA (accepted `main` for manual runs) separately from the
 exact source under test. Fetch/install uses that policy's script and pin, so a PR cannot promote
 its own candidate by editing either. Checkout credentials are not persisted. Authentication ends

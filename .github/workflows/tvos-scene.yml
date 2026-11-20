@@ -1,21 +1,10 @@
 name: tvOS reviewed Compose scene
 
+# Manual until the hosted Compose producer publishes an approved pin. The installer rejects the
+# pending pin in build-support/tvos-compose/trusted-artifact.json, so a pull_request trigger would
+# fail every matching PR. Restore the pull_request trigger when the pin is promoted.
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - 'core/**'
-      - 'apps/**'
-      - 'platforms/**'
-      - 'providers/**'
-      - 'native/**'
-      - 'build-logic/**'
-      - 'build-support/tvos-compose/**'
-      - 'scripts/**'
-      - 'gradle/**'
-      - '*.gradle.kts'
-      - 'gradle.properties'
-      - '.github/workflows/tvos-*.yml'
 
 permissions:
   contents: read

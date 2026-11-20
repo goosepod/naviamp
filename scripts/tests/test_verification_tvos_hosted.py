@@ -237,7 +237,9 @@ class HostedWorkflowTrustTest(unittest.TestCase):
 
     def test_consumer_uses_base_policy_with_read_only_permissions_and_step_scoped_token(self):
         workflow = self.workflow('tvos-scene.yml')
-        self.assertEqual(set(workflow['on']), {'pull_request', 'workflow_dispatch'})
+        pin = json.loads((ROOT / 'build-support/tvos-compose/trusted-artifact.json').read_text())
+        expected = {'workflow_dispatch'} if pin['status'].startswith('pending') else {'pull_request', 'workflow_dispatch'}
+        self.assertEqual(set(workflow['on']), expected)
         self.assertEqual(workflow['permissions'], {'contents': 'read', 'actions': 'read', 'attestations': 'read'})
         job = workflow['jobs']['scene']
         self.assertNotIn('GH_TOKEN', job['env'])
