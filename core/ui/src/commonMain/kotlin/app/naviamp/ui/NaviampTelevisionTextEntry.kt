@@ -22,6 +22,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalInputModeManager
@@ -61,6 +62,11 @@ internal fun TelevisionSearchEditor(
     val canSubmit = draft.isNotBlank() || request.value.isNotEmpty()
     val systemKeyboardFocus = remember { FocusRequester() }
     val firstKeyFocus = remember { FocusRequester() }
+    // Enter activates a focused editor action; elsewhere (letters, hardware typing) it submits.
+    var focusedAction by remember { mutableStateOf<TelevisionSearchEditorAction?>(null) }
+    fun Modifier.editorAction(action: TelevisionSearchEditorAction) = onFocusChanged {
+        if (it.isFocused) focusedAction = action else if (focusedAction == action) focusedAction = null
+    }
     fun deleteLastCharacter() {
         val length = draft.length
         if (length > 0) {
@@ -99,7 +105,13 @@ internal fun TelevisionSearchEditor(
                         return@onPreviewKeyEvent false
                     }
                     if (event.key == Key.Enter || event.key == Key.NumPadEnter) {
-                        if (event.type == KeyEventType.KeyDown && canSubmit) onClose(draft)
+                        if (event.type == KeyEventType.KeyDown) when (focusedAction) {
+                            TelevisionSearchEditorAction.Space -> draft += ' '
+                            TelevisionSearchEditorAction.Backspace -> deleteLastCharacter()
+                            TelevisionSearchEditorAction.SystemKeyboard -> systemKeyboardOpen = true
+                            TelevisionSearchEditorAction.Cancel -> onClose(null)
+                            TelevisionSearchEditorAction.Submit, null -> if (canSubmit) onClose(draft)
+                        }
                         return@onPreviewKeyEvent true
                     }
                     if (event.type != KeyEventType.KeyDown) {
@@ -139,21 +151,27 @@ internal fun TelevisionSearchEditor(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TelevisionTextButton(stringResource(Res.string.tv_search_keyboard_space), colors, calmFocus = true,
+                    modifier = Modifier.editorAction(TelevisionSearchEditorAction.Space),
                     contentPadding = keyPadding, onClick = { draft += ' ' })
                 TelevisionTextButton(stringResource(Res.string.tv_search_keyboard_backspace), colors, calmFocus = true,
+                    modifier = Modifier.editorAction(TelevisionSearchEditorAction.Backspace),
                     contentPadding = keyPadding, onClick = ::deleteLastCharacter)
                 TelevisionTextButton(stringResource(Res.string.tv_search_system_keyboard), colors, calmFocus = true,
-                    modifier = Modifier.focusRequester(systemKeyboardFocus), contentPadding = keyPadding,
-                    onClick = { systemKeyboardOpen = true })
+                    modifier = Modifier.focusRequester(systemKeyboardFocus)
+                        .editorAction(TelevisionSearchEditorAction.SystemKeyboard),
+                    contentPadding = keyPadding, onClick = { systemKeyboardOpen = true })
                 Spacer(Modifier.weight(1f))
                 TelevisionTextButton(request.cancelLabel, colors, calmFocus = true, contentPadding = keyPadding,
-                    onClick = { onClose(null) })
+                    modifier = Modifier.editorAction(TelevisionSearchEditorAction.Cancel), onClick = { onClose(null) })
                 TelevisionTextButton(request.submitLabel, colors, calmFocus = true, contentPadding = keyPadding,
+                    modifier = Modifier.editorAction(TelevisionSearchEditorAction.Submit),
                     enabled = canSubmit, onClick = { onClose(draft) })
             }
         }
     }
 }
+
+private enum class TelevisionSearchEditorAction { Space, Backspace, SystemKeyboard, Cancel, Submit }
 
 private val TelevisionSearchKeyboardRows = "abcdefghijklmnopqrstuvwxyz0123456789".chunked(12)
 internal const val TelevisionSearchEditorTestTag = "television-search-editor"

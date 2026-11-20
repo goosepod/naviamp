@@ -60,6 +60,39 @@ class NaviampTelevisionWorkflowTest {
         field.assertIsFocused().assert(hasText("New query"))
     }
 
+    @Test fun hardwareReturnActivatesTheFocusedEditorActionInsteadOfSubmitting() = runComposeUiTest {
+        val screen = mutableStateOf(NaviampSearchScreenUi(query = "ab"))
+        val submitted = mutableListOf<String>()
+        setContent {
+            CompositionLocalProvider(LocalNaviampTelevisionTextEntry provides NaviampTelevisionTextEntry { null }) {
+                TelevisionSearch(
+                    screen.value, NaviampColors.Dark,
+                    NaviampSearchActions(
+                        { screen.value = screen.value.copy(query = it) },
+                        { submitted += screen.value.query },
+                        {},
+                    ),
+                    NaviampMediaActions({}, {}),
+                    entryFocusGeneration = 1,
+                )
+            }
+        }
+        val field = onNodeWithTag("television-search-query")
+        field.assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
+        val editor = hasAnyAncestor(hasTestTag(TelevisionSearchEditorTestTag))
+        onNode(hasText("Backspace") and editor).requestFocus().performKeyInput { pressKey(Key.Enter) }
+        onNode(hasText("a") and !hasClickAction() and editor).assertIsDisplayed()
+        onNode(hasText("Space") and editor).requestFocus().performKeyInput { pressKey(Key.NumPadEnter) }
+        onNode(hasText("a ") and !hasClickAction() and editor, useUnmergedTree = true).assertExists()
+        onNode(hasText("Cancel") and editor).requestFocus().performKeyInput { pressKey(Key.Enter) }
+        onNodeWithTag(TelevisionSearchEditorTestTag).assertDoesNotExist()
+        assertTrue(submitted.isEmpty())
+        field.assertIsFocused().assert(hasText("ab"))
+        field.performKeyInput { pressKey(Key.DirectionCenter) }
+        onNode(hasText("Search") and editor).requestFocus().performKeyInput { pressKey(Key.Enter) }
+        assertEquals(listOf("ab"), submitted)
+    }
+
     @Test fun hardwareReturnSubmitsSearchAndSelectsTheFocusedResult() = runComposeUiTest {
         val album = SharedMediaItemUi("album", "Fixture album", "Artist")
         val screen = mutableStateOf(NaviampSearchScreenUi())
