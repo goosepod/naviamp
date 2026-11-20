@@ -641,14 +641,16 @@ jobs:
             iosSimulatorArm64Test \
             -x :platforms:ios:iosSimulatorArm64Test \
             -x :apps:ios:iosSimulatorArm64Test \
+            -x :platforms:apple-media:iosSimulatorArm64Test \
             :platforms:ios:linkDebugTestIosSimulatorArm64 \
+            :platforms:apple-media:linkDebugTestIosSimulatorArm64 \
             :platforms:ios:stageIosSimulatorTestBassFrameworks \
             :apps:ios:linkDebugTestIosSimulatorArm64 \
             :apps:ios:compileKotlinIosArm64
 
-          # Application tests load staged native audio frameworks and need a booted simulator.
-          # Run them before starting the separate time-sensitive TLS fixture.
-          if [ -d apps/ios/src/iosTest ]; then
+          # Application and system-media tests load native audio frameworks and need a booted
+          # simulator. Run them before starting the separate time-sensitive TLS fixture.
+          if [ -d apps/ios/src/iosTest ] || [ -d platforms/apple-media/src/appleTest ]; then
             template_id="$(xcrun simctl list devices available --json | python3 -c 'import json,sys; print(next(d["udid"] for devices in json.load(sys.stdin)["devices"].values() for d in devices if d["name"].startswith("iPhone")))')"
             app_test_device="$(xcrun simctl clone "$template_id" 'Naviamp Application Verification')"
             cleanup_app_test_device() {
@@ -659,7 +661,8 @@ jobs:
             xcrun simctl boot "$app_test_device"
             xcrun simctl bootstatus "$app_test_device" -b
             ./gradlew --max-workers=2 "${cache_flags[@]}" \
-              "-Pnaviamp.ios.testDevice=$app_test_device" :apps:ios:iosSimulatorArm64Test
+              "-Pnaviamp.ios.testDevice=$app_test_device" :apps:ios:iosSimulatorArm64Test \
+              :platforms:apple-media:iosSimulatorArm64Test
             cleanup_app_test_device
             trap - EXIT
           fi
