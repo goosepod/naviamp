@@ -56,7 +56,18 @@ fun withNaviampMobileMutualTlsFixture(block: (NaviampMobileMutualTlsFixtureHandl
                         "ranges=${mutual.requestedRanges.toList().joinToString("|")}",
                         "privatePeers=${privateCa.peerSubjects.toList().joinToString("|")}",
                         "wrongHostRequests=${wrongName.requestedPaths.size}",
+                        "unavailable=${mutual.rejectedAudioRequests.get()}",
+                        "truncated=${mutual.truncatedAudioResponses.get()}",
+                        "wrongRanges=${mutual.wrongAudioRanges.get()}",
                     ).joinToString("\n")
+                    "/fault" -> {
+                        val query = exchange.requestURI.rawQuery.orEmpty()
+                        val mode = query.removePrefix("token=$stopToken&mode=")
+                        if (query == "token=$stopToken&mode=$mode" && mode in setOf("none", "unavailable", "truncated", "wrong-range")) {
+                            mutual.setAudioFault(mode)
+                            "mode=$mode"
+                        } else ""
+                    }
                     "/stop" -> if (exchange.requestURI.rawQuery == "token=$stopToken") "stopping" else ""
                     else -> ""
                 }.encodeToByteArray()

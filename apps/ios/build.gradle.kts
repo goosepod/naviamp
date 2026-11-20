@@ -36,11 +36,11 @@ kotlin {
         iosMain.dependencies {
             implementation(project(":core:app"))
             api(project(":core:storage"))
+            implementation(project(":core:bootstrap"))
             implementation(project(":core:presentation"))
             implementation(project(":core:ui"))
             implementation(project(":platforms:ios"))
-            implementation(project(":providers:navidrome"))
-            implementation(project(":providers:jellyfin"))
+            implementation(project(":platforms:apple-media"))
             implementation(compose.runtime)
             implementation(compose.ui)
             implementation(libs.compose.material3)

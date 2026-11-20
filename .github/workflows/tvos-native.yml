@@ -1,0 +1,140 @@
+name: tvOS direct BASS
+
+on:
+  pull_request:
+    paths:
+      - 'core/domain/**'
+      - 'core/host-api/**'
+      - 'core/app/**'
+      - 'core/storage/**'
+      - 'providers/navidrome/**'
+      - 'providers/jellyfin/**'
+      - 'platforms/apple/**'
+      - 'platforms/tvos/**'
+      - 'platforms/ios/vendor/bass/**'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - '*.gradle.kts'
+      - 'scripts/run-tvos-bass-tests.py'
+      - '.github/workflows/tvos-native.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'core/domain/**'
+      - 'core/host-api/**'
+      - 'core/app/**'
+      - 'core/storage/**'
+      - 'providers/navidrome/**'
+      - 'providers/jellyfin/**'
+      - 'platforms/apple/**'
+      - 'platforms/tvos/**'
+      - 'platforms/ios/vendor/bass/**'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - '*.gradle.kts'
+      - 'scripts/run-tvos-bass-tests.py'
+      - '.github/workflows/tvos-native.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tvos-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: Core and public tvOS BASS
+    runs-on: macos-latest
+    timeout-minutes: 35
+    env:
+      TZ: America/Los_Angeles
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+      - name: Ensure a tvOS simulator runtime is available
+        timeout-minutes: 10
+        run: |
+          python3 - <<'PY'
+          import json, platform, subprocess
+          if platform.machine() != 'arm64':
+              raise SystemExit('The tvOS ARM64 simulator tests require an Apple silicon runner.')
+          def available():
+              runtimes = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', 'runtimes', '--json']))['runtimes']
+              return any(r['isAvailable'] and 'tvOS' in r['name'] for r in runtimes)
+          if not available():
+              version = subprocess.check_output(['xcrun', '--sdk', 'appletvsimulator', '--show-sdk-version'], text=True).strip()
+              subprocess.run(['xcodebuild', '-downloadPlatform', 'tvOS', '-buildVersion', version,
+                              '-architectureVariant', 'arm64'], check=True, timeout=540)
+          if not available():
+              raise SystemExit('Xcode did not provide a usable tvOS runtime.')
+          PY
+      - name: Identify the exact tvOS compiler cache
+        id: identity
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, platform, subprocess, tomllib
+          from pathlib import Path
+          def command(*args):
+              return subprocess.check_output(args, text=True).strip()
+          paths = [Path('gradle/libs.versions.toml'), Path('gradle/wrapper/gradle-wrapper.properties'),
+                   Path('gradle.properties')]
+          for directory in ('platforms/apple/src/nativeInterop', 'platforms/tvos/vendor'):
+              paths.extend(path for path in Path(directory).rglob('*') if path.is_file())
+          identity = dict(architecture=platform.machine(), xcode=command('xcodebuild', '-version'),
+              deviceSdk=command('xcrun', '--sdk', 'appletvos', '--show-sdk-build-version'),
+              simulatorSdk=command('xcrun', '--sdk', 'appletvsimulator', '--show-sdk-build-version'),
+              kotlin=tomllib.loads(Path('gradle/libs.versions.toml').read_text())['versions']['kotlin'],
+              inputs={str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted(paths)})
+          key = 'naviamp-tvos-native-v1-' + hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
+          Path('build/tvos-cache').mkdir(parents=True)
+          Path('build/tvos-cache/identity.json').write_text(json.dumps(identity, indent=2) + '\n')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
+              stream.write('key=' + key + '\n')
+          with open(os.environ['GITHUB_ENV'], 'a') as stream:
+              stream.write('KONAN_DATA_DIR=' + str(Path(os.environ['RUNNER_TEMP']) / 'naviamp-tvos-native/konan') + '\n')
+          PY
+      - uses: actions/cache/restore@v6
+        id: native-cache
+        with:
+          path: ${{ env.KONAN_DATA_DIR }}
+          key: ${{ steps.identity.outputs.key }}
+      - name: Compile the tvOS device adapter
+        run: |
+          ./gradlew --console=plain --max-workers=2 \
+            '-Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8' \
+            "-Pkonan.data.dir=$KONAN_DATA_DIR" -Pnaviamp.tvos.enabled=true \
+            :platforms:tvos:compileKotlinTvosArm64 :platforms:tvos:verifyTvosBassInventory \
+            :core:app:compileKotlinTvosArm64 :core:storage:compileKotlinTvosArm64 \
+            :providers:navidrome:compileKotlinTvosArm64 :providers:jellyfin:compileKotlinTvosArm64
+      - name: Run fresh Core and direct BASS simulator tests
+        run: |
+          python3 scripts/run-tvos-bass-tests.py --output build/tvos-native --shared-foundation \
+            "--gradle-arg=-Pkonan.data.dir=$KONAN_DATA_DIR"
+      - uses: actions/cache/save@v6
+        if: github.ref == 'refs/heads/main' && steps.native-cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ env.KONAN_DATA_DIR }}
+          key: ${{ steps.identity.outputs.key }}
+      - name: Preserve native evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: tvos-direct-bass-evidence
+          if-no-files-found: error
+          path: |
+            build/tvos-native/**
+            build/tvos-cache/**

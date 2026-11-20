@@ -207,6 +207,21 @@ class NaviampCorePlaylistBrowseControllerTest {
     }
 
     @Test
+    fun successfulDetailReconcilesTheReportedListCount() = runTest {
+        val provider = object : MediaProvider by PlaylistBrowseTestProvider() {
+            override suspend fun playlists(limit: Int) = listOf(Playlist("playlist-a", "Playlist A", 5))
+        }
+        val (store, controller) = controller(provider)
+        controller.execute(NaviampCoreCommand.Playlists.Refresh)
+        val card = store.state.value.shell.playlists.playlists.single()
+        assertEquals(5, card.trackCount)
+        controller.execute(NaviampCoreCommand.Media.ItemAction(card.playlistActionRequest(NaviampPlaylistMediaCommand.Select)))
+        val shell = store.state.value.shell
+        assertEquals(2, shell.playlists.playlists.single().trackCount)
+        assertEquals(2, shell.playlistDetail.detail?.playlist?.trackCount)
+    }
+
+    @Test
     fun reconciledMembershipUpdatesOpenDetailAndRejectsOlderLoads() = runTest {
         val gate = CompletableDeferred<Unit>()
         val provider = PlaylistBrowseTestProvider(gate)
@@ -229,6 +244,33 @@ class NaviampCorePlaylistBrowseControllerTest {
         assertNull(store.state.value.shell.playlistDetail.status)
         controller.reconcileContents("playlist-b", emptyList())
         assertEquals(listOf("Track B"), store.state.value.shell.playlistDetail.detail?.tracks?.map { it.title })
+    }
+
+    @Test
+    fun detailLoadedAfterItsPlaylistWasDeselectedChangesNeitherListNorDetail() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        // The listed count differs from the loaded tracks, so a stale load would visibly reconcile it.
+        val provider = object : MediaProvider by PlaylistBrowseTestProvider(gate) {
+            override suspend fun playlists(limit: Int) = listOf(Playlist("playlist-a", "Playlist A", 5))
+        }
+        val (store, controller) = controller(provider)
+        controller.execute(NaviampCoreCommand.Playlists.Refresh)
+        assertEquals(5, store.state.value.shell.playlists.playlists.single().trackCount)
+        val listBefore = store.state.value.shell.playlists.playlists
+        val opening = launch {
+            controller.execute(NaviampCoreCommand.Media.ItemAction(
+                SharedMediaItemUi("playlist-a", "Playlist A", "").playlistActionRequest(NaviampPlaylistMediaCommand.Select),
+            ))
+        }
+        runCurrent()
+        // Leaving the detail clears its selection without starting another detail load.
+        store.updateShell { it.copy(playlistDetail = it.playlistDetail.copy(selectedPlaylist = null, detail = null)) }
+        gate.complete(Unit)
+        opening.join()
+        val shell = store.state.value.shell
+        assertEquals(listBefore, shell.playlists.playlists)
+        assertNull(shell.playlistDetail.selectedPlaylist)
+        assertNull(shell.playlistDetail.detail)
     }
 
     @Test

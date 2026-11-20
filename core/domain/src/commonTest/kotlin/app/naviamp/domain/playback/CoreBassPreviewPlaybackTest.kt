@@ -8,6 +8,53 @@ import kotlin.test.*
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class CoreBassPreviewPlaybackTest {
+    @Test fun localPreviewUsesTheFileEffectInsteadOfTheNetworkApi() = runTest {
+        val bass = PreviewBackend()
+        val engine = CoreBassPlaybackEngine(Result.success(bass), PreviewRuntime)
+        val states = mutableListOf<PlaybackState>()
+        try {
+            engine.playPreview(backgroundScope, PlaybackRequest("file://sample.wav"), true, 0, states::add)
+            runCurrent()
+            assertEquals(PlaybackState.Playing, states.last())
+            assertEquals(listOf("sample.wav"), bass.files)
+            assertTrue(bass.urls.isEmpty())
+        } finally { engine.release() }
+        assertEquals(listOf(1), bass.freed)
+    }
+
+    @Test fun failedFilePreviewReportsTheNativeErrorWithoutTryingTheUrlApi() = runTest {
+        val bass = PreviewBackend(fileFailure = IllegalStateException("file unavailable"))
+        val engine = CoreBassPlaybackEngine(Result.success(bass), PreviewRuntime)
+        val states = mutableListOf<PlaybackState>()
+        try {
+            engine.playPreview(backgroundScope, PlaybackRequest("file://sample.wav"), true, 0, states::add)
+            runCurrent()
+            assertEquals(PlaybackState.Error("file unavailable"), states.last())
+            assertEquals(listOf("sample.wav"), bass.files)
+            assertTrue(bass.urls.isEmpty())
+            assertTrue(bass.freed.isEmpty())
+        } finally { engine.release() }
+    }
+
+    @Test fun authenticatedRandomAccessTakesPriorityOverTheFileUrlAndRemoteUrlsStayRemote() = runTest {
+        val bass = PreviewBackend()
+        val engine = CoreBassPlaybackEngine(Result.success(bass), PreviewRuntime)
+        val source = object : PlaybackRandomAccessSource {
+            override val lengthBytes = 100L
+            override suspend fun read(offset: Long, count: Int) = ByteArray(0)
+        }
+        try {
+            engine.playPreview(backgroundScope, PlaybackRequest("file://sample.wav", randomAccess = source), true, 0, {})
+            runCurrent()
+            assertSame(source, bass.randomAccess.single())
+            assertTrue(bass.files.isEmpty())
+            assertTrue(bass.urls.isEmpty())
+            engine.playPreview(backgroundScope, PlaybackRequest("https://sample.test/preview.opus"), true, 0, {})
+            runCurrent()
+            assertEquals(listOf("https://sample.test/preview.opus"), bass.urls)
+        } finally { engine.release() }
+    }
+
     @Test fun independentPreviewNeverFreesOrReplacesThePausedMainChannel() = runTest {
         val bass = PreviewBackend()
         val engine = CoreBassPlaybackEngine(Result.success(bass), PreviewRuntime)
@@ -95,19 +142,29 @@ private object PreviewRuntime : BassPlaybackEngineRuntime {
     override fun <T> withPreparedPlaybackLock(block: () -> T) = block()
 }
 
-private class PreviewBackend : BassAudioBackend {
+private class PreviewBackend(private val fileFailure: Throwable? = null) : BassAudioBackend {
     private var next = 0
     val states = mutableMapOf<Int, Int>()
     val ends = mutableMapOf<Int, (BassStreamHandle) -> Unit>()
     val volumes = mutableMapOf<Int, Float>()
     val freed = mutableListOf<Int>()
     var deviceFrees = 0
+    val files = mutableListOf<String>()
+    val urls = mutableListOf<String>()
+    val randomAccess = mutableListOf<PlaybackRandomAccessSource>()
     override fun init() = Result.success(Unit)
     override fun free(): Result<Unit> { deviceFrees++; return Result.success(Unit) }
     override fun setSampleRateConverterQuality(quality: Int) = Result.success(Unit)
     private fun create() = Result.success(BassStreamHandle(++next))
-    override fun createFileStream(path: String) = create()
-    override fun createUrlStream(url: String) = create()
+    override fun createFileStream(path: String): Result<BassStreamHandle> {
+        files += path
+        return fileFailure?.let { Result.failure(it) } ?: create()
+    }
+    override fun createUrlStream(url: String): Result<BassStreamHandle> { urls += url; return create() }
+    override fun createRandomAccessStream(source: PlaybackRandomAccessSource, decode: Boolean): Result<BassStreamHandle> {
+        randomAccess += source
+        return create()
+    }
     override fun createFileDecodeStream(path: String) = create()
     override fun createUrlDecodeStream(url: String) = create()
     override fun lengthBytes(stream: BassStreamHandle): Long? = null

@@ -1,0 +1,357 @@
+package dev.sajidali.compose.tvos
+
+import org.gradle.api.GradleException
+import org.gradle.api.logging.Logger
+import org.gradle.api.logging.Logging
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
+
+/**
+ * Task 10d (Phase 4 closeout): unit tests for [DiagnosticsSummary]'s summary-time suppression of
+ * empty-discovery entries that are conflict-resolution losers -- see task-10c-report.md gate (e)
+ * for the real-world motivation (11 spurious WARN entries on a perfectly healthy demo build).
+ *
+ * [DiagnosticsSummary.report] is a pure function of its inputs (no Gradle service/task state),
+ * so these are plain unit tests against constructed [DiagnosticsSnapshot]s, no GradleTestKit.
+ */
+class DiagnosticsSummaryTest {
+
+    private fun emptyDiscovery(sourceModule: String, targetCoordinate: String = "dev.sajidali.$sourceModule") =
+        EmptyDiscoveryRecord(sourceModule, targetCoordinate, repositoryUrls = emptyList(), offline = false)
+
+    private fun injection(sourceModule: String) =
+        InjectionRecord(sourceModule, targetCoordinate = "dev.sajidali.$sourceModule", variantCount = 1)
+
+    private fun skipped(sourceModule: String) =
+        SkippedAlreadySupportedRecord(sourceModule, targetCoordinate = sourceModule, skippedNativeTargets = listOf("tvos_arm64"))
+
+    private fun unmappedEdge(forkCoordinate: String) = UnmappedForkEdgeRecord(
+        forkModule = "dev.sajidali.compose.ui:ui-tvosarm64:1.12.0",
+        forkCoordinate = forkCoordinate,
+        officialCoordinate = forkCoordinate.replaceFirst("dev.sajidali.", "org.jetbrains."),
+        reason = "its existence could not be confirmed (a configured repository failed to answer)",
+        repositoryUrls = listOf("http://127.0.0.1:1/m2", "https://repo.maven.apache.org/maven2"),
+        offline = false
+    )
+
+    // -- D7 (1.4.2): unmapped fork edges --------------------------------------------------
+
+    @Test
+    fun `an unmapped fork edge is reported as a WARN naming the fork and official coordinates`() {
+        val edge = "dev.sajidali.androidx.navigationevent:navigationevent-compose:1.1.1"
+        val snapshot = DiagnosticsSnapshot(
+            injections = emptyList(),
+            emptyDiscoveries = emptyList(),
+            unmappedForkEdges = listOf(unmappedEdge(edge))
+        )
+        val logger = RecordingLogger()
+
+        DiagnosticsSummary.report(snapshot, tvosTargetsDetected = true, strictMode = false, verbose = false, logger = logger)
+
+        val warn = logger.warnMessages.single()
+        assertTrue(warn.contains(edge), "WARN must name the fork coordinate; got: $warn")
+        assertTrue(warn.contains("org.jetbrains.androidx.navigationevent:navigationevent-compose:1.1.1"), "WARN must name the official coordinate; got: $warn")
+        assertTrue(warn.contains("dev.sajidali.compose.ui:ui-tvosarm64:1.12.0"), "WARN must name the fork platform module; got: $warn")
+        assertTrue(warn.contains("http://127.0.0.1:1/m2"), "WARN must list the configured repositories; got: $warn")
+        assertTrue(warn.contains("strictMode"), "WARN must point at strictMode; got: $warn")
+    }
+
+    @Test
+    fun `an unmapped fork edge is reported even when tvosTargetsDetected is false`() {
+        val snapshot = DiagnosticsSnapshot(
+            injections = emptyList(),
+            emptyDiscoveries = emptyList(),
+            unmappedForkEdges = listOf(unmappedEdge("dev.sajidali.compose.ui:ui-graphics:1.12.0"))
+        )
+        val logger = RecordingLogger()
+
+        DiagnosticsSummary.report(snapshot, tvosTargetsDetected = false, strictMode = false, verbose = false, logger = logger)
+
+        assertEquals(1, logger.warnMessages.size, "an unmapped fork edge is tvOS-specific by construction; got: ${logger.warnMessages}")
+    }
+
+    @Test
+    fun `strictMode turns an unmapped fork edge into a build failure naming the coordinate`() {
+        val edge = "dev.sajidali.androidx.navigationevent:navigationevent-compose:1.1.1"
+        val snapshot = DiagnosticsSnapshot(
+            injections = emptyList(),
+            emptyDiscoveries = emptyList(),
+            unmappedForkEdges = listOf(unmappedEdge(edge))
+        )
+        val logger = RecordingLogger()
+
+        val failure = assertFailsWith<GradleException> {
+            DiagnosticsSummary.report(snapshot, tvosTargetsDetected = true, strictMode = true, verbose = false, logger = logger)
+        }
+        val message = failure.message.orEmpty()
+        assertTrue(message.contains("strictMode"), "got: $message")
+        assertTrue(message.contains(edge), "failure must name the fork coordinate; got: $message")
+        assertEquals(emptyList(), logger.warnMessages)
+    }
+
+    @Test
+    fun `strictMode failure lists both empty discoveries and unmapped fork edges`() {
+        val snapshot = DiagnosticsSnapshot(
+            injections = emptyList(),
+            emptyDiscoveries = listOf(emptyDiscovery("g:material-ripple:1.12.0")),
+            unmappedForkEdges = listOf(unmappedEdge("dev.sajidali.compose.ui:ui-graphics:1.12.0"))
+        )
+
+        val failure = assertFailsWith<GradleException> {
+            DiagnosticsSummary.report(snapshot, tvosTargetsDetected = true, strictMode = true, verbose = false, logger = RecordingLogger())
+        }
+        val message = failure.message.orEmpty()
+        assertTrue(message.contains("g:material-ripple:1.12.0"), "got: $message")
+        assertTrue(message.contains("dev.sajidali.compose.ui:ui-graphics:1.12.0"), "got: $message")
+    }
+
+    @Test
+    fun `no unmapped fork edges means no unmapped WARN`() {
+        val snapshot = DiagnosticsSnapshot(injections = listOf(injection("g:ui:1.12.0")), emptyDiscoveries = emptyList())
+        val logger = RecordingLogger()
+
+        DiagnosticsSummary.report(snapshot, tvosTargetsDetected = true, strictMode = false, verbose = false, logger = logger)
+
+        assertEquals(emptyList(), logger.warnMessages)
+    }
+
+    // -- filterConflictLosers (pure filter logic) ----------------------------------------
+
+    @Test
+    fun `a losing candidate version is suppressed when the same module was injected at another version`() {
+        val snapshot = DiagnosticsSnapshot(
+            injections = listOf(injection("org.jetbrains.compose.ui:ui-backhandler:1.12.0-beta01")),
+            emptyDiscoveries = listOf(emptyDiscovery("org.jetbrains.compose.ui:ui-backhandler:1.11.0-beta03"))
+        )
+
+        val filtered = DiagnosticsSummary.filterConflictLosers(snapshot)
+
+        assertEquals(emptyList(), filtered.kept, "the losing candidate version must be suppressed, not kept")
+        assertEquals(1, filtered.suppressed.size)
+        assertEquals("org.jetbrains.compose.ui:ui-backhandler:1.11.0-beta03", filtered.suppressed.single().sourceModule)
+    }
+
+    @Test
+    fun `a losing candidate version is suppressed when the same module was skipped as already-supported at another version`() {
+        val snapshot = DiagnosticsSnapshot(
+            injections = emptyList(),
+            emptyDiscoveries = listOf(emptyDiscovery("org.jetbrains.compose.runtime:runtime:1.11.0-beta03")),
+            skippedAlreadySupported = listOf(skipped("org.jetbrains.compose.runtime:runtime:1.12.0-beta01"))
+        )
+
+        val filtered = DiagnosticsSummary.filterConflictLosers(snapshot)
+
+        assertEquals(emptyList(), filtered.kept)
+        assertEquals(1, filtered.suppressed.size)
+    }
+
+    @Test
+    fun `a module with no working version anywhere still warns`() {
+        val snapshot = DiagnosticsSnapshot(
+            injections = listOf(injection("org.jetbrains.compose.ui:ui:1.12.0-beta01")),
+            emptyDiscoveries = listOf(emptyDiscovery("org.jetbrains.compose.ui:ui-cold:1.11.0-cold"))
+        )
+
+        val filtered = DiagnosticsSummary.filterConflictLosers(snapshot)
+
+        assertEquals(1, filtered.kept.size, "a module with no working version anywhere (different module name) must still warn")
+        assertEquals("org.jetbrains.compose.ui:ui-cold:1.11.0-cold", filtered.kept.single().sourceModule)
+        assertEquals(emptyList(), filtered.suppressed)
+    }
+
+    @Test
+    fun `a mix of losers and genuine gaps partitions correctly`() {
+        val snapshot = DiagnosticsSnapshot(
+            injections = listOf(injection("g:ui:1.12.0-beta01")),
+            emptyDiscoveries = listOf(
+                emptyDiscovery("g:ui:1.11.0-beta03"), // loser: ui works at 1.12.0-beta01
+                emptyDiscovery("g:ui:1.11.0"), // loser: same module, different losing version
+                emptyDiscovery("g:material-ripple:1.11.0-beta03") // genuine gap: material-ripple never works
+            )
+        )
+
+        val filtered = DiagnosticsSummary.filterConflictLosers(snapshot)
+
+        assertEquals(1, filtered.kept.size)
+        assertEquals("g:material-ripple:1.11.0-beta03", filtered.kept.single().sourceModule)
+        assertEquals(2, filtered.suppressed.size)
+        assertTrue(filtered.suppressed.all { it.sourceModule.startsWith("g:ui:") })
+    }
+
+    @Test
+    fun `an exact group and module match at a different version is required -- a different module is never suppressed by coincidence`() {
+        val snapshot = DiagnosticsSnapshot(
+            injections = listOf(injection("dev.sajidali.compose.ui:ui:1.12.0-beta01")),
+            emptyDiscoveries = listOf(emptyDiscovery("dev.sajidali.compose.ui:ui-text:1.11.0-beta03"))
+        )
+
+        val filtered = DiagnosticsSummary.filterConflictLosers(snapshot)
+
+        assertEquals(1, filtered.kept.size, "ui-text is a different module from ui and must not be suppressed by its injection")
+    }
+
+    // -- report(): strictMode uses the filtered set --------------------------------------
+
+    @Test
+    fun `strictMode failure message lists only the filtered (kept) set, not suppressed losers`() {
+        val snapshot = DiagnosticsSnapshot(
+            injections = listOf(injection("g:ui:1.12.0-beta01")),
+            emptyDiscoveries = listOf(
+                emptyDiscovery("g:ui:1.11.0-beta03"),
+                emptyDiscovery("g:material-ripple:1.11.0-beta03")
+            )
+        )
+        val logger = RecordingLogger()
+
+        val failure = assertFailsWith<GradleException> {
+            DiagnosticsSummary.report(snapshot, tvosTargetsDetected = true, strictMode = true, verbose = false, logger = logger)
+        }
+
+        assertTrue(failure.message!!.contains("g:material-ripple:1.11.0-beta03"))
+        assertTrue(!failure.message!!.contains("g:ui:1.11.0-beta03"), "the suppressed loser must not appear in the strictMode failure list")
+    }
+
+    // -- report(): WARN block uses the filtered set --------------------------------------
+
+    @Test
+    fun `WARN block is suppressed entirely when every empty discovery is a conflict-resolution loser`() {
+        val snapshot = DiagnosticsSnapshot(
+            injections = listOf(injection("g:ui:1.12.0-beta01")),
+            emptyDiscoveries = listOf(emptyDiscovery("g:ui:1.11.0-beta03"))
+        )
+        val logger = RecordingLogger()
+
+        DiagnosticsSummary.report(snapshot, tvosTargetsDetected = true, strictMode = false, verbose = false, logger = logger)
+
+        assertEquals(emptyList(), logger.warnMessages, "no WARN may fire when every empty discovery is a suppressed loser")
+    }
+
+    @Test
+    fun `WARN block still fires for a module with a genuine gap alongside suppressed losers`() {
+        val snapshot = DiagnosticsSnapshot(
+            injections = listOf(injection("g:ui:1.12.0-beta01")),
+            emptyDiscoveries = listOf(
+                emptyDiscovery("g:ui:1.11.0-beta03"),
+                emptyDiscovery("g:material-ripple:1.11.0-beta03")
+            )
+        )
+        val logger = RecordingLogger()
+
+        DiagnosticsSummary.report(snapshot, tvosTargetsDetected = true, strictMode = false, verbose = false, logger = logger)
+
+        assertEquals(1, logger.warnMessages.size)
+        assertTrue(logger.warnMessages.single().contains("g:material-ripple:1.11.0-beta03"))
+        assertTrue(!logger.warnMessages.single().contains("g:ui:1.11.0-beta03"))
+    }
+
+    // -- report(): verbose-only suppressed-entries lifecycle line ------------------------
+    //
+    // Task 10e (fix of a 10d concern): the suppressed-entries line must fire at Gradle's
+    // `lifecycle` level (matching every other verbose-only message in this plugin), not
+    // `info` -- so it is visible to a consumer who only set `composeTvos.verbose=true`,
+    // without ALSO needing Gradle's own `--info`/`--debug` flag.
+
+    @Test
+    fun `verbose prints a lifecycle line naming the suppressed entries when losers were suppressed`() {
+        val snapshot = DiagnosticsSnapshot(
+            injections = listOf(injection("g:ui:1.12.0-beta01")),
+            emptyDiscoveries = listOf(emptyDiscovery("g:ui:1.11.0-beta03"))
+        )
+        val logger = RecordingLogger()
+
+        DiagnosticsSummary.report(snapshot, tvosTargetsDetected = true, strictMode = false, verbose = true, logger = logger)
+
+        assertEquals(emptyList(), logger.infoMessages, "the suppressed-entries line must not use Gradle's own --info level")
+        val suppressedMessages = logger.lifecycleMessages.filter { it.contains("suppressed") }
+        assertEquals(1, suppressedMessages.size, "expected exactly one suppressed-entries lifecycle line; got: ${logger.lifecycleMessages}")
+        val message = suppressedMessages.single()
+        assertTrue(message.contains("1"), "message must name the suppressed count; got: $message")
+        assertTrue(message.contains("suppressed"), "message must say suppressed; got: $message")
+        assertTrue(message.contains("conflict-resolution losers"), "message must explain why; got: $message")
+        assertTrue(message.contains("g:ui:1.11.0-beta03"), "message must name the suppressed entry; got: $message")
+    }
+
+    @Test
+    fun `non-verbose never prints the suppressed-entries lifecycle line`() {
+        val snapshot = DiagnosticsSnapshot(
+            injections = listOf(injection("g:ui:1.12.0-beta01")),
+            emptyDiscoveries = listOf(emptyDiscovery("g:ui:1.11.0-beta03"))
+        )
+        val logger = RecordingLogger()
+
+        DiagnosticsSummary.report(snapshot, tvosTargetsDetected = true, strictMode = false, verbose = false, logger = logger)
+
+        assertEquals(emptyList(), logger.infoMessages)
+        assertTrue(logger.lifecycleMessages.none { it.contains("suppressed") }, "got: ${logger.lifecycleMessages}")
+    }
+
+    @Test
+    fun `verbose prints no suppressed-entries lifecycle line when nothing was suppressed`() {
+        val snapshot = DiagnosticsSnapshot(
+            injections = emptyList(),
+            emptyDiscoveries = listOf(emptyDiscovery("g:material-ripple:1.11.0-beta03"))
+        )
+        val logger = RecordingLogger()
+
+        DiagnosticsSummary.report(snapshot, tvosTargetsDetected = true, strictMode = false, verbose = true, logger = logger)
+
+        assertEquals(emptyList(), logger.infoMessages)
+        assertEquals(emptyList(), logger.lifecycleMessages, "no injections happened and nothing was suppressed, so no lifecycle line at all is expected")
+    }
+
+    // Review fix (post-10e): the suppressed-entries line must ALSO honor the tvOS-target guard,
+    // same as the WARN/strict path -- a non-tvOS-target project must see zero tvOS chatter even
+    // with verbose=true, per this class's own "zero noise for non-tvOS projects" invariant.
+
+    @Test
+    fun `verbose prints no suppressed-entries lifecycle line when tvosTargetsDetected is false`() {
+        val snapshot = DiagnosticsSnapshot(
+            injections = listOf(injection("g:ui:1.12.0-beta01")),
+            emptyDiscoveries = listOf(emptyDiscovery("g:ui:1.11.0-beta03"))
+        )
+        val logger = RecordingLogger()
+
+        DiagnosticsSummary.report(snapshot, tvosTargetsDetected = false, strictMode = false, verbose = true, logger = logger)
+
+        assertTrue(
+            logger.lifecycleMessages.none { it.contains("suppressed") },
+            "a non-tvOS-target project must see no suppressed-entries chatter even with verbose=true; got: ${logger.lifecycleMessages}"
+        )
+        assertEquals(emptyList(), logger.warnMessages)
+    }
+
+    @Test
+    fun `verbose still prints the suppressed-entries lifecycle line when tvosTargetsDetected is true`() {
+        val snapshot = DiagnosticsSnapshot(
+            injections = listOf(injection("g:ui:1.12.0-beta01")),
+            emptyDiscoveries = listOf(emptyDiscovery("g:ui:1.11.0-beta03"))
+        )
+        val logger = RecordingLogger()
+
+        DiagnosticsSummary.report(snapshot, tvosTargetsDetected = true, strictMode = false, verbose = true, logger = logger)
+
+        val suppressedMessages = logger.lifecycleMessages.filter { it.contains("suppressed") }
+        assertEquals(1, suppressedMessages.size, "expected exactly one suppressed-entries lifecycle line; got: ${logger.lifecycleMessages}")
+    }
+
+    /** Captures warn/info/lifecycle calls for assertions; delegates everything else to a real (silent) Logger. */
+    private class RecordingLogger : Logger by Logging.getLogger(RecordingLogger::class.java) {
+        val warnMessages = mutableListOf<String>()
+        val infoMessages = mutableListOf<String>()
+        val lifecycleMessages = mutableListOf<String>()
+
+        override fun warn(message: String) {
+            warnMessages += message
+        }
+
+        override fun info(message: String) {
+            infoMessages += message
+        }
+
+        override fun lifecycle(message: String) {
+            lifecycleMessages += message
+        }
+    }
+}

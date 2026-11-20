@@ -150,7 +150,7 @@ class NaviampCoreSettingsValueStoreTest {
         assertEquals(true, naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface().nowPlaying.keepTelevisionControlsVisible)
         assertEquals(true, naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface().nowPlaying.fillArtworkArea)
         catalog.savePlayback(PlaybackSettings(crossfadeDurationSeconds = 999))
-        assertEquals(999, settings.loadPlayback().crossfadeDurationSeconds)
+        assertEquals(12, settings.loadPlayback().crossfadeDurationSeconds)
 
         settings.saveRecentRadioStreams(
             (1..55).map { index -> genreRecentRadioStream(Genre("Genre $index")) },

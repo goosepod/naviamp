@@ -50,6 +50,6 @@ internal class DesktopPlaybackClockDiagnostics {
             query("BASS_ChannelGetData", it.value, com.sun.jna.Pointer.NULL, 0)
             query("BASS_ChannelIsActive", it.value)
         }
-        appendLine("Fresh JNI source=${source?.let { binding.positionSeconds(it.value) }}; audible=${playback?.let { binding.audiblePositionSeconds(it.value, source?.value ?: it.value) }}")
+        appendLine("Fresh JNI source=${source?.let { binding.positionSeconds(it.value) }}; mixerSource=${source?.let { binding.mixerSourcePositionSeconds(it.value) }}; buffered=${playback?.let { binding.bufferedOutputSeconds(it.value) }}")
     }
 }

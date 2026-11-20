@@ -5,14 +5,16 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -76,9 +78,12 @@ internal fun TelevisionScreenProtectionSurface(
         drawContent()
         drawRect(Color.Black, alpha = 1f - brightness)
     }) {
-        Box(Modifier.fillMaxSize().graphicsLayer {
-            translationX = offsetX.toPx()
-            translationY = offsetY.toPx()
-        }, content = content)
+        val nativeOpacity = remember { { brightness } }
+        CompositionLocalProvider(LocalNaviampRasterOpacity provides nativeOpacity) {
+            Box(
+                Modifier.fillMaxSize().absoluteOffset { IntOffset(offsetX.roundToPx(), offsetY.roundToPx()) },
+                content = content,
+            )
+        }
     }
 }

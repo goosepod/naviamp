@@ -1,0 +1,24 @@
+{
+  "url": "https://www.un4seen.com/stuff/bass-tvos.zip",
+  "archiveSha256": "8f3bef0a67c20fdf1b65a7b6164b25bfb3a75e47e8bd5f1094eb0fad1ac3bbe8",
+  "files": {
+    "bass.xcframework/tvos-arm64/bass.framework/bass": "b373d0c1b055f49b6ba4518caa6e2830412d2b9a3c3c936e00e04ad6508f866c",
+    "bass.xcframework/tvos-arm64/bass.framework/Info.plist": "cdc47862f5520cfa1ec31f4f6f0ac8b980cb5864a274bfd8491c4ba3b8f42104",
+    "bass.xcframework/tvos-arm64_x86_64-simulator/bass.framework/_CodeSignature/CodeResources": "822061bed24133013eae9e7d3ee1ca22c07e70b910ee8c3ffc2fb7f0c5f6d837",
+    "bass.xcframework/tvos-arm64_x86_64-simulator/bass.framework/bass": "c74591df7e5156a71885f7fbfab9da3e57f0df91c698210590cd051ad7418949",
+    "bass.xcframework/tvos-arm64_x86_64-simulator/bass.framework/Info.plist": "ee2825cb79d2fa7ff46784f5f5d65e25aebd82c30993e69bf213b2a06b761d63",
+    "bass.xcframework/Info.plist": "f4eb185f74deeca1814b464de781bfbdccffec34791b7cf00902117bc435b76f",
+    "bassflac.xcframework/tvos-arm64/bassflac.framework/bassflac": "22cb75a1a31e93ee778df077f8a3d23c0b4fdcdc642a81b70abb51f547808c5b",
+    "bassflac.xcframework/tvos-arm64/bassflac.framework/Info.plist": "40a532bfe1dcd91a8c5bad78890e4b2fa55a4262f0c7330e1f44d9977ad98c0c",
+    "bassflac.xcframework/tvos-arm64_x86_64-simulator/bassflac.framework/_CodeSignature/CodeResources": "f33465f45ebcc84249bb6061bf5f326a92779bd2406328d4a5ed31bae8725a07",
+    "bassflac.xcframework/tvos-arm64_x86_64-simulator/bassflac.framework/bassflac": "45a7e4bfaef410dcca14cfacbae464e9be11c3c449d67d30bf1a67009acaf9d0",
+    "bassflac.xcframework/tvos-arm64_x86_64-simulator/bassflac.framework/Info.plist": "32bd99f1f2043993881ec5f3cec8170c834de2473809e9dd908c892a257f18ae",
+    "bassflac.xcframework/Info.plist": "046e1b048f13e1ae0532598cc1f75d11e3bcf37c907f76d796737b32e58518f3",
+    "bassopus.xcframework/tvos-arm64/bassopus.framework/bassopus": "c00cb6da25326d06eb39399e1599b584e0f3c3c12775245695748cae6379754f",
+    "bassopus.xcframework/tvos-arm64/bassopus.framework/Info.plist": "c0616e8365b5678b00f33ee93324bf176d36bd42be0fb1a4262fcf18857fc215",
+    "bassopus.xcframework/tvos-arm64_x86_64-simulator/bassopus.framework/_CodeSignature/CodeResources": "783094ff3eb7b61af6e61f6d83a3e53d487fda076b0554f9c06b402c40b5cc73",
+    "bassopus.xcframework/tvos-arm64_x86_64-simulator/bassopus.framework/bassopus": "e16ac51cab86c93499c4901e567b5ed69bd9ce2313ecf2c7943c90085ca27d52",
+    "bassopus.xcframework/tvos-arm64_x86_64-simulator/bassopus.framework/Info.plist": "8841f3ff329e79ff8904af0c9a4dc85a0e098064db52844afacf072cf0ddc376",
+    "bassopus.xcframework/Info.plist": "223883a7318c7fc6743010c291c291c2b3687f7cd96024c8f39a8bec2e43b995"
+  }
+}

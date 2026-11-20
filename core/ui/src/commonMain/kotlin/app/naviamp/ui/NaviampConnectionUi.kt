@@ -49,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -574,8 +575,11 @@ private fun ProviderSelectionTile(
     colors: NaviampColors,
     onClick: () -> Unit,
 ) {
+    var focused by remember { mutableStateOf(false) }
+    val showFocus = enabled && focused &&
+        LocalNaviampApplicationSurface.current == NaviampApplicationSurface.Television
     val contentColor = when {
-        selected -> colors.primaryText
+        showFocus || selected -> colors.primaryText
         enabled -> colors.secondaryText
         else -> colors.mutedText
     }
@@ -591,10 +595,19 @@ private fun ProviderSelectionTile(
                 else colors.controlSurface.copy(alpha = 0.45f),
             )
             .border(
-                width = if (selected) 2.dp else 1.dp,
-                color = if (selected) colors.accent else colors.border.copy(alpha = 0.7f),
+                width = when {
+                    showFocus -> 3.dp
+                    selected -> 2.dp
+                    else -> 1.dp
+                },
+                color = when {
+                    showFocus -> colors.primaryText
+                    selected -> colors.accent
+                    else -> colors.border.copy(alpha = 0.7f)
+                },
                 shape = shape,
             )
+            .onFocusChanged { focused = it.isFocused }
             .selectable(
                 selected = selected,
                 enabled = enabled,

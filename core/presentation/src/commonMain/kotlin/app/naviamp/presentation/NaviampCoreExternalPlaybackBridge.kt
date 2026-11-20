@@ -262,42 +262,100 @@ class NaviampExternalPlaybackLifecycleCoordinator(
     private val pause: () -> Unit,
     private val stop: () -> Unit = pause,
 ) {
+    private data class ResumeTarget(
+        val mediaId: String,
+        val queueIndex: Int,
+        val identity: NaviampExternalPlaybackResumeIdentity?,
+    )
+
     private val interruption = app.naviamp.domain.playback.PlaybackInterruptionPolicy()
     private var interrupted = false
-    private var identity: NaviampExternalPlaybackResumeIdentity? = null
+    private var target: ResumeTarget? = null
+    private var resumePending = false
     private var closed = false
-    private fun NaviampExternalPlaybackSnapshot.localAndReady() = localPlayback && !connectionPending && current != null && canPlayPause
+
+    fun sessionBecameInactive(
+        source: NaviampAudioSessionDeactivationSource,
+        reason: NaviampAudioSessionInterruptionReason?,
+    ) {
+        when {
+            source == NaviampAudioSessionDeactivationSource.Application -> cancelPendingResume()
+            source == NaviampAudioSessionDeactivationSource.Unknown ||
+                reason == NaviampAudioSessionInterruptionReason.OutputDisconnected -> outputDisconnected()
+            else -> interruptionBegan()
+        }
+    }
 
     fun interruptionBegan() {
         if (closed) return
         val current = snapshot()
-        if (interrupted) {
-            if (!current.localAndReady() || current.resumeIdentity != identity) interruption.cancel()
+        if (interrupted || resumePending) {
+            interrupted = true
+            if (resumePending) {
+                resumePending = false
+                interruption.began(wasPlaying = true)
+            }
+            onSnapshot(current)
             return
         }
         interrupted = true
-        if (!current.localPlayback || current.connectionPending || current.current == null) return
-        if (current.state == NaviampExternalPlaybackState.Loading) { stop(); return }
-        if (!current.canPlayPause) return
-        if (interruption.began(current.state == NaviampExternalPlaybackState.Playing)) {
-            pause()
-            identity = snapshot().resumeIdentity
+        val track = current.current ?: return
+        if (!current.localPlayback || current.connectionPending) return
+        if (current.state == NaviampExternalPlaybackState.Loading) {
+            stop()
+            return
         }
+        if (!current.canPlayPause || !interruption.began(current.state == NaviampExternalPlaybackState.Playing)) return
+
+        pause()
+        val afterPause = snapshot()
+        // Our pause dispatch records a new intent synchronously. Retain every other guard from
+        // the interrupted playback so a new source or queue occurrence cannot inherit the resume.
+        val identity = current.resumeIdentity?.let { before ->
+            before.copy(intentGeneration = afterPause.resumeIdentity?.intentGeneration ?: before.intentGeneration)
+        }
+        val candidate = ResumeTarget(track.mediaId, current.currentQueueIndex, identity)
+        if (afterPause.canResume(candidate)) target = candidate else cancelPendingResume()
     }
 
     fun interruptionEnded(shouldResume: Boolean) {
         if (closed) return
+        if (!shouldResume) {
+            interrupted = false
+            cancelPendingResume()
+            return
+        }
+        if (!interrupted) return
+        interrupted = false
         val current = snapshot()
-        val permitted = interrupted && current.localAndReady() && current.state == NaviampExternalPlaybackState.Paused &&
-            current.resumeIdentity == identity
-        val resume = interruption.ended(shouldResume && permitted)
-        interrupted = false; identity = null
-        if (resume) play()
+        val eligible = target?.let { current.canResume(it) } == true
+        if (!interruption.ended(eligible)) {
+            cancelPendingResume()
+            return
+        }
+        resumePending = true
+        onSnapshot(current)
+    }
+
+    internal fun onSnapshot(current: NaviampExternalPlaybackSnapshot) {
+        val candidate = target ?: return
+        if (!current.canResume(candidate)) {
+            cancelPendingResume()
+        } else if (resumePending && current.state == NaviampExternalPlaybackState.Paused) {
+            val latest = snapshot()
+            if (!latest.canResume(candidate)) {
+                cancelPendingResume()
+            } else if (latest.state == NaviampExternalPlaybackState.Paused) {
+                cancelPendingResume()
+                play()
+            }
+        }
     }
 
     fun outputDisconnected() {
         if (closed) return
-        interruption.cancel(); interrupted = false; identity = null
+        interrupted = false
+        cancelPendingResume()
         val current = snapshot()
         if (!current.localPlayback) return
         when (current.state) {
@@ -307,8 +365,23 @@ class NaviampExternalPlaybackLifecycleCoordinator(
         }
     }
 
-    fun close() { closed = true; interruption.cancel(); interrupted = false; identity = null }
+    fun cancelPendingResume() {
+        interruption.cancel()
+        target = null
+        resumePending = false
+    }
 
+    fun close() {
+        closed = true
+        interrupted = false
+        cancelPendingResume()
+    }
+
+    private fun NaviampExternalPlaybackSnapshot.canResume(candidate: ResumeTarget): Boolean =
+        localPlayback && !connectionPending && canPlayPause &&
+            (state == NaviampExternalPlaybackState.Playing || state == NaviampExternalPlaybackState.Paused) &&
+            current?.mediaId == candidate.mediaId && currentQueueIndex == candidate.queueIndex &&
+            resumeIdentity == candidate.identity
 }
 
 /**

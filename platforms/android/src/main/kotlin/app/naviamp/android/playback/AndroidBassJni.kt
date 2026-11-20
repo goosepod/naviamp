@@ -1,5 +1,8 @@
 package app.naviamp.android.playback
 
+import app.naviamp.domain.bass.bassPluginLoadDiagnostic
+import app.naviamp.domain.bass.BassInternetStreamPolicy
+
 import android.util.Log
 import app.naviamp.domain.bass.BassPluginDiagnostic
 import app.naviamp.domain.playback.planEqualizer
@@ -55,7 +58,10 @@ object AndroidBassJni {
 
     fun setVerifyNet(verify: Boolean): Boolean = nativeSetVerifyNet(verify)
 
-    fun configureInternetStreams(): Boolean = nativeConfigureInternetStreams()
+    fun configureInternetStreams(policy: BassInternetStreamPolicy): Boolean = nativeConfigureInternetStreams(
+        policy.playlistsEnabled, policy.metadataEnabled, policy.playlistDepth, policy.bufferMillis,
+        policy.prebufferPercent, policy.connectionTimeoutMillis, policy.readTimeoutMillis,
+    )
 
     fun setNetworkProxy(proxy: String): Boolean = nativeSetNetworkProxy(proxy)
 
@@ -115,8 +121,8 @@ object AndroidBassJni {
     fun positionSeconds(stream: Int): Double? = nativePositionSeconds(stream).takeIf { it >= 0.0 }
     fun setSampleRateConverterQuality(quality: Int): Boolean = nativeSetSampleRateConverterQuality(quality)
 
-    fun audiblePositionSeconds(playbackStream: Int, sourceStream: Int): Double? =
-        nativeAudiblePositionSeconds(playbackStream, sourceStream).takeIf { it >= 0.0 }
+    fun mixerSourcePositionSeconds(stream: Int): Double? =
+        nativeMixerSourcePositionSeconds(stream).takeIf { it.isFinite() && it >= 0.0 }
 
     fun durationSeconds(stream: Int): Double? = nativeDurationSeconds(stream).takeIf { it > 0.0 }
 
@@ -128,7 +134,8 @@ object AndroidBassJni {
 
     fun fft(stream: Int, bins: Int): FloatArray = nativeFft(stream, bins)
 
-    fun waveformLevels(stream: Int, bucketCount: Int): FloatArray = nativeWaveformLevels(stream, bucketCount)
+    fun monoRmsLevel(stream: Int, seconds: Float): Float? =
+        nativeMonoRmsLevel(stream, seconds).takeIf { it.isFinite() }
 
     fun readFloatData(stream: Int, buffer: FloatArray): Int = nativeReadFloatData(stream, buffer)
 
@@ -139,11 +146,7 @@ object AndroidBassJni {
                 BassPluginDiagnostic(stem = stem, loaded = false)
             } else {
                 val handle = nativeLoadPlugin(androidBassPluginFileName(stem))
-                BassPluginDiagnostic(
-                    stem = stem,
-                    loaded = handle != 0,
-                    errorCode = if (handle == 0) nativeLastErrorCode() else null,
-                )
+                bassPluginLoadDiagnostic(stem, handle != 0, if (handle == 0) nativeLastErrorCode() else null)
             }
         }.also { diagnostics ->
             val loaded = diagnostics.count(BassPluginDiagnostic::loaded)
@@ -170,7 +173,10 @@ object AndroidBassJni {
     ): Boolean
     private external fun nativeFree()
     private external fun nativeSetVerifyNet(verify: Boolean): Boolean
-    private external fun nativeConfigureInternetStreams(): Boolean
+    private external fun nativeConfigureInternetStreams(
+        playlists: Boolean, metadata: Boolean, depth: Int, bufferMillis: Int,
+        prebufferPercent: Int, timeoutMillis: Int, readTimeoutMillis: Int,
+    ): Boolean
     private external fun nativeSetNetworkProxy(proxy: String): Boolean
     private external fun nativeCreateUrlStream(url: String): Int
     private external fun nativeCreateRandomAccessStream(callbacks: app.naviamp.domain.playback.BassFileCallbacks, decode: Boolean): Int
@@ -194,13 +200,13 @@ object AndroidBassJni {
     private external fun nativeSeek(stream: Int, seconds: Double): Boolean
     private external fun nativePositionSeconds(stream: Int): Double
     private external fun nativeSetSampleRateConverterQuality(quality: Int): Boolean
-    private external fun nativeAudiblePositionSeconds(playbackStream: Int, sourceStream: Int): Double
+    private external fun nativeMixerSourcePositionSeconds(stream: Int): Double
     private external fun nativeDurationSeconds(stream: Int): Double
     private external fun nativeLengthBytes(stream: Int): Long
     private external fun nativeFilePosition(stream: Int, mode: Int): Long
     private external fun nativeStreamTags(stream: Int): Array<String>
     private external fun nativeFft(stream: Int, bins: Int): FloatArray
-    private external fun nativeWaveformLevels(stream: Int, bucketCount: Int): FloatArray
+    private external fun nativeMonoRmsLevel(stream: Int, seconds: Float): Float
     private external fun nativeReadFloatData(stream: Int, buffer: FloatArray): Int
     private external fun nativeLoadPlugin(path: String): Int
 }

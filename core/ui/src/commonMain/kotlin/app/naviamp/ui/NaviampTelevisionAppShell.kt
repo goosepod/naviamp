@@ -9,6 +9,7 @@ import app.naviamp.ui.generated.resources.*
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -48,11 +49,13 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -63,6 +66,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.InputMode
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -82,7 +87,9 @@ fun NaviampTelevisionAppShell(
     actions: NaviampAppShellActions,
     syncActions: NaviampSettingsSyncActions,
 ) {
-    NaviampBackNavigation(uiState, actions, modifier) { contentModifier ->
+    NaviampBackNavigation(uiState, actions,
+        modifier.naviampTelevisionPlaybackKeys(uiState.nowPlaying, onPlayback = actions.nowPlayingActions.onPlaybackAction),
+        remoteKeys = true) { contentModifier ->
         NaviampTelevisionAppShellContent(modifier = contentModifier, uiState = uiState, settingsSync = settingsSync, playbackProgress = playbackProgress, visualizerBandsProvider = visualizerBandsProvider, actions = actions, syncActions = syncActions)
     }
 }
@@ -281,20 +288,25 @@ private fun NaviampTelevisionAppShellContent(
                 playerColors = backgroundPlayerColors,
             )
             TelevisionReadingSurface(colors)
-            Box(Modifier.fillMaxSize().naviampContentInsets()) {
+            val contentInsets = Modifier.naviampContentInsets()
+            Box(Modifier.fillMaxSize()) {
                 when {
-                    connection.restoringConnection && !connection.editingConnection -> TelevisionStatusScreen(
-                        title = stringResource(Res.string.tv_restoring_naviamp_tv),
-                        message = connection.status.orEmpty(),
-                        colors = colors,
-                    )
-                    !connection.connected || connection.editingConnection -> TelevisionConnectionScreen(
-                        uiState = uiState,
-                        settingsSync = settingsSync,
-                        actions = actions,
-                        syncActions = syncActions,
-                        colors = colors,
-                    )
+                    connection.restoringConnection && !connection.editingConnection -> Box(contentInsets) {
+                        TelevisionStatusScreen(
+                            title = stringResource(Res.string.tv_restoring_naviamp_tv),
+                            message = connection.status.orEmpty(),
+                            colors = colors,
+                        )
+                    }
+                    !connection.connected || connection.editingConnection -> Box(contentInsets) {
+                        TelevisionConnectionScreen(
+                            uiState = uiState,
+                            settingsSync = settingsSync,
+                            actions = actions,
+                            syncActions = syncActions,
+                            colors = colors,
+                        )
+                    }
                     else -> {
                         val transientContentOpen = uiState.shellChrome.nowPlayingOpen ||
                             settingsOpen ||
@@ -351,8 +363,11 @@ private fun NaviampTelevisionAppShellContent(
                                 contentEntryGeneration += 1
                             }
                         }
-                        AnimatedContent(
-                            targetState = fullScreenNowPlaying,
+                        val playerTransition = updateTransition(fullScreenNowPlaying, label = "TV Now Playing fullscreen")
+                        // Window-owned rasters cannot inherit the incoming and outgoing Compose transforms.
+                        val nativeWaveform = !playerTransition.isRunning &&
+                            playerTransition.currentState == playerTransition.targetState
+                        playerTransition.AnimatedContent(
                             transitionSpec = {
                                 (fadeIn(tween(520, easing = FastOutSlowInEasing)) +
                                     scaleIn(tween(520, easing = FastOutSlowInEasing), initialScale = 0.94f) +
@@ -363,7 +378,6 @@ private fun NaviampTelevisionAppShellContent(
                                             slideOutVertically(tween(440, easing = FastOutSlowInEasing)) { -it / 14 },
                                     )
                             },
-                            label = "TV Now Playing fullscreen transition",
                         ) { fullscreen ->
                             if (fullscreen && nowPlaying != null) {
                                 NaviampFontSizeScope(interfaceSettings.nowPlayingFontSize, interfaceSettings.generalFontSize) {
@@ -380,9 +394,12 @@ private fun NaviampTelevisionAppShellContent(
                                         },
                                         onOpenSettings = { settingsOpen = true },
                                         displaySettings = interfaceSettings.nowPlaying,
+                                        contentInsets = contentInsets,
+                                        nativeWaveform = nativeWaveform,
+                                        showWaveform = fullScreenNowPlaying,
                                     )
                                 }
-                            } else Column(modifier = Modifier.fillMaxSize()) {
+                            } else Column(modifier = Modifier.fillMaxSize().then(contentInsets)) {
                                 TelevisionNavigationBar(
                                     destinations = televisionDestinations,
                                     focusDestination = navigationFocusDestination,
@@ -438,6 +455,8 @@ private fun NaviampTelevisionAppShellContent(
                                                 onClose = { nowPlayingPreview = false },
                                                 onOpenSettings = { settingsOpen = true },
                                                 displaySettings = interfaceSettings.nowPlaying,
+                                                nativeWaveform = nativeWaveform,
+                                                showWaveform = !fullScreenNowPlaying,
                                             )
                                         }
                                     } else {
@@ -475,7 +494,7 @@ private fun NaviampTelevisionAppShellContent(
                                 }
                             }
                         }
-                        if (settingsOpen) {
+                        if (settingsOpen) Box(Modifier.fillMaxSize().then(contentInsets)) {
                             TelevisionSettingsSheet(
                                 uiState = uiState,
                                 colors = colors,
@@ -651,6 +670,17 @@ private fun TelevisionConnectedContent(
             actions.mediaActions.onMediaItemAction(request)
         },
     )
+    val artistId = uiState.artistDetail.selectedArtist?.id
+    val artistViewport = key(artistId) { rememberSaveableStateHolder() }
+    val playlistId = uiState.playlistDetail.selectedPlaylist?.id
+    var playlistReturnFocusId by remember(uiState.connectionSettings.currentSourceId) { mutableStateOf<String?>(null) }
+    LaunchedEffect(selectedContentDestination, playlistId, uiState.connectionSettings.currentSourceId) {
+        if (selectedContentDestination != NaviampTelevisionDestination.Playlists) {
+            playlistReturnFocusId = null
+        } else if (playlistId != null) {
+            playlistReturnFocusId = playlistId
+        }
+    }
     when {
         uiState.albumDetail.selectedAlbum != null -> TelevisionAlbumDetail(
             screen = uiState.albumDetail,
@@ -658,22 +688,19 @@ private fun TelevisionConnectedContent(
             actions = actions.albumDetailActions,
             topNavigationFocusRequester = topNavigationFocusRequester,
         )
-        uiState.artistDetail.selectedArtist != null -> TelevisionArtistDetail(
-            screen = uiState.artistDetail,
-            colors = colors,
-            actions = actions.artistDetailActions,
-            showAlbumYear = uiState.general.interfaceSettings.nowPlaying.showAlbumYear,
-            albumSortOrder = uiState.general.interfaceSettings.albumSortOrder,
-            groupAlbumsByReleaseType = uiState.general.interfaceSettings.groupAlbumsByReleaseType,
-            onAlbumOpening = {
-                onNavigationActivationSuppressed(
-                    naviampSelectedTelevisionDestination(uiState.shellChrome.selectedRoute, false, false)
-                        ?: NaviampTelevisionDestination.Home,
-                )
-            },
-            topNavigationFocusRequester = topNavigationFocusRequester,
-        )
-        uiState.playlistDetail.selectedPlaylist != null -> TelevisionPlaylistDetail(
+        artistId != null -> artistViewport.SaveableStateProvider(artistId) {
+            TelevisionArtistDetail(
+                screen = uiState.artistDetail,
+                colors = colors,
+                actions = actions.artistDetailActions,
+                showAlbumYear = uiState.general.interfaceSettings.nowPlaying.showAlbumYear,
+                albumSortOrder = uiState.general.interfaceSettings.albumSortOrder,
+                groupAlbumsByReleaseType = uiState.general.interfaceSettings.groupAlbumsByReleaseType,
+                onAlbumOpening = { onNavigationActivationSuppressed(selectedContentDestination) },
+                topNavigationFocusRequester = topNavigationFocusRequester,
+            )
+        }
+        playlistId != null -> TelevisionPlaylistDetail(
             screen = uiState.playlistDetail,
             colors = colors,
             actions = actions.playlistDetailActions,
@@ -725,6 +752,8 @@ private fun TelevisionConnectedContent(
             actions = actions.playlistsActions,
             mediaActions = televisionMediaActions,
             topNavigationFocusRequester = topNavigationFocusRequester,
+            returnFocusPlaylistId = playlistReturnFocusId,
+            onReturnFocusHandled = { playlistReturnFocusId = null },
             entryFocusGeneration = contentEntryGeneration.takeIf {
                 contentEntryDestination == NaviampTelevisionDestination.Playlists
             },
@@ -754,7 +783,7 @@ private fun TelevisionConnectedContent(
 }
 
 @Composable
-private fun TelevisionNavigationButton(
+internal fun TelevisionNavigationButton(
     destination: NaviampTelevisionDestination,
     colors: NaviampColors,
     modifier: Modifier = Modifier,
@@ -762,10 +791,14 @@ private fun TelevisionNavigationButton(
     onFocused: () -> Unit,
     onDown: (() -> Unit)? = null,
 ) {
+    val inputModeManager = LocalInputModeManager.current
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(10.dp)
     Button(
-        onClick = onClick,
+        onClick = {
+            inputModeManager.requestInputMode(InputMode.Keyboard)
+            onClick()
+        },
         colors = ButtonDefaults.buttonColors(
             containerColor = if (focused) colors.primaryText else Color.Transparent,
             contentColor = if (focused) colors.background else colors.secondaryText,
@@ -775,6 +808,9 @@ private fun TelevisionNavigationButton(
         modifier = modifier
             .onPreviewKeyEvent { event ->
                 if (onDown != null && naviampTelevisionNavigationEntersContent(event.key, event.type)) {
+                    // We consume this direction before Compose's default traversal can switch modes.
+                    // System-defined content cards otherwise reject focus after native text/pointer input.
+                    inputModeManager.requestInputMode(InputMode.Keyboard)
                     onDown()
                     true
                 } else {

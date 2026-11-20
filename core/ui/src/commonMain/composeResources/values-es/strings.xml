@@ -630,7 +630,7 @@
     <string name="tv_restoring_naviamp_tv">Restaurando Naviamp</string>
     <string name="tv_set_up_naviamp_tv">Configurar Naviamp</string>
     <string name="tv_direct_setup_description">Conéctate directamente desde este televisor. Emparejar un teléfono u ordenador seguirá siendo opcional.</string>
-    <string name="tv_keyboard_navigation_hint">Al escribir, elige Siguiente en el teclado del televisor para avanzar. Usa Atrás o Esc para cerrar el teclado.</string>
+    <string name="tv_keyboard_navigation_hint">Pulsa Seleccionar en un campo para abrir el teclado del televisor. Elige Siguiente para avanzar o usa Atrás o Esc para cerrar el teclado.</string>
     <string name="tv_set_up_from_a_phone_or_computer">Configurar desde un teléfono u ordenador</string>
     <string name="tv_show_pairing_code">Mostrar código de emparejamiento</string>
     <string name="tv_approve_controller">Aprobar mando</string>
@@ -1269,7 +1269,19 @@
     <string name="connection_aurral_companion_invalid">Introduce una URL de servidor HTTP o HTTPS de Aurral y un nombre de usuario.</string>
     <string name="discovery_find_in_aurral">Buscar en Aurral</string>
     <string name="connection_aurral_companion_save_failed">No se pudo guardar Aurral complementario. La conexión de música no ha cambiado.</string>
+    <string name="storage_recovery_title">Ajustes guardados</string>
+    <string name="storage_recovery_capacity">Este cambio supera el límite de almacenamiento persistente del dispositivo. Los ajustes y conexiones guardados no han cambiado.</string>
+    <string name="storage_recovery_unreadable">No se pudieron abrir los ajustes guardados. Se han conservado. Inténtalo de nuevo o restablécelos para configurar este dispositivo otra vez.</string>
+    <string name="storage_recovery_conflict">Los ajustes guardados cambiaron durante esta operación. Vuelve a cargarlos antes de intentarlo de nuevo.</string>
+    <string name="storage_recovery_unavailable">Los ajustes guardados no están disponibles temporalmente. Inténtalo de nuevo.</string>
+    <string name="storage_recovery_reset_title">¿Restablecer los ajustes guardados?</string>
+    <string name="storage_recovery_reset_message">Se borrarán los ajustes y conexiones guardados en este dispositivo. No se borrará la biblioteca del servidor.</string>
 
     <string name="vehicle_connection_setup_on_phone">Añade o actualiza las conexiones en tu teléfono.</string>
     <string name="vehicle_connection_offline">Sin conexión</string>
+    <string name="tv_search_keyboard_space">Espacio</string>
+    <string name="tv_search_keyboard_backspace">Retroceso</string>
+    <string name="tv_search_system_keyboard">Teclado del sistema</string>
+    <string name="storage_location_app">Almacenamiento de la app</string>
+    <string name="storage_location_custom">Personalizado</string>
 </resources>

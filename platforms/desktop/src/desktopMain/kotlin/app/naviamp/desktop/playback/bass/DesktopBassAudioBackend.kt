@@ -1,6 +1,7 @@
 package app.naviamp.desktop.playback.bass
 
 import app.naviamp.domain.bass.BassFilePosition
+import app.naviamp.domain.bass.BassInternetStreamPolicy
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassPlaybackBufferPolicy
 import app.naviamp.domain.bass.BassPluginDiagnostic
@@ -121,8 +122,8 @@ class DesktopBassAudioBackend(
             Result.failure(IllegalStateException(errorMessage("BASS_ChannelSetDevice failed")))
         }
 
-    override fun configureInternetStreams(): Result<Unit> =
-        if (bass.configureInternetStreams()) {
+    override fun configureInternetStreams(policy: BassInternetStreamPolicy): Result<Unit> =
+        if (bass.configureInternetStreams(policy)) {
             Result.success(Unit)
         } else {
             Result.failure(IllegalStateException(errorMessage("BASS internet stream config failed")))
@@ -286,10 +287,8 @@ class DesktopBassAudioBackend(
     override fun positionSeconds(stream: BassStreamHandle): Double? =
         bass.positionSeconds(stream.value)
 
-    override fun audiblePositionSeconds(
-        playbackStream: BassStreamHandle,
-        sourceStream: BassStreamHandle,
-    ): Double? = bass.audiblePositionSeconds(playbackStream.value, sourceStream.value)
+    override fun mixerSourcePositionSeconds(stream: BassStreamHandle): Double? =
+        bass.mixerSourcePositionSeconds(stream.value)
 
     override fun durationSeconds(stream: BassStreamHandle): Double? =
         bass.durationSeconds(stream.value)
@@ -312,14 +311,9 @@ class DesktopBassAudioBackend(
     override fun fft(stream: BassStreamHandle, bins: Int): Result<FloatArray> =
         Result.success(bass.fft(stream.value, bins))
 
-    override fun waveformLevels(stream: BassStreamHandle, bucketCount: Int): Result<FloatArray> {
-        val levels = bass.waveformLevels(stream.value, bucketCount)
-        return if (levels.isNotEmpty()) {
-            Result.success(levels)
-        } else {
-            Result.failure(IllegalStateException(errorMessage("BASS_ChannelGetLevelEx failed")))
-        }
-    }
+    override fun readMonoRmsLevel(stream: BassStreamHandle, seconds: Float): Result<Float> =
+        bass.monoRmsLevel(stream.value, seconds)?.let { Result.success(it) }
+            ?: Result.failure(IllegalStateException(errorMessage("BASS_ChannelGetLevelEx failed")))
 
     override fun streamMetadata(stream: BassStreamHandle): Map<String, String> =
         bassStreamProperties(bass.streamTags(stream.value).asIterable())

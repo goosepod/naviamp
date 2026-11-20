@@ -61,11 +61,14 @@ class PrebuiltNativeProtocolTest(unittest.TestCase):
     def test_committed_required_manifest_is_unique_and_contains_native_boundaries(self):
         path = Path(__file__).resolve().parents[1] / 'ios-native-required-tests.json'
         cases = json.loads(path.read_text())
-        self.assertEqual(18, len(cases))
-        self.assertEqual(18, len(set(map(tuple, cases))))
+        self.assertEqual(14, len(cases))
+        self.assertEqual(14, len(set(map(tuple, cases))))
         self.assertIn([OWNER, NAME], cases)
         self.assertTrue(any('IosBassDecodeIntegrationTest' in owner for owner, _ in cases))
-        self.assertTrue(any('IosAudioStorageTest' in owner for owner, _ in cases))
+        self.assertIn(['app.naviamp.ios.playback.IosBassPlaybackSessionTest',
+                       'nativeInitializationPreservesTheSessionRequiredBySystemMediaControls'], cases)
+        # Apple audio storage moved to core/storage appleTest, which the aggregate iOS run executes.
+        self.assertFalse(any('IosAudioStorageTest' in owner for owner, _ in cases))
 
 
 class PrebuiltNativeExecutionTest(unittest.TestCase):

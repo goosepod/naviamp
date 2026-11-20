@@ -46,10 +46,25 @@ for ((attempt=0; attempt<120; attempt++)); do
   sleep .25
 done
 test -n "$window"
-sleep 2
-import -window "$window" "$work/application.png"
-colors=$(identify -format '%k' "$work/application.png")
-test "$colors" -gt 200
+# A mapped AWT parent may precede Skiko's first painted frame on a cold hosted runner.
+# Require actual content rather than accepting a window handle or a fixed startup delay.
+painted=false
+paint_started=$SECONDS
+for ((attempt=0; attempt<120 && SECONDS-paint_started<30; attempt++)); do
+  import -window "$window" "$work/application.png"
+  if ((attempt == 0)); then cp "$work/application.png" "$work/application-first.png"; fi
+  colors=$(identify -format '%k' "$work/application.png")
+  printf 'attempt=%s elapsed_seconds=%s colors=%s\n' "$attempt" "$((SECONDS-paint_started))" "$colors" \
+    >> "$work/paint-readiness.txt"
+  if [[ "$colors" -gt 200 ]]; then painted=true; break; fi
+  kill -0 "$app_pid"
+  sleep .25
+done
+if [[ "$painted" != true ]]; then
+  echo 'Flatpak window did not paint application content within 30 seconds' >&2
+  cat "$work/paint-readiness.txt" >&2
+  exit 1
+fi
 gdbus call --session --dest org.mpris.MediaPlayer2.naviamp --object-path /org/mpris/MediaPlayer2 \
   --method org.freedesktop.DBus.Properties.Get org.mpris.MediaPlayer2.Player PlaybackStatus \
   > "$work/mpris.txt"

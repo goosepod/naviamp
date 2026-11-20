@@ -1,24 +1,35 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.android.multiplatform.library)
     alias(libs.plugins.sqldelight)
     alias(libs.plugins.kover)
 }
 
 kotlin {
-    androidTarget {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_17)
-        }
+    android {
+        namespace = "app.naviamp.storage"
+        compileSdk = 37
+        minSdk = 26
+        compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
+        withHostTest {}
     }
     jvm()
     iosArm64()
     iosSimulatorArm64()
+    if (providers.gradleProperty("naviamp.tvos.enabled").orNull == "true") {
+        tvosArm64()
+        tvosSimulatorArm64()
+    }
+    targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget>().configureEach {
+        binaries.configureEach { linkerOpts("-lsqlite3") }
+    }
 
     sourceSets {
         commonMain.dependencies {
+            api(project(":core:host-api"))
             implementation(project(":core:domain"))
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.sqldelight.runtime)
@@ -30,21 +41,10 @@ kotlin {
         jvmTest.dependencies {
             implementation(libs.sqldelight.sqlite.driver)
         }
-        iosMain.dependencies {
+        named("androidHostTest") { dependencies { implementation(libs.sqldelight.sqlite.driver) } }
+        nativeMain.dependencies {
             implementation(libs.sqldelight.native.driver)
         }
-    }
-}
-
-android {
-    namespace = "app.naviamp.storage"
-    compileSdk = 36
-    defaultConfig {
-        minSdk = 26
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
     }
 }
 

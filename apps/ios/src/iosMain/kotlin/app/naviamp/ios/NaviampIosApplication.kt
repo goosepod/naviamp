@@ -3,78 +3,44 @@ package app.naviamp.ios
 import androidx.compose.runtime.remember
 import androidx.compose.ui.window.ComposeUIViewController
 import app.cash.sqldelight.db.SqlDriver
+import app.naviamp.apple.media.ApplePlaybackSurface
+import app.naviamp.apple.playback.applePlaybackLocalFilePath
+import app.naviamp.bootstrap.NaviampRecoverableHostApp
+import app.naviamp.bootstrap.NaviampStoredApplication
+import app.naviamp.bootstrap.attachPlaybackSurface
+import app.naviamp.bootstrap.naviampRecoverableStoredHostController
+import app.naviamp.domain.playback.CoreBassPlaybackEngine
 import app.naviamp.ios.platform.IosCapabilityPresentation
-import app.naviamp.ios.platform.IosCoreExternalUriPort
-import app.naviamp.ios.platform.IosHomeDateSource
-import app.naviamp.ios.playback.IosNativePlaybackIntegration
 import app.naviamp.ios.playback.IosBassAudioBackend
-import app.naviamp.ios.playback.IosAudioTagReader
 import app.naviamp.ios.playback.createIosBassPlaybackEngine
-import app.naviamp.ios.playback.iosPlaybackLocalFilePath
-import app.naviamp.ios.settings.IosCoreSettingsValueStore
+import app.naviamp.ios.settings.IosCoreCertificateFilePort
 import app.naviamp.ios.settings.IosCoreSettingsSyncPort
-import app.naviamp.ios.storage.IosAudioByteStore
-import app.naviamp.ios.storage.IosAudioFileSystem
-import app.naviamp.ios.storage.IosPlaybackAudioAssets
-import app.naviamp.ios.storage.toPlaybackLocalAudio
+import app.naviamp.ios.settings.IosCoreSettingsValueStore
+import app.naviamp.presentation.AppleCoreExternalUriPort
+import app.naviamp.presentation.AppleHomeDateSource
+import app.naviamp.presentation.AppleScreenAwakeEffect
 import app.naviamp.presentation.NaviampCoreApp
-import app.naviamp.presentation.NaviampCoreEnvironment
-import app.naviamp.presentation.createNaviampCore
-import app.naviamp.presentation.externalPlaybackBridge
 import app.naviamp.presentation.vehicleBrowseController
-import app.naviamp.presentation.naviampCoreSettingsValueCatalog
-import app.naviamp.presentation.naviampCoreProviderIdentitySettingsMigrationRepository
-import app.naviamp.presentation.naviampCorePlaybackServiceCatalog
-import app.naviamp.presentation.naviampCoreStoredServiceCatalog
-import app.naviamp.presentation.naviampNowEpochMillis
-import app.naviamp.presentation.naviampNowIso8601
-import app.naviamp.presentation.NaviampCoreDownloadedTrack
-import app.naviamp.presentation.NaviampCoreDownloadStorageSnapshot
-import app.naviamp.presentation.repositoryNaviampCoreDownloadServices
-import app.naviamp.presentation.withStorageBackedSettings
-import app.naviamp.domain.cache.AudioByteStoreService
-import app.naviamp.domain.cache.CachedLyricsSidecarRepository
-import app.naviamp.domain.cache.LyricsSidecarCacheService
-import app.naviamp.domain.cache.SidecarStatusService
-import app.naviamp.domain.cache.MaximumPersistentArtworkCacheBytes
-import app.naviamp.domain.lyrics.naviampOnlineLyricsProviders
-import app.naviamp.domain.network.KtorSharedHttpClient
-import app.naviamp.domain.waveform.BassAudioWaveformAnalyzer
-import app.naviamp.provider.navidrome.NavidromeCoreProviderSessionPort
-import app.naviamp.provider.navidrome.navidromeProviderSessionOpener
-import app.naviamp.provider.navidrome.subsonicFamilyProviderSessionRouter
-import app.naviamp.provider.navidrome.createDefaultNavidromeKtorClient
-import app.naviamp.provider.jellyfin.JellyfinCoreProviderSessionPort
-import app.naviamp.provider.jellyfin.JellyfinSessionService
-import app.naviamp.provider.jellyfin.JellyfinSessionServiceFactory
-import app.naviamp.provider.jellyfin.KtorJellyfinHttpClient
-import app.naviamp.provider.jellyfin.jellyfinClientIdentity
-import app.naviamp.provider.jellyfin.jellyfinProviderSessionOpener
-import app.naviamp.domain.provider.ProviderIdJellyfin
-import app.naviamp.presentation.NaviampCoreProviderSessionPort
-import app.naviamp.presentation.NaviampCoreProviderSessionRoute
-import app.naviamp.storage.IosStorageDriverFactory
+import app.naviamp.storage.AppleAudioTagReader
+import app.naviamp.storage.NativeStorageDriverFactory
 import app.naviamp.storage.NaviampStorageDatabase
-import app.naviamp.storage.StorageCoreRepositoryCatalog
-import app.naviamp.storage.StorageAudioStore
 import app.naviamp.storage.StorageCredentialProtector
 import app.naviamp.storage.StorageDatabaseLocation
-import app.naviamp.storage.StorageImageCacheRepository
-import app.naviamp.storage.StorageObjectByteStore
-import app.naviamp.ui.resetIosPlatformCoverArtByteLoader
-import app.naviamp.ui.setIosPlatformCoverArtByteLoader
+import app.naviamp.storage.appleStorageAudioDirectory
+import app.naviamp.ui.NaviampAppleRasterHost
+import app.naviamp.ui.NaviampStorageLocationKind
 import app.naviamp.ui.NaviampStorageLocationUi
-import app.naviamp.ui.NaviampIosRasterHost
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
 import platform.UIKit.UIViewController
 import kotlin.native.ref.WeakReference
 
 /**
- * Process-level iOS owner for native database lifetime and the shared Core environment.
- * Product state, actions, navigation, provider policy, and UI remain in common code.
+ * Process-level iOS owner for native database and BASS lifetime. Startup, retry, failure and
+ * product behavior come from the shared recoverable host and Core.
  */
 @OptIn(kotlin.experimental.ExperimentalNativeApi::class)
 class NaviampIosApplication(
@@ -83,245 +49,83 @@ class NaviampIosApplication(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val databaseLocation = StorageDatabaseLocation(applicationSupportDirectory)
-    private val driver: SqlDriver = IosStorageDriverFactory(
-        databaseLocation,
-    ).createDriver()
-    private val database = NaviampStorageDatabase(driver)
     private val settingsValueStore = IosCoreSettingsValueStore()
-    private val settings = naviampCoreSettingsValueCatalog(settingsValueStore)
     private val contentViewControllers = mutableListOf<WeakReference<UIViewController>>()
     private val settingsSyncPort = IosCoreSettingsSyncPort(
         settingsStore = settingsValueStore,
         presenter = { contentViewControllers.mapNotNull { it.get() }
             .lastOrNull { it.viewIfLoaded?.window?.isKeyWindow() == true } },
     )
-    private var cacheSettings = settings.storedSettings.loadCache()
     private val audioCacheDirectory = "${databaseLocation.directoryPath}/audio-cache"
     private val downloadDirectory = "${databaseLocation.directoryPath}/downloads"
-    private val repositories = StorageCoreRepositoryCatalog(
-        database = database,
-        credentialProtector = credentialProtector,
-        nowEpochMillis = ::naviampNowEpochMillis,
-        databaseLabel = "${databaseLocation.directoryPath}/${databaseLocation.fileName}",
-        deleteKnownAudioCacheFile = { IosAudioFileSystem.deleteKnownRegularFile(audioCacheDirectory, it) },
-        deleteKnownDownloadFile = { IosAudioFileSystem.deleteKnownRegularFile(downloadDirectory, it) },
-        maxAudioBytes = cacheSettings.maxAudioCacheBytes,
-    )
-    private val httpClient = KtorSharedHttpClient()
-    private val audioStore = StorageAudioStore(
-        queries = database.naviampStorageQueries,
-        audioCacheByteStoreService = AudioByteStoreService(IosAudioByteStore(audioCacheDirectory), httpClient),
-        downloadAudioByteStoreService = AudioByteStoreService(IosAudioByteStore(downloadDirectory), httpClient),
-        nowEpochMillis = ::naviampNowEpochMillis,
-        cachedAudioFileExists = { IosAudioFileSystem.isStoredRegularFile(audioCacheDirectory, it) },
-        downloadedAudioFileExists = { IosAudioFileSystem.isStoredRegularFile(downloadDirectory, it) },
-        deleteKnownAudioCacheFile = { IosAudioFileSystem.deleteKnownRegularFile(audioCacheDirectory, it) },
-        deleteKnownDownloadFile = { IosAudioFileSystem.deleteKnownRegularFile(downloadDirectory, it) },
-        workContext = Dispatchers.Default,
-        maxAudioCacheBytes = cacheSettings.maxAudioCacheBytes,
-        protectedTrackIds = repositories::protectedCachedAudioTrackIds,
-    )
-    private val jellyfinServices = JellyfinSessionServiceFactory { tlsSettings ->
-        JellyfinSessionService(
-            httpClient = KtorJellyfinHttpClient(createDefaultNavidromeKtorClient(tlsSettings)),
-            identity = jellyfinClientIdentity(
-                deviceId = "naviamp-ios",
-                deviceName = "iOS",
-            ),
-        )
-    }
-    private val sessions: NaviampCoreProviderSessionPort = subsonicFamilyProviderSessionRouter(
-        NavidromeCoreProviderSessionPort(
-            mediaSources = repositories.mediaSources,
-            initialSource = repositories.mediaSources.latestMediaSource(),
-            sessionOpener = navidromeProviderSessionOpener(
-                cacheMaintenanceRepository = repositories.maintenance,
-                providerMediaSourceRepository = repositories.mediaSources,
-                nowEpochMillis = ::naviampNowEpochMillis,
-            ),
-            identitySettingsMigrations = naviampCoreProviderIdentitySettingsMigrationRepository(settingsValueStore),
-        ),
-        additionalRoutes = listOf(
-            NaviampCoreProviderSessionRoute(
-                providerIds = setOf(ProviderIdJellyfin),
-                sessionPort = JellyfinCoreProviderSessionPort(
-                    mediaSources = repositories.mediaSources,
-                    initialSource = repositories.mediaSources.latestMediaSource(),
-                    sessionOpener = jellyfinProviderSessionOpener(
-                        sessionServices = jellyfinServices,
-                        cacheMaintenanceRepository = repositories.maintenance,
-                        providerMediaSourceRepository = repositories.mediaSources,
-                        nowEpochMillis = ::naviampNowEpochMillis,
-                    ),
-                    sessionServices = jellyfinServices,
-                    deviceId = "naviamp-ios",
-                ),
-            ),
-        ),
-    )
-    private val artworkCache = StorageImageCacheRepository(
-        store = StorageObjectByteStore(
-            queries = database.naviampStorageQueries,
-            nowMillis = ::naviampNowEpochMillis,
-            maxImageCacheBytes = MaximumPersistentArtworkCacheBytes,
-            workContext = Dispatchers.Default,
-        ),
-        fetch = { url ->
-            sessions.currentProvider()?.bytesForOwnedUrl(url)
-                ?: httpClient.getBytes(url)
-                ?: throw IllegalStateException("Could not load artwork.")
+    private var driver: SqlDriver? = null
+    private var playbackEngine: CoreBassPlaybackEngine? = null
+    private val controller = naviampRecoverableStoredHostController(
+        open = { applicationScope, onFailure ->
+            val nativeDriver = NativeStorageDriverFactory(databaseLocation).createDriver().also { driver = it }
+            val engine = createIosBassPlaybackEngine().also { playbackEngine = it }
+            NaviampStoredApplication(
+                scope = applicationScope,
+                database = NaviampStorageDatabase(nativeDriver),
+                credentialProtector = credentialProtector,
+                settingsValueStore = settingsValueStore,
+                settingsSyncPort = settingsSyncPort,
+                certificateFiles = IosCoreCertificateFilePort(settingsSyncPort, "${databaseLocation.directoryPath}/certificates"),
+                databaseLabel = "${databaseLocation.directoryPath}/${databaseLocation.fileName}",
+                audioCacheDirectory = appleStorageAudioDirectory(audioCacheDirectory),
+                downloadDirectory = appleStorageAudioDirectory(downloadDirectory),
+                playbackEngine = engine,
+                waveformBass = IosBassAudioBackend(),
+                localFilePath = ::applePlaybackLocalFilePath,
+                audioTagReader = AppleAudioTagReader(),
+                externalUri = AppleCoreExternalUriPort(),
+                homeDate = AppleHomeDateSource,
+                shellCapabilities = IosCapabilityPresentation.shell(engine),
+                actionAvailability = IosCapabilityPresentation.actionAvailability,
+                providerDeviceId = "naviamp-ios",
+                providerDeviceName = "iOS",
+                settingsSyncDeviceId = "ios",
+                downloadLocations = listOf(appStorageLocation(downloadDirectory)),
+                audioCacheLocations = listOf(appStorageLocation(audioCacheDirectory)),
+                selectedDownloadLocationId = AppStorageLocationId,
+                selectedAudioCacheLocationId = AppStorageLocationId,
+                onAsyncFailure = { _, cause -> onFailure(cause) },
+            ).also { it.core.startRuntimeServices() }
         },
-    )
-    init {
-        setIosPlatformCoverArtByteLoader(::loadProviderArtwork)
-    }
-    private val playbackEngine = createIosBassPlaybackEngine()
-    private val verifyProviderNetworkCertificates = {
-        repositories.mediaSources.latestMediaSource()?.tlsSettings?.insecureSkipTlsVerification != true
-    }
-    private val waveformBass = IosBassAudioBackend()
-    private val playback = naviampCorePlaybackServiceCatalog(
-        scope = scope,
-        engine = playbackEngine,
-        providerSource = sessions.providerSource,
-        initialPlaybackSettings = settings.storedSettings.loadPlayback(),
-        persistPlaybackSettings = settings.savePlayback,
-        cacheSettings = { cacheSettings },
-        activeSourceId = { repositories.mediaSources.latestMediaSource()?.id },
-        audioAssets = IosPlaybackAudioAssets(
-            downloads = audioStore,
-            cache = audioStore,
-            downloadDirectoryPath = downloadDirectory,
-            cacheDirectoryPath = audioCacheDirectory,
-        ),
-        cacheAudio = { sourceId, provider, track, quality ->
-            audioStore.cacheAudioTrack(sourceId, provider, track, quality).toPlaybackLocalAudio(audioCacheDirectory)
+        closeNative = {
+            playbackEngine?.release(); playbackEngine = null
+            driver?.close(); driver = null
         },
-        waveformRepository = repositories.audioWaveforms,
-        waveformAnalyzer = BassAudioWaveformAnalyzer(
-            bass = waveformBass,
-            verifyNetworkCertificates = verifyProviderNetworkCertificates,
-            localFilePath = ::iosPlaybackLocalFilePath,
-        ),
-        audioTagReader = IosAudioTagReader(),
-        lyricsRepository = CachedLyricsSidecarRepository(
-            cache = LyricsSidecarCacheService(repositories.lyricsSidecars, ::naviampNowEpochMillis),
-            onlineProviders = naviampOnlineLyricsProviders(httpClient),
-        ),
-        lyricsOffsetRepository = repositories.lyricsOffsets,
-        sidecarStatusRepository = SidecarStatusService(repositories.sidecarStatuses, ::naviampNowEpochMillis),
-        playbackSessionRepository = repositories.playbackSessions,
-        playbackProfileRepository = repositories.playbackProfiles,
-        saveVisualizerSettings = settings.storedSettings.saveVisualizer,
-        verifyProviderNetworkCertificates = verifyProviderNetworkCertificates,
-        prepareWaveformAnalysis = { waveformBass.init().getOrThrow() },
-        waveformWorkContext = Dispatchers.Default,
-    )
-    private val downloads = repositoryNaviampCoreDownloadServices(
-        downloadRepository = audioStore,
-        replacementRepository = audioStore,
-        keepDownloadedRepository = repositories.keepDownloaded,
-        artworkCacheRepository = artworkCache,
-        toCoreDownload = { stored ->
-            NaviampCoreDownloadedTrack(
-                storageId = stored.filePath,
-                track = stored.track,
-                sizeBytes = stored.sizeBytes,
-                qualityLabel = stored.qualityKey,
-            )
+        // Durable iOS storage has no reset effect; retry is the only recovery action.
+        erase = null,
+        attachApplication = { application, applicationScope, retain, onFailure ->
+            application.attachPlaybackSurface(applicationScope, ApplePlaybackSurface(), retain, onFailure)
         },
-        isStoredDownloadAvailable = { stored ->
-            IosAudioFileSystem.isStoredRegularFile(downloadDirectory, stored.filePath)
-        },
-        storageStats = {
-            repositories.maintenance.stats().let { stats ->
-                NaviampCoreDownloadStorageSnapshot(
-                    audioCacheCount = stats.audioCount,
-                    audioCacheBytes = stats.audioBytes,
-                    pendingProviderActionCount = stats.pendingProviderActionCount,
-                )
-            }
-        },
-    )
-    private val storedCatalog = naviampCoreStoredServiceCatalog(
-        providerSessions = sessions,
-        providerSource = sessions.providerSource,
-        playback = playback,
-        downloads = downloads,
-        playbackEngine = playbackEngine,
-        settingsSyncPort = settingsSyncPort,
-            certificateFiles = app.naviamp.ios.settings.IosCoreCertificateFilePort(
-                settingsSyncPort, "${databaseLocation.directoryPath}/certificates",
-            ),
-        settings = settings.storedSettings.withStorageBackedSettings(
-            radioDjPresetRepository = repositories.radioDjPresets,
-            onCacheSettingsSaved = { effective -> cacheSettings = effective },
-        ),
-        repositories = app.naviamp.presentation.NaviampCoreStoredRepositories(
-            mediaSources = repositories.mediaSources,
-            providerMediaSources = repositories.mediaSources,
-            libraryIndex = repositories.libraryIndex,
-            providerResponses = repositories.providerResponses,
-            keepDownloaded = repositories.keepDownloaded,
-            radioDjPresets = repositories.radioDjPresets,
-            maintenance = repositories.maintenance,
-            pendingProviderActions = repositories.pendingProviderActions,
-            discoveryAcquisitions = repositories.discoveryAcquisitions,
-            updateAudioCacheLimit = audioStore::updateAudioCacheLimit,
-        ),
-        externalUri = IosCoreExternalUriPort(),
-        homeDate = IosHomeDateSource,
-        shellCapabilities = IosCapabilityPresentation.shell(playbackEngine),
-        settingsSyncDeviceId = "ios",
-        downloadLocations = listOf(
-            NaviampStorageLocationUi("app-storage", "App storage", downloadDirectory),
-        ),
-        audioCacheLocations = listOf(
-            NaviampStorageLocationUi("app-storage", "App storage", audioCacheDirectory),
-        ),
-        selectedDownloadLocationId = "app-storage",
-        selectedAudioCacheLocationId = "app-storage",
-        sourceId = { repositories.mediaSources.latestMediaSource()?.id },
-        clockEpochMillis = ::naviampNowEpochMillis,
-        favoritedAtIso8601 = ::naviampNowIso8601,
-    )
-    private val environment = NaviampCoreEnvironment(
-        services = storedCatalog.services.copy(content = storedCatalog.services.content.copy(
-            artwork = app.naviamp.presentation.NaviampCoreArtworkServices(artworkCache, httpClient),
-        )),
-        initialState = storedCatalog.initialState,
-        actionAvailability = IosCapabilityPresentation.actionAvailability,
-        onAsyncFailure = { command, cause ->
-            throw IllegalStateException("iOS Core command failed: $command", cause)
-        },
-    )
-    private val core = createNaviampCore(scope, environment)
-    private val nativePlayback = IosNativePlaybackIntegration(
-        scope = scope,
-        bridge = core.externalPlaybackBridge(),
-        artworkBytes = ::loadProviderArtwork,
     )
 
     init {
-        core.startRuntimeServices()
+        // CarPlay can launch without phone UI, so the application cannot wait for composition.
+        controller.start()
     }
 
     fun viewController(): UIViewController {
         var reference: WeakReference<UIViewController>? = null
-        val controller = ComposeUIViewController {
-            NaviampIosRasterHost(rootLayer = { reference?.get()?.view?.layer }) {
-                NaviampCoreApp(
-                    core = core,
-                    screenAwakeEffect = remember { IosScreenAwakeEffect() },
-                    applicationUpdateChecker = environment.applicationUpdateChecker,
-                )
+        val viewController = ComposeUIViewController {
+            NaviampAppleRasterHost(rootLayer = { reference?.get()?.view?.layer }) {
+                NaviampRecoverableHostApp(controller) { application ->
+                    NaviampCoreApp(
+                        core = application.core,
+                        screenAwakeEffect = remember { AppleScreenAwakeEffect() },
+                        applicationUpdateChecker = application.environment.applicationUpdateChecker,
+                    )
+                }
             }
         }
-        val controllerReference = WeakReference(controller)
+        val controllerReference = WeakReference(viewController)
         reference = controllerReference
         contentViewControllers.removeAll { it.get() == null }
         contentViewControllers.add(controllerReference)
-        return controller
+        return viewController
     }
 
     fun releaseViewController(controller: UIViewController) {
@@ -334,28 +138,18 @@ class NaviampIosApplication(
         maximumTabs: Int,
         supportsSearch: Boolean = false,
         changed: (NaviampIosVehicleBrowseState) -> Unit,
-    ): NaviampIosVehicleBrowseSession = NaviampIosVehicleBrowseSession(scope,
-        { core.vehicleBrowseController(scope, maximumItems, maximumTabs, supportsSearch) }, changed)
+    ): NaviampIosVehicleBrowseSession = NaviampIosVehicleBrowseSession(scope, {
+        val application = controller.state.first { it.application != null }.application!!
+        application.core.vehicleBrowseController(scope, maximumItems, maximumTabs, supportsSearch)
+    }, changed)
 
     fun close() {
-        resetIosPlatformCoverArtByteLoader()
-        nativePlayback.close()
-        core.close()
-        playbackEngine.release()
+        controller.close()
         scope.cancel()
-        driver.close()
     }
-
-    private suspend fun loadProviderArtwork(url: String): ByteArray? = runCatching {
-        val provider = sessions.currentProvider()
-        if (provider == null) {
-            artworkCache.imageBytes(url)
-        } else {
-            artworkCache.imageBytesForProvider(provider, url) {
-                provider.bytesForOwnedUrl(url)
-                    ?: httpClient.getBytes(url)
-                    ?: throw IllegalStateException("Could not load artwork.")
-            }
-        }
-    }.getOrNull()
 }
+
+private const val AppStorageLocationId = "app-storage"
+
+private fun appStorageLocation(path: String) =
+    NaviampStorageLocationUi(AppStorageLocationId, "", path, NaviampStorageLocationKind.AppStorage)

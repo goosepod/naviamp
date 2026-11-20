@@ -1,0 +1,21 @@
+
+gradle.projectsEvaluated {
+    def library = rootProject.findProject(':resources:library')
+    if (library == null) return
+    library.publishing.repositories.maven {
+        name = 'OwnedProbe'
+        url = new File(rootProject.property('naviamp.tvos.resourcesProbeRepository').toString()).toURI()
+    }
+    library.tasks.withType(org.gradle.api.publish.maven.tasks.PublishToMavenRepository).configureEach {
+        if (name.endsWith('ToOwnedProbeRepository')) {
+            doFirst {
+                if (publication.groupId != 'app.naviamp.tvosprobe.compose.components' ||
+                    publication.version != '1.12.2' ||
+                    !(publication.name in ['kotlinMultiplatform', 'tvosArm64', 'tvosSimulatorArm64']) ||
+                    repository.url.scheme != 'file') {
+                    throw new GradleException('Refusing unreviewed resource publication')
+                }
+            }
+        }
+    }
+}

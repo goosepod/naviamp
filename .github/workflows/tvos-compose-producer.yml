@@ -1,0 +1,191 @@
+name: tvOS Compose accepted-source producer
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tvos-compose-producer
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and qualify a new candidate
+    if: github.repository == 'goosepod/naviamp' && github.ref == 'refs/heads/main'
+    runs-on: macos-latest
+    timeout-minutes: 300
+    outputs:
+      bundle_sha256: ${{ steps.stage.outputs.bundle_sha256 }}
+      manifest_sha256: ${{ steps.stage.outputs.manifest_sha256 }}
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      artifact_sha256: ${{ steps.upload.outputs.artifact-digest }}
+    env:
+      TZ: America/Los_Angeles
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14'
+      - name: Require accepted main workflow and an ARM64 hosted Mac
+        run: |
+          python3 - <<'PY'
+          import os, platform
+          assert os.environ['GITHUB_REPOSITORY'] == 'goosepod/naviamp'
+          assert os.environ['GITHUB_REF'] == 'refs/heads/main'
+          assert os.environ['GITHUB_SHA'] == os.environ['GITHUB_WORKFLOW_SHA']
+          assert os.environ['RUNNER_ENVIRONMENT'] == 'github-hosted'
+          assert platform.machine() == 'arm64'
+          PY
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+        with:
+          packages: platform-tools
+      - name: Check delivery and scene tooling
+        run: |
+          mkdir -p build
+          python3 -m unittest discover -s scripts/tests -p 'test_verification_tvos_*.py' -v > build/tvos-tooling.log 2>&1
+      - name: Reconstruct pinned official sources
+        run: python3 scripts/prepare-tvos-compose-sources.py --destination build/tvos-sources
+      - name: Build into new repositories with separate disposable caches
+        run: |
+          python3 scripts/build-tvos-compose.py --sources build/tvos-sources \
+            --gradle-home "$RUNNER_TEMP/tvos-producer-gradle" --native-home "$RUNNER_TEMP/tvos-producer-native"
+      - name: Package candidate and retain source notices
+        id: stage
+        run: |
+          python3 scripts/tvos-hosted-compose.py stage --sources build/tvos-sources --output build/tvos-delivery
+          cp build-support/tvos-compose/sources.zip build/tvos-sources/producer-evidence/sources.zip
+          cp build-support/tvos-compose/README.md build/tvos-sources/producer-evidence/source-notices.md
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          receipt = json.loads(Path('build/tvos-delivery/candidate.json').read_text())
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
+              stream.write('bundle_sha256=' + receipt['bundleSha256'] + '\n')
+              stream.write('manifest_sha256=' + receipt['manifestSha256'] + '\n')
+          PY
+      - name: Verify installation and both helper deployment floors
+        env:
+          BUNDLE_SHA: ${{ steps.stage.outputs.bundle_sha256 }}
+          MANIFEST_SHA: ${{ steps.stage.outputs.manifest_sha256 }}
+        run: |
+          python3 scripts/tvos-compose-delivery.py install --bundle build/tvos-delivery/compose.zip \
+            --bundle-sha256 "$BUNDLE_SHA" --manifest-sha256 "$MANIFEST_SHA" --destination build/tvos-artifacts
+          python3 scripts/tvos-hosted-ci.py audit-helpers --artifacts build/tvos-artifacts \
+            --manifest-sha256 "$MANIFEST_SHA" --output build/tvos-helper-audit
+      - name: Select and record an available tvOS runtime
+        id: runtime
+        run: python3 scripts/tvos-hosted-ci.py runtime --download --output build/tvos-runtime.json >> "$GITHUB_OUTPUT"
+      - name: Qualify the complete recovered app scene
+        env:
+          MANIFEST_SHA: ${{ steps.stage.outputs.manifest_sha256 }}
+          TVOS_RUNTIME: ${{ steps.runtime.outputs.runtime }}
+        run: |
+          export GRADLE_USER_HOME="$RUNNER_TEMP/tvos-app-gradle"
+          export KONAN_DATA_DIR="$RUNNER_TEMP/tvos-app-native-$MANIFEST_SHA"
+          python3 scripts/run-tvos-scene-tests.py --artifacts build/tvos-artifacts \
+            --expected-manifest-sha256 "$MANIFEST_SHA" --runtime "$TVOS_RUNTIME" \
+            --build-timeout 7200 --output build/tvos-scene
+      - name: Qualify TLS, remote transport, interruptions and audio route recovery
+        env:
+          MANIFEST_SHA: ${{ steps.stage.outputs.manifest_sha256 }}
+          TVOS_RUNTIME: ${{ steps.runtime.outputs.runtime }}
+        run: |
+          export GRADLE_USER_HOME="$RUNNER_TEMP/tvos-app-gradle"
+          export KONAN_DATA_DIR="$RUNNER_TEMP/tvos-app-native-$MANIFEST_SHA"
+          python3 scripts/run-tvos-transport-tests.py --artifacts build/tvos-artifacts \
+            --expected-manifest-sha256 "$MANIFEST_SHA" --runtime "$TVOS_RUNTIME" \
+            --build-timeout 3600 --output build/tvos-transport
+          python3 -c 'import json; r=json.load(open("build/tvos-transport/summary.json")); assert r["passed"] and r["scope"] == "tvos-simulator" and r["os27SimulatorQualified"]'
+      - name: Retry only owned simulator cleanup
+        if: always()
+        run: python3 scripts/tvos-hosted-ci.py cleanup --scene build/tvos-scene
+      - name: Retry only owned transport simulator cleanup
+        if: always()
+        run: python3 scripts/tvos-hosted-ci.py cleanup --scene build/tvos-transport
+      - name: Upload immutable candidate after qualification
+        id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: tvos-compose-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/tvos-delivery/compose.zip
+          archive: true
+          overwrite: false
+          compression-level: 0
+          retention-days: 90
+          if-no-files-found: error
+      - name: Preserve producer, source, license and scene evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: tvos-compose-producer-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 90
+          if-no-files-found: warn
+          path: |
+            build/tvos-tooling.log
+            build/tvos-sources/source-replay.json
+            build/tvos-sources/producer-evidence/**
+            build/tvos-delivery/candidate.json
+            build/tvos-helper-audit/**
+            build/tvos-runtime.json
+            build/tvos-scene/**
+            !build/tvos-scene/consumer/**
+            !build/tvos-scene/derived/**
+            build/tvos-transport/**
+            !build/tvos-transport/consumer/**
+            !build/tvos-transport/fixture.bootstrap
+
+  attest:
+    name: Attest the qualified immutable candidate
+    needs: build
+    if: github.repository == 'goosepod/naviamp' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact_id }}
+          path: delivery
+          merge-multiple: true
+      - name: Require the exact qualified bytes
+        env:
+          EXPECTED_SHA: ${{ needs.build.outputs.bundle_sha256 }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, os
+          from pathlib import Path
+          assert hashlib.file_digest(Path('delivery/compose.zip').open('rb'), 'sha256').hexdigest() == os.environ['EXPECTED_SHA']
+          PY
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: delivery/compose.zip
+      - name: Prepare an unapproved promotion record
+        env:
+          COMPOSE_ARTIFACT_ID: ${{ needs.build.outputs.artifact_id }}
+          COMPOSE_ARTIFACT_SHA256: ${{ needs.build.outputs.artifact_sha256 }}
+          COMPOSE_BUNDLE_SHA256: ${{ needs.build.outputs.bundle_sha256 }}
+          COMPOSE_MANIFEST_SHA256: ${{ needs.build.outputs.manifest_sha256 }}
+        run: python3 scripts/tvos-hosted-compose.py promotion --output trusted-artifact.candidate.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: tvos-compose-promotion-${{ github.run_id }}-${{ github.run_attempt }}
+          path: trusted-artifact.candidate.json
+          retention-days: 90
+          if-no-files-found: error

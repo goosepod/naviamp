@@ -497,6 +497,13 @@
     <string name="connection_aurral_companion_invalid">Masukkan URL server Aurral HTTP atau HTTPS dan nama pengguna.</string>
     <string name="discovery_find_in_aurral">Cari di Aurral</string>
     <string name="connection_aurral_companion_save_failed">Pendamping Aurral tidak dapat disimpan. Koneksi musik Anda tidak berubah.</string>
+    <string name="storage_recovery_title">Pengaturan tersimpan</string>
+    <string name="storage_recovery_capacity">Perubahan ini melebihi batas penyimpanan persisten perangkat. Pengaturan dan koneksi yang sebelumnya disimpan tidak berubah.</string>
+    <string name="storage_recovery_unreadable">Pengaturan tersimpan tidak dapat dibuka. Pengaturan tetap disimpan. Coba lagi, atau atur ulang untuk menyiapkan perangkat ini kembali.</string>
+    <string name="storage_recovery_conflict">Pengaturan tersimpan berubah selama operasi ini. Muat ulang sebelum mencoba lagi.</string>
+    <string name="storage_recovery_unavailable">Pengaturan tersimpan untuk sementara tidak tersedia. Coba lagi.</string>
+    <string name="storage_recovery_reset_title">Atur ulang pengaturan tersimpan?</string>
+    <string name="storage_recovery_reset_message">Pengaturan dan koneksi yang tersimpan di perangkat ini akan dihapus. Koleksi di server Anda tidak akan dihapus.</string>
     <string name="transport_play">Putar</string>
     <string name="library_title">Pustaka</string>
     <string name="mix_bias_favorites">Favorit</string>
@@ -518,4 +525,10 @@
     <string name="common_connecting">Menghubungkan</string>
     <string name="vehicle_connection_setup_on_phone">Tambahkan atau perbarui koneksi di ponsel Anda.</string>
     <string name="vehicle_connection_offline">Luring</string>
+    <string name="tv_keyboard_navigation_hint">Tekan Pilih pada kolom untuk membuka keyboard TV. Pilih Berikutnya untuk melanjutkan, atau gunakan Kembali atau Esc untuk menutup keyboard.</string>
+    <string name="tv_search_keyboard_space">Spasi</string>
+    <string name="tv_search_keyboard_backspace">Hapus karakter</string>
+    <string name="tv_search_system_keyboard">Papan ketik sistem</string>
+    <string name="storage_location_app">Penyimpanan aplikasi</string>
+    <string name="storage_location_custom">Kustom</string>
 </resources>

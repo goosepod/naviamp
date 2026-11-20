@@ -19,7 +19,7 @@ TLS_OWNER = 'app.naviamp.ios.playback.IosMutualTlsPlaybackIntegrationTest'
 TLS_CASE = 'realMutualTlsAuthenticatesAndSeeksThroughNormalPlayback'
 
 
-def inventory(text):
+def inventory(text, tls_case=(TLS_OWNER, TLS_CASE)):
     cases = set()
     owner = None
     for line in text.splitlines():
@@ -34,7 +34,7 @@ def inventory(text):
             owner = line[:-1]
         else:
             raise RuntimeError(f'Invalid native inventory line: {line!r}')
-    if not cases or (TLS_OWNER, TLS_CASE) not in cases:
+    if not cases or (tls_case is not None and tls_case not in cases):
         raise RuntimeError('Native inventory is empty or lacks the required mTLS contract')
     return cases
 
@@ -74,7 +74,7 @@ def service_message(line):
     return event, fields
 
 
-def results(text, expected):
+def results(text, expected, required_marker='mTLS runner bootstrap supplied'):
     owner = None
     active = None
     completed = {}
@@ -104,7 +104,7 @@ def results(text, expected):
             raise RuntimeError(f'Unexpected native event/order: {event}: {fields}')
     if owner is not None or active is not None or set(completed) != expected:
         raise RuntimeError('Native results are incomplete or do not match the binary inventory')
-    if 'mTLS runner bootstrap supplied' not in text:
+    if required_marker not in text:
         raise RuntimeError('Native mTLS bootstrap provenance was not reported')
     return completed
 
@@ -133,7 +133,7 @@ def execute(command, log, deadline):
     return text
 
 
-def run(executable, device, output, timeout=240, prefix=None, required=None):
+def run(executable, device, output, timeout=240, prefix=None, required=None, tls_case=(TLS_OWNER, TLS_CASE), label='iOS', required_marker='mTLS runner bootstrap supplied'):
     uuid.UUID(device)
     executable = executable.resolve(strict=True)
     if not executable.is_file():
@@ -148,14 +148,14 @@ def run(executable, device, output, timeout=240, prefix=None, required=None):
     # Preserve KotlinNativeSimulatorTest's exact boundary between the program and native flags.
     command = (prefix if prefix is not None else ['xcrun', 'simctl', 'spawn', device]) + [str(executable), '--']
     try:
-        expected = inventory(execute(command + ['--ktest_list_tests'], output / 'inventory.log', started + timeout))
+        expected = inventory(execute(command + ['--ktest_list_tests'], output / 'inventory.log', started + timeout), tls_case)
         if required is None:
             required = {tuple(case) for case in json.loads(Path(__file__).with_name('ios-native-required-tests.json').read_text())}
         if expected != required:
             raise RuntimeError(f'Native binary inventory differs from the required source manifest: missing={required - expected}; extra={expected - required}')
         report['expectedCases'] = sorted(expected)
         captured = execute(command + ['--ktest_logger=TEAMCITY'], output / 'native.log', started + timeout)
-        completed = results(captured, expected)
+        completed = results(captured, expected, required_marker)
         if hashlib.sha256(executable.read_bytes()).hexdigest() != digest:
             raise RuntimeError('Native executable changed during execution')
         target = output / 'results'
@@ -177,8 +177,8 @@ def run(executable, device, output, timeout=240, prefix=None, required=None):
         counters = ''.join(f'<div id="{key}"><div class="counter">{value}</div></div>'
                            for key, value in [('tests', len(completed)), ('failures', 0), ('ignored', 0)])
         (output / 'report/index.html').write_text(
-            '<!doctype html><meta charset="utf-8"><title>Prebuilt iOS native tests</title>'
-            '<h1>Prebuilt iOS native tests</h1>' + counters + '<p>Fresh execution: ' + html.escape(stamp) +
+            '<!doctype html><meta charset="utf-8"><title>Prebuilt ' + html.escape(label) + ' native tests</title>'
+            '<h1>Prebuilt ' + html.escape(label) + ' native tests</h1>' + counters + '<p>Fresh execution: ' + html.escape(stamp) +
             '</p><pre>' + html.escape(captured) + '</pre>', encoding='utf-8')
         print(f'Naviamp prebuilt native execution completed: {len(completed)} tests, zero failures/errors/skips', flush=True)
         return completed

@@ -191,7 +191,20 @@ data class NaviampDiagnosticsSectionUi(
     val rows: List<Pair<String, String>>,
 )
 
-data class NaviampStorageLocationUi(val id: String, val label: String, val path: String)
+/** [label] names a host-provided location; the shared kinds supply translated labels. */
+data class NaviampStorageLocationUi(
+    val id: String, val label: String, val path: String,
+    val kind: NaviampStorageLocationKind = NaviampStorageLocationKind.Named,
+)
+
+enum class NaviampStorageLocationKind { Named, AppStorage, Custom }
+
+@Composable
+internal fun NaviampStorageLocationUi.displayLabel(): String = when (kind) {
+    NaviampStorageLocationKind.Named -> label
+    NaviampStorageLocationKind.AppStorage -> stringResource(Res.string.storage_location_app)
+    NaviampStorageLocationKind.Custom -> stringResource(Res.string.storage_location_custom)
+}
 
 data class NaviampAboutUi(
     val version: String = NaviampAppVersion,
@@ -283,6 +296,7 @@ fun NaviampSharedSettingsContent(
     supportsReplayGain: Boolean = false,
     supportsGapless: Boolean = true,
     supportsCrossfade: Boolean = false,
+    supportsStereoDownmix: Boolean = true,
     supportsEqualizer: Boolean = false,
     supportsAudioOutputDeviceSelection: Boolean = false,
     audioOutputDevices: List<AudioOutputDevice> = emptyList(),
@@ -427,6 +441,7 @@ fun NaviampSharedSettingsContent(
                     supportsReplayGain = supportsReplayGain,
                     supportsGapless = supportsGapless,
                     supportsCrossfade = supportsCrossfade,
+                    supportsStereoDownmix = supportsStereoDownmix,
                     supportsEqualizer = supportsEqualizer,
                     supportsAudioOutputDeviceSelection = supportsAudioOutputDeviceSelection,
                     audioOutputDevices = audioOutputDevices,
@@ -3355,7 +3370,7 @@ fun NaviampDownloadsSettingsSection(
                 }
             }
             DownloadsSettingsPage.Location -> locations.forEach { location ->
-                SelectableSettingsRow(colors = colors, title = location.label, subtitle = location.path, selected = location.id == selectedLocationId) {
+                SelectableSettingsRow(colors = colors, title = location.displayLabel(), subtitle = location.path, selected = location.id == selectedLocationId) {
                     onLocationChanged(location)
                 }
             }
@@ -3422,7 +3437,7 @@ fun NaviampDownloadsSettingsSection(
     }
     if (locations.isNotEmpty()) {
         val selected = locations.firstOrNull { it.id == selectedLocationId } ?: locations.first()
-        SettingsRow("Download location", "Where newly saved files are stored", colors, selected.label) {
+        SettingsRow("Download location", "Where newly saved files are stored", colors, selected.displayLabel()) {
             selectedPage = DownloadsSettingsPage.Location
         }
     }
@@ -3502,7 +3517,7 @@ fun NaviampAudioCacheSettingsSection(
                 }
             }
             AudioCacheSettingsPage.Location -> locations.forEach { location ->
-                SelectableSettingsRow(colors = colors, title = location.label, subtitle = location.path, selected = location.id == selectedLocationId) {
+                SelectableSettingsRow(colors = colors, title = location.displayLabel(), subtitle = location.path, selected = location.id == selectedLocationId) {
                     onLocationChanged(location)
                 }
             }
@@ -3542,7 +3557,7 @@ fun NaviampAudioCacheSettingsSection(
     }
     if (locations.isNotEmpty()) {
         val selected = locations.firstOrNull { it.id == selectedLocationId } ?: locations.first()
-        SettingsRow("Cache location", "Where newly prefetched audio is stored", colors, selected.label) {
+        SettingsRow("Cache location", "Where newly prefetched audio is stored", colors, selected.displayLabel()) {
             selectedPage = AudioCacheSettingsPage.Location
         }
     }
@@ -3736,6 +3751,7 @@ fun NaviampPlaybackSettingsSection(
     supportsReplayGain: Boolean,
     supportsGapless: Boolean,
     supportsCrossfade: Boolean,
+    supportsStereoDownmix: Boolean = true,
     supportsEqualizer: Boolean,
     supportsAudioOutputDeviceSelection: Boolean = false,
     audioOutputDevices: List<AudioOutputDevice> = emptyList(),
@@ -3760,6 +3776,7 @@ fun NaviampPlaybackSettingsSection(
                 playbackSettings = playbackSettings,
                 devices = audioOutputDevices,
                 supportsAudioDeviceSelection = supportsAudioOutputDeviceSelection,
+                supportsStereoDownmix = supportsStereoDownmix,
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,
                 onBack = { selectedSection = null },
             )
@@ -3945,6 +3962,7 @@ private fun AudioOutputSettings(
     playbackSettings: PlaybackSettings,
     devices: List<AudioOutputDevice>,
     supportsAudioDeviceSelection: Boolean,
+    supportsStereoDownmix: Boolean,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -4026,7 +4044,7 @@ private fun AudioOutputSettings(
                 colors = colors,
                 value = playbackSettings.sampleRateConverter.label,
             ) { selectedPage = AudioOutputSettingsPage.SampleRateConverter }
-            SettingsCheckboxRow(
+            if (supportsStereoDownmix) SettingsCheckboxRow(
                 colors = colors,
                 checked = playbackSettings.stereoDownmixEnabled,
                 label = stringResource(Res.string.settings_stereo_downmix_title),

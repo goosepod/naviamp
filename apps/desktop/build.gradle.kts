@@ -1,3 +1,5 @@
+import org.gradle.process.ExecOperations
+import javax.inject.Inject
 import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.testing.Test
@@ -12,6 +14,11 @@ plugins {
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kover)
 }
+
+abstract class DesktopPackagingProcess {
+    @get:Inject abstract val operations: ExecOperations
+}
+val desktopPackagingProcess = objects.newInstance<DesktopPackagingProcess>()
 
 val naviampVersionName = rootProject.file("VERSION").readText().trim()
 val naviampVersionCode = rootProject.file("VERSION_CODE").readText().trim().toInt()
@@ -488,7 +495,7 @@ fun registerWindowsInstaller(format: String) = tasks.register("packageReleaseWin
         val extractedJmodDirectory = resourcesDirectory.resolve("jmod")
         delete(resourcesDirectory)
         resourcesDirectory.mkdirs()
-        project.exec {
+        desktopPackagingProcess.operations.exec {
             commandLine(
                 jmodTool.absolutePath,
                 "extract",
@@ -510,7 +517,7 @@ fun registerWindowsInstaller(format: String) = tasks.register("packageReleaseWin
         val destination = outputDirectory.get().asFile
         delete(destination)
         destination.mkdirs()
-        project.exec {
+        desktopPackagingProcess.operations.exec {
             commandLine(
                 jpackageTool.absolutePath,
                 "--type", format,
@@ -691,7 +698,7 @@ fun patchMacAppBundleVersion(appDirectory: File) {
 
 fun configureMacLocalNetworkPrivacy(appDirectory: File, checkOnly: Boolean = false) {
     if (!desktopNativePlatform.get().startsWith("macos-")) return
-    project.exec {
+    desktopPackagingProcess.operations.exec {
         commandLine(buildList {
             add("python3")
             add(rootProject.file("scripts/configure-macos-local-network.py").absolutePath)
@@ -704,7 +711,7 @@ fun configureMacLocalNetworkPrivacy(appDirectory: File, checkOnly: Boolean = fal
 fun sealMacAppBundle(appDirectory: File) {
     val platform = desktopNativePlatform.get()
     if (!platform.startsWith("macos-")) return
-    project.exec {
+    desktopPackagingProcess.operations.exec {
         commandLine(
             "/usr/bin/codesign",
             "--force",
@@ -720,7 +727,7 @@ fun sealMacAppBundle(appDirectory: File) {
 }
 
 fun verifyMacAppBundleSeal(appDirectory: File) {
-    project.exec {
+    desktopPackagingProcess.operations.exec {
         commandLine(
             "/usr/bin/codesign",
             "--verify",

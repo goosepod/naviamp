@@ -30,9 +30,10 @@ class StorageCoreRepositoryCatalog(
     hotImageBytes: () -> Long = { 0L },
     clearHotImages: () -> Unit = {},
     clearAdditionalData: () -> Unit = {},
+    recoveryState: StorageRecoveryState? = null,
 ) {
     private val queries = database.naviampStorageQueries
-    private val rows = StorageMaintenanceStore(queries)
+    private val rows = StorageMaintenanceStore(queries, recoveryState)
     private var currentMaxAudioBytes = maxAudioBytes.coerceAtLeast(0L)
 
     fun updateAudioCacheLimit(maxBytes: Long) {
@@ -50,7 +51,7 @@ class StorageCoreRepositoryCatalog(
             .mapTo(mutableSetOf()) { track -> track.id }
     }
 
-    val mediaSources = StorageMediaSourceStore(queries, nowEpochMillis, credentialProtector)
+    val mediaSources = StorageMediaSourceStore(queries, nowEpochMillis, credentialProtector, recovery = recoveryState)
     val libraryIndex = StorageLibraryIndexStore(queries, mediaSources, nowEpochMillis)
     val providerResponseRows = StorageProviderResponseStore(queries)
     val providerResponses = ProviderResponseCacheService(
@@ -58,9 +59,9 @@ class StorageCoreRepositoryCatalog(
         nowEpochMillis,
     )
     val keepDownloaded = StorageKeepDownloadedStore(queries, nowEpochMillis)
-    val radioDjPresets = StorageRadioDjPresetStore(queries, nowEpochMillis)
+    val radioDjPresets = StorageRadioDjPresetStore(queries, nowEpochMillis, recoveryState)
     val playbackSessions = StoragePlaybackSessionStore(queries, nowEpochMillis)
-    val playbackProfiles = StoragePlaybackProfileStore(queries, nowEpochMillis)
+    val playbackProfiles = StoragePlaybackProfileStore(queries, nowEpochMillis, recoveryState)
     val playbackHistory = StoragePlaybackHistoryStore(queries)
     val pendingProviderActions = StoragePendingProviderActionStore(queries, nowEpochMillis)
     val discoveryAcquisitions = StorageDiscoveryAcquisitionStore(queries)
@@ -70,7 +71,7 @@ class StorageCoreRepositoryCatalog(
         nowMillis = nowEpochMillis,
         maxAudioWaveformCacheBytes = maxAudioWaveformBytes,
     )
-    val lyricsOffsets = StorageLyricsOffsetStore(queries, nowEpochMillis)
+    val lyricsOffsets = StorageLyricsOffsetStore(queries, nowEpochMillis, recoveryState)
     val lyricsSidecars = StorageLyricsSidecarStore(queries)
     val sidecarStatuses = StorageSidecarStatusStore(queries)
 

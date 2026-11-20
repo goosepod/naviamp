@@ -1,0 +1,46 @@
+// Diagnostic graph verification. Scene-host builds opt in to their checked-in targets separately.
+gradle.beforeProject { project ->
+    if (!(project.path in [':core:ui', ':core:presentation'])) return
+    project.pluginManager.withPlugin('org.jetbrains.kotlin.multiplatform') {
+        if (project.findProperty('naviamp.tvos.enabled') != 'true') {
+            throw new GradleException('The shared UI probe requires naviamp.tvos.enabled=true')
+        }
+        if (project.findProperty('naviamp.tvos.sceneHost') == 'true') return // Declared by the checked-in build scripts.
+        def kotlin = project.extensions.getByName('kotlin')
+        if (kotlin.targets.findByName('tvosArm64') == null) kotlin.tvosArm64()
+        if (kotlin.targets.findByName('tvosSimulatorArm64') == null) kotlin.tvosSimulatorArm64()
+    }
+}
+gradle.projectsEvaluated {
+    if (rootProject.findProject(':core:ui') == null) return
+    // The compatible UIKit/Metal/Foundation effects now live in the shared appleMain source set.
+    rootProject.tasks.register('verifyFullSharedUiProbeVariants') {
+        doLast {
+            def report = [:]
+            [':core:ui', ':core:presentation'].each { path ->
+                def project = rootProject.project(path)
+                ['iosSimulatorArm64', 'tvosArm64', 'tvosSimulatorArm64'].each { targetName ->
+                    def compilation = project.extensions.getByName('kotlin').targets.getByName(targetName)
+                        .compilations.getByName('main')
+                    def configuration = project.configurations.getByName(compilation.compileDependencyConfigurationName)
+                    def modules = configuration.incoming.resolutionResult.allComponents.collect { it.moduleVersion }
+                        .findAll { it != null }.collect { [group: it.group, module: it.name, version: it.version] }
+                    if (modules.any { it.group.startsWith('dev.sajidali') || it.version.contains('SNAPSHOT') }) {
+                        throw new GradleException("Unreviewed artifact in $path:$targetName")
+                    }
+                    if (targetName.startsWith('ios') && modules.any { it.group.startsWith('app.naviamp.tvosprobe') }) {
+                        throw new GradleException("Private port artifact leaked into $path:$targetName")
+                    }
+                    def lifecycle = modules.findAll { it.group == 'org.jetbrains.androidx.lifecycle' }
+                    if (lifecycle.isEmpty() || lifecycle.any { it.version != '2.11.0' }) {
+                        throw new GradleException("Wrong Lifecycle dependency in $path:$targetName")
+                    }
+                    report["$path:$targetName".toString()] = modules
+                }
+            }
+            def out = rootProject.layout.buildDirectory.file('full-ui-probe-variants.json').get().asFile
+            out.parentFile.mkdirs()
+            out.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(report))
+        }
+    }
+}

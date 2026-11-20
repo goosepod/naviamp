@@ -25,7 +25,7 @@ class NaviampExternalPlaybackArtworkController(
         val accepted = ++serial
         job?.cancel(); job = null
         changed(null)
-        val url = next?.url ?: return
+        val url = next?.url?.takeIf(String::isNotBlank) ?: return
         if (closed || accepted != serial) return
         val loading = scope.launch(start = CoroutineStart.LAZY) {
             try {

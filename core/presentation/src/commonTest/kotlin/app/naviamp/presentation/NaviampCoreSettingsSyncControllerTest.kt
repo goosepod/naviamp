@@ -123,6 +123,33 @@ class NaviampCoreSettingsSyncControllerTest {
     }
 
     @Test
+    fun unavailableDocumentHostNeverWritesEvenWithASavedFolder() = runTest {
+        val store = NaviampCoreStateStore()
+        val port = RecordingSettingsSyncPort(available = false)
+        port.saveConfiguration(NaviampCoreSettingsSyncConfiguration(directoryPath = "/stale", autoExportEnabled = true))
+        var runtime = SettingsSyncRuntimeState()
+        val controller = NaviampCoreSettingsSyncController(
+            store,
+            NaviampCoreSettingsSyncServices(
+                controller = NaviampSettingsSyncController(
+                    deviceId = "test",
+                    state = { runtime },
+                    saveState = { runtime = it },
+                    nowEpochMillis = { 100L },
+                    snapshot = { SettingsSyncLocalSnapshot() },
+                    applyDocument = {},
+                ),
+                port = port,
+            ),
+        )
+
+        controller.localSettingsChanged()
+        controller.execute(NaviampCoreCommand.SettingsSync.Export)
+
+        assertTrue(port.operations.none { it.startsWith("write:") })
+    }
+
+    @Test
     fun importFileUsesDocumentPickerWithoutChangingTheSyncDirectory() = runTest {
         val store = NaviampCoreStateStore()
         val port = RecordingSettingsSyncPort().apply {
@@ -184,7 +211,7 @@ class NaviampCoreSettingsSyncControllerTest {
     }
 }
 
-private class RecordingSettingsSyncPort : NaviampCoreSettingsSyncPort {
+private class RecordingSettingsSyncPort(override val available: Boolean = true) : NaviampCoreSettingsSyncPort {
     private var saved = NaviampCoreSettingsSyncConfiguration()
     val operations = mutableListOf<String>()
     var document: SettingsSyncDocument? = null
@@ -224,5 +251,4 @@ private class RecordingSettingsSyncPort : NaviampCoreSettingsSyncPort {
     }
 
     override fun defaultDirectory() = "/home"
-    override val available = true
 }

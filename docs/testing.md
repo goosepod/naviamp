@@ -172,6 +172,10 @@ release packaging. Its required matrix contains:
 
 Release artifacts cannot start packaging unless this reusable verification workflow succeeds.
 
+Apple TV is not in this matrix yet. Its opt-in native BASS workflow (`tvos-native.yml`) runs on
+relevant changes, and its full scene workflow stays manual until the hosted Compose pin is
+approved. See [`tvos.md`](tvos.md).
+
 ## High-risk regression coverage
 
 - SQLDelight checks every migration from `core/storage/src/commonMain/sqldelight/app/naviamp/storage/1.db`.

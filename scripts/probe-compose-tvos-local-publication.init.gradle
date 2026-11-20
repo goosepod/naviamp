@@ -1,0 +1,70 @@
+// Opt-in local artifact staging for #590's external source experiment only.
+import org.gradle.api.publish.PublishingExtension
+import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
+
+gradle.projectsEvaluated {
+    // Init scripts also run for included buildSrc builds, which do not publish this graph.
+    if (rootProject.findProject(':compose:ui:ui') == null) return
+    def requested = rootProject.findProperty('naviamp.tvos.probeRepository')
+    if (requested == null) throw new GradleException('Supply an explicit local probe repository')
+    def requestedFile = new File(requested.toString())
+    if (!requestedFile.isAbsolute()) throw new GradleException('Use an absolute probe repository path')
+    def repository = requestedFile.canonicalFile
+    def experimentParent = rootProject.projectDir.parentFile.canonicalFile.toPath()
+    if (!repository.toPath().startsWith(experimentParent)) {
+        throw new GradleException('The probe repository must stay within the owned experiment directory')
+    }
+    def versions = [
+        ':navigationevent:navigationevent-compose': '1.1.0',
+        ':compose:animation:animation': '1.12.2',
+        ':compose:animation:animation-core': '1.12.2',
+        ':compose:foundation:foundation': '1.12.2',
+        ':compose:foundation:foundation-layout': '1.12.2',
+        ':compose:material:material-ripple': '1.12.2',
+        ':compose:material3:material3': '1.9.0',
+    ]
+    ['ui', 'ui-backhandler', 'ui-geometry', 'ui-graphics', 'ui-text', 'ui-unit',
+        'ui-util', 'ui-uikit', 'ui-test'].each { versions[":compose:ui:$it"] = '1.12.2' }
+    def verification = rootProject.tasks.register('verifyTvosProbePublicationCoordinates') {
+        group = 'verification'
+        doLast {
+            def count = 0
+            versions.each { path, version ->
+                def project = rootProject.findProject(path)
+                if (project == null) throw new GradleException("Missing probe project: $path")
+                def publishing = project.extensions.findByType(PublishingExtension)
+                ['kotlinMultiplatform', 'tvosArm64', 'tvosSimulatorArm64'].each { name ->
+                    def publication = publishing?.publications?.findByName(name)
+                    if (!(publication instanceof MavenPublication)) {
+                        throw new GradleException("Missing probe publication: $path:$name")
+                    }
+                    if (!publication.groupId.startsWith('app.naviamp.tvosprobe.') ||
+                            publication.version != version) {
+                        throw new GradleException("Unreviewed probe coordinate: ${publication.groupId}:" +
+                            "${publication.artifactId}:${publication.version}; expected private namespace and $version")
+                    }
+                    count++
+                }
+            }
+            logger.lifecycle("Verified $count exact-version private tvOS probe publications")
+        }
+    }
+    versions.each { path, version ->
+        def project = rootProject.findProject(path)
+        project.extensions.getByType(PublishingExtension).repositories.named('maven') {
+            setUrl(repository.toURI())
+        }
+        project.tasks.withType(PublishToMavenRepository).configureEach {
+            if (name.endsWith('ToMavenRepository')) {
+                dependsOn(verification)
+                doFirst {
+                    if (getRepository().url.scheme != 'file' ||
+                            new File(getRepository().url).canonicalFile != repository) {
+                        throw new GradleException('Refusing publication outside the owned local repository')
+                    }
+                }
+            }
+        }
+    }
+}

@@ -56,7 +56,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -79,6 +78,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalInputModeManager
+import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -563,8 +564,6 @@ internal fun TelevisionInternetRadio(
     val stations = screen.stations.sortedBy { it.item.title.lowercase() }
     val newFocusRequester = remember { FocusRequester() }
     val refreshFocusRequester = remember { FocusRequester() }
-    val editActionFocusRequester = remember { FocusRequester() }
-    val cancelDeleteFocusRequester = remember { FocusRequester() }
     val stationFocusRequesters = remember(stations.map { it.item.id }) {
         List(stations.size) { FocusRequester() }
     }
@@ -580,19 +579,6 @@ internal fun TelevisionInternetRadio(
             onEntryFocusHandled(generation)
         }
     }
-    LaunchedEffect(actionStation) {
-        if (actionStation != null) {
-            withFrameNanos { }
-            editActionFocusRequester.requestFocus()
-        }
-    }
-    LaunchedEffect(deletingStation) {
-        if (deletingStation != null) {
-            withFrameNanos { }
-            cancelDeleteFocusRequester.requestFocus()
-        }
-    }
-
     Column(
         verticalArrangement = Arrangement.spacedBy(14.dp),
         modifier = Modifier.fillMaxSize().padding(horizontal = 30.dp),
@@ -693,21 +679,23 @@ internal fun TelevisionInternetRadio(
             title = { Text(station.item.title) },
             text = { Text(station.streamUrl) },
             confirmButton = {
-                TextButton(
+                TelevisionDialogAction(
+                    label = stringResource(Res.string.tv_edit),
+                    colors = colors,
+                    initialFocus = true,
                     onClick = {
                         actionStation = null
                         editingStation = station
                     },
-                    modifier = Modifier.focusRequester(editActionFocusRequester),
-                ) { Text(stringResource(Res.string.tv_edit)) }
+                )
             },
             dismissButton = {
-                Row {
-                    TextButton(onClick = {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    TelevisionDialogAction(stringResource(Res.string.common_delete), colors, onClick = {
                         actionStation = null
                         deletingStation = station
-                    }) { Text(stringResource(Res.string.common_delete)) }
-                    TextButton(onClick = { actionStation = null }) { Text(stringResource(Res.string.common_cancel)) }
+                    })
+                    TelevisionDialogAction(stringResource(Res.string.common_cancel), colors, onClick = { actionStation = null })
                 }
             },
         )
@@ -739,19 +727,46 @@ internal fun TelevisionInternetRadio(
             title = { Text(stringResource(Res.string.tv_delete_station)) },
             text = { Text(stringResource(Res.string.tv_delete_named_station, station.item.title)) },
             confirmButton = {
-                TextButton(onClick = {
+                TelevisionDialogAction(stringResource(Res.string.common_delete), colors, onClick = {
                     deletingStation = null
                     actions.onStationAction(StationRowActionRequest(station.item, StationRowAction.Delete))
-                }) { Text(stringResource(Res.string.common_delete)) }
+                })
             },
             dismissButton = {
-                TextButton(
+                TelevisionDialogAction(
+                    label = stringResource(Res.string.common_cancel),
+                    colors = colors,
+                    initialFocus = true,
                     onClick = { deletingStation = null },
-                    modifier = Modifier.focusRequester(cancelDeleteFocusRequester),
-                ) { Text(stringResource(Res.string.common_cancel)) }
+                )
             },
         )
     }
+}
+
+@Composable
+private fun TelevisionDialogAction(
+    label: String,
+    colors: NaviampColors,
+    initialFocus: Boolean = false,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val requester = remember { FocusRequester() }
+    val inputMode = LocalInputModeManager.current
+    LaunchedEffect(initialFocus) {
+        if (!initialFocus) return@LaunchedEffect
+        inputMode.requestInputMode(InputMode.Keyboard)
+        repeat(TelevisionFocusRequestAttempts) {
+            withFrameNanos { }
+            if (requester.requestFocus()) return@LaunchedEffect
+        }
+    }
+    TelevisionTextButton(
+        label, colors, calmFocus = true, onClick = onClick,
+        modifier = modifier.focusRequester(requester),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+    )
 }
 
 @Composable
@@ -818,6 +833,8 @@ internal fun TelevisionPlaylists(
     actions: NaviampPlaylistsActions,
     mediaActions: NaviampMediaActions,
     topNavigationFocusRequester: FocusRequester,
+    returnFocusPlaylistId: String? = null,
+    onReturnFocusHandled: () -> Unit = {},
     entryFocusGeneration: Int? = null,
     onEntryFocusHandled: (Int) -> Unit = {},
 ) {
@@ -829,11 +846,18 @@ internal fun TelevisionPlaylists(
             gridFocusRequest = TelevisionGridFocusRequest(0, ++gridFocusGeneration)
         }
     }
-    LaunchedEffect(entryFocusGeneration, playlists) {
-        entryFocusGeneration?.let { generation ->
-            enterGrid()
-            onEntryFocusHandled(generation)
+    LaunchedEffect(entryFocusGeneration, returnFocusPlaylistId, playlists, screen.refreshing) {
+        if (entryFocusGeneration == null && returnFocusPlaylistId == null) return@LaunchedEffect
+        if (playlists.isNotEmpty()) {
+            val index = playlists.indexOfFirst { it.id == returnFocusPlaylistId }.coerceAtLeast(0)
+            gridFocusRequest = TelevisionGridFocusRequest(index, ++gridFocusGeneration)
+        } else if (screen.refreshing) {
+            return@LaunchedEffect
+        } else {
+            topNavigationFocusRequester.requestFocus()
         }
+        if (returnFocusPlaylistId != null) onReturnFocusHandled()
+        entryFocusGeneration?.let(onEntryFocusHandled)
     }
     val headerModifier = Modifier.onPreviewKeyEvent { event ->
         if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown && playlists.isNotEmpty()) {
@@ -876,7 +900,7 @@ internal fun TelevisionPlaylists(
                     TelevisionMediaGridItem(
                         key = "playlist:${playlist.id}",
                         title = playlist.title,
-                        subtitle = playlist.subtitle,
+                        subtitle = playlist.trackCount?.let { televisionTrackCountLabel(it) } ?: playlist.subtitle,
                         coverArtUrl = playlist.coverArtUrl ?: playlist.coverArtUrls.firstOrNull(),
                         mediaKind = SharedMediaItemKind.Playlist,
                         action = {
@@ -917,19 +941,27 @@ internal fun TelevisionSearch(
     onEntryFocusHandled: (Int) -> Unit = {},
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
+    val platformTextEntry = LocalNaviampTelevisionTextEntry.current
+    val inputMode = LocalInputModeManager.current
+    val queryLabel = stringResource(Res.string.tv_artists_albums_or_tracks)
+    val searchLabel = stringResource(Res.string.search_title)
+    val cancelLabel = stringResource(Res.string.common_cancel)
     val searchFieldFocusRequester = remember { FocusRequester() }
     var searchFieldFocused by remember { mutableStateOf(false) }
     var keyboardActive by remember { mutableStateOf(false) }
     var resultsActive by remember { mutableStateOf(false) }
     var searchHeaderVisible by remember { mutableStateOf(true) }
     var returnFocusToSearch by remember { mutableStateOf(false) }
+    var editingQuery by remember { mutableStateOf(false) }
     LaunchedEffect(entryFocusGeneration) {
         entryFocusGeneration?.let { generation ->
             searchHeaderVisible = true
             withFrameNanos { }
             searchFieldFocusRequester.requestFocus()
-            keyboardController?.show()
-            keyboardActive = true
+            if (platformTextEntry == null) {
+                keyboardController?.show()
+                keyboardActive = true
+            }
             onEntryFocusHandled(generation)
         }
     }
@@ -956,6 +988,7 @@ internal fun TelevisionSearch(
     LaunchedEffect(returnFocusToSearch) {
         if (returnFocusToSearch) {
             withFrameNanos { }
+            inputMode.requestInputMode(InputMode.Keyboard)
             searchFieldFocusRequester.requestFocus()
             keyboardController?.hide()
             keyboardActive = false
@@ -993,56 +1026,50 @@ internal fun TelevisionSearch(
             )
         }
     }
+    val enterResults = Modifier.onPreviewKeyEvent { event ->
+        if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown && items.isNotEmpty()) {
+            keyboardController?.hide()
+            keyboardActive = false
+            resultsActive = true
+            searchHeaderVisible = false
+            true
+        } else {
+            false
+        }
+    }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxSize()) {
         if (searchHeaderVisible) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    colors = naviampOutlinedTextFieldColors(colors),
-                    value = screen.query,
-                    onValueChange = actions.onQueryChanged,
-                    label = { Text(stringResource(Res.string.tv_artists_albums_or_tracks)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { submitSearch() }),
-                    modifier = Modifier
-                        .weight(1f)
-                        .focusRequester(searchFieldFocusRequester)
-                        .onFocusChanged {
+                val fieldModifier = Modifier.weight(1f).focusRequester(searchFieldFocusRequester).then(enterResults)
+                if (platformTextEntry != null) {
+                    TelevisionTextButton(
+                        label = screen.query.ifBlank { queryLabel },
+                        colors = colors,
+                        calmFocus = true,
+                        modifier = fieldModifier.testTag("television-search-query"),
+                        onClick = { editingQuery = true },
+                    )
+                } else {
+                    OutlinedTextField(
+                        colors = naviampOutlinedTextFieldColors(colors),
+                        value = screen.query,
+                        onValueChange = actions.onQueryChanged,
+                        label = { Text(queryLabel) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(onSearch = { submitSearch() }),
+                        modifier = fieldModifier.onFocusChanged {
                             searchFieldFocused = it.isFocused
                             if (it.isFocused && !returnFocusToSearch) keyboardActive = true
-                        }
-                        .onPreviewKeyEvent { event ->
-                            if (
-                                event.type == KeyEventType.KeyDown &&
-                                event.key == Key.DirectionDown &&
-                                items.isNotEmpty()
-                            ) {
-                                keyboardController?.hide()
-                                keyboardActive = false
-                                resultsActive = true
-                                searchHeaderVisible = false
-                                true
-                            } else {
-                                false
-                            }
                         },
-                )
+                    )
+                }
                 TelevisionTextButton(
-                    label = if (screen.searching) stringResource(Res.string.tv_searching) else stringResource(Res.string.search_title),
+                    label = if (screen.searching) stringResource(Res.string.tv_searching) else searchLabel,
                     colors = colors,
                     calmFocus = true,
                     onClick = submitSearch,
-                    modifier = Modifier.onPreviewKeyEvent { event ->
-                        if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown && items.isNotEmpty()) {
-                            keyboardController?.hide()
-                            keyboardActive = false
-                            resultsActive = true
-                            searchHeaderVisible = false
-                            true
-                        } else {
-                            false
-                        }
-                    },
+                    modifier = enterResults,
                 )
             }
         }
@@ -1054,6 +1081,21 @@ internal fun TelevisionSearch(
                 focusFirstItem = resultsActive && !screen.searching,
             )
         }
+    }
+    if (editingQuery && platformTextEntry != null) {
+        TelevisionSearchEditor(
+            request = NaviampTelevisionTextEntryRequest(screen.query, queryLabel, searchLabel, cancelLabel),
+            colors = colors,
+            systemTextEntry = platformTextEntry,
+            onClose = { query ->
+                editingQuery = false
+                if (query != null) {
+                    actions.onQueryChanged(query)
+                    actions.onSearch()
+                }
+                returnFocusToSearch = true
+            },
+        )
     }
 }
 
@@ -1392,6 +1434,9 @@ internal fun TelevisionNowPlaying(
     onClose: () -> Unit,
     onOpenSettings: () -> Unit,
     displaySettings: NowPlayingDisplaySettings = NowPlayingDisplaySettings(),
+    contentInsets: Modifier = Modifier,
+    nativeWaveform: Boolean = true,
+    showWaveform: Boolean = true,
 ) {
     val queueButtonFocusRequester = remember { FocusRequester() }
     var queueOpen by remember { mutableStateOf(false) }
@@ -1475,11 +1520,18 @@ internal fun TelevisionNowPlaying(
         animationSpec = tween(TelevisionListeningModeTransitionMillis, easing = FastOutSlowInEasing),
         label = "TV listening-mode scrubber padding",
     )
+    // Device Hub sends Space for Play/Pause. In the full-screen player it is a transport key.
+    val spacebarPlayback = if (interactive) Modifier.naviampTelevisionPlaybackKeys(nowPlaying, Key.Spacebar) { request ->
+        controlsVisible = true
+        interactionSequence += 1
+        actions.onPlaybackAction(request)
+    } else Modifier
     TelevisionScreenProtectionSurface(
         protection = screenProtection,
         modifier = Modifier
             .fillMaxSize()
             .testTag("television-now-playing-protection")
+            .then(spacebarPlayback)
             .onPreviewKeyEvent { event ->
                 if (!interactive) return@onPreviewKeyEvent false
                 when {
@@ -1503,7 +1555,7 @@ internal fun TelevisionNowPlaying(
             },
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 36.dp, vertical = 24.dp),
+            modifier = Modifier.fillMaxSize().then(contentInsets).padding(horizontal = 36.dp, vertical = 24.dp),
         ) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(34.dp),
@@ -1607,19 +1659,26 @@ internal fun TelevisionNowPlaying(
                     color = colors.secondaryText,
                     fontSize = 15.sp,
                 )
-                WaveformScrubber(
-                    amplitudes = nowPlaying.waveform?.amplitudes.orEmpty(),
-                    value = progressFraction.coerceIn(0f, 1f),
-                    enabled = false,
-                    smoothProgress = nowPlaying.isPlaying,
-                    durationSeconds = duration,
-                    continuousWaveform = true,
-                    progressIdentity = nowPlaying.id,
-                    colors = televisionWaveformColors(colors, playerColors.accent),
-                    onValueChange = {},
-                    onValueChangeFinished = {},
-                    modifier = Modifier.weight(1f).height(listeningScrubberHeight),
-                )
+                val waveformModifier = Modifier.weight(1f).height(listeningScrubberHeight)
+                if (showWaveform) CompositionLocalProvider(
+                    LocalNaviampRasterPresenter provides LocalNaviampRasterPresenter.current.takeIf { nativeWaveform },
+                ) {
+                    WaveformScrubber(
+                        amplitudes = nowPlaying.waveform?.amplitudes.orEmpty(),
+                        value = progressFraction.coerceIn(0f, 1f),
+                        enabled = false,
+                        smoothProgress = nowPlaying.isPlaying,
+                        durationSeconds = duration,
+                        continuousWaveform = true,
+                        progressIdentity = nowPlaying.id,
+                        colors = televisionWaveformColors(colors, playerColors.accent),
+                        onValueChange = {},
+                        onValueChangeFinished = {},
+                        modifier = waveformModifier,
+                    )
+                } else {
+                    Spacer(waveformModifier)
+                }
                 Text(televisionSecondsLabel(duration), color = colors.secondaryText, fontSize = 15.sp)
             }
             AnimatedVisibility(
@@ -2066,7 +2125,6 @@ private fun TelevisionQueueActionsDialog(
     onDismiss: () -> Unit,
     onAction: (NowPlayingItemAction) -> Unit,
 ) {
-    val firstActionFocusRequester = remember { FocusRequester() }
     val actions = listOf(
         NowPlayingItemAction.PlayNext to stringResource(Res.string.tv_play_next),
         NowPlayingItemAction.RemoveFromQueue to stringResource(Res.string.mix_remove),
@@ -2087,23 +2145,18 @@ private fun TelevisionQueueActionsDialog(
                 Text(item.subtitle, color = colors.secondaryText, fontSize = 16.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxWidth()) {
                     actions.forEachIndexed { index, (action, label) ->
-                        TelevisionTextButton(
+                        TelevisionDialogAction(
                             label = label,
                             colors = colors,
+                            initialFocus = index == 0,
                             onClick = { onAction(action) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .then(if (index == 0) Modifier.focusRequester(firstActionFocusRequester) else Modifier),
+                            modifier = Modifier.weight(1f),
                         )
                     }
                 }
                 Text(stringResource(Res.string.tv_back_closes_panel), color = colors.mutedText, fontSize = 14.sp)
             }
         }
-    }
-    LaunchedEffect(Unit) {
-        withFrameNanos { }
-        firstActionFocusRequester.requestFocus()
     }
 }
 
@@ -2225,6 +2278,8 @@ internal fun TelevisionIconButton(
     var focused by remember { mutableStateOf(false) }
     val localFocusRequester = remember { FocusRequester() }
     val effectiveFocusRequester = focusRequester ?: localFocusRequester
+    var initialFocusGranted by remember { mutableStateOf(false) }
+    val inputMode = LocalInputModeManager.current
     val shape = RoundedCornerShape(999.dp)
     val usesLightSurface = televisionIconButtonUsesLightSurface(
         focused = focused,
@@ -2232,11 +2287,15 @@ internal fun TelevisionIconButton(
         whiteHighlight = whiteHighlight,
         selectedKeepsDarkBackground = selectedKeepsDarkBackground,
     )
-    LaunchedEffect(Unit) {
-        if (initiallyFocused && enabled) {
+    LaunchedEffect(initiallyFocused, enabled, effectiveFocusRequester, inputMode) {
+        if (initiallyFocused && enabled && !initialFocusGranted) {
+            inputMode.requestInputMode(InputMode.Keyboard)
             repeat(TelevisionFocusRequestAttempts) {
                 withFrameNanos { }
-                if (effectiveFocusRequester.requestFocus()) return@LaunchedEffect
+                if (effectiveFocusRequester.requestFocus()) {
+                    initialFocusGranted = true
+                    return@LaunchedEffect
+                }
             }
         }
     }
@@ -2312,6 +2371,7 @@ internal fun TelevisionTextButton(
     fontSize: androidx.compose.ui.unit.TextUnit = 16.sp,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
 ) {
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(10.dp)
@@ -2329,6 +2389,7 @@ internal fun TelevisionTextButton(
             )
             else -> ButtonDefaults.buttonColors()
         },
+        contentPadding = contentPadding,
         modifier = modifier
             .onFocusChanged { focused = it.isFocused }
             .then(

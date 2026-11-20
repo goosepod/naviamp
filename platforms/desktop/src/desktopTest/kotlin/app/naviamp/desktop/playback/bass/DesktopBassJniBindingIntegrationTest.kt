@@ -15,6 +15,44 @@ import kotlin.test.assertTrue
 
 class DesktopBassJniBindingIntegrationTest {
     @Test
+    fun directOutputClockMatchesNativeCursorAcrossPauseAndResume() {
+        org.junit.Assume.assumeTrue("Real output is required for the direct clock regression", !usesNoSoundIntegrationDevice())
+        val binding = requireBinding()
+        val wav = createSilentWavFile(seconds = 12)
+        try {
+            assertTrue(binding.initForIntegrationTest())
+            val stream = binding.createFileStream(wav.absolutePath)
+            assertTrue(stream != 0)
+            assertTrue(binding.setVolume(stream, 0f))
+            assertTrue(binding.play(stream))
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+            while ((binding.positionSeconds(stream) ?: 0.0) < 0.2 && System.nanoTime() < deadline) Thread.sleep(20)
+            assertTrue((binding.positionSeconds(stream) ?: 0.0) >= 0.2)
+            val backend = DesktopBassAudioBackend(binding)
+            val handle = app.naviamp.domain.bass.BassStreamHandle(stream)
+            assertTrue((binding.bufferedOutputSeconds(stream) ?: 0.0) > 0.02)
+            val native = assertNotNull(binding.positionSeconds(stream))
+            val playing = assertNotNull(backend.audiblePositionSeconds(handle, handle))
+            assertTrue(kotlin.math.abs(native - playing) < 0.05, "Native=$native reported=$playing")
+            assertTrue(binding.pause(stream))
+            // Real output can retire one more frame after pause returns; compare the settled cursor.
+            var paused = assertNotNull(binding.positionSeconds(stream))
+            val settleDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1)
+            while (System.nanoTime() < settleDeadline) {
+                Thread.sleep(50)
+                val next = assertNotNull(binding.positionSeconds(stream))
+                if (next == paused) break
+                paused = next
+            }
+            assertEquals(paused, backend.audiblePositionSeconds(handle, handle))
+            Thread.sleep(200)
+            assertEquals(paused, backend.audiblePositionSeconds(handle, handle), "Paused clock must stay fixed")
+            assertTrue(binding.play(stream))
+            assertTrue(assertNotNull(backend.audiblePositionSeconds(handle, handle)) >= paused)
+        } finally { binding.free(); wav.delete() }
+    }
+
+    @Test
     fun reinitializesTheChannelsOutputRetainingPlaybackPausedPositionAndCallbacks() {
         org.junit.Assume.assumeTrue("Real output is required for output-client recovery acceptance", !usesNoSoundIntegrationDevice())
         val binding = requireBinding()
@@ -53,8 +91,11 @@ class DesktopBassJniBindingIntegrationTest {
             assertEquals(pausedPosition, binding.positionSeconds(paused))
             assertEquals(callbacks, binding.endSyncRegistrationCount)
             val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
-            while ((binding.audiblePositionSeconds(output, source) ?: 0.0) < 0.2 && System.nanoTime() < deadline) Thread.sleep(20)
-            assertTrue((binding.audiblePositionSeconds(output, source) ?: 0.0) >= 0.2, "Reinitialized real output clock must advance")
+            val backend = DesktopBassAudioBackend(binding)
+            val outputHandle = app.naviamp.domain.bass.BassStreamHandle(output)
+            val sourceHandle = app.naviamp.domain.bass.BassStreamHandle(source)
+            while ((backend.audiblePositionSeconds(outputHandle, sourceHandle) ?: 0.0) < 0.2 && System.nanoTime() < deadline) Thread.sleep(20)
+            assertTrue((backend.audiblePositionSeconds(outputHandle, sourceHandle) ?: 0.0) >= 0.2, "Reinitialized real output clock must advance")
             assertNotNull(binding.bufferedOutputSeconds(output))
             assertTrue(binding.freeStream(output))
             assertTrue(binding.freeStream(source))
@@ -186,6 +227,55 @@ class DesktopBassJniBindingIntegrationTest {
             }
         } finally {
             binding.free()
+        }
+    }
+
+    @Test
+    fun sharedWaveformAnalysisRewindsAndReadsNativeRmsThroughJni() {
+        val binding = requireBinding()
+        val wav = createSilentWavFile()
+        try {
+            val bytes = wav.readBytes()
+            val pcm = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+            for (frame in 0 until 44_100) {
+                val sample = (kotlin.math.sin(2 * Math.PI * 1_000 * frame / 44_100) * 1600).toInt().toShort()
+                pcm.putShort(44 + frame * 4, sample)
+                pcm.putShort(46 + frame * 4, sample)
+            }
+            wav.writeBytes(bytes)
+            assertTrue(binding.initForIntegrationTest())
+            val backend = DesktopBassAudioBackend(binding)
+            val library = com.sun.jna.NativeLibrary.getInstance(
+                File(binding.libraryDirectory, System.mapLibraryName("bass")).absolutePath,
+            )
+            val policy = app.naviamp.domain.bass.BassInternetStreamPolicy(
+                playlistsEnabled = false, metadataEnabled = false, playlistDepth = 3,
+                bufferMillis = 4_321, prebufferPercent = 40,
+                connectionTimeoutMillis = 12_345, readTimeoutMillis = 23_456,
+            )
+            try {
+                backend.configureInternetStreams(policy).getOrThrow()
+                // BASS_CONFIG_* constants from the vendored BASS C ABI header.
+                for ((option, expected) in mapOf(21 to 0, 71 to 0, 59 to 3, 12 to 4_321,
+                    15 to 40, 11 to 12_345, 37 to 23_456)) {
+                    assertEquals(expected, library.getFunction("BASS_GetConfig").invokeInt(arrayOf(option)))
+                }
+            } finally {
+                backend.configureInternetStreams().getOrThrow()
+            }
+            val stream = backend.createFileDecodeStream(wav.absolutePath).getOrThrow()
+            try {
+                backend.seek(stream, 0.5).getOrThrow()
+                val levels = backend.waveformLevels(stream, 8).getOrThrow()
+                assertEquals(8, levels.size)
+                assertTrue(levels.all { it in 0.033f..0.036f }, levels.toList().toString())
+                assertTrue(backend.readMonoRmsLevel(app.naviamp.domain.bass.BassStreamHandle(0), 0.1f).isFailure)
+            } finally {
+                backend.freeStream(stream).getOrThrow()
+            }
+        } finally {
+            binding.free()
+            wav.delete()
         }
     }
 

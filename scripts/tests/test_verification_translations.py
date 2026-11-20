@@ -89,7 +89,8 @@ class TranslationValidationTest(unittest.TestCase):
         android = workflow.split('  android-device:', 1)[1].split('  desktop-windows:', 1)[0]
         self.assertIn('if: always()', android)
         self.assertIn("needs.changes.result != 'success'", android)
-        self.assertIn('api-level: [30, 35]', android)
+        self.assertIn('api-level: [26, 30, 35]', android)
+        self.assertIn('verifySharedAndroidSourceGraph', shared)
         for job in ['desktop-macos', 'desktop-windows', 'desktop-linux', 'ios']:
             block = re.split(r'\n  [a-z][a-z-]*:', workflow.split(f'  {job}:', 1)[1])[0]
             self.assertIn("if: needs.changes.outputs.run_full == 'true'", block)

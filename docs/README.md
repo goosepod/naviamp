@@ -21,6 +21,8 @@ notes are intentionally left in Git history rather than retained as current docu
 - [`development-workflow.md`](development-workflow.md) defines repository, branch, review, release,
   and mirror procedures.
 - [`testing.md`](testing.md) documents the verification matrix.
+- [`tvos.md`](tvos.md) documents the unreleased, opt-in Apple TV host, its testing and release
+  gates.
 - [`ios-sideloading.md`](ios-sideloading.md) documents installation of the unsigned iOS preview.
 - [`opensubsonic-api-audit.md`](opensubsonic-api-audit.md) records OpenSubsonic protocol decisions
   and source evidence.

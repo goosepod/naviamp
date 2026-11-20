@@ -13,7 +13,6 @@ import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.PlaybackSettings
-import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.normalized
 import app.naviamp.ui.NaviampVisualizer
 import kotlinx.coroutines.CoroutineScope
@@ -30,7 +29,6 @@ fun unavailableNaviampCorePlaybackServices(
         effects = UnavailableNaviampCorePlaybackEffects,
         settings = NaviampCorePlaybackSettingsPort { requested, _ ->
             requested.normalized()
-                .effectiveForEngine(UnavailableNaviampPlaybackEngine)
                 .also(persistSettings)
         },
         sidecars = object : NaviampCoreNowPlayingSidecarPort {
