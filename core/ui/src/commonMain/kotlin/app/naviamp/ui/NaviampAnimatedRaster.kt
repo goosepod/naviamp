@@ -56,6 +56,12 @@ internal interface NaviampRasterRegion {
      */
     fun present(layers: List<NaviampRasterLayer>, bounds: Rect, clip: Rect, cornerRadius: Float): Boolean
     /**
+     * Reposition the most recently presented layers without changing pixels, size or motion.
+     * The shared owner calls this only when content, sizes and the bounds-to-clip offset are
+     * unchanged. Return false to request a complete [present].
+     */
+    fun move(bounds: Rect, clip: Rect): Boolean = false
+    /**
      * Notify the shared owner after native attachment commits. This also requests one parent
      * refresh when attachment changes its presentation, even if [present] already returned true.
      */
@@ -79,6 +85,12 @@ internal class NaviampRasterPosition {
 private data class RasterSubmission(
     val layers: List<NaviampRasterLayer>, val bounds: Rect, val clip: Rect, val cornerRadius: Float,
 )
+
+/** True when [next] only translates this submission, so presented pixels and motion still apply. */
+private fun RasterSubmission.isTranslatedTo(next: RasterSubmission): Boolean =
+    layers == next.layers && cornerRadius == next.cornerRadius &&
+        bounds.size == next.bounds.size && clip.size == next.clip.size &&
+        next.bounds.topLeft - bounds.topLeft == next.clip.topLeft - clip.topLeft
 private class RasterSubmissionState {
     var latest: RasterSubmission? = null
     var fallbackRevealOffsets = emptyList<Long>()
@@ -122,9 +134,13 @@ internal fun <T> NaviampAnimatedRaster(content: NaviampRasterContent<T>, modifie
     } }
     val submit by rememberUpdatedState {
         val next = RasterSubmission(rasterContent.layers, bounds, clip, cornerRadius)
-        if (submission.latest != next) {
+        val previous = submission.latest
+        if (previous != next) {
             submission.latest = next
-            presented = region?.present(rasterContent.layers.map { it.forPresentation() }, bounds, clip, cornerRadius) == true
+            // Moving unchanged pixels (for example a TV pixel shift) must not re-decode them or
+            // restart native motion.
+            val moved = presented && previous?.isTranslatedTo(next) == true && region?.move(bounds, clip) == true
+            if (!moved) presented = region?.present(rasterContent.layers.map { it.forPresentation() }, bounds, clip, cornerRadius) == true
             if (region?.requiresDrawSynchronization == true) drawRevision++
             else region?.synchronizeDraw()
             if (!presented) {

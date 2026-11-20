@@ -5,6 +5,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asSkiaBitmap
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -47,6 +48,7 @@ private class AppleRasterRegion(
 ) : NaviampRasterRegion {
     private val root = CALayer.layer()
     private var translationLayers = emptyList<CALayer>()
+    private var decodedContents = emptyList<Pair<ImageBitmap, Any>>()
     private var attached = false
     private val scale get() = UIScreen.mainScreen.scale
 
@@ -62,7 +64,11 @@ private class AppleRasterRegion(
         root.removeAllAnimations()
         root.sublayers?.toList()?.forEach { (it as? CALayer)?.removeFromSuperlayer() }
         translationLayers = emptyList()
-        val imageContents = layers.map { it.image.toLayerContents() ?: return false }
+        // Reuse decoded pixels when only reveal, motion or layout changed.
+        val imageContents = layers.map { layer ->
+            decodedContents.firstOrNull { it.first === layer.image }?.second ?: layer.image.toLayerContents() ?: return false
+        }
+        decodedContents = layers.map { it.image }.zip(imageContents)
         val density = scale
         root.frame = platform.CoreGraphics.CGRectMake(
             clip.left / density, clip.top / density, clip.width / density, clip.height / density,
@@ -131,6 +137,18 @@ private class AppleRasterRegion(
         layer.addAnimation(animation, key)
     }
 
+    override fun move(bounds: Rect, clip: Rect): Boolean {
+        if (!attached || translationLayers.isEmpty() || bounds.isEmpty || clip.isEmpty) return false
+        val density = scale
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        root.frame = platform.CoreGraphics.CGRectMake(
+            clip.left / density, clip.top / density, clip.width / density, clip.height / density,
+        )
+        CATransaction.commit()
+        return true
+    }
+
     override fun translationX(layerIndex: Int): Float? =
         translationLayers.getOrNull(layerIndex)?.presentationLayer()?.transform?.useContents { m41 * scale }?.toFloat()
 
@@ -145,12 +163,13 @@ private class AppleRasterRegion(
         root.removeFromSuperlayer()
         attached = false
         translationLayers = emptyList()
+        decodedContents = emptyList()
         removed(this)
     }
 }
 
 @OptIn(ExperimentalForeignApi::class)
-private fun androidx.compose.ui.graphics.ImageBitmap.toLayerContents(): Any? {
+private fun ImageBitmap.toLayerContents(): Any? {
     val image = Image.makeFromBitmap(asSkiaBitmap())
     val data = image.encodeToData() ?: return null
     val bytes = data.bytes
