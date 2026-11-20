@@ -1,9 +1,9 @@
-# Hosted Compose delivery and scene CI preparation (#590)
+# Hosted Compose tvOS delivery
 
-This is a local, reviewable implementation on `codex/590-apple-system-media`. No workflow is
-dispatched, artifact uploaded, attestation created, source pushed, or repository setting changed.
-The source trust record remains `pending-hosted-production`. There is no real approved hosted
-artifact yet. Existing normal app builds still resolve official Compose coordinates.
+This is the hosted path for the reviewed Compose Multiplatform tvOS artifacts used by the Apple TV
+app ([overview](../../docs/tvos.md)). `trusted-artifact.json` stays `pending-hosted-production`
+until the bootstrap below promotes an approved producer run. Normal app builds resolve official
+Compose coordinates and never use these artifacts.
 
 ## Accepted-source writer
 
@@ -89,26 +89,18 @@ The hosted jobs use disposable [GitHub-hosted runners](https://docs.github.com/e
 cannot guarantee a final step executes; local signal unwinding and ordinary CI cancellation remain
 bounded cleanup paths, while a terminated hosted runner is retired by GitHub.
 
-The subsequent [local transport checkpoint](590-tvos-transport-recovery.md) adds the same mandatory
-TLS/range/seek/recovery suite to both workflow drafts. It runs after the GUI scene with the same
+Both workflows also run the mandatory TLS/range/seek/recovery transport suite. It runs after the GUI scene with the same
 manifest/runtime and app caches, but its own source snapshot, fixture and simulator. A second
 always-run accepted-policy cleanup step covers that owned simulator. Native transport logs, JUnit,
 source hashes and fixture counters are retained; private `fixture.bootstrap` and generated consumer
-trees are excluded. The producer cannot upload a candidate unless both suites pass. This workflow
-wiring is locally linted/structurally tested, not a hosted execution result.
+trees are excluded. The producer cannot upload a candidate unless both suites pass. 
 
-The [audio recovery follow-up](590-tvos-audio-recovery.md) expands the same runner to eight strict
-native cases, including real Core/surface-session playback with AVAudioSession deactivation and
-eight mandatory interruption/route recovery phases. Both local workflow drafts inherit this gate;
-their step labels now name interruption/audio route coverage. This remains local preparation.
-
-The [OS 27 migration](590-os27-audio-lifecycle.md) expanded this to nine strict native cases and an
-explicit Simulator receipt. The [remote transport follow-up](590-tvos-remote-transport.md) now
-requires eleven strict cases, nine additional remote-command/recovery phases and the native
-callback translation marker. Both workflow drafts require `passed`, `scope=tvos-simulator` and
-`os27SimulatorQualified` after the default native runner. This follows the owner's recorded
-Simulator-only runtime acceptance: the installed runtime does not deliver genuine audio lifecycle
-contexts, corroborated by independent native Swift probes and Apple's documented Simulator limits.
+The native runner requires eleven strict cases: real Core/surface-session playback with
+AVAudioSession deactivation, interruption and route recovery phases, and remote-command recovery
+phases with the native callback translation marker. Both workflows require `passed`,
+`scope=tvos-simulator` and `os27SimulatorQualified` after the default native runner. This follows
+the owner's Simulator-only runtime acceptance: the installed runtime does not deliver genuine audio
+lifecycle contexts, consistent with Apple's documented Simulator limits.
 The receipt keeps `os27ContextQualified=false` and genuine context delivery unverified. A separate
 `--require-system-context` diagnostic retains that stronger proof without turning an unsupported
 Simulator capability into a hosted prerequisite. No supported Simulator recovery phase is optional.
@@ -116,7 +108,7 @@ The trusted hosted pin and first hosted run remain pending.
 
 ## Bootstrap and subsequent promotion
 
-These are future review/execution steps, not actions performed by this checkpoint:
+These steps run after this tooling merges into `main`:
 
 1. Accept the opt-in tooling/workflows through the issue's PR and normal required checks. The new
    hosted scene check intentionally cannot pass while its accepted base pin is pending. Do not
@@ -139,30 +131,3 @@ shorten availability. Plan a reviewed refresh before expiry. An expired/deleted 
 attempt of the same producer run blocks consumption instead of selecting another binary. Rebuild
 as a new candidate and review a new pin; do not re-upload mutable bytes to an old identity. Long-term
 package/registry distribution is outside this initial Actions-artifact delivery path.
-
-## Local validation
-
-Evidence is under ignored `build/590-hosted-1117`:
-
-- `actionlint` v1.7.12 validates both workflow drafts. Structural tests cover main-only writer
-  events, separate signing privileges, PR base-policy selection, read-only consumers, pinned
-  actions, non-overwrite delivery and absence of shared cache actions.
-- The complete 68-case tvOS tooling suite passes; 17 cases cover the new hosted trust/workflow/native
-  boundaries. `all-tvos-tests-final.log`, `hosted-tests.log` and `actionlint.log` retain the results.
-- The hosted trust tests exercise complete valid inventory installation, pending/candidate rejection
-  before network, wrong workflow/event/source/branch/fork/attempt, expired/replaced artifacts,
-  archive/bundle mismatch, unsafe members, signature rejection, independent manifest trust and
-  preservation of failure evidence. GitHub API/download/attestation boundaries are test doubles;
-  this is not a live GitHub signature verification or hosted run.
-- `staged/candidate.json` packages the previously verified real producer outputs and yields the
-  same bundle `23e84573…1ff00`, manifest `970fd605…2d746`, and source snapshot `08e488…ce04`.
-  The resumed producer's accepted evidence is copied into the local staging fixture; no new source
-  build is claimed. The real CLI refuses the pending pin with no installation (`pending-pin-cli.log`).
-- Runtime selection records installed tvOS 27.2 without downloading or booting it. Both real UIKit
-  helper audits pass all 27 objects each, device platform 3/simulator platform 8, zero violations
-  above 18.5. `cleanup-probe` verifies deletion of a newly owned unbooted simulator.
-
-The first hosted writer/attestation/artifact API round trip, independent hosted scene, fork token
-access and runner image availability remain acceptance work after push is authorized. Existing
-older-runtime, product/security, signing/distribution and release gates remain open under #590.
-No platform production file is modified by this preparation.

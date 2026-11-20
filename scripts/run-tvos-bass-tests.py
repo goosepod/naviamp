@@ -65,7 +65,7 @@ def main():
                          for name in ("NavidromeApplePlatform.kt", "NavidromeAppleTlsMaterial.kt")]
         source_paths += ["core/storage/src/" + path for path in (
             "nativeMain/kotlin/app/naviamp/storage/NativeStorageDriverFactory.kt",
-            "iosMain/kotlin/app/naviamp/storage/IosStorageDriverFactory.kt",
+            "appleTest/kotlin/app/naviamp/storage/NativeStorageDriverFactoryTest.kt",
             "commonMain/kotlin/app/naviamp/storage/StorageDatabaseLocation.kt",
             "appleTest/kotlin/app/naviamp/storage/AppleStorageDriverTest.kt",
         )]

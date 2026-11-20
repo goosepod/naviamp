@@ -60,8 +60,8 @@ The prepared resources library takes explicit Gradle inputs:
 The plugin input is a pinned producer snapshot, not an automatically synchronized copy of current
 Naviamp build logic. Review/regenerate deliberately when changing it. Preserve upstream notices
 and compare source/API/runtime evidence before changing the pin. See
-[artifact delivery](../../docs/verification/590-compose-artifact-delivery.md) for toolchains,
-bounded build settings, binary identities, validation and remaining gates. This is neither an
+the producer scripts for toolchains, bounded build settings and binary identities, and
+[hosted delivery](HOSTED.md) for the trusted CI path. This is neither an
 official JetBrains release nor a completed hosted artifact service.
 
 ## Local producer and scene delivery
@@ -152,7 +152,7 @@ run them in a local execution context that permits those effects.
 ## Hosted delivery and scene CI preparation
 
 The local drafts for an accepted-main producer, separate provenance signer and read-only scene
-consumer are documented in [the hosted delivery checkpoint](../../docs/verification/590-hosted-compose-ci.md).
+consumer are documented in [hosted delivery](HOSTED.md).
 Every action is commit-pinned. A producer emits an unapproved candidate; only a separately reviewed
 `trusted-artifact.json` accepts its immutable run/artifact IDs and archive/bundle/manifest hashes.
 PR consumers read that policy from their base commit and require cryptographic provenance
