@@ -124,7 +124,7 @@ def main():
         started = time.time()
         _, gradle_status = run([str(root / "gradlew"), "--console=plain", "--max-workers=2",
              "-Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8", *args.gradle_arg,
-             "--init-script", str(init), "-Pnaviamp.tvos.feasibility=true",
+             "--init-script", str(init), "-Pnaviamp.tvos.enabled=true",
              "-Pnaviamp.tvos.testDevice=" + device,
              *[":" + module.replace("/", ":") + ":tvosSimulatorArm64Test" for module in modules],
              ":platforms:tvos:verifyTvosBassInventory"], timeout=1800, check=False)

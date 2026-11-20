@@ -144,7 +144,7 @@ def run_scene(args):
              '--manifest',str(args.artifact_manifest.resolve()),
              '--expected-sha256',args.expected_manifest_sha256], 'verify-artifacts')
         run(['./gradlew', '--console=plain', '--max-workers=2', '-Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8',
-             '-Pnaviamp.tvos.feasibility=true', '-Pnaviamp.tvos.sceneHost=true',
+             '-Pnaviamp.tvos.enabled=true', '-Pnaviamp.tvos.sceneHost=true',
              '--init-script', 'scripts/probe-compose-tvos-shared-ui.init.gradle',
              'verifyFullSharedUiProbeVariants'], 'consumer-graph')
         (out/'consumer-variants.json').write_bytes((root/'build/full-ui-probe-variants.json').read_bytes())

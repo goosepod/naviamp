@@ -212,7 +212,7 @@ restoration or feature availability. Reuse Naviamp Connect for phone/Desktop set
 setup, account switching, expired credentials and certificate-protected accounts must also work.
 
 Add new modules to settings.gradle.kts once they have real buildable content. Begin with an explicit
-`-Pnaviamp.tvos.feasibility=true` opt-in on the domain target so ordinary development does not pay
+`-Pnaviamp.tvos.enabled=true` opt-in on the domain target so ordinary development does not pay
 for unsupported UI/native dependency resolution. This flag is temporary build scaffolding, not a
 user-facing feature setting. Remove the gate when the supported graph and CI are accepted.
 
@@ -368,7 +368,7 @@ python3 scripts/tvos-feasibility.py --bass-archive /path/bass-tvos.zip --compose
 python3 -m unittest discover -s scripts/tests -p test_verification_tvos_feasibility.py -v
 # On the Mac, with a fresh output directory:
 python3 scripts/probe-tvos-bass.py --archive /path/bass-tvos.zip --output /tmp/naviamp-590-bass-probe-new
-./gradlew --no-daemon :core:domain:compileKotlinTvosArm64 :core:domain:compileKotlinTvosSimulatorArm64 :core:domain:compileKotlinIosArm64 :core:domain:compileKotlinIosSimulatorArm64 -Pnaviamp.tvos.feasibility=true --max-workers=2
+./gradlew --no-daemon :core:domain:compileKotlinTvosArm64 :core:domain:compileKotlinTvosSimulatorArm64 :core:domain:compileKotlinIosArm64 :core:domain:compileKotlinIosSimulatorArm64 -Pnaviamp.tvos.enabled=true --max-workers=2
 ```
 
 All five inventory tests pass, including rejection of iOS masquerading as tvOS, missing simulator,

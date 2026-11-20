@@ -19,7 +19,7 @@ kotlin {
     jvm()
     iosArm64()
     iosSimulatorArm64()
-    if (providers.gradleProperty("naviamp.tvos.feasibility").orNull == "true") {
+    if (providers.gradleProperty("naviamp.tvos.enabled").orNull == "true") {
         tvosArm64()
         tvosSimulatorArm64()
     }

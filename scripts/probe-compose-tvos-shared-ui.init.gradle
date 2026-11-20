@@ -2,8 +2,8 @@
 gradle.beforeProject { project ->
     if (!(project.path in [':core:ui', ':core:presentation'])) return
     project.pluginManager.withPlugin('org.jetbrains.kotlin.multiplatform') {
-        if (project.findProperty('naviamp.tvos.feasibility') != 'true') {
-            throw new GradleException('The shared UI probe requires naviamp.tvos.feasibility=true')
+        if (project.findProperty('naviamp.tvos.enabled') != 'true') {
+            throw new GradleException('The shared UI probe requires naviamp.tvos.enabled=true')
         }
         if (project.findProperty('naviamp.tvos.sceneHost') == 'true') return // Declared by the checked-in build scripts.
         def kotlin = project.extensions.getByName('kotlin')

@@ -47,8 +47,8 @@ kotlin {
     jvm()
     iosArm64()
     iosSimulatorArm64()
-    val tvosFeasibility = providers.gradleProperty("naviamp.tvos.feasibility").orNull == "true"
-    if (tvosFeasibility) {
+    val tvosEnabled = providers.gradleProperty("naviamp.tvos.enabled").orNull == "true"
+    if (tvosEnabled) {
         tvosArm64()
         tvosSimulatorArm64()
         applyDefaultHierarchyTemplate()
@@ -80,7 +80,7 @@ kotlin {
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
         }
-        if (tvosFeasibility) getByName("tvosMain").dependencies {
+        if (tvosEnabled) getByName("tvosMain").dependencies {
             implementation(libs.ktor.client.darwin)
         }
     }

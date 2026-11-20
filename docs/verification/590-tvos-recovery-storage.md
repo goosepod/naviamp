@@ -169,7 +169,7 @@ Compare source hashes and fresh XML timestamps rather than inheriting results fr
 storage effects, privacy manifest, shared Xcode scheme and isolated native adapter test host.
 `core:ui` and `core:presentation` declare their TV targets only with
 `-Pnaviamp.tvos.sceneHost=true`; `core:bootstrap`, storage and host API retain the broader
-`naviamp.tvos.feasibility` gate. Enabling the scene requires both flags. The headless public-BASS
+`naviamp.tvos.enabled` gate. Enabling the scene requires both flags. The headless public-BASS
 workflow remains independent of private Compose UI artifacts.
 
 In the already guarded consumer checkout, with the verified repositories and plugin selection from
@@ -177,7 +177,7 @@ the artifact report, the app targets are:
 
 ```sh
 ./gradlew --max-workers=2 '-Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8' \
-  -Pnaviamp.tvos.feasibility=true -Pnaviamp.tvos.sceneHost=true \
+  -Pnaviamp.tvos.enabled=true -Pnaviamp.tvos.sceneHost=true \
   :apps:tvos:linkDebugFrameworkTvosArm64 :apps:tvos:linkDebugFrameworkTvosSimulatorArm64
 
 xcodebuild -project apps/tvos/NaviampTV.xcodeproj -scheme NaviampTV \

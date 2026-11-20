@@ -135,7 +135,7 @@ def execute(args):
 
     try:
         base = ['./gradlew', '--no-daemon', '--console=plain', '--max-workers=2',
-            '-Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8', '-Pnaviamp.tvos.feasibility=true',
+            '-Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8', '-Pnaviamp.tvos.enabled=true',
             '-Pnaviamp.tvos.sceneHost=true', '-Pnaviamp.tvos.transportTests=true']
         run([*base, '--init-script', 'scripts/probe-compose-tvos-shared-ui.init.gradle', 'verifyFullSharedUiProbeVariants'], 'graph', 1200)
         (out/'consumer-variants.json').write_bytes((root/'build/full-ui-probe-variants.json').read_bytes())

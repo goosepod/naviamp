@@ -1,4 +1,4 @@
-name: tvOS direct BASS feasibility
+name: tvOS direct BASS
 
 on:
   pull_request:
@@ -116,7 +116,7 @@ jobs:
         run: |
           ./gradlew --console=plain --max-workers=2 \
             '-Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8' \
-            "-Pkonan.data.dir=$KONAN_DATA_DIR" -Pnaviamp.tvos.feasibility=true \
+            "-Pkonan.data.dir=$KONAN_DATA_DIR" -Pnaviamp.tvos.enabled=true \
             :platforms:tvos:compileKotlinTvosArm64 :platforms:tvos:verifyTvosBassInventory \
             :core:app:compileKotlinTvosArm64 :core:storage:compileKotlinTvosArm64 \
             :providers:navidrome:compileKotlinTvosArm64 :providers:jellyfin:compileKotlinTvosArm64

@@ -206,10 +206,10 @@ class ComposeTvosRedirectSettingsPlugin : Plugin<Settings> {
                 if (url !in urls) urls.add(url)
             }
 
-        if (urls.isEmpty()) {
-            urls.add("file://${System.getProperty("user.home")}/.m2/repository")
-            urls.add("https://maven.pkg.jetbrains.space/public/p/compose/dev")
-            urls.add("https://repo.maven.apache.org/maven2")
+        // Naviamp: never fall back to Maven Local or a development repository. Consumers must
+        // name their repositories explicitly so the resolved graph stays reviewable.
+        check(urls.isNotEmpty()) {
+            "composeTvos.repositoryUrl or dependencyResolutionManagement repositories must be configured"
         }
 
         return urls

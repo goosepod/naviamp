@@ -35,7 +35,9 @@ Current terms and commercial license information: <https://www.un4seen.com/bass.
 
 The upstream BASS and add-on notices shipped with the iOS vendor inventory are retained in
 [`platforms/ios/vendor/bass/licenses`](platforms/ios/vendor/bass/licenses). Those notices apply to
-the corresponding Android and Desktop binaries too.
+the corresponding Android, Desktop and Apple TV binaries too. The Apple TV app bundles BASS, BASSFLAC
+and BASSOPUS from Un4seen's public tvOS archive, inventoried in
+[`platforms/tvos/vendor/bass`](platforms/tvos/vendor/bass).
 
 The upstream packages include these acknowledgements:
 
@@ -48,6 +50,17 @@ The upstream packages include these acknowledgements:
 - BASSWEBM uses the nestegg WebM demuxer, copyright 2010 Mozilla Foundation.
 - BASSWV uses the WavPack library, copyright 1998-2024 David Bryant.
 - BASSAPE uses the Monkey's Audio SDK, copyright 2000-2025 Matthew T. Ashland.
+
+## Compose Multiplatform for tvOS
+
+The Apple TV app uses Compose Multiplatform UI and resources libraries built from JetBrains'
+[Compose Multiplatform core](https://github.com/JetBrains/compose-multiplatform-core) and
+[Compose Multiplatform](https://github.com/JetBrains/compose-multiplatform) with the community tvOS
+port by Sajid Ali ([compose-multiplatform-core](https://github.com/sajidalidev/compose-multiplatform-core),
+[compose-tvos](https://github.com/sajidalidev/compose-tvos)). These are licensed under the Apache
+License 2.0. The reviewed source patches and their upstream license files are retained in
+[`build-support/tvos-compose/sources.zip`](build-support/tvos-compose/sources.zip); the build-time
+settings plugin and its license are in [`build-logic/compose-tvos`](build-logic/compose-tvos).
 
 ## BASS_SSL and OpenSSL
 

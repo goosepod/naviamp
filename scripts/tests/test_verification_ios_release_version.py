@@ -58,3 +58,20 @@ class IosReleaseVersionTest(unittest.TestCase):
                     project.write_text(invalid)
                     with self.assertRaises(ValueError):
                         MODULE.validate(root)
+
+    def test_apple_tv_project_must_share_the_release_version(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "VERSION").write_text("v2.10.0\n")
+            (root / "VERSION_CODE").write_text("60\n")
+            ios = root / "apps/ios/Naviamp.xcodeproj/project.pbxproj"
+            ios.parent.mkdir(parents=True)
+            ios.write_text("MARKETING_VERSION = 2.10.0; CURRENT_PROJECT_VERSION = 60;\n" * 2)
+            tvos = root / "apps/tvos/NaviampTV.xcodeproj/project.pbxproj"
+            tvos.parent.mkdir(parents=True)
+            quoted = 'MARKETING_VERSION = "2.10.0"; CURRENT_PROJECT_VERSION = "60";\n' * 2
+            tvos.write_text(quoted)
+            MODULE.validate(root)
+            tvos.write_text(quoted.replace('"60"', '"59"', 1))
+            with self.assertRaises(ValueError):
+                MODULE.validate(root)

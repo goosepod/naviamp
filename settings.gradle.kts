@@ -32,15 +32,15 @@ include(":platforms:android")
 include(":platforms:ios")
 include(":platforms:apple")
 include(":platforms:apple-media")
-if (providers.gradleProperty("naviamp.tvos.feasibility").orNull == "true") {
+if (providers.gradleProperty("naviamp.tvos.enabled").orNull == "true") {
     include(":platforms:tvos")
 }
 include(":apps:desktop")
 include(":apps:android")
 include(":apps:ios")
 if (providers.gradleProperty("naviamp.tvos.sceneHost").orNull == "true") {
-    check(providers.gradleProperty("naviamp.tvos.feasibility").orNull == "true") {
-        "The experimental tvOS scene host requires -Pnaviamp.tvos.feasibility=true and the reviewed Compose port inputs."
+    check(providers.gradleProperty("naviamp.tvos.enabled").orNull == "true") {
+        "The tvOS scene host requires -Pnaviamp.tvos.enabled=true and the reviewed Compose port inputs."
     }
     include(":apps:tvos")
 }

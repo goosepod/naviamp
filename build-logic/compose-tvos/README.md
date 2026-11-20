@@ -12,6 +12,9 @@ Unmapped fork-edge errors remain strict. Selected genuine gaps remain errors. Ad
 cover non-tvOS/discarded candidates and selected gaps. Configuration-cache acceptance remains open;
 these experiments run without it. No relaxation of failed Gradle resolution is introduced.
 
+Safe defaults: no remote manifest (`manifestUrl` is empty), `strictMode` on, and no Maven Local or
+JetBrains development repository fallback; a consumer without configured repositories fails.
+
 Consumer experiment: add this directory as pluginManagement.includeBuild, retain
 composeTvos.strictMode=true, disable remote manifest fetching and pin the Compose plugin version.
 Test with the app's Gradle wrapper: `./gradlew -p build-logic/compose-tvos test`.

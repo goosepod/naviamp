@@ -26,7 +26,7 @@ byte-for-byte with an 18-file SHA-256 inventory. No iOS binary is relabeled, and
 is required. The vendor directory documents the archive/header/license provenance.
 
 Ordinary builds include only the new iOS-capable Apple module. Both tvOS targets and the tvOS
-module require `-Pnaviamp.tvos.feasibility=true`. Normal Android/Desktop/iOS resolution does not
+module require `-Pnaviamp.tvos.enabled=true`. Normal Android/Desktop/iOS resolution does not
 load private Compose port artifacts or build AndroidX sources. This milestone needs only the
 official Core dependencies and public native binaries, so it can precede full UI-host enablement.
 
@@ -56,7 +56,7 @@ On a Mac with the normal JDK 21, Android configuration SDK and Xcode/tvOS runtim
 ```sh
 ./gradlew --console=plain --max-workers=2 \
   '-Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8' \
-  -Pnaviamp.tvos.feasibility=true \
+  -Pnaviamp.tvos.enabled=true \
   :platforms:tvos:compileKotlinTvosArm64 :platforms:tvos:verifyTvosBassInventory
 python3 scripts/run-tvos-bass-tests.py --output build/tvos-native-fresh
 ```

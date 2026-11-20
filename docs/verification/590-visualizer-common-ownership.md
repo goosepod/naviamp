@@ -40,7 +40,7 @@ Example after preparing a fresh owned checkout with those verified plugin/reposi
 ./gradlew --max-workers=2 --no-configuration-cache --no-configure-on-demand \
   '-Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8' \
   --init-script /absolute/naviamp/scripts/probe-compose-tvos-shared-ui.init.gradle \
-  -Pnaviamp.tvos.feasibility=true verifyFullSharedUiProbeVariants \
+  -Pnaviamp.tvos.enabled=true verifyFullSharedUiProbeVariants \
   :core:ui:compileKotlinTvosArm64 :core:ui:compileKotlinTvosSimulatorArm64 \
   :core:ui:compileKotlinIosSimulatorArm64 \
   :core:presentation:compileKotlinTvosArm64 :core:presentation:compileKotlinTvosSimulatorArm64 \

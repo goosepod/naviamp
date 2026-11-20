@@ -2,12 +2,12 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform)
 }
 
-val tvosFeasibility = providers.gradleProperty("naviamp.tvos.feasibility").orNull == "true"
+val tvosEnabled = providers.gradleProperty("naviamp.tvos.enabled").orNull == "true"
 
 kotlin {
     iosArm64()
     iosSimulatorArm64()
-    if (tvosFeasibility) {
+    if (tvosEnabled) {
         tvosArm64()
         tvosSimulatorArm64()
     }

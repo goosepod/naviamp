@@ -46,10 +46,10 @@ abstract class ComposeTvosRedirectSettingsExtension @Inject constructor(
      * needs to list exceptions where the tvOS fork is published at a different version
      * than upstream (e.g. material3 alpha tracks).
      *
-     * Set to an empty string to disable manifest fetching entirely.
+     * Naviamp default: empty, so no moving remote manifest can change the dependency graph.
+     * A consumer that needs one must set a reviewed, immutable URL explicitly.
      */
-    val manifestUrl: Property<String> = objects.property(String::class.java)
-        .convention("https://raw.githubusercontent.com/sajidalidev/compose-tvos/main/manifest/compose-tvos-versions.json")
+    val manifestUrl: Property<String> = objects.property(String::class.java).convention("")
 
     /**
      * Additional library groups to redirect for tvOS support.
@@ -110,9 +110,9 @@ abstract class ComposeTvosRedirectSettingsExtension @Inject constructor(
      * android/iOS-only Compose project is never affected by `strictMode`, even if its
      * (irrelevant, never-consumed) umbrella modules also happen to be redirect-eligible.
      *
-     * Default: false.
+     * Naviamp default: true, so a missing tvOS variant fails instead of silently falling back.
      */
-    val strictMode: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+    val strictMode: Property<Boolean> = objects.property(Boolean::class.java).convention(true)
 
     /**
      * When true (the default), a `plugins { id("org.jetbrains.compose") }` request in a

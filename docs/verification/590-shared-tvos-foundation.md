@@ -1,6 +1,6 @@
 # Issue 590: shared application/provider target foundation
 
-The opt-in `naviamp.tvos.feasibility=true` graph now includes device and simulator targets for
+The opt-in `naviamp.tvos.enabled=true` graph now includes device and simulator targets for
 `core:app`, `core:storage`, `providers:navidrome` and `providers:jellyfin`, in addition to Domain
 and the direct native BASS adapter. Ordinary builds do not create these extra targets. No TV
 controller, repository, authentication flow, schema or duplicated provider implementation was added.

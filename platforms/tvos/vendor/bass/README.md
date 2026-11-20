@@ -21,5 +21,5 @@ the final app must sign its embedded frameworks itself. Do not link the iOS BASS
 tvOS or add an unresolved mixer symbol. A direct backend inherits Core's mixer-free capability
 behavior; unsupported preferences remain preserved for other devices.
 
-Native tvOS targets are opt-in with `-Pnaviamp.tvos.feasibility=true`. The probe has run on tvOS
+Native tvOS targets are opt-in with `-Pnaviamp.tvos.enabled=true`. The probe has run on tvOS
 27.2 only; it does not establish the final app deployment minimum or physical-device audibility.
