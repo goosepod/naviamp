@@ -892,6 +892,30 @@ Singles position on Back. After Sonic Fingerprint loaded, its detail and list bo
 tracks, with one count on each screen. The station dialog visibly focused Edit and returned
 focus to the station on Cancel. The full Display settings label fit at the default font size.
 
+## Pixel-shift raster reuse (November 20)
+
+Screen protection moves the scene with an offset, which previously re-encoded and rebuilt the
+native waveform layers on every step of each 2-second shift. The shared raster owner now asks
+the native region to move unchanged layers, and the Apple region reuses decoded images. A shared
+regression asserts that a shift moves the presented bounds without resubmitting pixels.
+
+The live tvOS 27.2 simulator played a FLAC track from the configured Navidrome account in
+full-screen Now Playing, untouched for 263 seconds. App CPU came from one-second `top` samples:
+
+| Visible state | App CPU |
+| --- | --- |
+| Playing, 20–116 s | 4.45% average; 3.9% median for the whole run |
+| Dimming and first shift, 119–124 s | 4.2% |
+| Dimmed, shift at 240 s | 3.9% |
+| Dimmed, between shifts | 4.6–8.6% average, with spikes at the next track's start |
+
+The shift at 180 seconds overlapped the next track starting at about 170 seconds; that window
+(170–191 s, about 20–27%) reflects the track change, not the shift. The earlier six-second sample
+before this fix recorded 15.75% playing through protection and a shift versus 5.97% playing.
+Screenshots show the scene shifted by 16 points and dimmed, and the timeline probe found painted
+waveform columns and an advancing playhead in every phase. Parent drawables and GPU intervals
+were not re-captured in this run, and physical Apple TV performance remains unmeasured.
+
 ## Local App Store candidate (November 20)
 
 The tvOS 27.2 scene passed twice on the live-fix product sources. It exercised provider and

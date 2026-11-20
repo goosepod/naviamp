@@ -438,10 +438,12 @@ final class TvosRemoteRecoveryTests: XCTestCase {
         app.activate()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
         remote.press(.playPause)
-        press(.up, 3)
-        press(.left, 6)
-        remote.press(.right) // Now Playing
-        remote.press(.select)
+        if app.buttons["Now Playing"].firstMatch.exists { // Otherwise the full-screen player is already open.
+            press(.up, 3)
+            press(.left, 6)
+            remote.press(.right) // Now Playing
+            remote.press(.select)
+        }
         record("live-toggle-playback")
     }
 
