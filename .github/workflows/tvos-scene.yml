@@ -1,0 +1,100 @@
+name: tvOS reviewed Compose scene
+
+# Manual until the hosted Compose producer publishes an approved pin. The installer rejects the
+# pending pin in build-support/tvos-compose/trusted-artifact.json, so a pull_request trigger would
+# fail every matching PR. Restore the pull_request trigger when the pin is promoted.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  attestations: read
+
+concurrency:
+  group: tvos-scene-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scene:
+    name: Reviewed artifacts and complete tvOS scene
+    runs-on: macos-latest
+    timeout-minutes: 210
+    env:
+      TZ: America/Los_Angeles
+    steps:
+      - name: Check out accepted trust policy independently of PR code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha || 'refs/heads/main' }}
+          path: policy
+          persist-credentials: false
+      - name: Check out the exact source under test
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14'
+      - name: Fetch, authenticate and install the exact approved artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 policy/scripts/tvos-hosted-compose.py fetch \
+            --pin policy/build-support/tvos-compose/trusted-artifact.json \
+            --destination build/tvos-artifacts --evidence build/tvos-fetch
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+        with:
+          packages: platform-tools
+      - name: Select and record an available tvOS runtime
+        id: runtime
+        run: python3 policy/scripts/tvos-hosted-ci.py runtime --download --output build/tvos-runtime.json >> "$GITHUB_OUTPUT"
+      - name: Run the scene using disposable app caches
+        env:
+          TVOS_RUNTIME: ${{ steps.runtime.outputs.runtime }}
+        run: |
+          MANIFEST_SHA=$(python3 -c 'import json; print(json.load(open("policy/build-support/tvos-compose/trusted-artifact.json"))["manifestSha256"])')
+          export GRADLE_USER_HOME="$RUNNER_TEMP/tvos-scene-gradle"
+          export KONAN_DATA_DIR="$RUNNER_TEMP/tvos-scene-native-$MANIFEST_SHA"
+          python3 source/scripts/run-tvos-scene-tests.py --checkout source --artifacts build/tvos-artifacts \
+            --expected-manifest-sha256 "$MANIFEST_SHA" --runtime "$TVOS_RUNTIME" \
+            --build-timeout 7200 --output build/tvos-scene
+      - name: Run TLS, remote transport, interruptions and audio route recovery
+        env:
+          TVOS_RUNTIME: ${{ steps.runtime.outputs.runtime }}
+        run: |
+          MANIFEST_SHA=$(python3 -c 'import json; print(json.load(open("policy/build-support/tvos-compose/trusted-artifact.json"))["manifestSha256"])')
+          export GRADLE_USER_HOME="$RUNNER_TEMP/tvos-scene-gradle"
+          export KONAN_DATA_DIR="$RUNNER_TEMP/tvos-scene-native-$MANIFEST_SHA"
+          python3 source/scripts/run-tvos-transport-tests.py --checkout source --artifacts build/tvos-artifacts \
+            --expected-manifest-sha256 "$MANIFEST_SHA" --runtime "$TVOS_RUNTIME" \
+            --build-timeout 3600 --output build/tvos-transport
+          python3 -c 'import json; r=json.load(open("build/tvos-transport/summary.json")); assert r["passed"] and r["scope"] == "tvos-simulator" and r["os27SimulatorQualified"]'
+      - name: Retry only owned simulator cleanup using accepted policy
+        if: always()
+        run: python3 policy/scripts/tvos-hosted-ci.py cleanup --scene build/tvos-scene
+      - name: Retry only owned transport simulator cleanup using accepted policy
+        if: always()
+        run: python3 policy/scripts/tvos-hosted-ci.py cleanup --scene build/tvos-transport
+      - name: Preserve artifact trust and scene evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: tvos-scene-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 30
+          if-no-files-found: warn
+          path: |
+            build/tvos-fetch/**
+            build/tvos-runtime.json
+            build/tvos-scene/**
+            !build/tvos-scene/consumer/**
+            !build/tvos-scene/derived/**
+            build/tvos-transport/**
+            !build/tvos-transport/consumer/**
+            !build/tvos-transport/fixture.bootstrap

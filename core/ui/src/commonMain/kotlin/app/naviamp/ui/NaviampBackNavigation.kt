@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.input.key.*
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.isBackPressed
 import androidx.compose.ui.input.pointer.pointerInput
@@ -58,13 +60,33 @@ internal fun Modifier.naviampMouseBack(onBack: () -> Unit): Modifier {
 
 @Composable
 internal fun NaviampBackNavigation(shell: NaviampAppShellUiState, actions: NaviampAppShellActions,
-    modifier: Modifier, content: @Composable (Modifier) -> Unit) {
+    modifier: Modifier, remoteKeys: Boolean = false, content: @Composable (Modifier) -> Unit) {
     val dispatcher = LocalNaviampSystemBackDispatcher.current ?: remember { NaviampSystemBackDispatcher() }
     val target = naviampBackTarget(shell)
     CompositionLocalProvider(LocalNaviampSystemBackDispatcher provides dispatcher) {
         NaviampSystemBackHandler(target != null) { target?.let { performNaviampBack(it, actions) } }
-        Box(modifier.fillMaxSize().naviampMouseBack { dispatcher.currentHandler?.invoke() }) {
+        Box(modifier.fillMaxSize().then(if (remoteKeys) Modifier.naviampRemoteBack(dispatcher) else Modifier)
+            .naviampMouseBack { dispatcher.currentHandler?.invoke() }) {
             content(Modifier.fillMaxSize())
+        }
+    }
+}
+
+/** Bubble after focused controls; one physical press invokes only the deepest shared handler. */
+internal fun Modifier.naviampRemoteBack(dispatcher: NaviampSystemBackDispatcher): Modifier = composed {
+    var held by remember { mutableStateOf(false) }
+    onKeyEvent { event ->
+        if (event.key != Key.Back && event.key != Key.Escape && event.key != Key.Menu) false
+        else when (event.type) {
+            KeyEventType.KeyDown -> {
+                if (held) true else dispatcher.currentHandler?.let {
+                    held = true
+                    it()
+                    true
+                } ?: false
+            }
+            KeyEventType.KeyUp -> held.also { held = false }
+            else -> false
         }
     }
 }

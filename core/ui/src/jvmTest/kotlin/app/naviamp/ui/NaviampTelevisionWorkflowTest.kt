@@ -3,16 +3,163 @@ package app.naviamp.ui
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.*
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
+import app.naviamp.domain.media.AlbumReleaseSection
 import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampTelevisionWorkflowTest {
+    @Test fun remoteDirectionsNeverAppendTheirDeviceHubHidCharacters() {
+        for (key in listOf(Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight, Key.DirectionCenter, Key.Enter)) {
+            assertNull(televisionSearchKeyboardCharacter(key, 'U'.code))
+        }
+        assertEquals('u', televisionSearchKeyboardCharacter(Key.U, 'u'.code))
+        assertEquals(' ', televisionSearchKeyboardCharacter(Key.Spacebar, ' '.code))
+    }
+
+    @Test fun tvSearchEditorAcceptsRemoteKeysAndOptionalSystemInputAndRestoresQueryFocus() = runComposeUiTest {
+        val screen = mutableStateOf(NaviampSearchScreenUi(query = "Existing"))
+        val requests = mutableListOf<NaviampTelevisionTextEntryRequest>()
+        val submitted = mutableListOf<String>()
+        val editor = NaviampTelevisionTextEntry { request ->
+            requests += request
+            "New query"
+        }
+        setContent {
+            CompositionLocalProvider(LocalNaviampTelevisionTextEntry provides editor) {
+                TelevisionSearch(
+                    screen.value, NaviampColors.Dark,
+                    NaviampSearchActions(
+                        { screen.value = screen.value.copy(query = it) },
+                        { submitted += screen.value.query },
+                        {},
+                    ),
+                    NaviampMediaActions({}, {}),
+                    entryFocusGeneration = 1,
+                )
+            }
+        }
+        val field = onNodeWithTag("television-search-query")
+        field.assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
+        onNodeWithText("a").assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
+        onNodeWithText("Existinga").assertIsDisplayed()
+        onNodeWithText("Cancel").performClick()
+        assertTrue(submitted.isEmpty())
+        field.assertIsFocused().assert(hasText("Existing")).performKeyInput { pressKey(Key.DirectionCenter) }
+        onNodeWithText("System keyboard").performClick()
+        onNodeWithText("New query").assertIsDisplayed()
+        onNode(hasText("Search") and hasAnyAncestor(hasTestTag(TelevisionSearchEditorTestTag))).performClick()
+        assertEquals(listOf("Existing"), requests.map { it.value })
+        assertEquals(listOf("New query"), submitted)
+        field.assertIsFocused().assert(hasText("New query"))
+    }
+
+    @Test fun hardwareReturnActivatesTheFocusedEditorActionInsteadOfSubmitting() = runComposeUiTest {
+        val screen = mutableStateOf(NaviampSearchScreenUi(query = "ab"))
+        val submitted = mutableListOf<String>()
+        setContent {
+            CompositionLocalProvider(LocalNaviampTelevisionTextEntry provides NaviampTelevisionTextEntry { null }) {
+                TelevisionSearch(
+                    screen.value, NaviampColors.Dark,
+                    NaviampSearchActions(
+                        { screen.value = screen.value.copy(query = it) },
+                        { submitted += screen.value.query },
+                        {},
+                    ),
+                    NaviampMediaActions({}, {}),
+                    entryFocusGeneration = 1,
+                )
+            }
+        }
+        val field = onNodeWithTag("television-search-query")
+        field.assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
+        val editor = hasAnyAncestor(hasTestTag(TelevisionSearchEditorTestTag))
+        onNode(hasText("Backspace") and editor).requestFocus().performKeyInput { pressKey(Key.Enter) }
+        onNode(hasText("a") and !hasClickAction() and editor).assertIsDisplayed()
+        onNode(hasText("Space") and editor).requestFocus().performKeyInput { pressKey(Key.NumPadEnter) }
+        onNode(hasText("a ") and !hasClickAction() and editor, useUnmergedTree = true).assertExists()
+        onNode(hasText("Cancel") and editor).requestFocus().performKeyInput { pressKey(Key.Enter) }
+        onNodeWithTag(TelevisionSearchEditorTestTag).assertDoesNotExist()
+        assertTrue(submitted.isEmpty())
+        field.assertIsFocused().assert(hasText("ab"))
+        field.performKeyInput { pressKey(Key.DirectionCenter) }
+        onNode(hasText("Search") and editor).requestFocus().performKeyInput { pressKey(Key.Enter) }
+        assertEquals(listOf("ab"), submitted)
+    }
+
+    @Test fun hardwareReturnSubmitsSearchAndSelectsTheFocusedResult() = runComposeUiTest {
+        val album = SharedMediaItemUi("album", "Fixture album", "Artist")
+        val screen = mutableStateOf(NaviampSearchScreenUi())
+        val submitted = mutableListOf<String>()
+        val selected = mutableListOf<String>()
+        setContent {
+            CompositionLocalProvider(LocalNaviampTelevisionTextEntry provides NaviampTelevisionTextEntry { null }) {
+                TelevisionSearch(
+                    screen.value, NaviampColors.Dark,
+                    NaviampSearchActions(
+                        { screen.value = screen.value.copy(query = it) },
+                        {
+                            submitted += screen.value.query
+                            screen.value = screen.value.copy(results = SharedSearchResultsUi(albums = listOf(album)))
+                        },
+                        {},
+                    ),
+                    NaviampMediaActions({}, { selected += it.item.id }),
+                    entryFocusGeneration = 1,
+                )
+            }
+        }
+        val field = onNodeWithTag("television-search-query")
+        field.assertIsFocused().performKeyInput { pressKey(Key.Enter) }
+        onNodeWithText("a").assertIsFocused().performKeyInput { pressKey(Key.NumPadEnter) }
+        assertTrue(submitted.isEmpty())
+        onNode(hasText("a") and !hasClickAction()).assertDoesNotExist()
+        val remoteLetter = onNode(hasText("a") and hasClickAction())
+        remoteLetter.assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
+        onNode(hasText("a") and !hasClickAction()).assertIsDisplayed()
+        remoteLetter.performKeyInput { pressKey(Key.Enter) }
+        assertEquals(listOf("a"), submitted)
+        onNodeWithTag(TelevisionSearchEditorTestTag).assertDoesNotExist()
+        field.assertIsFocused().performKeyInput { pressKey(Key.DirectionDown) }
+        onNode(hasClickAction() and hasAnyDescendant(hasText("Fixture album")))
+            .assertIsFocused().performKeyInput { pressKey(Key.Enter) }
+        assertEquals(listOf("album"), selected)
+    }
+
+    @Test fun artistDetailRestoresTheAlbumCardWhenReturningFromItsDetail() = runDesktopComposeUiTest(1280, 720) {
+        val artist = SharedMediaItemUi("artist", "Artist", "")
+        val album = SharedMediaItemUi("album", "Album", "Artist")
+        val single = SharedMediaItemUi("single", "Single", "Artist")
+        val screen = NaviampArtistDetailScreenUi(
+            selectedArtist = artist,
+            detail = SharedArtistDetailUi(artist, listOf(album, single), albumSections = listOf(
+                SharedAlbumSectionUi(AlbumReleaseSection.Albums, listOf(album)),
+                SharedAlbumSectionUi(AlbumReleaseSection.Singles, listOf(single)),
+            )),
+        )
+        val opened = mutableStateOf<String?>(null)
+        setContent {
+            val viewport = rememberSaveableStateHolder()
+            if (opened.value == null) viewport.SaveableStateProvider(artist.id) {
+                TelevisionArtistDetail(screen, NaviampColors.Dark,
+                    NaviampArtistDetailActions({}, {}, { opened.value = it.album.id }, {}),
+                    topNavigationFocusRequester = remember { FocusRequester() },
+                )
+            }
+        }
+        val card = onNode(hasClickAction() and hasAnyDescendant(hasText("Single")))
+        card.assertIsDisplayed().performClick()
+        assertEquals(single.id, opened.value)
+        runOnIdle { opened.value = null }
+        card.assertIsDisplayed().assertIsFocused()
+    }
+
     @Test fun searchSubmissionResultsBackAndReentry() = runDesktopComposeUiTest(1280, 720) {
         mainClock.autoAdvance = false
         val screen = mutableStateOf(NaviampSearchScreenUi())
@@ -76,7 +223,7 @@ class NaviampTelevisionWorkflowTest {
         assertEquals("https://fixture.invalid/new", saved.single().streamUrl)
         assertNull(saved.single().id)
         onNode(hasAnyDescendant(hasText("Station")) and SemanticsMatcher.keyIsDefined(SemanticsProperties.Focused)).performSemanticsAction(SemanticsActions.RequestFocus).performKeyInput { pressKey(Key.DirectionRight) }
-        onNodeWithText("Edit").performClick()
+        onNodeWithText("Edit").assertIsFocused().performClick()
         onNodeWithText("Name").performTextReplacement("Changed")
         onNodeWithText("Cancel").performClick()
         assertEquals(1, saved.size)

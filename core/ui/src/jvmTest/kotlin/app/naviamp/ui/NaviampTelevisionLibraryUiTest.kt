@@ -3,6 +3,7 @@ package app.naviamp.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -16,6 +17,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
@@ -25,6 +27,22 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampTelevisionLibraryUiTest {
+    @Test fun albumToolbarLeavesRoomForCoverAndTitleInTheTvContentViewport() = runComposeUiTest {
+        val screen = mutableStateOf(screen().copy(selectedView = NaviampLibraryView.Albums))
+        setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f)) {
+                Box(Modifier.size(805.dp, 300.dp)) {
+                    LibraryFixture(screen, rememberNaviampTelevisionLibraryState())
+                }
+            }
+        }
+        onNodeWithText("Refresh").assertIsDisplayed()
+        onNodeWithTag(viewTag(NaviampLibraryView.Albums)).performSemanticsAction(SemanticsActions.RequestFocus)
+            .performKeyInput { pressKey(Key.DirectionDown) }
+        onNodeWithTag(itemTag("album-0")).assertIsFocused()
+        onNodeWithText("Album 0").assertIsDisplayed()
+    }
+
     @Test fun viewSwitchingDetailReturnAndSongActionsPreserveFocus() = runDesktopComposeUiTest(1280, 720) {
         val screen = mutableStateOf(screen())
         val detailOpen = mutableStateOf(false)

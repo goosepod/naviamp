@@ -142,6 +142,18 @@ class PlaybackSettingsTest {
     }
 
     @Test
+    fun downmixIsAnEffectiveCapabilityWithoutChangingTheSavedPreference() {
+        val saved = PlaybackSettings(stereoDownmixEnabled = true)
+        val direct = object : PlaybackEngine by FakePlaybackEngine(), StereoDownmixPlaybackEngine {
+            override val supportsStereoDownmix = false
+            override fun setStereoDownmixEnabled(enabled: Boolean) = Unit
+        }
+        assertFalse(saved.effectiveForEngine(direct).stereoDownmixEnabled)
+        assertTrue(saved.stereoDownmixEnabled)
+        assertTrue(saved.effectiveForEngine(FakePlaybackEngine()).stereoDownmixEnabled)
+    }
+
+    @Test
     fun effectiveForEngineNormalizesSupportedSettings() {
         val settings = PlaybackSettings(
             replayGainMode = ReplayGainMode.Track,

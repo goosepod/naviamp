@@ -13,7 +13,7 @@
 		A10000000000000000000006 /* IosApplicationDirectories.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IosApplicationDirectories.swift; sourceTree = "<group>"; };
 		A43000000000000000000001 /* NaviampApplicationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NaviampApplicationDelegate.swift; sourceTree = "<group>"; };
 		A43000000000000000000002 /* NaviampCarPlaySceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NaviampCarPlaySceneDelegate.swift; sourceTree = "<group>"; };
-		A43000000000000000000003 /* Naviamp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Naviamp.entitlements; sourceTree = "<group>"; };
+		A43000000000000000000005 /* Naviamp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Naviamp.entitlements; sourceTree = "<group>"; };
 		A43000000000000000000011 /* NaviampApplicationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A43000000000000000000001 /* NaviampApplicationDelegate.swift */; };
 		A43000000000000000000012 /* NaviampCarPlaySceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A43000000000000000000002 /* NaviampCarPlaySceneDelegate.swift */; };
 		A43000000000000000000003 /* NaviampCarPlayTemplateNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NaviampCarPlayTemplateNavigation.swift; sourceTree = "<group>"; };
@@ -99,7 +99,7 @@
 				A43000000000000000000001 /* NaviampApplicationDelegate.swift */,
 				A43000000000000000000002 /* NaviampCarPlaySceneDelegate.swift */,
 				A43000000000000000000003 /* NaviampCarPlayTemplateNavigation.swift */,
-				A43000000000000000000003 /* Naviamp.entitlements */,
+				A43000000000000000000005 /* Naviamp.entitlements */,
 				B10000000000000000000014 /* IosKeychainVault.swift */,
 				A30000000000000000000001 /* Assets.xcassets */,
 				A30000000000000000000003 /* PrivacyInfo.xcprivacy */,

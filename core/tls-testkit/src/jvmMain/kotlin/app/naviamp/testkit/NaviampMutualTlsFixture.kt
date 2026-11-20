@@ -21,6 +21,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 import javax.net.ssl.KeyManagerFactory
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLSocket
@@ -126,6 +127,14 @@ class NaviampMutualTlsFixture(
         val peerSubjects: MutableList<String> = Collections.synchronizedList(mutableListOf())
         val requestedRanges: MutableList<String> = Collections.synchronizedList(mutableListOf())
         val audioBytesSent = AtomicLong()
+        private val audioFault = AtomicReference("none")
+        val rejectedAudioRequests = AtomicLong()
+        val truncatedAudioResponses = AtomicLong()
+        val wrongAudioRanges = AtomicLong()
+        fun setAudioFault(value: String) {
+            require(value in setOf("none", "unavailable", "truncated", "wrong-range"))
+            audioFault.set(value)
+        }
         val releaseRemainingAudio = CountDownLatch(1)
         private val workers = Executors.newCachedThreadPool { runnable ->
             Thread(runnable, "naviamp-mtls-fixture").apply { isDaemon = true }
@@ -169,6 +178,12 @@ class NaviampMutualTlsFixture(
                     requestedPaths += exchange.requestURI.path
                     val endpoint = exchange.requestURI.path.substringAfterLast('/')
                     val audioRequest = endpoint in setOf("stream.view", "download.view")
+                    val fault = if (audioRequest) audioFault.get() else "none"
+                    if (fault == "unavailable") {
+                        rejectedAudioRequests.incrementAndGet()
+                        exchange.sendResponseHeaders(503, -1)
+                        return@use
+                    }
                     val bytes = when (endpoint) {
                         "getCoverArt.view" -> artwork
                         "stream.view", "download.view" -> audio
@@ -193,13 +208,27 @@ class NaviampMutualTlsFixture(
                             return@use
                         }
                         val length = last - first + 1
-                        if (range != null) exchange.responseHeaders.add("Content-Range", "bytes $first-$last/${bytes.size}")
+                        // The provider's metadata probe is a bounded GET, not wire HEAD.
+                        // Keep that one-byte probe healthy so body faults reach the file callback path.
+                        val dataRead = exchange.requestMethod != "HEAD" && range != "bytes=0-0"
+                        val wrongRange = fault == "wrong-range" && dataRead
+                        if (wrongRange) wrongAudioRanges.incrementAndGet()
+                        if (range != null) exchange.responseHeaders.add("Content-Range", "bytes ${if (wrongRange) first+1 else first}-$last/${bytes.size}")
                         val status = if (range == null) 200 else 206
                         if (exchange.requestMethod == "HEAD") {
                             exchange.responseHeaders.add("Content-Length", length.toString())
                             exchange.sendResponseHeaders(status, -1)
                         } else {
                             exchange.sendResponseHeaders(status, length.toLong())
+                            if (fault == "truncated" && dataRead) {
+                                truncatedAudioResponses.incrementAndGet()
+                                // Advertise the whole range, then close before completing it.
+                                val prefix = minOf(64, length/2)
+                                exchange.responseBody.write(bytes, first, prefix)
+                                exchange.responseBody.flush()
+                                audioBytesSent.addAndGet(prefix.toLong())
+                                return@use
+                            }
                             val prefix = if (audioRequest) pauseAudioAfterBytes?.coerceIn(1, length) ?: length else length
                             exchange.responseBody.write(bytes, first, prefix)
                             exchange.responseBody.flush()

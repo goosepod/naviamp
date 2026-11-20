@@ -3,7 +3,8 @@
 package app.naviamp.ios.playback
 
 import app.naviamp.domain.playback.planStereoDownmix
-import app.naviamp.ios.bass.native.BASS_Init
+import app.naviamp.apple.bass.native.BASS_Init
+import app.naviamp.apple.bass.native.BASS_GetConfig
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 import platform.Foundation.NSData
@@ -79,6 +80,20 @@ class IosBassDecodeIntegrationTest {
             assertTrue(backend.mixerVersion > 0)
             assertTrue(BASS_Init(0, SampleRate.toUInt(), 0u, null, null) != 0, "BASS no-sound test device failed")
             assertTrue(backend.pluginDiagnostics.all { it.loaded }, backend.pluginDiagnostics.joinToString())
+            val policy = app.naviamp.domain.bass.BassInternetStreamPolicy(
+                playlistsEnabled = false, metadataEnabled = false, playlistDepth = 3,
+                bufferMillis = 4_321, prebufferPercent = 40,
+                connectionTimeoutMillis = 12_345, readTimeoutMillis = 23_456,
+            )
+            try {
+                backend.configureInternetStreams(policy).getOrThrow()
+                for ((option, expected) in mapOf(21u to 0u, 71u to 0u, 59u to 3u, 12u to 4_321u,
+                    15u to 40u, 11u to 12_345u, 37u to 23_456u)) {
+                    assertEquals(expected, BASS_GetConfig(option))
+                }
+            } finally {
+                backend.configureInternetStreams().getOrThrow()
+            }
             val stream = backend.createFileDecodeStream(path).getOrThrow()
             try {
                 assertTrue((backend.durationSeconds(stream) ?: 0.0) > 0.9)
@@ -87,6 +102,11 @@ class IosBassDecodeIntegrationTest {
                 val samples = FloatArray(256)
                 assertTrue(backend.readFloatData(stream, samples).getOrThrow() > 0)
                 assertTrue(samples.any { it != 0f })
+                // The shared owner must rewind the partly consumed decoder before bucketing.
+                val levels = backend.waveformLevels(stream, 8).getOrThrow()
+                assertEquals(8, levels.size)
+                assertTrue(levels.all { it in 0.17f..0.18f }, levels.toList().toString())
+                assertTrue(backend.readMonoRmsLevel(app.naviamp.domain.bass.BassStreamHandle(0), 0.1f).isFailure)
             } finally {
                 backend.freeStream(stream).getOrThrow()
             }

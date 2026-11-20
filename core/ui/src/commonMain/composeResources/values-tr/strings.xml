@@ -497,6 +497,13 @@
     <string name="connection_aurral_companion_invalid">Aurral HTTP veya HTTPS sunucu adresini ve kullanıcı adını girin.</string>
     <string name="discovery_find_in_aurral">Aurral’da bul</string>
     <string name="connection_aurral_companion_save_failed">Aurral yardımcısı kaydedilemedi. Müzik bağlantınız değişmedi.</string>
+    <string name="storage_recovery_title">Kayıtlı ayarlar</string>
+    <string name="storage_recovery_capacity">Bu değişiklik cihazın kalıcı depolama sınırını aşıyor. Önceden kaydedilmiş ayarlar ve bağlantılar değiştirilmedi.</string>
+    <string name="storage_recovery_unreadable">Kayıtlı ayarlar açılamadı. Ayarlar korundu. Yeniden deneyin veya bu cihazı yeniden kurmak için ayarları sıfırlayın.</string>
+    <string name="storage_recovery_conflict">Bu işlem sırasında kayıtlı ayarlar değişti. Yeniden denemeden önce ayarları yeniden yükleyin.</string>
+    <string name="storage_recovery_unavailable">Kayıtlı ayarlar geçici olarak kullanılamıyor. Yeniden deneyin.</string>
+    <string name="storage_recovery_reset_title">Kayıtlı ayarlar sıfırlansın mı?</string>
+    <string name="storage_recovery_reset_message">Bu cihazdaki kayıtlı ayarlar ve bağlantılar silinecek. Sunucu kitaplığınız silinmeyecek.</string>
     <string name="transport_play">Oynat</string>
     <string name="library_title">Kitaplık</string>
     <string name="mix_bias_favorites">Favoriler</string>
@@ -518,4 +525,10 @@
     <string name="common_connecting">Bağlanıyor</string>
     <string name="vehicle_connection_setup_on_phone">Bağlantıları telefonunuzdan ekleyin veya güncelleyin.</string>
     <string name="vehicle_connection_offline">Çevrimdışı</string>
+    <string name="tv_keyboard_navigation_hint">TV klavyesini açmak için bir alanın üzerindeyken Seç düğmesine basın. İlerlemek için İleri seçeneğini, klavyeyi kapatmak için Geri veya Esc tuşunu kullanın.</string>
+    <string name="tv_search_keyboard_space">Boşluk</string>
+    <string name="tv_search_keyboard_backspace">Geri sil</string>
+    <string name="tv_search_system_keyboard">Sistem klavyesi</string>
+    <string name="storage_location_app">Uygulama depolama alanı</string>
+    <string name="storage_location_custom">Özel</string>
 </resources>

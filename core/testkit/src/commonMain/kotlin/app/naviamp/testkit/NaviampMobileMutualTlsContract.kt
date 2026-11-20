@@ -123,7 +123,7 @@ suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = wit
             val progress = Channel<PlaybackProgress>(Channel.CONFLATED)
             val adapter = NaviampCorePlaybackEngineAdapter(
                 scope = this, engine = engine, providerSource = NaviampCoreMediaProviderSource { media },
-                settings = { PlaybackSettings() },
+                settings = { PlaybackSettings(volumePercent = 0) },
                 cacheSettings = { CacheSettings(audioCachingEnabled = false, audioPrefetchDepth = 0) },
                 cacheAudio = { _, _, _, _ -> error("Uncached playback must not download a complete file") },
             )
@@ -160,6 +160,57 @@ suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = wit
                 val stopping = TimeSource.Monotonic.markNow()
                 adapter.stop()
                 check(stopping.elapsedNow().inWholeMilliseconds < 3_000)
+                for (fault in listOf("unavailable", "truncated", "wrong-range")) {
+                    phase("enable $fault fixture response") {
+                        check(mobileTlsFixtureRequest(endpoints.controlPort, "/fault?token=${manifest.getValue("stopToken")}&mode=$fault")["mode"] == fault)
+                    }
+                    while (states.tryReceive().isSuccess) { }
+                    try {
+                        adapter.playQueueSelection(PlaybackQueue(listOf(track), 0), 0)
+                        phase("$fault must surface a playback error") {
+                            withTimeout(25_000) {
+                                while (true) {
+                                    val actual = states.receive()
+                                    check(actual != PlaybackState.Playing && actual != PlaybackState.Finished) {
+                                        "A rejected/incomplete range must not become playable or a successful end: $actual"
+                                    }
+                                    if (actual is PlaybackState.Error) break
+                                }
+                            }
+                        }
+                    } finally {
+                        adapter.stop()
+                        check(mobileTlsFixtureRequest(endpoints.controlPort, "/fault?token=${manifest.getValue("stopToken")}&mode=none")["mode"] == "none")
+                    }
+                    while (states.tryReceive().isSuccess) { }
+                    adapter.playQueueSelection(PlaybackQueue(listOf(track), 0), 0)
+                    state(PlaybackState.Playing)
+                    adapter.pause()
+                    state(PlaybackState.Paused)
+                    adapter.seek(90.0)
+                    phase("$fault recovery forward seek") {
+                        withTimeout(20_000) { while ((progress.receive().positionSeconds ?: 0.0) < 89.5) { } }
+                    }
+                    adapter.seek(5.0)
+                    phase("$fault recovery backward seek") {
+                        withTimeout(20_000) {
+                            while (true) {
+                                val seconds = progress.receive().positionSeconds ?: continue
+                                if (seconds in 4.5..6.0) break
+                            }
+                        }
+                    }
+                    adapter.resume()
+                    state(PlaybackState.Playing)
+                    phase("$fault recovered output advances") {
+                        withTimeout(20_000) { while ((progress.receive().positionSeconds ?: 0.0) <= 5.1) { } }
+                    }
+                    adapter.stop()
+                    println("mTLS transport recovery passed: $fault")
+                }
+                val faults = mobileTlsFixtureRequest(endpoints.controlPort, "/state")
+                check(listOf("unavailable", "truncated", "wrongRanges").all { faults.getValue(it).toLong() > 0 })
+                check(faults.getValue("peers").split('|').all { it == "CN=Naviamp Test Client" })
             } finally { adapter.stop(); engine.release(); states.close(); progress.close() }
         }
     } finally { client.close() }

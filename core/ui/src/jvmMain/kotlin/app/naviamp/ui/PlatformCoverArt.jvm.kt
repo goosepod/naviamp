@@ -16,16 +16,12 @@ import java.io.ByteArrayOutputStream
 import java.util.LinkedHashMap
 import javax.imageio.ImageIO
 
-@Volatile
-private var platformCoverArtByteLoader: suspend (String) -> ByteArray = ::defaultPlatformCoverArtBytes
-
 fun setJvmPlatformCoverArtByteLoader(loader: suspend (String) -> ByteArray) {
-    platformCoverArtByteLoader = loader
+    setNaviampCoverArtByteLoader(loader)
 }
 
 fun resetJvmPlatformCoverArtByteLoader() {
-    platformCoverArtByteLoader = ::defaultPlatformCoverArtBytes
-    resetNaviampCoverArtCache()
+    resetNaviampCoverArtByteLoader()
 }
 
 fun jvmGeneratedCoverArtBytes(url: String): ByteArray? =
@@ -36,7 +32,7 @@ suspend fun preloadJvmPlatformCoverArt(urls: Iterable<String>) {
 }
 
 internal actual suspend fun platformCoverArtBytes(url: String): ByteArray? =
-    platformCoverArtByteLoader(url)
+    loadNaviampCoverArtBytes(url, ::defaultPlatformCoverArtBytes)
 
 internal actual fun decodePlatformCoverArt(
     bytes: ByteArray,
@@ -120,7 +116,7 @@ private object JvmCoverArtCache {
     suspend fun shaderImage(url: String): SkiaImage =
         cachedShaderImage(url) ?: withContext(Dispatchers.IO) {
             cachedShaderImage(url) ?: run {
-                val decoded = SkiaImage.makeFromEncoded(platformCoverArtByteLoader(url))
+                val decoded = SkiaImage.makeFromEncoded(platformCoverArtBytes(url) ?: ByteArray(0))
                 val bitmap = SkiaBitmap.makeFromImage(decoded).setImmutable()
                 val image = SkiaImage.makeFromBitmap(bitmap)
                 decoded.close()

@@ -83,7 +83,8 @@ internal class NaviampProviderRandomAccessSource(
             val revoked = lifetime.invokeOnCompletion { job.cancel() }
             try {
                 val completed = provider.streamTrackBytes(request, "bytes=0-0", true, onResponse = { response ->
-                    if (response.statusCode == 206 && response.contentRange?.startsWith("bytes 0-0/") == true) {
+                    if (response.statusCode == 206 && (response.contentLength == null || response.contentLength == 1L) &&
+                        response.contentRange?.startsWith("bytes 0-0/") == true) {
                         total = response.contentRange?.substringAfter('/')?.toLongOrNull()?.takeIf { it > 0 }
                     }
                 }, writeChunk = { _, _ -> })

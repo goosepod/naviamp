@@ -29,3 +29,6 @@ apps/desktop/bin/
 /platforms/desktop/bin/
 /tools/genre-ontology/bin/
 /assets/
+
+# Local nested worktrees
+/.worktrees/

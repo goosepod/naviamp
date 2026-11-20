@@ -30,6 +30,7 @@ kotlin {
         compilations.getByName("main").cinterops.create("bass") {
             defFile(project.file("src/nativeInterop/cinterop/bass.def"))
             includeDirs(project.file("vendor/bass/include"))
+            includeDirs(rootProject.file("platforms/apple/src/nativeInterop/cinterop/include"))
         }
         binaries.configureEach {
             iosBassFrameworks.forEach { framework ->
@@ -44,6 +45,8 @@ kotlin {
 
     sourceSets {
         iosMain.dependencies {
+            api(project(":platforms:apple"))
+            implementation(project(":platforms:apple-media"))
             api(project(":core:app"))
             api(project(":core:domain"))
             api(project(":core:presentation"))
@@ -96,3 +99,22 @@ val verifyIosBassInventory by tasks.registering {
 tasks.named("check") {
     dependsOn(verifyIosBassInventory)
 }
+
+// The linked framework list is the only inventory; Kotlin receives it as generated source.
+val generateIosBassInventory by tasks.registering {
+    val output = layout.buildDirectory.dir("generated/bassInventory/kotlin")
+    val frameworks = iosBassFrameworks
+    inputs.property("frameworks", frameworks)
+    outputs.dir(output)
+    doLast {
+        val file = output.get().file("app/naviamp/ios/playback/IosBassInventory.kt").asFile
+        file.parentFile.mkdirs()
+        file.writeText(
+            "package app.naviamp.ios.playback\n\n" +
+                "/** Generated from the linked framework list in this module's build script. */\n" +
+                "internal val IosBassFrameworks: List<String> = listOf(" +
+                frameworks.joinToString { "\"$it\"" } + ")\n",
+        )
+    }
+}
+kotlin.sourceSets.named("iosMain") { kotlin.srcDir(generateIosBassInventory) }

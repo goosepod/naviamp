@@ -22,20 +22,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.onSizeChanged
@@ -44,10 +36,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
-import kotlin.math.PI
-import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.sin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -205,29 +193,21 @@ private fun AndroidNativeGlslVisualizerSurface(
 
     LaunchedEffect(visualizer, renderPolicy.targetFrameIntervalMillis, surfaceWidth, surfaceHeight) {
         glViewState.value?.onResume()
-        var lastRenderedFrameMillis = 0L
-        while (true) {
-            withFrameMillis { nextFrameMillis ->
-                if (lastRenderedFrameMillis == 0L ||
-                    nextFrameMillis - lastRenderedFrameMillis >= renderPolicy.targetFrameIntervalMillis
-                ) {
-                    lastRenderedFrameMillis = nextFrameMillis
-                    val bands = latestBandsProvider()
-                    smoothVisualizerBands(bands, smoothBands, uniformBands)
-                    val frameInput = buildVisualizerFrameInput(
-                        width = surfaceWidth.toFloat(),
-                        height = surfaceHeight.toFloat(),
-                        bands = bands,
-                        visibleBands = minOf(bands.size, VisualizerFrameBandCount).coerceAtLeast(1),
-                        active = latestActive,
-                        timeSeconds = nextFrameMillis / 1000f,
-                        tempoBpm = latestTempoBpm,
-                        uniformBands = uniformBands,
-                    )
-                    renderer.updateFrame(frameInput, latestVisualizerColors, latestColors, latestLyricProgress)
-                    glViewState.value?.requestRender()
-                }
-            }
+        runVisualizerFrameClock(active = true, targetFrameIntervalMillis = renderPolicy.targetFrameIntervalMillis) { nextFrameMillis ->
+            val bands = latestBandsProvider()
+            smoothVisualizerBands(bands, smoothBands, uniformBands)
+            val frameInput = buildVisualizerFrameInput(
+                width = surfaceWidth.toFloat(),
+                height = surfaceHeight.toFloat(),
+                bands = bands,
+                visibleBands = minOf(bands.size, VisualizerFrameBandCount).coerceAtLeast(1),
+                active = latestActive,
+                timeSeconds = nextFrameMillis / 1000f,
+                tempoBpm = latestTempoBpm,
+                uniformBands = uniformBands,
+            )
+            renderer.updateFrame(frameInput, latestVisualizerColors, latestColors, latestLyricProgress)
+            glViewState.value?.requestRender()
         }
     }
 
@@ -281,24 +261,7 @@ private fun AndroidShaderVisualizerSurface(
     performanceLoggingEnabled: Boolean,
     modifier: Modifier,
 ) {
-    var frameMillis by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(active, visualizer, renderPolicy.targetFrameIntervalMillis) {
-        if (!active) {
-            frameMillis = 0L
-            return@LaunchedEffect
-        }
-        var lastRenderedFrameMillis = 0L
-        while (true) {
-            withFrameMillis { nextFrameMillis ->
-                if (lastRenderedFrameMillis == 0L ||
-                    nextFrameMillis - lastRenderedFrameMillis >= renderPolicy.targetFrameIntervalMillis
-                ) {
-                    lastRenderedFrameMillis = nextFrameMillis
-                    frameMillis = nextFrameMillis
-                }
-            }
-        }
-    }
+    val frameMillis by rememberVisualizerFrameClock(active, renderPolicy.targetFrameIntervalMillis, visualizer)
     val albumArtOwner = remember(visualizer, renderPolicy) {
         NaviampOwnedResource<Bitmap>(Bitmap::recycle)
     }
@@ -364,7 +327,7 @@ private class AndroidShaderVisualizerRenderer(
     private val uniformBands = FloatArray(VisualizerFrameBandCount)
     private val smoothBands = FloatArray(VisualizerFrameBandCount)
     private val historyPixels = IntArray(VisualizerHistoryColumns * VisualizerHistoryRows)
-    private val previousHistoryBands = FloatArray(VisualizerFrameBandCount)
+    private val history = VisualizerHistoryBuffer(visualizer, renderPolicy)
     private val historyBitmap = Bitmap.createBitmap(VisualizerHistoryColumns, VisualizerHistoryRows, Bitmap.Config.ARGB_8888)
     private var historyShader = historyBitmap.newClampShader(visualizer.historyFilterMode)
     private val fallbackAlbumArtBitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888).apply {
@@ -373,7 +336,6 @@ private class AndroidShaderVisualizerRenderer(
     private val fallbackAlbumArtShader = fallbackAlbumArtBitmap.newClampShader()
     private var albumArtBitmap: Bitmap? = null
     private var albumArtShader: BitmapShader? = null
-    private var lastHistoryPushSeconds = -1f
     private val perfLogger = AndroidVisualizerPerfLogger("shader", visualizer, renderPolicy, performanceLoggingEnabled)
 
     fun draw(
@@ -461,30 +423,9 @@ private class AndroidShaderVisualizerRenderer(
     }
 
     private fun updateHistoryTexture(timeSeconds: Float, active: Boolean) {
-        if (!active) return
-        if (lastHistoryPushSeconds >= 0f && timeSeconds - lastHistoryPushSeconds < renderPolicy.historyIntervalSeconds) return
-        val changed = uniformBands.indices.any { index ->
-            abs(uniformBands[index] - previousHistoryBands[index]) > 0.006f
-        }
-        if (!changed && lastHistoryPushSeconds >= 0f) return
-        lastHistoryPushSeconds = timeSeconds
-        repeat(VisualizerFrameBandCount) { index ->
-            previousHistoryBands[index] = uniformBands[index]
-        }
-
+        if (!history.update(timeSeconds, active, uniformBands)) return
+        history.copyArgbTo(historyPixels)
         val rowWidth = VisualizerHistoryColumns
-        System.arraycopy(
-            historyPixels,
-            0,
-            historyPixels,
-            rowWidth,
-            rowWidth * (VisualizerHistoryRows - 1),
-        )
-        repeat(VisualizerHistoryColumns) { column ->
-            val sourceIndex = ((column / (VisualizerHistoryColumns - 1f)) * (VisualizerFrameBandCount - 1)).toInt()
-            val value = (uniformBands[sourceIndex].coerceIn(0f, 1f) * 255f).toInt().coerceIn(0, 255)
-            historyPixels[column] = android.graphics.Color.argb(255, value, value, value)
-        }
         historyBitmap.setPixels(historyPixels, 0, rowWidth, 0, 0, VisualizerHistoryColumns, VisualizerHistoryRows)
         historyShader = historyBitmap.newClampShader(visualizer.historyFilterMode)
     }
@@ -995,18 +936,8 @@ private fun nativeFloatBuffer(values: FloatArray): FloatBuffer =
             position(0)
         }
 
-private val NaviampVisualizer.usesHistoryShader: Boolean
-    get() = this == NaviampVisualizer.SpectralRidge ||
-        this == NaviampVisualizer.FftMountain ||
-        this == NaviampVisualizer.PixelRidge ||
-        this == NaviampVisualizer.PixelMountain
-
 private val NaviampVisualizer.historyFilterMode: Int
-    get() = when (this) {
-        NaviampVisualizer.PixelRidge,
-        NaviampVisualizer.PixelMountain -> BitmapShader.FILTER_MODE_NEAREST
-        else -> BitmapShader.FILTER_MODE_LINEAR
-    }
+    get() = if (historyUsesNearestSampling) BitmapShader.FILTER_MODE_NEAREST else BitmapShader.FILTER_MODE_LINEAR
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 private fun Bitmap.newClampShader(filterMode: Int = BitmapShader.FILTER_MODE_LINEAR): BitmapShader =
@@ -1086,74 +1017,13 @@ private fun AndroidCanvasVisualizerSurface(
     performanceLoggingEnabled: Boolean,
     modifier: Modifier,
 ) {
-    var frameMillis by remember { mutableLongStateOf(0L) }
     val perfLogger = remember(visualizer, renderPolicy, performanceLoggingEnabled) {
         AndroidVisualizerPerfLogger("canvas", visualizer, renderPolicy, performanceLoggingEnabled)
     }
-    LaunchedEffect(active, visualizer, renderPolicy.targetFrameIntervalMillis) {
-        if (!active) {
-            frameMillis = 0L
-            return@LaunchedEffect
-        }
-        var lastRenderedFrameMillis = 0L
-        while (true) {
-            withFrameMillis { nextFrameMillis ->
-                if (lastRenderedFrameMillis == 0L ||
-                    nextFrameMillis - lastRenderedFrameMillis >= renderPolicy.targetFrameIntervalMillis
-                ) {
-                    lastRenderedFrameMillis = nextFrameMillis
-                    frameMillis = nextFrameMillis
-                }
-            }
-        }
-    }
-    Canvas(modifier = modifier) {
-        val drawStartedNanos = System.nanoTime()
-        val bands = bandsProvider()
-        val visibleBands = minOf(bands.size, (size.width / 6f).toInt().coerceAtLeast(16))
-        if (!active || visibleBands <= 0) {
-            drawIdleLine(colors)
-            perfLogger.record(System.nanoTime() - drawStartedNanos, active)
-            return@Canvas
-        }
-
-        val samples = sampleBands(bands, minOf(visibleBands, renderPolicy.maxCanvasSamples))
-        val energy = samples.average().toFloat().coerceIn(0f, 1f)
-        val timeSeconds = frameMillis / 1000f
-        when (visualizer) {
-            NaviampVisualizer.ReactiveBars -> drawReactiveBars(samples, colors)
-            NaviampVisualizer.SpectrumBars -> drawReactiveBars(samples, colors)
-            NaviampVisualizer.FluidGradient -> drawFluidGradient(samples, visualizerColors, colors, timeSeconds)
-            NaviampVisualizer.LyricMirrorTunnel -> drawLyricTunnelScene(
-                samples = samples,
-                playerColors = visualizerColors,
-                colors = colors,
-                active = active,
-                timeSeconds = timeSeconds,
-                energy = energy,
-                ringPush = FloatArray(7) { energy },
-            )
-            NaviampVisualizer.AudioSphere -> drawAudioSphere(samples, visualizerColors, colors, timeSeconds)
-            NaviampVisualizer.AudioTunnel -> drawAudioTunnel(samples, visualizerColors, colors, timeSeconds)
-            NaviampVisualizer.RibbonTrail -> drawRibbonTrail(samples, visualizerColors, colors, timeSeconds)
-            NaviampVisualizer.SpectralRidge,
-            NaviampVisualizer.FftMountain,
-            NaviampVisualizer.PixelRidge,
-            NaviampVisualizer.PixelMountain,
-            NaviampVisualizer.FrequencyTerrain -> drawFrequencyTerrain(samples, visualizerColors, colors)
-            NaviampVisualizer.AnalogSignalFailure -> drawReactiveBars(samples, colors)
-            NaviampVisualizer.FluidicNebulae -> drawFluidGradient(samples, visualizerColors, colors, timeSeconds)
-            NaviampVisualizer.OceanHorizon,
-            NaviampVisualizer.OceanOfInk -> drawFrequencyTerrain(samples, visualizerColors, colors)
-            NaviampVisualizer.RaymarchedSphereLiquid -> drawAudioSphere(samples, visualizerColors, colors, timeSeconds)
-            NaviampVisualizer.ParticleField,
-            NaviampVisualizer.ParticleGalaxy -> drawParticleField(samples, visualizerColors, colors, timeSeconds, galaxy = visualizer == NaviampVisualizer.ParticleGalaxy)
-            NaviampVisualizer.AlbumArtReactive -> drawAlbumArtReactive(samples, visualizerColors, colors, energy)
-            NaviampVisualizer.WaveInterference -> drawWaveInterference(samples, visualizerColors, colors, timeSeconds)
-            NaviampVisualizer.VinylGroove -> drawVinylGroove(samples, visualizerColors, colors, timeSeconds)
-        }
-        perfLogger.record(System.nanoTime() - drawStartedNanos, active)
-    }
+    NaviampCanvasPresetFallbackSurface(
+        bandsProvider, visualizer, visualizerColors, active, colors, renderPolicy, modifier,
+        onDrawMeasured = perfLogger::record,
+    )
 }
 
 private class AndroidVisualizerPerfLogger(
@@ -1233,244 +1103,3 @@ void main() {
 
 private fun Double.formatVisualizerMetric(): String =
     String.format(Locale.US, "%.2f", this)
-
-private fun DrawScope.drawIdleLine(colors: NaviampColors) {
-    drawLine(
-        color = colors.primaryText.copy(alpha = 0.16f),
-        start = Offset(0f, size.height / 2f),
-        end = Offset(size.width, size.height / 2f),
-        strokeWidth = 1.4f,
-        cap = StrokeCap.Round,
-    )
-}
-
-private fun sampleBands(bands: List<Float>, visibleBands: Int): List<Float> =
-    List(visibleBands) { index ->
-        val sourceIndex = if (visibleBands == 1 || bands.size == 1) {
-            0
-        } else {
-            ((index / (visibleBands - 1f)) * (bands.size - 1)).toInt()
-        }
-        bands.getOrNull(sourceIndex)?.coerceIn(0f, 1f) ?: 0f
-    }
-
-private fun DrawScope.drawReactiveBars(samples: List<Float>, colors: NaviampColors) {
-    val step = size.width / samples.size.toFloat()
-    val strokeWidth = (step * 0.48f).coerceIn(1.2f, 3.2f)
-    val centerY = size.height / 2f
-    samples.forEachIndexed { index, amplitude ->
-        val barHeight = (2f + amplitude * (size.height - 2f)).coerceAtMost(size.height)
-        val x = index * step + step / 2f
-        drawLine(
-            color = colors.accent.copy(alpha = 0.30f + amplitude * 0.55f),
-            start = Offset(x, centerY - barHeight / 2f),
-            end = Offset(x, centerY + barHeight / 2f),
-            strokeWidth = strokeWidth,
-            cap = StrokeCap.Round,
-        )
-    }
-}
-
-private fun DrawScope.drawFluidGradient(
-    samples: List<Float>,
-    playerColors: NaviampPlayerColors,
-    colors: NaviampColors,
-    timeSeconds: Float,
-) {
-    val energy = samples.average().toFloat().coerceIn(0f, 1f)
-    drawRect(
-        brush = Brush.linearGradient(
-            colors = listOf(
-                playerColors.backgroundStart.copy(alpha = 0.75f),
-                playerColors.backgroundMid.copy(alpha = 0.86f),
-                playerColors.backgroundEnd.copy(alpha = 0.95f),
-            ),
-            start = Offset(size.width * (0.2f + 0.1f * sin(timeSeconds)), 0f),
-            end = Offset(size.width, size.height),
-        ),
-    )
-    drawWaveInterference(samples, playerColors, colors, timeSeconds + energy)
-}
-
-private fun DrawScope.drawAudioSphere(
-    samples: List<Float>,
-    playerColors: NaviampPlayerColors,
-    colors: NaviampColors,
-    timeSeconds: Float,
-) {
-    val center = Offset(size.width / 2f, size.height / 2f)
-    val radius = minOf(size.width, size.height) * 0.18f
-    val energy = samples.average().toFloat().coerceIn(0f, 1f)
-    drawCircle(playerColors.accent.copy(alpha = 0.10f + energy * 0.18f), radius * (1.8f + energy), center)
-    samples.forEachIndexed { index, amplitude ->
-        val angle = (index / samples.size.toFloat()) * (PI.toFloat() * 2f) + timeSeconds * 0.35f
-        val inner = radius * (0.78f + amplitude * 0.20f)
-        val outer = radius * (1.12f + amplitude * 1.35f)
-        drawLine(
-            color = colors.primaryText.copy(alpha = 0.18f + amplitude * 0.55f),
-            start = center + Offset(cos(angle) * inner, sin(angle) * inner),
-            end = center + Offset(cos(angle) * outer, sin(angle) * outer),
-            strokeWidth = 2.2f,
-            cap = StrokeCap.Round,
-        )
-    }
-}
-
-private fun DrawScope.drawAudioTunnel(
-    samples: List<Float>,
-    playerColors: NaviampPlayerColors,
-    colors: NaviampColors,
-    timeSeconds: Float,
-) {
-    val center = Offset(size.width / 2f, size.height / 2f)
-    val energy = samples.average().toFloat().coerceIn(0f, 1f)
-    repeat(9) { ring ->
-        val fraction = (ring + 1) / 9f
-        val wobble = samples[(ring * samples.size / 9).coerceIn(samples.indices)]
-        val radius = minOf(size.width, size.height) * fraction * (0.08f + energy * 0.015f) + ring * 9f
-        drawCircle(
-            color = if (ring % 2 == 0) playerColors.accent.copy(alpha = 0.16f + wobble * 0.28f) else colors.primaryText.copy(alpha = 0.08f + wobble * 0.18f),
-            radius = radius + sin(timeSeconds * 2f + ring) * 5f,
-            center = center,
-            style = Stroke(width = 1.4f + wobble * 3f),
-        )
-    }
-}
-
-private fun DrawScope.drawRibbonTrail(
-    samples: List<Float>,
-    playerColors: NaviampPlayerColors,
-    colors: NaviampColors,
-    timeSeconds: Float,
-) {
-    repeat(3) { lane ->
-        val path = Path()
-        samples.forEachIndexed { index, amplitude ->
-            val x = index / (samples.lastIndex).coerceAtLeast(1).toFloat() * size.width
-            val baseline = size.height * (0.30f + lane * 0.20f)
-            val y = baseline + sin(index * 0.35f + timeSeconds * (1.2f + lane)) * 20f - amplitude * size.height * 0.24f
-            if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
-        }
-        drawPath(
-            path = path,
-            color = (if (lane == 1) playerColors.accent else colors.primaryText).copy(alpha = 0.22f + lane * 0.10f),
-            style = Stroke(width = 2.2f + lane, cap = StrokeCap.Round),
-        )
-    }
-}
-
-private fun DrawScope.drawFrequencyTerrain(
-    samples: List<Float>,
-    playerColors: NaviampPlayerColors,
-    colors: NaviampColors,
-) {
-    val baseY = size.height * 0.76f
-    val path = Path().apply {
-        moveTo(0f, size.height)
-        samples.forEachIndexed { index, amplitude ->
-            val x = index / (samples.lastIndex).coerceAtLeast(1).toFloat() * size.width
-            val y = baseY - amplitude * size.height * 0.62f
-            lineTo(x, y)
-        }
-        lineTo(size.width, size.height)
-        close()
-    }
-    drawPath(path, playerColors.accent.copy(alpha = 0.30f))
-    drawPath(path, colors.primaryText.copy(alpha = 0.38f), style = Stroke(width = 1.5f))
-}
-
-private fun DrawScope.drawParticleField(
-    samples: List<Float>,
-    playerColors: NaviampPlayerColors,
-    colors: NaviampColors,
-    timeSeconds: Float,
-    galaxy: Boolean,
-) {
-    val center = Offset(size.width / 2f, size.height / 2f)
-    samples.forEachIndexed { index, amplitude ->
-        val seed = index * 12.9898f
-        val angle = seed + timeSeconds * if (galaxy) 0.18f else 0.05f
-        val distance = if (galaxy) {
-            minOf(size.width, size.height) * (0.08f + index / samples.size.toFloat() * 0.44f)
-        } else {
-            minOf(size.width, size.height) * (0.16f + ((seed * 0.37f) % 1f) * 0.42f)
-        }
-        val x = if (galaxy) center.x + cos(angle) * distance else (index / samples.size.toFloat()) * size.width
-        val y = if (galaxy) center.y + sin(angle) * distance * 0.62f else size.height * (0.25f + ((seed * 0.23f) % 1f) * 0.55f)
-        drawCircle(
-            color = (if (index % 3 == 0) playerColors.accent else colors.primaryText).copy(alpha = 0.20f + amplitude * 0.55f),
-            radius = 1.5f + amplitude * 5f,
-            center = Offset(x, y),
-        )
-    }
-}
-
-private fun DrawScope.drawAlbumArtReactive(
-    samples: List<Float>,
-    playerColors: NaviampPlayerColors,
-    colors: NaviampColors,
-    energy: Float,
-) {
-    drawRect(playerColors.backgroundMid.copy(alpha = 0.45f + energy * 0.25f))
-    val columns = 6
-    val rows = 4
-    repeat(columns) { column ->
-        repeat(rows) { row ->
-            val index = (column + row * columns) % samples.size
-            val amplitude = samples[index]
-            drawRect(
-                color = if ((column + row) % 2 == 0) playerColors.accent.copy(alpha = 0.10f + amplitude * 0.25f) else colors.primaryText.copy(alpha = 0.06f + amplitude * 0.14f),
-                topLeft = Offset(column * size.width / columns, row * size.height / rows),
-                size = androidx.compose.ui.geometry.Size(size.width / columns + 1f, size.height / rows + 1f),
-            )
-        }
-    }
-}
-
-private fun DrawScope.drawWaveInterference(
-    samples: List<Float>,
-    playerColors: NaviampPlayerColors,
-    colors: NaviampColors,
-    timeSeconds: Float,
-) {
-    repeat(5) { wave ->
-        val path = Path()
-        samples.forEachIndexed { index, amplitude ->
-            val x = index / (samples.lastIndex).coerceAtLeast(1).toFloat() * size.width
-            val phase = timeSeconds * (0.8f + wave * 0.12f) + wave * 1.7f
-            val y = size.height / 2f +
-                sin(index * 0.23f + phase) * size.height * (0.08f + wave * 0.018f) -
-                amplitude * size.height * 0.18f
-            if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
-        }
-        drawPath(
-            path,
-            color = (if (wave % 2 == 0) playerColors.accent else colors.primaryText).copy(alpha = 0.12f + wave * 0.035f),
-            style = Stroke(width = 1.5f + wave * 0.35f, cap = StrokeCap.Round),
-        )
-    }
-}
-
-private fun DrawScope.drawVinylGroove(
-    samples: List<Float>,
-    playerColors: NaviampPlayerColors,
-    colors: NaviampColors,
-    timeSeconds: Float,
-) {
-    val center = Offset(size.width / 2f, size.height / 2f)
-    val energy = samples.average().toFloat().coerceIn(0f, 1f)
-    val maxRadius = minOf(size.width, size.height) * 0.44f
-    repeat(12) { ring ->
-        val amplitude = samples[(ring * samples.size / 12).coerceIn(samples.indices)]
-        drawArc(
-            color = (if (ring % 3 == 0) playerColors.accent else colors.primaryText).copy(alpha = 0.10f + amplitude * 0.22f),
-            startAngle = timeSeconds * 25f + ring * 18f,
-            sweepAngle = 240f + energy * 90f,
-            useCenter = false,
-            topLeft = Offset(center.x - maxRadius * (ring + 1) / 12f, center.y - maxRadius * (ring + 1) / 12f),
-            size = androidx.compose.ui.geometry.Size(maxRadius * 2f * (ring + 1) / 12f, maxRadius * 2f * (ring + 1) / 12f),
-            style = Stroke(width = 1.2f + amplitude * 2.4f, cap = StrokeCap.Round),
-        )
-    }
-    drawCircle(playerColors.accent.copy(alpha = 0.20f + energy * 0.28f), radius = maxRadius * 0.16f, center = center)
-}

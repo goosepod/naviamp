@@ -1,5 +1,8 @@
 package app.naviamp.desktop.playback.bass
 
+import app.naviamp.domain.bass.bassPluginLoadDiagnostic
+import app.naviamp.domain.bass.BassInternetStreamPolicy
+
 import app.naviamp.domain.bass.BassCodecPluginInventory
 import app.naviamp.domain.playback.planEqualizer
 import app.naviamp.domain.playback.toNativeEqualizerParameters
@@ -49,7 +52,10 @@ class DesktopBassJniBinding private constructor(
     fun setStreamOutputDevice(stream: Int, deviceId: String?): Boolean =
         nativeSetStreamOutputDevice(stream, deviceId)
 
-    fun configureInternetStreams(): Boolean = nativeConfigureInternetStreams()
+    fun configureInternetStreams(policy: BassInternetStreamPolicy): Boolean = nativeConfigureInternetStreams(
+        policy.playlistsEnabled, policy.metadataEnabled, policy.playlistDepth, policy.bufferMillis,
+        policy.prebufferPercent, policy.connectionTimeoutMillis, policy.readTimeoutMillis,
+    )
 
     fun createUrlStream(url: String): Int = nativeCreateUrlStream(url)
 
@@ -107,8 +113,8 @@ class DesktopBassJniBinding private constructor(
     fun positionSeconds(stream: Int): Double? = nativePositionSeconds(stream).takeIf { it >= 0.0 }
     fun setSampleRateConverterQuality(quality: Int): Boolean = nativeSetSampleRateConverterQuality(quality)
 
-    fun audiblePositionSeconds(playbackStream: Int, sourceStream: Int): Double? =
-        nativeAudiblePositionSeconds(playbackStream, sourceStream).takeIf { it >= 0.0 }
+    fun mixerSourcePositionSeconds(stream: Int): Double? =
+        nativeMixerSourcePositionSeconds(stream).takeIf { it.isFinite() && it >= 0.0 }
 
     fun durationSeconds(stream: Int): Double? = nativeDurationSeconds(stream).takeIf { it > 0.0 }
 
@@ -120,7 +126,8 @@ class DesktopBassJniBinding private constructor(
 
     fun fft(stream: Int, bins: Int): FloatArray = nativeFft(stream, bins)
 
-    fun waveformLevels(stream: Int, bucketCount: Int): FloatArray = nativeWaveformLevels(stream, bucketCount)
+    fun monoRmsLevel(stream: Int, seconds: Float): Float? =
+        nativeMonoRmsLevel(stream, seconds).takeIf { it.isFinite() }
 
     fun readFloatData(stream: Int, buffer: FloatArray): Int = nativeReadFloatData(stream, buffer)
 
@@ -133,12 +140,13 @@ class DesktopBassJniBinding private constructor(
             if (!file.isFile) return@mapNotNull null
 
             val handle = nativeLoadPlugin(file.absolutePath)
+            val diagnostic = bassPluginLoadDiagnostic(stem, handle != 0, if (handle == 0) lastErrorCode else null)
             DesktopBassJniPlugin(
                 stem = stem,
                 file = file,
                 handle = handle,
-                loaded = handle != 0,
-                errorCode = if (handle == 0) lastErrorCode else null,
+                loaded = diagnostic.loaded,
+                errorCode = diagnostic.errorCode,
             ).also { loadedPlugins[stem] = it }
         }
 
@@ -159,7 +167,10 @@ class DesktopBassJniBinding private constructor(
     private external fun nativeOutputDevices(): Array<String>
     private external fun nativeSetOutputDevice(deviceId: String?): Boolean
     private external fun nativeSetStreamOutputDevice(stream: Int, deviceId: String?): Boolean
-    private external fun nativeConfigureInternetStreams(): Boolean
+    private external fun nativeConfigureInternetStreams(
+        playlists: Boolean, metadata: Boolean, depth: Int, bufferMillis: Int,
+        prebufferPercent: Int, timeoutMillis: Int, readTimeoutMillis: Int,
+    ): Boolean
     private external fun nativeCreateUrlStream(url: String): Int
     private external fun nativeCreateRandomAccessStream(callbacks: app.naviamp.domain.playback.BassFileCallbacks, decode: Boolean): Int
     private external fun nativeCreateFileStream(path: String): Int
@@ -184,13 +195,13 @@ class DesktopBassJniBinding private constructor(
     private external fun nativeSeek(stream: Int, seconds: Double): Boolean
     private external fun nativePositionSeconds(stream: Int): Double
     private external fun nativeSetSampleRateConverterQuality(quality: Int): Boolean
-    private external fun nativeAudiblePositionSeconds(playbackStream: Int, sourceStream: Int): Double
+    private external fun nativeMixerSourcePositionSeconds(stream: Int): Double
     private external fun nativeDurationSeconds(stream: Int): Double
     private external fun nativeLengthBytes(stream: Int): Long
     private external fun nativeFilePosition(stream: Int, mode: Int): Long
     private external fun nativeStreamTags(stream: Int): Array<String>
     private external fun nativeFft(stream: Int, bins: Int): FloatArray
-    private external fun nativeWaveformLevels(stream: Int, bucketCount: Int): FloatArray
+    private external fun nativeMonoRmsLevel(stream: Int, seconds: Float): Float
     private external fun nativeReadFloatData(stream: Int, buffer: FloatArray): Int
     private external fun nativeLoadPlugin(path: String): Int
 

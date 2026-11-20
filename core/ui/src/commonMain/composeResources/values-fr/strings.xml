@@ -497,6 +497,13 @@
     <string name="connection_aurral_companion_invalid">Saisissez une URL de serveur Aurral HTTP ou HTTPS et un nom d’utilisateur.</string>
     <string name="discovery_find_in_aurral">Rechercher dans Aurral</string>
     <string name="connection_aurral_companion_save_failed">Impossible d’enregistrer Aurral complémentaire. Votre connexion musicale reste inchangée.</string>
+    <string name="storage_recovery_title">Paramètres enregistrés</string>
+    <string name="storage_recovery_capacity">Cette modification dépasse la limite de stockage persistant de cet appareil. Les paramètres et connexions précédemment enregistrés restent inchangés.</string>
+    <string name="storage_recovery_unreadable">Impossible d’ouvrir les paramètres enregistrés. Ils ont été conservés. Réessayez ou réinitialisez-les pour reconfigurer cet appareil.</string>
+    <string name="storage_recovery_conflict">Les paramètres enregistrés ont changé pendant cette opération. Rechargez-les avant de réessayer.</string>
+    <string name="storage_recovery_unavailable">Les paramètres enregistrés sont temporairement indisponibles. Réessayez.</string>
+    <string name="storage_recovery_reset_title">Réinitialiser les paramètres enregistrés ?</string>
+    <string name="storage_recovery_reset_message">Les paramètres et connexions enregistrés sur cet appareil seront effacés. Votre bibliothèque sur le serveur ne sera pas supprimée.</string>
     <string name="transport_play">Lire</string>
     <string name="library_title">Bibliothèque</string>
     <string name="mix_bias_favorites">Favoris</string>
@@ -518,4 +525,10 @@
     <string name="common_connecting">Connexion en cours</string>
     <string name="vehicle_connection_setup_on_phone">Ajoutez ou mettez à jour les connexions sur votre téléphone.</string>
     <string name="vehicle_connection_offline">Hors ligne</string>
+    <string name="tv_keyboard_navigation_hint">Appuyez sur Sélectionner dans un champ pour ouvrir le clavier du téléviseur. Choisissez Suivant pour avancer, ou utilisez Retour ou Échap pour fermer le clavier.</string>
+    <string name="tv_search_keyboard_space">Espace</string>
+    <string name="tv_search_keyboard_backspace">Retour arrière</string>
+    <string name="tv_search_system_keyboard">Clavier système</string>
+    <string name="storage_location_app">Stockage de l’app</string>
+    <string name="storage_location_custom">Personnalisé</string>
 </resources>

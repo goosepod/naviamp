@@ -10,7 +10,7 @@ import platform.UIKit.UIViewController
 fun animationProbeViewController(): UIViewController {
     lateinit var controller: UIViewController
     controller = ComposeUIViewController {
-        NaviampIosRasterHost(rootLayer = { controller.view.layer }) {
+        NaviampAppleRasterHost(rootLayer = { controller.view.layer }) {
             NaviampMobileAnimationProbe(cpuNanos = {
                 memScoped {
                     val usage = alloc<rusage>()

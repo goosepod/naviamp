@@ -116,6 +116,17 @@ data class BassPluginDiagnostic(
     val errorCode: Int? = null,
 )
 
+/** BASS_PluginLoad's BASS_ERROR_ALREADY: the plugin is already registered in this process. */
+const val BassErrorAlready: Int = 14
+
+/**
+ * Interprets one BASS_PluginLoad attempt. BASS registers plugins per process, so a plugin that an
+ * earlier engine already loaded reports BASS_ERROR_ALREADY but remains usable.
+ */
+fun bassPluginLoadDiagnostic(stem: String, loaded: Boolean, errorCode: Int?): BassPluginDiagnostic =
+    if (loaded || errorCode == BassErrorAlready) BassPluginDiagnostic(stem, loaded = true)
+    else BassPluginDiagnostic(stem, loaded = false, errorCode = errorCode)
+
 /**
  * BASS add-ons that extend the standard stream creation APIs through BASS_PluginLoad.
  *
@@ -224,7 +235,9 @@ interface BassAudioBackend {
 
     fun setVerifyNet(verify: Boolean): Result<Unit> = Result.success(Unit)
 
-    fun configureInternetStreams(): Result<Unit> = Result.success(Unit)
+    fun configureInternetStreams(): Result<Unit> = configureInternetStreams(BassInternetStreamPolicy())
+
+    fun configureInternetStreams(policy: BassInternetStreamPolicy): Result<Unit> = Result.success(Unit)
 
     fun setSampleRateConverterQuality(quality: Int): Result<Unit> =
         unsupportedBassOperation("BASS sample-rate converter quality")
@@ -305,12 +318,26 @@ interface BassAudioBackend {
     fun seek(stream: BassStreamHandle, seconds: Double): Result<Unit> =
         unsupportedBassOperation("BASS seek")
 
+    /** BASS_POS_BYTE cursor: playback for direct outputs, decoding for decode-only sources. */
     fun positionSeconds(stream: BassStreamHandle): Double? = null
+
+    /** Native mixer history only; direct-output buffering and fallback decisions belong below. */
+    fun mixerSourcePositionSeconds(stream: BassStreamHandle): Double? = null
 
     fun audiblePositionSeconds(
         playbackStream: BassStreamHandle,
         sourceStream: BassStreamHandle,
-    ): Double? = positionSeconds(sourceStream.takeIf { it.value != 0 } ?: playbackStream)
+    ): Double? {
+        val progressStream = sourceStream.takeIf { it.value != 0 } ?: playbackStream
+        val mixerSource = progressStream != playbackStream
+        if (mixerSource) {
+            mixerSourcePositionSeconds(progressStream)
+                ?.takeIf { it.isFinite() && it >= 0.0 }?.let { return it }
+        }
+        // A direct channel's native cursor already accounts for its playback buffer. Subtracting
+        // that buffer again makes it jump forward on pause and backward when playback resumes.
+        return positionSeconds(progressStream)?.takeIf { it.isFinite() && it >= 0.0 }
+    }
 
     fun durationSeconds(stream: BassStreamHandle): Double? = null
 
@@ -318,8 +345,20 @@ interface BassAudioBackend {
 
     fun lengthBytes(stream: BassStreamHandle): Long?
 
-    fun waveformLevels(stream: BassStreamHandle, bucketCount: Int): Result<FloatArray> =
-        unsupportedBassOperation("BASS waveform level analysis")
+    /** Consumes one mono RMS window from a decoder; the common waveform owner chooses its size. */
+    fun readMonoRmsLevel(stream: BassStreamHandle, seconds: Float): Result<Float> =
+        unsupportedBassOperation("BASS mono RMS read")
+
+    fun waveformLevels(stream: BassStreamHandle, bucketCount: Int): Result<FloatArray> {
+        val duration = durationSeconds(stream)
+            ?: return Result.failure(IllegalStateException(bassFailureMessage("BASS waveform duration failed")))
+        return analyzeBassWaveformLevels(
+            durationSeconds = duration,
+            bucketCount = bucketCount,
+            rewind = { seek(stream, 0.0) },
+            readRms = { seconds -> readMonoRmsLevel(stream, seconds) },
+        )
+    }
 
     fun readFloatData(stream: BassStreamHandle, buffer: FloatArray): Result<Int>
 
@@ -338,7 +377,7 @@ fun bassStreamHandlesForRelease(vararg handles: Int): List<BassStreamHandle> =
         .map(::BassStreamHandle)
 
 fun BassAudioBackend.releaseBassStream(stream: BassStreamHandle): Result<Unit> {
-    removeMixerChannel(stream)
+    if (supportsMixer) removeMixerChannel(stream)
     return freeStream(stream)
 }
 

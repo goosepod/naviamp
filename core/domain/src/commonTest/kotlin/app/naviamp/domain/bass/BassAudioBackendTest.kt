@@ -125,6 +125,13 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun directStreamReleaseNeverCallsTheMissingMixer() {
+        val backend = RecordingBassAudioBackend(supportsMixer = false)
+        assertTrue(backend.releaseBassStream(42).isSuccess)
+        assertEquals(listOf("free:42"), backend.calls)
+    }
+
+    @Test
     fun releaseStillFreesWhenMixerRemovalFails() {
         val backend = RecordingBassAudioBackend(removeSucceeds = false)
 
@@ -885,9 +892,16 @@ class BassAudioBackendTest {
             backend.calls,
         )
     }
+    @Test
+    fun pluginAlreadyRegisteredInTheProcessCountsAsLoaded() {
+        assertEquals(BassPluginDiagnostic("bassflac", loaded = true), bassPluginLoadDiagnostic("bassflac", true, null))
+        assertEquals(BassPluginDiagnostic("bassflac", loaded = true), bassPluginLoadDiagnostic("bassflac", false, BassErrorAlready))
+        assertEquals(BassPluginDiagnostic("bassflac", loaded = false, errorCode = 2), bassPluginLoadDiagnostic("bassflac", false, 2))
+    }
 }
 
 private class RecordingBassAudioBackend(
+    override val supportsMixer: Boolean = true,
     private val removeSucceeds: Boolean = true,
     private val slideSucceeds: Boolean = true,
     private val createFileStreamSucceeds: Boolean = true,

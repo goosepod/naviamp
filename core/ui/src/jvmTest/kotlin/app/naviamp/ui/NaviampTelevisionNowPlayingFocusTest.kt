@@ -9,9 +9,11 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.runtime.mutableStateOf
@@ -173,6 +175,37 @@ class NaviampTelevisionNowPlayingFocusTest {
 
         onNodeWithContentDescription("Pause").assertIsFocused()
         runOnIdle { assertEquals(emptyList(), playbackActions) }
+    }
+
+    @Test
+    fun spacebarTogglesFromListeningModeWithoutActivatingFocusedControls() = runComposeUiTest {
+        mainClock.autoAdvance = false
+        val playbackActions = mutableListOf<NowPlayingPlaybackActionRequest>()
+        setContent {
+            TelevisionNowPlaying(
+                nowPlaying = NowPlayingUi(
+                    id = "track", title = "Track", subtitle = "Artist", stateLabel = "Paused",
+                    isPaused = true, hasNext = true, canPlayPause = true,
+                ),
+                playbackProgress = null,
+                colors = NaviampColors.Dark,
+                actions = NaviampNowPlayingActions(playbackActions::add, {}, {}, {}, {}, {}, {}),
+                onClose = {},
+                onOpenSettings = {},
+            )
+        }
+        mainClock.advanceTimeBy(200 + TelevisionNowPlayingControlsTimeoutMillis + TelevisionListeningModeTransitionMillis + 400)
+        onNodeWithTag(TelevisionNowPlayingListeningModeTestTag).assertIsFocused().performKeyInput {
+            keyDown(Key.Spacebar)
+            advanceEventTime(1_000)
+            keyUp(Key.Spacebar)
+        }
+        mainClock.advanceTimeBy(TelevisionListeningModeTransitionMillis + 200L)
+        val toggle = NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.TogglePlayPause)
+        runOnIdle { assertEquals(listOf(toggle), playbackActions) }
+        onNodeWithContentDescription("Next").performSemanticsAction(SemanticsActions.RequestFocus)
+            .assertIsFocused().performKeyInput { pressKey(Key.Spacebar) }
+        runOnIdle { assertEquals(listOf(toggle, toggle), playbackActions) }
     }
 
     @Test

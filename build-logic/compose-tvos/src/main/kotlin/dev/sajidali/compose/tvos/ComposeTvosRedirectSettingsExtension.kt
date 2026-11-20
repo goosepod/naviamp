@@ -1,0 +1,141 @@
+package dev.sajidali.compose.tvos
+
+import org.gradle.api.model.ObjectFactory
+import org.gradle.api.provider.MapProperty
+import org.gradle.api.provider.Property
+import javax.inject.Inject
+
+/**
+ * Extension for configuring the Compose tvOS Redirect plugin.
+ *
+ * Usage in settings.gradle.kts:
+ * ```kotlin
+ * plugins {
+ *     id("dev.sajidali.compose-tvos") version "x.x.x"
+ * }
+ *
+ * composeTvos {
+ *     verbose.set(true)
+ * }
+ * ```
+ */
+abstract class ComposeTvosRedirectSettingsExtension @Inject constructor(
+    objects: ObjectFactory
+) {
+    /**
+     * Enable verbose logging to see variant discovery and dependency redirection.
+     * Default: false
+     */
+    val verbose: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+
+    /**
+     * Optional version override for all redirected artifacts.
+     * If not set, version mappings or the original dependency version will be used.
+     */
+    val targetVersion: Property<String> = objects.property(String::class.java)
+
+    /**
+     * Optional repository URL to prioritize for variant discovery.
+     * If not set, uses repositories from dependencyResolutionManagement.
+     */
+    val repositoryUrl: Property<String> = objects.property(String::class.java)
+
+    /**
+     * URL of the version override manifest. The plugin defaults the unmapped case to
+     * the original requested version (same-version convention), so this manifest only
+     * needs to list exceptions where the tvOS fork is published at a different version
+     * than upstream (e.g. material3 alpha tracks).
+     *
+     * Naviamp default: empty, so no moving remote manifest can change the dependency graph.
+     * A consumer that needs one must set a reviewed, immutable URL explicitly.
+     */
+    val manifestUrl: Property<String> = objects.property(String::class.java).convention("")
+
+    /**
+     * Additional library groups to redirect for tvOS support.
+     * Maps source group ID to target group ID.
+     *
+     * Example:
+     * ```kotlin
+     * composeTvos {
+     *     additionalGroups.put("io.insert-koin", "dev.sajidali.koin")
+     * }
+     * ```
+     */
+    val additionalGroups: MapProperty<String, String> =
+        objects.mapProperty(String::class.java, String::class.java)
+
+    /**
+     * Additional specific artifacts to redirect.
+     * Maps source "group:artifact" to target "group:artifact".
+     *
+     * Example:
+     * ```kotlin
+     * composeTvos {
+     *     additionalArtifacts.put("io.coil-kt.coil3:coil-compose", "dev.sajidali.coil3:coil-compose")
+     * }
+     * ```
+     */
+    val additionalArtifacts: MapProperty<String, String> =
+        objects.mapProperty(String::class.java, String::class.java)
+
+    /**
+     * Version mappings for translating source versions to target versions.
+     *
+     * Key format: "scope:versionPattern" where scope can be:
+     * - "groupId" for exact group match
+     * - "groupId.*" for group pattern match
+     * - "*" for global match
+     *
+     * Examples:
+     * ```kotlin
+     * composeTvos {
+     *     versionMappings.put("org.jetbrains.compose.*:1.10.*", "1.10.0")
+     *     versionMappings.put("io.insert-koin:*", "3.5.0")
+     * }
+     * ```
+     */
+    val versionMappings: MapProperty<String, String> =
+        objects.mapProperty(String::class.java, String::class.java)
+
+    /**
+     * When true, the end-of-build diagnostics summary throws a [org.gradle.api.GradleException]
+     * (failing the configuration) instead of only warning when a redirect-eligible module (a
+     * module this plugin would inject tvOS variants into) has empty tvOS variant discovery --
+     * e.g. the `dev.sajidali` fork artifacts do not exist for the requested version. The
+     * exception message lists every such module.
+     *
+     * Like the warning it replaces, this only fires when the consuming project declares at
+     * least one tvOS Kotlin target (see the plugin's tvOS-target-detection guard) -- an
+     * android/iOS-only Compose project is never affected by `strictMode`, even if its
+     * (irrelevant, never-consumed) umbrella modules also happen to be redirect-eligible.
+     *
+     * Naviamp default: true, so a missing tvOS variant fails instead of silently falling back.
+     */
+    val strictMode: Property<Boolean> = objects.property(Boolean::class.java).convention(true)
+
+    /**
+     * When true (the default), a `plugins { id("org.jetbrains.compose") }` request in a
+     * consumer project build script is transparently intercepted via
+     * `pluginManagement.resolutionStrategy.eachPlugin` and substituted (`useModule`) to the
+     * tvOS-patched `dev.sajidali.compose:compose-gradle-plugin` fork -- the same fork that
+     * publishes the resource-packaging support tvOS builds need -- so consumers get tvOS
+     * resource packaging with no consumer-side plugin-id change. Set to false to resolve
+     * `org.jetbrains.compose` normally (Gradle Plugin Portal / JetBrains Space), e.g. if a
+     * consumer wants to pin the official, unpatched plugin.
+     */
+    val interceptComposeGradlePlugin: Property<Boolean> =
+        objects.property(Boolean::class.java).convention(true)
+
+    /**
+     * Optional version override for the substituted `dev.sajidali.compose:compose-gradle-plugin`
+     * artifact (see [interceptComposeGradlePlugin]). Version resolution, first non-null wins:
+     * this property -> the manifest's `gradlePlugin` field -> the REQUESTED plugin version
+     * (same-version convention, mirroring [versionMappings]'s default).
+     */
+    val composeGradlePluginVersion: Property<String> = objects.property(String::class.java)
+
+    companion object {
+        const val NAME = "composeTvos"
+    }
+}

@@ -497,6 +497,13 @@
     <string name="connection_aurral_companion_invalid">Aurral का HTTP या HTTPS सर्वर URL और उपयोगकर्ता नाम दर्ज करें।</string>
     <string name="discovery_find_in_aurral">Aurral में खोजें</string>
     <string name="connection_aurral_companion_save_failed">Aurral सहायक को सहेजा नहीं जा सका। आपका संगीत कनेक्शन नहीं बदला है।</string>
+    <string name="storage_recovery_title">सहेजी गई सेटिंग</string>
+    <string name="storage_recovery_capacity">यह बदलाव डिवाइस की स्थायी स्टोरेज सीमा से अधिक है। पहले सहेजी गई सेटिंग और कनेक्शन बदले नहीं गए हैं।</string>
+    <string name="storage_recovery_unreadable">सहेजी गई सेटिंग खोली नहीं जा सकीं। उन्हें सुरक्षित रखा गया है। फिर से कोशिश करें या इस डिवाइस को दोबारा सेट अप करने के लिए उन्हें रीसेट करें।</string>
+    <string name="storage_recovery_conflict">इस प्रक्रिया के दौरान सहेजी गई सेटिंग बदल गईं। फिर से कोशिश करने से पहले उन्हें दोबारा लोड करें।</string>
+    <string name="storage_recovery_unavailable">सहेजी गई सेटिंग फ़िलहाल उपलब्ध नहीं हैं। फिर से कोशिश करें।</string>
+    <string name="storage_recovery_reset_title">सहेजी गई सेटिंग रीसेट करें?</string>
+    <string name="storage_recovery_reset_message">इस डिवाइस पर सहेजी गई सेटिंग और कनेक्शन मिटा दिए जाएंगे। सर्वर पर आपकी लाइब्रेरी नहीं मिटाई जाएगी।</string>
     <string name="transport_play">चलाएँ</string>
     <string name="library_title">लाइब्रेरी</string>
     <string name="mix_bias_favorites">पसंदीदा</string>
@@ -518,4 +525,10 @@
     <string name="common_connecting">कनेक्ट हो रहा है</string>
     <string name="vehicle_connection_setup_on_phone">अपने फ़ोन पर कनेक्शन जोड़ें या अपडेट करें।</string>
     <string name="vehicle_connection_offline">ऑफ़लाइन</string>
+    <string name="tv_keyboard_navigation_hint">टीवी कीबोर्ड खोलने के लिए किसी फ़ील्ड पर चुनें बटन दबाएँ। आगे जाने के लिए अगला चुनें या कीबोर्ड बंद करने के लिए वापस या Esc दबाएँ।</string>
+    <string name="tv_search_keyboard_space">स्पेस</string>
+    <string name="tv_search_keyboard_backspace">बैकस्पेस</string>
+    <string name="tv_search_system_keyboard">सिस्टम कीबोर्ड</string>
+    <string name="storage_location_app">ऐप स्टोरेज</string>
+    <string name="storage_location_custom">कस्टम</string>
 </resources>

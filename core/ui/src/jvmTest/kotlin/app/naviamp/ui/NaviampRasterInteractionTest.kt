@@ -34,6 +34,76 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampRasterInteractionTest {
+    @Test fun screenProtectionUpdatesNativeOpacityWithoutResubmittingPixels() = runComposeUiTest {
+        mainClock.autoAdvance = false
+        val presenter = RecordingPresenter()
+        val protection = mutableStateOf(TelevisionScreenProtection())
+        val image = androidx.compose.ui.graphics.ImageBitmap(100, 10)
+        setContent {
+            CompositionLocalProvider(LocalNaviampRasterPresenter provides presenter) {
+                TelevisionScreenProtectionSurface(protection.value) {
+                    NaviampAnimatedRaster(listOf(NaviampRasterLayer(image)), Modifier.size(100.dp, 10.dp))
+                }
+            }
+        }
+        mainClock.advanceTimeBy(300)
+        val presentations = runOnIdle { presenter.presentations.also { assertTrue(it > 0) } }
+        runOnIdle { protection.value = TelevisionScreenProtection(brightness = 0.55f) }
+        mainClock.advanceTimeBy(2_300)
+        runOnIdle {
+            assertEquals(0.55f, presenter.opacity)
+            assertEquals(presentations, presenter.presentations)
+        }
+        runOnIdle { protection.value = TelevisionScreenProtection() }
+        mainClock.advanceTimeBy(100)
+        runOnIdle { assertEquals(1f, presenter.opacity) }
+    }
+
+    @Test fun screenProtectionShiftMovesNativePixelsWithoutResubmittingThem() = runComposeUiTest {
+        mainClock.autoAdvance = false
+        val presenter = RecordingPresenter()
+        val protection = mutableStateOf(TelevisionScreenProtection())
+        val image = androidx.compose.ui.graphics.ImageBitmap(100, 10)
+        setContent {
+            CompositionLocalProvider(LocalNaviampRasterPresenter provides presenter, LocalDensity provides Density(1f)) {
+                TelevisionScreenProtectionSurface(protection.value) {
+                    NaviampAnimatedRaster(listOf(NaviampRasterLayer(image)), Modifier.size(100.dp, 10.dp))
+                }
+            }
+        }
+        mainClock.advanceTimeBy(300)
+        val (presentations, start) = runOnIdle { presenter.presentations.also { assertTrue(it > 0) } to presenter.bounds.topLeft }
+        runOnIdle { protection.value = TelevisionScreenProtection(brightness = 0.55f, offsetXDp = 4, offsetYDp = 3) }
+        mainClock.advanceTimeBy(2_300)
+        runOnIdle {
+            assertEquals(presentations, presenter.presentations)
+            assertTrue(presenter.moves > 0)
+            assertEquals(start + Offset(4f, 3f), presenter.bounds.topLeft)
+        }
+    }
+
+    @Test fun regionsWithoutMoveSupportStillReceiveTheShiftedPosition() = runComposeUiTest {
+        mainClock.autoAdvance = false
+        val presenter = RecordingPresenter().apply { supportsMove = false }
+        val protection = mutableStateOf(TelevisionScreenProtection())
+        val image = androidx.compose.ui.graphics.ImageBitmap(100, 10)
+        setContent {
+            CompositionLocalProvider(LocalNaviampRasterPresenter provides presenter, LocalDensity provides Density(1f)) {
+                TelevisionScreenProtectionSurface(protection.value) {
+                    NaviampAnimatedRaster(listOf(NaviampRasterLayer(image)), Modifier.size(100.dp, 10.dp))
+                }
+            }
+        }
+        mainClock.advanceTimeBy(300)
+        val (presentations, start) = runOnIdle { presenter.presentations to presenter.bounds.topLeft }
+        runOnIdle { protection.value = TelevisionScreenProtection(brightness = 0.55f, offsetXDp = 4, offsetYDp = 0) }
+        mainClock.advanceTimeBy(2_300)
+        runOnIdle {
+            assertTrue(presenter.presentations > presentations)
+            assertEquals(start + Offset(4f, 0f), presenter.bounds.topLeft)
+        }
+    }
+
     @Test fun cachedProgressStillMovesInTheSharedFallback() = runComposeUiTest {
         mainClock.autoAdvance = false
         val clock = kotlin.time.TestTimeSource()
@@ -611,9 +681,12 @@ class NaviampRasterInteractionTest {
         var presentations = 0
         var closed = 0
         var synchronizations = 0
+        var opacity = 1f
         var layers = emptyList<NaviampRasterLayer>()
         var bounds = Rect.Zero
         var ready = true
+        var supportsMove = true
+        var moves = 0
         var notifyReady: () -> Unit = {}
         override fun create() = object : NaviampRasterRegion {
             override val requiresDrawSynchronization = this@RecordingPresenter.requiresDrawSynchronization
@@ -625,7 +698,14 @@ class NaviampRasterInteractionTest {
                 presentations++
                 return ready
             }
+            override fun move(bounds: Rect, clip: Rect): Boolean {
+                if (!supportsMove || !ready) return false
+                this@RecordingPresenter.bounds = bounds
+                moves++
+                return true
+            }
             override fun translationX(layerIndex: Int) = offset
+            override fun setOpacity(opacity: Float) { this@RecordingPresenter.opacity = opacity }
             override fun close() { closed++ }
         }
     }

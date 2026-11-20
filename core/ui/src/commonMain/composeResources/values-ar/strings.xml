@@ -497,6 +497,13 @@
     <string name="connection_aurral_companion_invalid">أدخل عنوان خادم Aurral ببروتوكول HTTP أو HTTPS واسم المستخدم.</string>
     <string name="discovery_find_in_aurral">البحث في Aurral</string>
     <string name="connection_aurral_companion_save_failed">تعذّر حفظ خدمة Aurral المرافقة. لم يتغير اتصال الموسيقى.</string>
+    <string name="storage_recovery_title">الإعدادات المحفوظة</string>
+    <string name="storage_recovery_capacity">يتجاوز هذا التغيير حد التخزين الدائم للجهاز. لم تتغير الإعدادات والاتصالات المحفوظة سابقًا.</string>
+    <string name="storage_recovery_unreadable">تعذر فتح الإعدادات المحفوظة. تم الاحتفاظ بها. حاول مرة أخرى، أو أعد ضبطها لإعداد هذا الجهاز من جديد.</string>
+    <string name="storage_recovery_conflict">تغيرت الإعدادات المحفوظة أثناء هذه العملية. أعد تحميلها قبل المحاولة مرة أخرى.</string>
+    <string name="storage_recovery_unavailable">الإعدادات المحفوظة غير متاحة مؤقتًا. حاول مرة أخرى.</string>
+    <string name="storage_recovery_reset_title">إعادة ضبط الإعدادات المحفوظة؟</string>
+    <string name="storage_recovery_reset_message">ستُمحى الإعدادات والاتصالات المحفوظة على هذا الجهاز. لن تُحذف مكتبتك على الخادم.</string>
     <string name="transport_play">تشغيل</string>
     <string name="library_title">المكتبة</string>
     <string name="mix_bias_favorites">المفضلة</string>
@@ -518,4 +525,10 @@
     <string name="common_connecting">جارٍ الاتصال</string>
     <string name="vehicle_connection_setup_on_phone">أضف الاتصالات أو حدّثها على هاتفك.</string>
     <string name="vehicle_connection_offline">غير متصل</string>
+    <string name="tv_keyboard_navigation_hint">اضغط على تحديد عندما يكون الحقل محددًا لفتح لوحة مفاتيح التلفاز. اختر التالي للمتابعة، أو استخدم رجوع أو Esc لإغلاق لوحة المفاتيح.</string>
+    <string name="tv_search_keyboard_space">مسافة</string>
+    <string name="tv_search_keyboard_backspace">حذف للخلف</string>
+    <string name="tv_search_system_keyboard">لوحة مفاتيح النظام</string>
+    <string name="storage_location_app">تخزين التطبيق</string>
+    <string name="storage_location_custom">مخصص</string>
 </resources>

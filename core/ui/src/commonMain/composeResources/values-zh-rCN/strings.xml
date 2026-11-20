@@ -497,6 +497,13 @@
     <string name="connection_aurral_companion_invalid">请输入 Aurral 的 HTTP 或 HTTPS 服务器地址及用户名。</string>
     <string name="discovery_find_in_aurral">在 Aurral 中查找</string>
     <string name="connection_aurral_companion_save_failed">无法保存 Aurral 配套服务。音乐服务器连接未更改。</string>
+    <string name="storage_recovery_title">已保存的设置</string>
+    <string name="storage_recovery_capacity">此更改超出了设备的持久存储限制。之前保存的设置和连接未更改。</string>
+    <string name="storage_recovery_unreadable">无法打开已保存的设置。设置已保留。请重试，或重置设置以重新配置此设备。</string>
+    <string name="storage_recovery_conflict">此操作期间，已保存的设置发生了变化。请重新加载设置后再试。</string>
+    <string name="storage_recovery_unavailable">已保存的设置暂时不可用。请重试。</string>
+    <string name="storage_recovery_reset_title">重置已保存的设置？</string>
+    <string name="storage_recovery_reset_message">此设备上保存的设置和连接将被清除。服务器上的音乐库不会被删除。</string>
     <string name="transport_play">播放</string>
     <string name="library_title">媒体库</string>
     <string name="mix_bias_favorites">收藏</string>
@@ -518,4 +525,10 @@
     <string name="common_connecting">正在连接</string>
     <string name="vehicle_connection_setup_on_phone">请在手机上添加或更新连接。</string>
     <string name="vehicle_connection_offline">离线</string>
+    <string name="tv_keyboard_navigation_hint">在输入框获得焦点时按选择键打开电视键盘。选择“下一步”继续，或按返回键或 Esc 关闭键盘。</string>
+    <string name="tv_search_keyboard_space">空格</string>
+    <string name="tv_search_keyboard_backspace">退格</string>
+    <string name="tv_search_system_keyboard">系统键盘</string>
+    <string name="storage_location_app">应用存储</string>
+    <string name="storage_location_custom">自定义</string>
 </resources>

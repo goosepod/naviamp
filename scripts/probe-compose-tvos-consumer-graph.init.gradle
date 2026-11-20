@@ -1,0 +1,44 @@
+gradle.projectsEvaluated {
+    if (rootProject.name != 'naviamp-tvos-renderer-probe') return
+    rootProject.tasks.register('verifyRendererConsumerVariants') {
+        doLast {
+            def kotlin = rootProject.extensions.getByName('kotlin')
+            def report = [:]
+            ['iosSimulatorArm64', 'tvosSimulatorArm64'].each { name ->
+                def compilation = kotlin.targets.getByName(name).compilations.getByName('main')
+                def configuration = rootProject.configurations.getByName(compilation.compileDependencyConfigurationName)
+                def modules = configuration.incoming.resolutionResult.allComponents.collect { it.moduleVersion }
+                    .findAll { it != null }.collect { [group: it.group, module: it.name, version: it.version] }
+                    .sort { a, b -> (a.group + ':' + a.module) <=> (b.group + ':' + b.module) }
+                if (modules.any { it.group.startsWith('dev.sajidali') || it.version.contains('SNAPSHOT') }) {
+                    throw new GradleException("Unreviewed module in $name")
+                }
+                if (name.startsWith('ios')) {
+                    if (modules.any { it.group.startsWith('app.naviamp.tvosprobe') }) {
+                        throw new GradleException('Original iOS graph contains a private port artifact')
+                    }
+                    if (!modules.any { it.group == 'org.jetbrains.compose.material3' &&
+                            it.module == 'material3-uikitsimarm64' && it.version == '1.9.0' }) {
+                        throw new GradleException('Original iOS stable Material3 binary is absent')
+                    }
+                } else {
+                    ['compose.ui': 'ui-tvossimulatorarm64',
+                        'compose.foundation': 'foundation-tvossimulatorarm64',
+                        'compose.material3': 'material3-tvossimulatorarm64',
+                        'compose.components': 'components-resources-tvosSimulatorArm64'].each { group, module ->
+                        def expected = group == 'compose.material3' ? '1.9.0' : '1.12.2'
+                        if (!modules.any { it.group == "app.naviamp.tvosprobe.$group" &&
+                                it.module == module && it.version == expected }) {
+                            throw new GradleException("Missing exact-version Native port module $group:$module")
+                        }
+                    }
+                }
+                report[name] = modules
+                logger.lifecycle("Verified $name: ${modules.size()} selected modules")
+            }
+            def output = rootProject.layout.buildDirectory.file('verified-consumer-variants.json').get().asFile
+            output.parentFile.mkdirs()
+            output.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(report))
+        }
+    }
+}

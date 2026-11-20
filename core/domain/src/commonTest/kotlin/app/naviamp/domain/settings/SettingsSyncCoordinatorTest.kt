@@ -7,6 +7,26 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SettingsSyncCoordinatorTest {
+    @Test fun documentAndSyncStampCommitBeforeLiveEffectsAndFailedBatchDoesNotRunThem() {
+        var runtime = SettingsSyncRuntimeState()
+        val events = mutableListOf<String>()
+        var fail = false
+        val coordinator = SettingsSyncCoordinator(
+            deviceId = "test", state = { runtime }, saveState = { events += "stamp"; runtime = it }, nowEpochMillis = { 1L },
+            buildLocalDocument = { document(it) }, applyDocument = { events += "document" },
+            persistenceTransaction = { body ->
+                events += "begin"
+                if (fail) error("storage rejected")
+                body(); events += "commit"
+            }, afterDocumentApplied = { events += "effects" },
+        )
+        coordinator.applySyncedDocument(document(20))
+        assertEquals(listOf("begin", "document", "stamp", "commit", "effects"), events)
+        events.clear(); fail = true
+        kotlin.test.assertFailsWith<IllegalStateException> { coordinator.applySyncedDocument(document(30)) }
+        assertEquals(listOf("begin"), events)
+        assertEquals(20L, runtime.lastAppliedSyncUpdateEpochMillis)
+    }
     @Test
     fun marksLocalChangesAndBuildsExportDocument() {
         var runtime = SettingsSyncRuntimeState()

@@ -31,6 +31,7 @@ parser.add_argument('--albums', type=int, default=1)
 parser.add_argument('--unknown-length', action='store_true', help='Omit Content-Length and ranges for finite songs')
 parser.add_argument('--long-metadata', action='store_true', help='Overflow all player metadata rows for full-app animation measurements')
 parser.add_argument('--mixed-metadata', action='store_true', help='Provide one short track and long metadata on remaining tracks for animation isolation')
+parser.add_argument('--metadata-repeat', type=int, default=1, help='Repeat long metadata for overflow checks in wider windows (1..8)')
 parser.add_argument('--accounts', action='store_true', help='Return distinct catalogs for each fixture username')
 args = parser.parse_args()
 if not 0 <= args.port <= 65535:
@@ -44,6 +45,8 @@ except ValueError as error:
     parser.error(str(error))
 if args.mixed_metadata and (args.long_metadata or args.tracks < 2):
     parser.error('mixed metadata requires at least two tracks and cannot be combined with long metadata')
+if not 1 <= args.metadata_repeat <= 8:
+    parser.error('metadata repeat must be 1..8')
 if not (0 <= args.burst_seconds <= 600 and 30 <= args.track_seconds <= 600 and 1 <= args.tracks <= 240 and 1 <= args.albums <= args.tracks and args.tracks % args.albums == 0):
     parser.error('burst must be 0..600 seconds, track length 30..600 seconds, tracks 1..240, albums must divide track count')
 
@@ -67,6 +70,8 @@ if args.long_metadata or args.mixed_metadata:
         track.update(title='Long scrolling player title with enough metadata to overflow its viewport',
                      artist='Long scrolling fixture artist with enough text to overflow its viewport',
                      album='Long scrolling fixture album with enough text to overflow its viewport')
+        for field in ('title', 'artist', 'album'):
+            track[field] = ' '.join([track[field]] * args.metadata_repeat)
     for i, album in enumerate(ALBUMS):
         track = TRACKS[i * PER_ALBUM]
         album.update(name=track['album'], artist=track['artist'])

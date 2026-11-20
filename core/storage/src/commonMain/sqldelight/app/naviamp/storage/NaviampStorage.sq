@@ -688,6 +688,12 @@ FROM playback_profile
 WHERE source_id = ?
 ORDER BY target_type, target_id;
 
+selectRecoveryPlaybackProfiles:
+SELECT * FROM playback_profile ORDER BY source_id, target_type, target_id;
+
+clearRecoveryPlaybackProfiles:
+DELETE FROM playback_profile;
+
 upsertPlaybackProfile:
 INSERT OR REPLACE INTO playback_profile(
   source_id,
@@ -1623,6 +1629,12 @@ selectTrackLyricsOffset:
 SELECT offset_millis
 FROM track_lyrics_offset
 WHERE source_id = ? AND remote_track_id = ?;
+
+selectRecoveryLyricsOffsets:
+SELECT * FROM track_lyrics_offset ORDER BY source_id, remote_track_id;
+
+clearRecoveryLyricsOffsets:
+DELETE FROM track_lyrics_offset;
 
 upsertTrackLyricsOffset:
 INSERT OR REPLACE INTO track_lyrics_offset(

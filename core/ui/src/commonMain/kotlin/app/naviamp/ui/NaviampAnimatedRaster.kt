@@ -55,15 +55,26 @@ internal interface NaviampRasterRegion {
      * they mutate; a host-owned parent is only an attachment point.
      */
     fun present(layers: List<NaviampRasterLayer>, bounds: Rect, clip: Rect, cornerRadius: Float): Boolean
-    /** Notify the shared owner when an asynchronous native attachment can replace its fallback. */
+    /**
+     * Reposition the most recently presented layers without changing pixels, size or motion.
+     * The shared owner calls this only when content, sizes and the bounds-to-clip offset are
+     * unchanged. Return false to request a complete [present].
+     */
+    fun move(bounds: Rect, clip: Rect): Boolean = false
+    /**
+     * Notify the shared owner after native attachment commits. This also requests one parent
+     * refresh when attachment changes its presentation, even if [present] already returned true.
+     */
     fun whenReady(callback: () -> Unit) {}
     /** Commit prepared native changes; only drawing-dependent regions defer this to a draw pass. */
     fun synchronizeDraw() {}
+    fun setOpacity(opacity: Float) {}
     fun translationX(layerIndex: Int): Float? = null
     fun close()
 }
 
 internal val LocalNaviampRasterPresenter = staticCompositionLocalOf<NaviampRasterPresenter?> { null }
+internal val LocalNaviampRasterOpacity = staticCompositionLocalOf<(() -> Float)?> { null }
 internal val LocalNaviampAnimationVisible = staticCompositionLocalOf { true }
 private val LocalNaviampWindowVisible = staticCompositionLocalOf { true }
 
@@ -74,6 +85,12 @@ internal class NaviampRasterPosition {
 private data class RasterSubmission(
     val layers: List<NaviampRasterLayer>, val bounds: Rect, val clip: Rect, val cornerRadius: Float,
 )
+
+/** True when [next] only translates this submission, so presented pixels and motion still apply. */
+private fun RasterSubmission.isTranslatedTo(next: RasterSubmission): Boolean =
+    layers == next.layers && cornerRadius == next.cornerRadius &&
+        bounds.size == next.bounds.size && clip.size == next.clip.size &&
+        next.bounds.topLeft - bounds.topLeft == next.clip.topLeft - clip.topLeft
 private class RasterSubmissionState {
     var latest: RasterSubmission? = null
     var fallbackRevealOffsets = emptyList<Long>()
@@ -96,6 +113,10 @@ internal fun <T> NaviampAnimatedRaster(content: NaviampRasterContent<T>, modifie
     val windowVisible = LocalNaviampWindowVisible.current
     val presenter = LocalNaviampRasterPresenter.current.takeIf { visible }
     val region = remember(presenter) { presenter?.create() }
+    val opacity by rememberUpdatedState(LocalNaviampRasterOpacity.current)
+    LaunchedEffect(region) {
+        if (region != null) snapshotFlow { opacity?.invoke() ?: 1f }.collect(region::setOpacity)
+    }
     var bounds by remember { mutableStateOf(Rect.Zero) }
     var clip by remember { mutableStateOf(Rect.Zero) }
     var presented by remember(region) { mutableStateOf(false) }
@@ -113,9 +134,13 @@ internal fun <T> NaviampAnimatedRaster(content: NaviampRasterContent<T>, modifie
     } }
     val submit by rememberUpdatedState {
         val next = RasterSubmission(rasterContent.layers, bounds, clip, cornerRadius)
-        if (submission.latest != next) {
+        val previous = submission.latest
+        if (previous != next) {
             submission.latest = next
-            presented = region?.present(rasterContent.layers.map { it.forPresentation() }, bounds, clip, cornerRadius) == true
+            // Moving unchanged pixels (for example a TV pixel shift) must not re-decode them or
+            // restart native motion.
+            val moved = presented && previous?.isTranslatedTo(next) == true && region?.move(bounds, clip) == true
+            if (!moved) presented = region?.present(rasterContent.layers.map { it.forPresentation() }, bounds, clip, cornerRadius) == true
             if (region?.requiresDrawSynchronization == true) drawRevision++
             else region?.synchronizeDraw()
             if (!presented) {

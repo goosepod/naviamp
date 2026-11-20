@@ -497,6 +497,13 @@
     <string name="connection_aurral_companion_invalid">Введіть HTTP- або HTTPS-адресу сервера Aurral та ім’я користувача.</string>
     <string name="discovery_find_in_aurral">Знайти в Aurral</string>
     <string name="connection_aurral_companion_save_failed">Не вдалося зберегти підключення Aurral. Підключення до музичного сервера не змінилося.</string>
+    <string name="storage_recovery_title">Збережені налаштування</string>
+    <string name="storage_recovery_capacity">Ця зміна перевищує ліміт постійного сховища пристрою. Раніше збережені налаштування та підключення не змінено.</string>
+    <string name="storage_recovery_unreadable">Не вдалося відкрити збережені налаштування. Їх збережено. Спробуйте знову або скиньте їх, щоб налаштувати пристрій заново.</string>
+    <string name="storage_recovery_conflict">Збережені налаштування змінилися під час цієї операції. Завантажте їх знову перед повторною спробою.</string>
+    <string name="storage_recovery_unavailable">Збережені налаштування тимчасово недоступні. Спробуйте знову.</string>
+    <string name="storage_recovery_reset_title">Скинути збережені налаштування?</string>
+    <string name="storage_recovery_reset_message">Збережені налаштування та підключення на цьому пристрої буде видалено. Бібліотеку на сервері не буде видалено.</string>
     <string name="transport_play">Відтворити</string>
     <string name="library_title">Медіатека</string>
     <string name="mix_bias_favorites">Улюблене</string>
@@ -518,4 +525,10 @@
     <string name="common_connecting">Підключення</string>
     <string name="vehicle_connection_setup_on_phone">Додайте або оновіть підключення на телефоні.</string>
     <string name="vehicle_connection_offline">Офлайн</string>
+    <string name="tv_keyboard_navigation_hint">Натисніть кнопку вибору на полі, щоб відкрити клавіатуру телевізора. Виберіть «Далі», щоб продовжити, або натисніть «Назад» чи Esc, щоб закрити клавіатуру.</string>
+    <string name="tv_search_keyboard_space">Пробіл</string>
+    <string name="tv_search_keyboard_backspace">Стерти</string>
+    <string name="tv_search_system_keyboard">Системна клавіатура</string>
+    <string name="storage_location_app">Сховище застосунку</string>
+    <string name="storage_location_custom">Власне</string>
 </resources>

@@ -1,4 +1,6 @@
 package app.naviamp.ui
+
+import app.naviamp.domain.media.AlbumReleaseSection
 import org.jetbrains.compose.resources.pluralStringResource
 import app.naviamp.ui.generated.resources.*
 
@@ -29,7 +31,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +54,7 @@ import androidx.compose.ui.unit.sp
 import app.naviamp.domain.settings.AlbumSortOrder
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.flow.first
 
 @Composable
 internal fun TelevisionAlbumDetail(
@@ -150,6 +155,10 @@ internal fun TelevisionArtistDetail(
     val listState = rememberLazyListState()
     val firstPopularTrackFocusRequester = remember(detail.artist.id) { FocusRequester() }
     val firstAlbumFocusRequester = remember(detail.artist.id) { FocusRequester() }
+    val returningAlbumFocus = remember { FocusRequester() }
+    var returningAlbumId by rememberSaveable { mutableStateOf<String?>(null) }
+    // Capture the saved target at mount. Opening an album sets the target for the next mount.
+    val restoreAlbumId = remember { returningAlbumId }?.takeIf { it == returningAlbumId }
     val popularTracksAvailable = detail.popularTracksVisible && detail.popularTracks.isNotEmpty()
     val albumSections = detail.albumSectionsForDisplay(
         groupByReleaseType = groupAlbumsByReleaseType,
@@ -161,7 +170,7 @@ internal fun TelevisionArtistDetail(
         contentPadding = PaddingValues(bottom = 24.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
-        item(key = "artist-hero:${detail.artist.id}") {
+        item(key = televisionArtistHeroKey(detail.artist.id)) {
             TelevisionDetailHero(
                 title = detail.artist.title,
                 subtitle = detail.artist.subtitle,
@@ -202,10 +211,10 @@ internal fun TelevisionArtistDetail(
             )
         }
         if (popularTracksAvailable) {
-            item(key = "popular-tracks-heading") {
+            item(key = TelevisionArtistPopularHeadingKey) {
                 TelevisionDetailSectionHeading(stringResource(Res.string.tv_popular_tracks), colors)
             }
-            itemsIndexed(detail.popularTracks, key = { _, track -> "popular:${track.id}" }) { index, track ->
+            itemsIndexed(detail.popularTracks, key = { _, track -> televisionArtistPopularTrackKey(track.id) }) { index, track ->
                 TelevisionTrackRow(
                     track = track,
                     leadingText = (index + 1).toString(),
@@ -238,11 +247,27 @@ internal fun TelevisionArtistDetail(
             }
         }
         albumSections.forEachIndexed { sectionIndex, section ->
-            item(key = "artist-albums-heading:${section.releaseSection}") {
+            item(key = televisionArtistAlbumsHeadingKey(section.releaseSection)) {
                 TelevisionDetailSectionHeading(albumReleaseSectionLabel(section.releaseSection), colors)
             }
-            item(key = "artist-albums:${section.releaseSection}") {
+            item(key = televisionArtistAlbumsRowKey(section.releaseSection)) {
+                val rowState = rememberLazyListState()
+                LaunchedEffect(restoreAlbumId, section.albums) {
+                    val albumIndex = section.albums.indexOfFirst { it.id == restoreAlbumId }
+                    if (albumIndex >= 0) {
+                        val visible = snapshotFlow { rowState.layoutInfo.visibleItemsInfo }.first { it.isNotEmpty() }
+                        if (visible.none { it.index == albumIndex }) rowState.scrollToItem(albumIndex)
+                        repeat(5) {
+                            withFrameNanos { }
+                            if (returningAlbumFocus.requestFocus()) {
+                                returningAlbumId = null
+                                return@LaunchedEffect
+                            }
+                        }
+                    }
+                }
                 LazyRow(
+                    state = rowState,
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     contentPadding = PaddingValues(
                         start = TelevisionDetailFocusedItemOverflow,
@@ -257,15 +282,17 @@ internal fun TelevisionArtistDetail(
                             colors = colors,
                             width = TelevisionDetailAlbumCardWidth,
                             onClick = {
+                                returningAlbumId = album.id
                                 onAlbumOpening()
                                 actions.onAlbumAction(
                                     NaviampArtistAlbumActionRequest(album, NaviampArtistAlbumCommand.Select),
                                 )
                             },
-                            modifier = if (sectionIndex == 0 && index == 0) {
-                                Modifier.focusRequester(firstAlbumFocusRequester)
-                            } else {
-                                Modifier
+                            modifier = when {
+                                album.id == restoreAlbumId -> Modifier.focusRequester(returningAlbumFocus)
+                                    .then(if (sectionIndex == 0 && index == 0) Modifier.focusRequester(firstAlbumFocusRequester) else Modifier)
+                                sectionIndex == 0 && index == 0 -> Modifier.focusRequester(firstAlbumFocusRequester)
+                                else -> Modifier
                             },
                         ) { focused ->
                             NaviampCoverArt(
@@ -291,9 +318,44 @@ internal fun TelevisionArtistDetail(
             }
         }
     }
-    LaunchedEffect(detail.artist.id) {
-        repeat(3) { withFrameNanos { } }
-        listState.scrollToItem(0)
+    LaunchedEffect(restoreAlbumId, albumSections) {
+        if (restoreAlbumId == null) return@LaunchedEffect
+        val section = albumSections.firstOrNull { section -> section.albums.any { it.id == restoreAlbumId } }
+        if (section == null) {
+            // The album left this artist's catalog; do not keep restoring a missing card.
+            returningAlbumId = null
+            return@LaunchedEffect
+        }
+        val rowIndex = televisionArtistDetailItemKeys(detail.artist.id, popularTracksAvailable, detail.popularTracks, albumSections)
+            .indexOf(televisionArtistAlbumsRowKey(section.releaseSection))
+        val visible = snapshotFlow { listState.layoutInfo.visibleItemsInfo }.first { it.isNotEmpty() }
+        if (rowIndex >= 0 && visible.none { it.index == rowIndex }) {
+            listState.scrollToItem(rowIndex)
+        }
+    }
+}
+
+private fun televisionArtistHeroKey(artistId: String) = "artist-hero:$artistId"
+private const val TelevisionArtistPopularHeadingKey = "popular-tracks-heading"
+private fun televisionArtistPopularTrackKey(trackId: String) = "popular:$trackId"
+private fun televisionArtistAlbumsHeadingKey(section: AlbumReleaseSection) = "artist-albums-heading:$section"
+private fun televisionArtistAlbumsRowKey(section: AlbumReleaseSection) = "artist-albums:$section"
+
+/** The artist LazyColumn's item keys in order, so restoration finds rows by key rather than position. */
+internal fun televisionArtistDetailItemKeys(
+    artistId: String,
+    popularTracksVisible: Boolean,
+    popularTracks: List<SharedTrackRowUi>,
+    albumSections: List<SharedAlbumSectionUi>,
+): List<String> = buildList {
+    add(televisionArtistHeroKey(artistId))
+    if (popularTracksVisible) {
+        add(TelevisionArtistPopularHeadingKey)
+        popularTracks.forEach { add(televisionArtistPopularTrackKey(it.id)) }
+    }
+    albumSections.forEach {
+        add(televisionArtistAlbumsHeadingKey(it.releaseSection))
+        add(televisionArtistAlbumsRowKey(it.releaseSection))
     }
 }
 
@@ -326,7 +388,7 @@ internal fun TelevisionPlaylistDetail(
             TelevisionDetailHero(
                 title = playlist.title,
                 mediaKind = SharedMediaItemKind.Playlist,
-                subtitle = playlist.subtitle,
+                subtitle = "",
                 metadata = televisionTrackCountLabel(detail.tracks.size),
                 coverArtUrl = playlist.coverArtUrl ?: playlist.coverArtUrls.firstOrNull(),
                 colors = colors,

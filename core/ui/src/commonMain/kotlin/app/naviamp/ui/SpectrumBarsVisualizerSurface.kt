@@ -5,9 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -27,29 +25,17 @@ internal fun SpectrumBarsVisualizerSurface(
     renderPolicy: VisualizerRenderPolicy,
     modifier: Modifier,
 ) {
-    var frameMillis by remember { mutableLongStateOf(0L) }
+    val frameMillis by rememberVisualizerFrameClock(active, renderPolicy.targetFrameIntervalMillis)
     val smoothedBands = remember(renderPolicy.maxCanvasSamples) { FloatArray(renderPolicy.maxCanvasSamples) }
     val peakBands = remember(renderPolicy.maxCanvasSamples) { FloatArray(renderPolicy.maxCanvasSamples) }
     val previousFrameMillis = remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(active, renderPolicy.targetFrameIntervalMillis) {
         if (!active) {
-            frameMillis = 0L
             previousFrameMillis.longValue = 0L
             smoothedBands.fill(0f)
             peakBands.fill(0f)
             return@LaunchedEffect
-        }
-        var lastRenderedFrameMillis = 0L
-        while (true) {
-            withFrameMillis { nextFrameMillis ->
-                if (lastRenderedFrameMillis == 0L ||
-                    nextFrameMillis - lastRenderedFrameMillis >= renderPolicy.targetFrameIntervalMillis
-                ) {
-                    lastRenderedFrameMillis = nextFrameMillis
-                    frameMillis = nextFrameMillis
-                }
-            }
         }
     }
 

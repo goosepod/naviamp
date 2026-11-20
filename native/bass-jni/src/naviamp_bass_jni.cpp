@@ -28,10 +28,6 @@
 #include <vector>
 
 namespace {
-constexpr DWORD NETWORK_BUFFER_MILLIS = 5000;
-constexpr DWORD NETWORK_TIMEOUT_MILLIS = 15000;
-constexpr DWORD NETWORK_PREBUFFER_PERCENT = 75;
-constexpr DWORD NETWORK_PLAYLIST_DEPTH = 5;
 
 #if defined(_WIN32) && !defined(__ANDROID__)
 constexpr DWORD DWM_WINDOW_ATTRIBUTE_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19;
@@ -264,11 +260,6 @@ bool configure_playback_buffers(DWORD playbackBufferMillis, DWORD updatePeriodMi
 #else
     configured = BASS_SetConfig(BASS_CONFIG_DEV_BUFFER, deviceBufferMillis) && configured;
 #endif
-    BASS_SetConfig(BASS_CONFIG_NET_BUFFER, NETWORK_BUFFER_MILLIS);
-    BASS_SetConfig(BASS_CONFIG_NET_PREBUF, NETWORK_PREBUFFER_PERCENT);
-    BASS_SetConfig(BASS_CONFIG_NET_PREBUF_WAIT, 1);
-    BASS_SetConfig(BASS_CONFIG_NET_TIMEOUT, NETWORK_TIMEOUT_MILLIS);
-    BASS_SetConfig(BASS_CONFIG_NET_READTIMEOUT, NETWORK_TIMEOUT_MILLIS);
     return configured;
 }
 
@@ -368,60 +359,24 @@ jobjectArray output_devices(JNIEnv* env) {
     return array;
 }
 
-jfloatArray waveform_levels(JNIEnv* env, jint stream, jint bucketCount) {
-    int safeBucketCount = std::max(1, std::min(static_cast<int>(bucketCount), 4096));
-    DWORD handle = static_cast<DWORD>(stream);
-    QWORD lengthBytes = BASS_ChannelGetLength(handle, BASS_POS_BYTE);
-    if (lengthBytes == static_cast<QWORD>(-1)) return env->NewFloatArray(0);
-    double durationSeconds = BASS_ChannelBytes2Seconds(handle, lengthBytes);
-    if (durationSeconds <= 0.0 || !std::isfinite(durationSeconds)) return env->NewFloatArray(0);
-
-    BASS_ChannelSetPosition(handle, 0, BASS_POS_BYTE);
-
-    std::vector<float> levels(static_cast<size_t>(safeBucketCount), 0.0f);
-    double bucketSeconds = durationSeconds / safeBucketCount;
-    bool anyLevel = false;
-    bool complete = true;
-    for (int bucket = 0; bucket < safeBucketCount; ++bucket) {
-        double remaining = bucketSeconds;
-        double weightedSquareSum = 0.0;
-        double measuredSeconds = 0.0;
-        while (remaining > 0.0001) {
-            float level = 0.0f;
-            float windowSeconds = static_cast<float>(std::min(remaining, 1.0));
-            if (!BASS_ChannelGetLevelEx(handle, &level, windowSeconds, BASS_LEVEL_MONO | BASS_LEVEL_RMS)) {
-                complete = false;
-                break;
-            }
-            float clampedLevel = std::max(0.0f, std::min(level, 1.0f));
-            weightedSquareSum += static_cast<double>(clampedLevel) * clampedLevel * windowSeconds;
-            measuredSeconds += windowSeconds;
-            remaining -= windowSeconds;
-            anyLevel = true;
-        }
-        if (measuredSeconds > 0.0) {
-            levels[static_cast<size_t>(bucket)] = static_cast<float>(
-                std::sqrt(weightedSquareSum / measuredSeconds)
-            );
-        }
-        if (!complete) break;
+jfloat mono_rms_level(jint stream, jfloat seconds) {
+    float level = 0.0f;
+    if (!BASS_ChannelGetLevelEx(static_cast<DWORD>(stream), &level, seconds, BASS_LEVEL_MONO | BASS_LEVEL_RMS)) {
+        return std::numeric_limits<jfloat>::quiet_NaN();
     }
-
-    if (!anyLevel || !complete) return env->NewFloatArray(0);
-    jfloatArray result = env->NewFloatArray(static_cast<jsize>(safeBucketCount));
-    env->SetFloatArrayRegion(result, 0, static_cast<jsize>(safeBucketCount), levels.data());
-    return result;
+    return level;
 }
 
-BOOL configure_internet_streams() {
+BOOL configure_internet_streams(jboolean playlists, jboolean metadata, jint depth, jint bufferMillis,
+                                jint prebufferPercent, jint timeoutMillis, jint readTimeoutMillis) {
     BOOL ok = TRUE;
-    ok = BASS_SetConfig(BASS_CONFIG_NET_PLAYLIST, 1) && ok;
-    ok = BASS_SetConfig(BASS_CONFIG_NET_META, 1) && ok;
-    ok = BASS_SetConfig(BASS_CONFIG_NET_PLAYLIST_DEPTH, NETWORK_PLAYLIST_DEPTH) && ok;
-    ok = BASS_SetConfig(BASS_CONFIG_NET_BUFFER, NETWORK_BUFFER_MILLIS) && ok;
-    ok = BASS_SetConfig(BASS_CONFIG_NET_PREBUF, NETWORK_PREBUFFER_PERCENT) && ok;
-    ok = BASS_SetConfig(BASS_CONFIG_NET_TIMEOUT, NETWORK_TIMEOUT_MILLIS) && ok;
-    ok = BASS_SetConfig(BASS_CONFIG_NET_READTIMEOUT, NETWORK_TIMEOUT_MILLIS) && ok;
+    ok = BASS_SetConfig(BASS_CONFIG_NET_PLAYLIST, playlists ? 1 : 0) && ok;
+    ok = BASS_SetConfig(BASS_CONFIG_NET_META, metadata ? 1 : 0) && ok;
+    ok = BASS_SetConfig(BASS_CONFIG_NET_PLAYLIST_DEPTH, static_cast<DWORD>(depth)) && ok;
+    ok = BASS_SetConfig(BASS_CONFIG_NET_BUFFER, static_cast<DWORD>(bufferMillis)) && ok;
+    ok = BASS_SetConfig(BASS_CONFIG_NET_PREBUF, static_cast<DWORD>(prebufferPercent)) && ok;
+    ok = BASS_SetConfig(BASS_CONFIG_NET_TIMEOUT, static_cast<DWORD>(timeoutMillis)) && ok;
+    ok = BASS_SetConfig(BASS_CONFIG_NET_READTIMEOUT, static_cast<DWORD>(readTimeoutMillis)) && ok;
     return ok;
 }
 
@@ -597,30 +552,11 @@ jdouble position_seconds(jint stream) {
     return BASS_ChannelBytes2Seconds(static_cast<DWORD>(stream), bytes);
 }
 
-jdouble audible_position_seconds(jint playbackStream, jint sourceStream) {
-    DWORD playback = static_cast<DWORD>(playbackStream);
-    DWORD progress = sourceStream != 0 ? static_cast<DWORD>(sourceStream) : playback;
-    bool mixerSource = progress != playback;
-    if (mixerSource) {
-        QWORD mixerPositionBytes = BASS_Mixer_ChannelGetPosition(progress, BASS_POS_BYTE);
-        if (mixerPositionBytes != static_cast<QWORD>(-1)) {
-            double mixerPositionSeconds = BASS_ChannelBytes2Seconds(progress, mixerPositionBytes);
-            if (mixerPositionSeconds >= 0.0 && std::isfinite(mixerPositionSeconds)) {
-                return mixerPositionSeconds;
-            }
-        }
-    }
-    QWORD positionBytes = BASS_ChannelGetPosition(progress, BASS_POS_BYTE);
-    if (positionBytes == static_cast<QWORD>(-1)) return -1.0;
-    double decodedSeconds = BASS_ChannelBytes2Seconds(progress, positionBytes);
-    if (decodedSeconds < 0.0 || !std::isfinite(decodedSeconds)) return -1.0;
-    if (mixerSource) return decodedSeconds;
-
-    DWORD bufferedBytes = BASS_ChannelGetData(playback, nullptr, BASS_DATA_AVAILABLE);
-    if (bufferedBytes == static_cast<DWORD>(-1)) return decodedSeconds;
-    double bufferedSeconds = BASS_ChannelBytes2Seconds(playback, bufferedBytes);
-    if (bufferedSeconds < 0.0 || !std::isfinite(bufferedSeconds)) return decodedSeconds;
-    return std::max(0.0, decodedSeconds - bufferedSeconds);
+jdouble mixer_source_position_seconds(jint stream) {
+    DWORD channel = static_cast<DWORD>(stream);
+    QWORD bytes = BASS_Mixer_ChannelGetPosition(channel, BASS_POS_BYTE);
+    if (bytes == static_cast<QWORD>(-1)) return -1.0;
+    return BASS_ChannelBytes2Seconds(channel, bytes);
 }
 
 jdouble duration_seconds(jint stream) {
@@ -910,10 +846,13 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeSetVerifyNet(JNIEnv* env,
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_app_naviamp_android_playback_AndroidBassJni_nativeConfigureInternetStreams(JNIEnv* env, jobject thiz) {
+Java_app_naviamp_android_playback_AndroidBassJni_nativeConfigureInternetStreams(
+    JNIEnv* env, jobject thiz, jboolean playlists, jboolean metadata, jint depth, jint bufferMillis,
+    jint prebufferPercent, jint timeoutMillis, jint readTimeoutMillis) {
     (void)env;
     (void)thiz;
-    return configure_internet_streams() ? JNI_TRUE : JNI_FALSE;
+    return configure_internet_streams(playlists, metadata, depth, bufferMillis, prebufferPercent,
+                                      timeoutMillis, readTimeoutMillis) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
@@ -1149,15 +1088,14 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeSetSampleRateConverterQua
 }
 
 extern "C" JNIEXPORT jdouble JNICALL
-Java_app_naviamp_android_playback_AndroidBassJni_nativeAudiblePositionSeconds(
+Java_app_naviamp_android_playback_AndroidBassJni_nativeMixerSourcePositionSeconds(
     JNIEnv* env,
     jobject thiz,
-    jint playbackStream,
-    jint sourceStream
+    jint stream
 ) {
     (void)env;
     (void)thiz;
-    return audible_position_seconds(playbackStream, sourceStream);
+    return mixer_source_position_seconds(stream);
 }
 
 extern "C" JNIEXPORT jdouble JNICALL
@@ -1226,10 +1164,11 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeFft(JNIEnv* env, jobject 
     return result;
 }
 
-extern "C" JNIEXPORT jfloatArray JNICALL
-Java_app_naviamp_android_playback_AndroidBassJni_nativeWaveformLevels(JNIEnv* env, jobject thiz, jint stream, jint bucketCount) {
+extern "C" JNIEXPORT jfloat JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeMonoRmsLevel(JNIEnv* env, jobject thiz, jint stream, jfloat seconds) {
+    (void)env;
     (void)thiz;
-    return waveform_levels(env, stream, bucketCount);
+    return mono_rms_level(stream, seconds);
 }
 
 extern "C" JNIEXPORT jint JNICALL
@@ -1347,10 +1286,13 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeSetStreamOutp
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeConfigureInternetStreams(JNIEnv* env, jobject thiz) {
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeConfigureInternetStreams(
+    JNIEnv* env, jobject thiz, jboolean playlists, jboolean metadata, jint depth, jint bufferMillis,
+    jint prebufferPercent, jint timeoutMillis, jint readTimeoutMillis) {
     (void)env;
     (void)thiz;
-    return configure_internet_streams() ? JNI_TRUE : JNI_FALSE;
+    return configure_internet_streams(playlists, metadata, depth, bufferMillis, prebufferPercent,
+                                      timeoutMillis, readTimeoutMillis) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jint JNICALL
@@ -1574,15 +1516,14 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeSetSampleRate
 }
 
 extern "C" JNIEXPORT jdouble JNICALL
-Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeAudiblePositionSeconds(
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeMixerSourcePositionSeconds(
     JNIEnv* env,
     jobject thiz,
-    jint playbackStream,
-    jint sourceStream
+    jint stream
 ) {
     (void)env;
     (void)thiz;
-    return audible_position_seconds(playbackStream, sourceStream);
+    return mixer_source_position_seconds(stream);
 }
 
 extern "C" JNIEXPORT jdouble JNICALL
@@ -1637,10 +1578,11 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeFft(JNIEnv* e
     return result;
 }
 
-extern "C" JNIEXPORT jfloatArray JNICALL
-Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeWaveformLevels(JNIEnv* env, jobject thiz, jint stream, jint bucketCount) {
+extern "C" JNIEXPORT jfloat JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeMonoRmsLevel(JNIEnv* env, jobject thiz, jint stream, jfloat seconds) {
+    (void)env;
     (void)thiz;
-    return waveform_levels(env, stream, bucketCount);
+    return mono_rms_level(stream, seconds);
 }
 
 extern "C" JNIEXPORT jint JNICALL

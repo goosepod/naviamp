@@ -2,30 +2,43 @@ import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.android.multiplatform.library)
     alias(libs.plugins.kover)
 }
 
 @OptIn(ExperimentalKotlinGradlePluginApi::class)
 kotlin {
-    androidTarget {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_17)
-        }
+    android {
+        namespace = "app.naviamp.core.app"
+        compileSdk = 37
+        minSdk = 26
+        compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
+        withHostTest {}
     }
     jvm()
     iosArm64()
     iosSimulatorArm64()
+    if (providers.gradleProperty("naviamp.tvos.enabled").orNull == "true") {
+        tvosArm64()
+        tvosSimulatorArm64()
+    }
 
     applyHierarchyTemplate {
         common {
             group("jvmAndAndroid") {
                 withJvm()
-                withAndroidTarget()
+                // The Android-KMP plugin implements KotlinTarget directly, rather than the
+                // legacy KotlinAndroidTarget selected by withAndroidTarget().
+                withCompilations {
+                    it.target.platformType == org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType.androidJvm
+                }
             }
             group("ios") {
                 withIos()
+            }
+            group("tvos") {
+                withTvos()
             }
         }
     }
@@ -47,17 +60,5 @@ kotlin {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
         }
-    }
-}
-
-android {
-    namespace = "app.naviamp.core.app"
-    compileSdk = 36
-    defaultConfig {
-        minSdk = 26
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
     }
 }

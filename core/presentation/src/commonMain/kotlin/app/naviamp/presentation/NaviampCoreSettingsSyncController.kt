@@ -86,6 +86,21 @@ interface NaviampCoreSettingsSyncPort {
     val available: Boolean
 }
 
+/** Default for hosts without a native document picker; network settings transfer remains shared. */
+object UnavailableNaviampCoreSettingsSyncPort : NaviampCoreSettingsSyncPort {
+    override val available = false
+    override fun configuration() = NaviampCoreSettingsSyncConfiguration()
+    override fun saveConfiguration(configuration: NaviampCoreSettingsSyncConfiguration) = Unit
+    override suspend fun readDocument(directoryPath: String): SettingsSyncDocument? = null
+    override suspend fun readDocumentFile(filePath: String): SettingsSyncDocument? = null
+    // Core never writes when [available] is false; reaching this is a host wiring error.
+    override suspend fun writeDocument(directoryPath: String, document: SettingsSyncDocument): String =
+        error("Settings documents are unavailable on this host")
+    override suspend fun chooseDirectory(currentPath: String?, title: String): String? = null
+    override suspend fun chooseDocument(currentPath: String?, title: String): String? = null
+    override fun defaultDirectory() = ""
+}
+
 data class NaviampCoreSettingsSyncServices(
     val controller: NaviampSettingsSyncController,
     val port: NaviampCoreSettingsSyncPort,
@@ -195,7 +210,8 @@ class NaviampCoreSettingsSyncController(
     private suspend fun write(document: SettingsSyncDocument?, automatic: Boolean) {
         document ?: return
         val directory = configuredDirectory()
-        if (directory == null) {
+        // Hosts without settings documents have no file to write, even with a stale saved folder.
+        if (directory == null || !services.port.available) {
             missingDirectory()
             return
         }

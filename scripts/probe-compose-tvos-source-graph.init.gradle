@@ -1,0 +1,72 @@
+// Opt-in verification for the external Compose source experiment, not Naviamp's normal build.
+gradle.projectsEvaluated {
+    rootProject.tasks.register('verifyTvosCommonSourceGraph') {
+        group = 'verification'
+        description = 'Rejects tvOS source-port compilations which silently omit common Kotlin.'
+        doLast {
+            def modules = [
+                ':compose:runtime:runtime',
+                ':compose:runtime:runtime-saveable',
+                ':compose:ui:ui',
+                ':compose:ui:ui-graphics',
+                ':compose:ui:ui-text',
+                ':compose:ui:ui-unit',
+                ':compose:ui:ui-util',
+                ':compose:foundation:foundation',
+                ':compose:foundation:foundation-layout',
+                ':compose:material3:material3',
+            ]
+            def checked = 0
+            modules.each { path ->
+                def project = rootProject.findProject(path)
+                if (project == null) throw new GradleException("Missing required source-port module: $path")
+                def kotlin = project.extensions.findByName('kotlin')
+                if (kotlin == null) throw new GradleException("Missing Kotlin owner: $path")
+                ['tvosArm64', 'tvosSimulatorArm64'].each { name ->
+                    def target = kotlin.targets.findByName(name)
+                    if (target == null) throw new GradleException("Missing tvOS target: $path:$name")
+                    def compilation = target.compilations.getByName('main')
+                    def sourceSets = compilation.allKotlinSourceSets
+                    if (!sourceSets.any { it.name == 'commonMain' }) {
+                        // The reviewed fork deliberately builds empty redirectCommonMain proxies
+                        // when AndroidX already publishes this native target. Verify the actual
+                        // selected official native variant; an empty unbacked proxy is a failure.
+                        if (!sourceSets.any { it.name == 'redirectCommonMain' }) {
+                            throw new GradleException("$path:$name lost commonMain without an explicit redirect")
+                        }
+                        def redirect = project.configurations.getByName('redirectCommonMainApi').dependencies
+                            .find { it.group?.startsWith('androidx.') && it.name == project.name }
+                        if (redirect == null) throw new GradleException("$path:$name has no official redirect coordinate")
+                        def configuration = project.configurations.getByName(compilation.compileDependencyConfigurationName)
+                        def expectedTarget = target.konanTarget.name
+                        def official = configuration.incoming.resolutionResult.allComponents.find { component ->
+                            component.moduleVersion?.group == redirect.group &&
+                                component.moduleVersion?.version == redirect.version &&
+                                (component.moduleVersion?.name == redirect.name ||
+                                    component.moduleVersion?.name == "${redirect.name}-${expectedTarget.replace('_', '')}") &&
+                                component.variants.any { variant ->
+                                    variant.attributes.keySet().any { attribute ->
+                                        attribute.name == 'org.jetbrains.kotlin.native.target' &&
+                                            variant.attributes.getAttribute(attribute) == expectedTarget
+                                    }
+                                }
+                        }
+                        if (official == null) {
+                            throw new GradleException("$path:$name has no resolved official $expectedTarget implementation")
+                        }
+                        logger.lifecycle("$path:$name delegates to verified ${official.moduleVersion} ($expectedTarget)")
+                        checked++
+                        return
+                    }
+                    def commonFiles = sourceSets.find { it.name == 'commonMain' }.kotlin.files
+                        .findAll { it.name.endsWith('.kt') }
+                    if (commonFiles.isEmpty()) throw new GradleException("$path:$name has no common Kotlin sources")
+                    logger.lifecycle("$path:$name inherits commonMain (${commonFiles.size()} Kotlin files)")
+                    checked++
+                }
+            }
+            if (checked != modules.size() * 2) throw new GradleException('Incomplete tvOS graph verification')
+            logger.lifecycle("Verified $checked tvOS common source-set paths")
+        }
+    }
+}
