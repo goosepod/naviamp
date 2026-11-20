@@ -20,17 +20,21 @@ data class NaviampRecoverableHostState<T>(
     val confirmReset: Boolean = false,
 )
 
-/** Shared startup/retry/reset policy. Hosts implement only their resource and persistence effects. */
+/**
+ * Shared startup/retry/reset policy. Hosts implement only their resource and persistence effects.
+ * A host without a reversible-by-setup erase effect passes a null [erase]; reset is then unavailable.
+ */
 class NaviampRecoverableHostController<T>(
     private val open: (CoroutineScope, (Throwable) -> Unit) -> T,
     private val disposeApplication: (T) -> Unit,
     private val closeNative: () -> Unit,
-    private val erase: () -> Boolean,
+    private val erase: (() -> Boolean)?,
     private val context: CoroutineContext = Dispatchers.Main,
     private val attachApplication: (T, CoroutineScope, (() -> Unit) -> Unit, (Throwable) -> Unit) -> Unit = { _, _, _, _ -> },
 ) {
     private val mutableState = MutableStateFlow(NaviampRecoverableHostState<T>())
     val state: StateFlow<NaviampRecoverableHostState<T>> = mutableState.asStateFlow()
+    val resetAvailable: Boolean get() = erase != null
     private var scope: CoroutineScope? = null
     private var closed = false
     private var generation = 0L
@@ -75,10 +79,11 @@ class NaviampRecoverableHostController<T>(
         start()
     }
 
-    fun requestReset() { if (!closed) mutableState.value = mutableState.value.copy(confirmReset = true) }
+    fun requestReset() { if (!closed && erase != null) mutableState.value = mutableState.value.copy(confirmReset = true) }
     fun cancelReset() { mutableState.value = mutableState.value.copy(confirmReset = false) }
     fun confirmReset() {
-        if (closed || !mutableState.value.confirmReset) return
+        val erase = erase
+        if (closed || erase == null || !mutableState.value.confirmReset) return
         try {
             release()
             mutableState.value = NaviampRecoverableHostState(starting = false)
@@ -129,7 +134,7 @@ class NaviampRecoverableHostController<T>(
 fun naviampRecoverableStoredHostController(
     open: (CoroutineScope, (Throwable) -> Unit) -> NaviampStoredApplication,
     closeNative: () -> Unit,
-    erase: () -> Boolean,
+    erase: (() -> Boolean)?,
     attachApplication: (NaviampStoredApplication, CoroutineScope, (() -> Unit) -> Unit, (Throwable) -> Unit) -> Unit = { _, _, _, _ -> },
 ): NaviampRecoverableHostController<NaviampStoredApplication> = NaviampRecoverableHostController(
     open = open, disposeApplication = { it.close() }, closeNative = closeNative, erase = erase,

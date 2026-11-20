@@ -13,6 +13,20 @@ class NaviampRecoveryFailureScreenTest {
     @Test fun remoteDefaultsToRetryThenCancelBeforeConfirmedReset() = checkRecovery(NaviampApplicationSurface.Standard)
     @Test fun televisionRemoteDefaultsToRetryThenCancelBeforeConfirmedReset() = checkRecovery(NaviampApplicationSurface.Television)
 
+    @Test fun hostWithoutResetShowsOnlyRetry() = runDesktopComposeUiTest(1280, 720) {
+        var retries = 0
+        setContent {
+            MaterialTheme {
+                NaviampRecoveryFailureScreen(NaviampRecoveryFailureUi.Unreadable, false, false, false,
+                    { retries++ }, {}, {}, {}, {}, resetAvailable = false)
+            }
+        }
+        onNodeWithTag("storage-recovery-reset").assertDoesNotExist()
+        onNodeWithText("reset", substring = true, ignoreCase = true).assertDoesNotExist()
+        onNodeWithTag("storage-recovery-retry").assertIsFocused().performKeyInput { pressKey(Key.Enter) }
+        assertEquals(1, retries)
+    }
+
     private fun checkRecovery(surface: NaviampApplicationSurface) = runDesktopComposeUiTest(1280, 720) {
         val confirming = mutableStateOf(false)
         var resets = 0

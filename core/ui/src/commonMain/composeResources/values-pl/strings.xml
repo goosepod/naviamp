@@ -626,4 +626,6 @@
     <string name="tv_search_keyboard_space">Spacja</string>
     <string name="tv_search_keyboard_backspace">Usuń znak</string>
     <string name="tv_search_system_keyboard">Klawiatura systemowa</string>
+    <string name="storage_location_app">Pamięć aplikacji</string>
+    <string name="storage_location_custom">Niestandardowa</string>
 </resources>

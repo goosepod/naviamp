@@ -529,4 +529,6 @@
     <string name="tv_search_keyboard_space">स्पेस</string>
     <string name="tv_search_keyboard_backspace">बैकस्पेस</string>
     <string name="tv_search_system_keyboard">सिस्टम कीबोर्ड</string>
+    <string name="storage_location_app">ऐप स्टोरेज</string>
+    <string name="storage_location_custom">कस्टम</string>
 </resources>

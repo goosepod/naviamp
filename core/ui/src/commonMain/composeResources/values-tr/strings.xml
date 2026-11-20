@@ -529,4 +529,6 @@
     <string name="tv_search_keyboard_space">Boşluk</string>
     <string name="tv_search_keyboard_backspace">Geri sil</string>
     <string name="tv_search_system_keyboard">Sistem klavyesi</string>
+    <string name="storage_location_app">Uygulama depolama alanı</string>
+    <string name="storage_location_custom">Özel</string>
 </resources>

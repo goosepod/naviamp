@@ -191,7 +191,20 @@ data class NaviampDiagnosticsSectionUi(
     val rows: List<Pair<String, String>>,
 )
 
-data class NaviampStorageLocationUi(val id: String, val label: String, val path: String)
+/** [label] names a host-provided location; the shared kinds supply translated labels. */
+data class NaviampStorageLocationUi(
+    val id: String, val label: String, val path: String,
+    val kind: NaviampStorageLocationKind = NaviampStorageLocationKind.Named,
+)
+
+enum class NaviampStorageLocationKind { Named, AppStorage, Custom }
+
+@Composable
+internal fun NaviampStorageLocationUi.displayLabel(): String = when (kind) {
+    NaviampStorageLocationKind.Named -> label
+    NaviampStorageLocationKind.AppStorage -> stringResource(Res.string.storage_location_app)
+    NaviampStorageLocationKind.Custom -> stringResource(Res.string.storage_location_custom)
+}
 
 data class NaviampAboutUi(
     val version: String = NaviampAppVersion,
@@ -3357,7 +3370,7 @@ fun NaviampDownloadsSettingsSection(
                 }
             }
             DownloadsSettingsPage.Location -> locations.forEach { location ->
-                SelectableSettingsRow(colors = colors, title = location.label, subtitle = location.path, selected = location.id == selectedLocationId) {
+                SelectableSettingsRow(colors = colors, title = location.displayLabel(), subtitle = location.path, selected = location.id == selectedLocationId) {
                     onLocationChanged(location)
                 }
             }
@@ -3424,7 +3437,7 @@ fun NaviampDownloadsSettingsSection(
     }
     if (locations.isNotEmpty()) {
         val selected = locations.firstOrNull { it.id == selectedLocationId } ?: locations.first()
-        SettingsRow("Download location", "Where newly saved files are stored", colors, selected.label) {
+        SettingsRow("Download location", "Where newly saved files are stored", colors, selected.displayLabel()) {
             selectedPage = DownloadsSettingsPage.Location
         }
     }
@@ -3504,7 +3517,7 @@ fun NaviampAudioCacheSettingsSection(
                 }
             }
             AudioCacheSettingsPage.Location -> locations.forEach { location ->
-                SelectableSettingsRow(colors = colors, title = location.label, subtitle = location.path, selected = location.id == selectedLocationId) {
+                SelectableSettingsRow(colors = colors, title = location.displayLabel(), subtitle = location.path, selected = location.id == selectedLocationId) {
                     onLocationChanged(location)
                 }
             }
@@ -3544,7 +3557,7 @@ fun NaviampAudioCacheSettingsSection(
     }
     if (locations.isNotEmpty()) {
         val selected = locations.firstOrNull { it.id == selectedLocationId } ?: locations.first()
-        SettingsRow("Cache location", "Where newly prefetched audio is stored", colors, selected.label) {
+        SettingsRow("Cache location", "Where newly prefetched audio is stored", colors, selected.displayLabel()) {
             selectedPage = AudioCacheSettingsPage.Location
         }
     }

@@ -48,6 +48,7 @@ import app.naviamp.presentation.repositoryNaviampCoreDownloadServices
 import app.naviamp.presentation.toShellCapabilitiesUi
 import app.naviamp.presentation.withStorageBackedSettings
 import app.naviamp.storage.StorageDatabaseLocation
+import app.naviamp.ui.NaviampStorageLocationKind
 import app.naviamp.ui.NaviampStorageLocationUi
 import app.naviamp.ui.jvmGeneratedCoverArtBytes
 import app.naviamp.ui.resetJvmPlatformCoverArtByteLoader
@@ -244,12 +245,14 @@ internal class DesktopComposition private constructor(
             val settingsSyncPort = DesktopCoreSettingsSyncPort(settingsValues)
             val downloadLocation = NaviampStorageLocationUi(
                 id = "active-download-directory",
-                label = if (cacheSettings.customDownloadDirectory == null) "App storage" else "Custom",
+                label = "",
+                kind = if (cacheSettings.customDownloadDirectory == null) NaviampStorageLocationKind.AppStorage else NaviampStorageLocationKind.Custom,
                 path = downloadDirectory.toAbsolutePath().toString(),
             )
             val audioCacheLocation = NaviampStorageLocationUi(
                 id = "active-audio-cache-directory",
-                label = if (cacheSettings.customAudioCacheDirectory == null) "App storage" else "Custom",
+                label = "",
+                kind = if (cacheSettings.customAudioCacheDirectory == null) NaviampStorageLocationKind.AppStorage else NaviampStorageLocationKind.Custom,
                 path = audioCacheDirectory.toAbsolutePath().toString(),
             )
             val catalog = naviampCoreStoredServiceCatalog(

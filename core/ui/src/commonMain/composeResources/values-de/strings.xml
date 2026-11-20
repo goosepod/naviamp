@@ -1278,4 +1278,6 @@
     <string name="tv_search_keyboard_space">Leerzeichen</string>
     <string name="tv_search_keyboard_backspace">Rücktaste</string>
     <string name="tv_search_system_keyboard">Systemtastatur</string>
+    <string name="storage_location_app">App-Speicher</string>
+    <string name="storage_location_custom">Benutzerdefiniert</string>
 </resources>

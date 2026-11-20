@@ -19,7 +19,8 @@ fun <T> NaviampRecoverableHostApp(
     if (app == null || state.failure != null || state.confirmReset) {
         NaviampRecoveryFailureScreen(
             failure = state.failure, starting = state.starting, overlay = app != null,
-            confirmReset = state.confirmReset, onRetry = controller::retry, onDismiss = controller::dismissFailure,
+            confirmReset = state.confirmReset, resetAvailable = controller.resetAvailable,
+            onRetry = controller::retry, onDismiss = controller::dismissFailure,
             onRequestReset = controller::requestReset, onConfirmReset = controller::confirmReset, onCancelReset = controller::cancelReset,
         )
     }

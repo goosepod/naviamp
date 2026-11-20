@@ -59,7 +59,7 @@ class IosMutualTlsPlaybackIntegrationTest {
                         override fun init(deviceId: String?): Result<Unit> = init()
                         override fun init(deviceId: String?, sampleRateHz: Int): Result<Unit> = init()
                     }
-                    return CoreBassPlaybackEngine(Result.success(backend), IosBassPlaybackEngineRuntime())
+                    return CoreBassPlaybackEngine(Result.success(backend), app.naviamp.apple.playback.AppleBassPlaybackEngineRuntime())
                 }
             })
         } finally { NSFileManager.defaultManager.removeItemAtPath(directory, null) }

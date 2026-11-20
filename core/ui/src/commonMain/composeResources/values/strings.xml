@@ -1307,4 +1307,6 @@
     <string name="tv_search_keyboard_space">Space</string>
     <string name="tv_search_keyboard_backspace">Backspace</string>
     <string name="tv_search_system_keyboard">System keyboard</string>
+    <string name="storage_location_app">App storage</string>
+    <string name="storage_location_custom">Custom</string>
 </resources>

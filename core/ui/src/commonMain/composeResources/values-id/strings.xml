@@ -529,4 +529,6 @@
     <string name="tv_search_keyboard_space">Spasi</string>
     <string name="tv_search_keyboard_backspace">Hapus karakter</string>
     <string name="tv_search_system_keyboard">Papan ketik sistem</string>
+    <string name="storage_location_app">Penyimpanan aplikasi</string>
+    <string name="storage_location_custom">Kustom</string>
 </resources>

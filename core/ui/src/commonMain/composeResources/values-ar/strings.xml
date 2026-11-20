@@ -529,4 +529,6 @@
     <string name="tv_search_keyboard_space">مسافة</string>
     <string name="tv_search_keyboard_backspace">حذف للخلف</string>
     <string name="tv_search_system_keyboard">لوحة مفاتيح النظام</string>
+    <string name="storage_location_app">تخزين التطبيق</string>
+    <string name="storage_location_custom">مخصص</string>
 </resources>

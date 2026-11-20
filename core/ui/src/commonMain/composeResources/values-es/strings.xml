@@ -1282,4 +1282,6 @@
     <string name="tv_search_keyboard_space">Espacio</string>
     <string name="tv_search_keyboard_backspace">Retroceso</string>
     <string name="tv_search_system_keyboard">Teclado del sistema</string>
+    <string name="storage_location_app">Almacenamiento de la app</string>
+    <string name="storage_location_custom">Personalizado</string>
 </resources>

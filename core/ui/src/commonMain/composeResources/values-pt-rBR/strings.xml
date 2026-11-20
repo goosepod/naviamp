@@ -1284,4 +1284,6 @@
     <string name="tv_search_keyboard_space">Espaço</string>
     <string name="tv_search_keyboard_backspace">Apagar</string>
     <string name="tv_search_system_keyboard">Teclado do sistema</string>
+    <string name="storage_location_app">Armazenamento do app</string>
+    <string name="storage_location_custom">Personalizado</string>
 </resources>

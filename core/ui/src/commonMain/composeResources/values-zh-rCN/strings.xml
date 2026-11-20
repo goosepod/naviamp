@@ -529,4 +529,6 @@
     <string name="tv_search_keyboard_space">空格</string>
     <string name="tv_search_keyboard_backspace">退格</string>
     <string name="tv_search_system_keyboard">系统键盘</string>
+    <string name="storage_location_app">应用存储</string>
+    <string name="storage_location_custom">自定义</string>
 </resources>

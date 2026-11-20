@@ -529,4 +529,6 @@
     <string name="tv_search_keyboard_space">スペース</string>
     <string name="tv_search_keyboard_backspace">バックスペース</string>
     <string name="tv_search_system_keyboard">システムキーボード</string>
+    <string name="storage_location_app">アプリのストレージ</string>
+    <string name="storage_location_custom">カスタム</string>
 </resources>

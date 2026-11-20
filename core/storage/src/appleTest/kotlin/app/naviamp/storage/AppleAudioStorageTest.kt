@@ -1,6 +1,6 @@
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 
-package app.naviamp.ios.storage
+package app.naviamp.storage
 
 import kotlinx.coroutines.runBlocking
 import platform.Foundation.NSFileManager
@@ -12,7 +12,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-class IosAudioStorageTest {
+class AppleAudioStorageTest {
     @Test
     fun storedPathIsRebasedWhenIosRelocatesTheApplicationContainer() {
         val currentDirectory = "/current/container/Library/Application Support/Naviamp/downloads"
@@ -20,13 +20,13 @@ class IosAudioStorageTest {
 
         assertEquals(
             "$currentDirectory/track.flac",
-            IosAudioFileSystem.resolveStoredFilePath(currentDirectory, oldPath),
+            AppleAudioFileSystem.resolveStoredFilePath(currentDirectory, oldPath),
         )
     }
 
     @Test
     fun successfulWriteAtomicallyPublishesTheFinalFile() = withTestDirectory { directory ->
-        val store = IosAudioByteStore(directory)
+        val store = AppleAudioByteStore(directory)
         val stored = runBlocking {
             store.writeAudioBytes("track.mp3", "write failed") { writer ->
                 writer.write(byteArrayOf(1, 2, 3), 3)
@@ -37,13 +37,13 @@ class IosAudioStorageTest {
 
         assertEquals("$directory/track.mp3", stored.filePath)
         assertEquals(5L, stored.sizeBytes)
-        assertTrue(IosAudioFileSystem.isRegularFile(stored.filePath))
-        assertFalse(IosAudioFileSystem.isRegularFile("${stored.filePath}.tmp"))
+        assertTrue(AppleAudioFileSystem.isRegularFile(stored.filePath))
+        assertFalse(AppleAudioFileSystem.isRegularFile("${stored.filePath}.tmp"))
     }
 
     @Test
     fun failedWriteRemovesTheTemporaryFileAndPublishesNothing() = withTestDirectory { directory ->
-        val store = IosAudioByteStore(directory)
+        val store = AppleAudioByteStore(directory)
 
         assertFailsWith<IllegalStateException> {
             runBlocking {
@@ -54,14 +54,14 @@ class IosAudioStorageTest {
             }
         }
 
-        assertFalse(IosAudioFileSystem.isRegularFile("$directory/track.flac"))
-        assertFalse(IosAudioFileSystem.isRegularFile("$directory/track.flac.tmp"))
+        assertFalse(AppleAudioFileSystem.isRegularFile("$directory/track.flac"))
+        assertFalse(AppleAudioFileSystem.isRegularFile("$directory/track.flac.tmp"))
     }
 
     @Test
     fun exactDirectoryDeletionCannotRemoveAnUnrelatedSibling() = withTestDirectory { directory ->
         val siblingDirectory = "${directory}-sibling"
-        val siblingStore = IosAudioByteStore(siblingDirectory)
+        val siblingStore = AppleAudioByteStore(siblingDirectory)
         val siblingFile = runBlocking {
             siblingStore.writeAudioBytes("keep.mp3", "write failed") { writer ->
                 writer.write(byteArrayOf(1), 1)
@@ -69,8 +69,8 @@ class IosAudioStorageTest {
             }
         }
         try {
-            assertFalse(IosAudioFileSystem.deleteKnownRegularFile(directory, siblingFile.filePath))
-            assertTrue(IosAudioFileSystem.isRegularFile(siblingFile.filePath))
+            assertFalse(AppleAudioFileSystem.deleteKnownRegularFile(directory, siblingFile.filePath))
+            assertTrue(AppleAudioFileSystem.isRegularFile(siblingFile.filePath))
         } finally {
             NSFileManager.defaultManager.removeItemAtPath(siblingDirectory, null)
         }
@@ -78,7 +78,7 @@ class IosAudioStorageTest {
 
     @Test
     fun deletionRequiresANaviampOwnedFileNameEvenInsideTheAudioDirectory() = withTestDirectory { directory ->
-        val store = IosAudioByteStore(directory)
+        val store = AppleAudioByteStore(directory)
         val unrelated = runBlocking {
             store.writeAudioBytes("personal-recording.flac", "write failed") { writer ->
                 writer.write(byteArrayOf(1), 1)
@@ -92,10 +92,10 @@ class IosAudioStorageTest {
             }
         }
 
-        assertFalse(IosAudioFileSystem.deleteKnownRegularFile(directory, unrelated.filePath))
-        assertTrue(IosAudioFileSystem.isRegularFile(unrelated.filePath))
-        assertTrue(IosAudioFileSystem.deleteKnownRegularFile(directory, owned.filePath))
-        assertFalse(IosAudioFileSystem.isRegularFile(owned.filePath))
+        assertFalse(AppleAudioFileSystem.deleteKnownRegularFile(directory, unrelated.filePath))
+        assertTrue(AppleAudioFileSystem.isRegularFile(unrelated.filePath))
+        assertTrue(AppleAudioFileSystem.deleteKnownRegularFile(directory, owned.filePath))
+        assertFalse(AppleAudioFileSystem.isRegularFile(owned.filePath))
     }
 }
 

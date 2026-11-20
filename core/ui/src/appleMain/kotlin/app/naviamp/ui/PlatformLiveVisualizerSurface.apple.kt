@@ -91,7 +91,7 @@ internal actual fun PlatformLiveVisualizerSurface(
         runCatching { RuntimeEffect.makeForShader(visualizer.shaderSource) }.getOrNull()
     }
     val renderer = remember(effect, visualizer, renderPolicy) {
-        effect?.let { IosSkiaVisualizerRenderer(it, visualizer, renderPolicy) }
+        effect?.let { AppleSkiaVisualizerRenderer(it, visualizer, renderPolicy) }
     }
     val metalRenderer = remember(rendererMode, visualizer, renderPolicy) {
         if (rendererMode == VisualizerRendererMode.NativeGpu) {
@@ -171,7 +171,7 @@ internal actual fun PlatformLiveVisualizerSurface(
     }
 }
 
-private class IosSkiaVisualizerRenderer(
+private class AppleSkiaVisualizerRenderer(
     effect: RuntimeEffect,
     private val visualizer: NaviampVisualizer,
     private val renderPolicy: VisualizerRenderPolicy,

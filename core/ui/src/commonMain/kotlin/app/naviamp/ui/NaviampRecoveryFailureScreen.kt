@@ -36,18 +36,21 @@ fun NaviampRecoveryFailureScreen(
     failure: NaviampRecoveryFailureUi?, starting: Boolean, overlay: Boolean, confirmReset: Boolean,
     onRetry: () -> Unit, onDismiss: () -> Unit, onRequestReset: () -> Unit,
     onConfirmReset: () -> Unit, onCancelReset: () -> Unit,
+    resetAvailable: Boolean = true,
 ) {
     val colors = if (LocalNaviampApplicationSurface.current == NaviampApplicationSurface.Television) NaviampTelevisionColors else NaviampColors.Dark
     MaterialTheme(colorScheme = darkColorScheme(background = colors.background, surface = colors.controlSurface,
         primary = colors.accent, onPrimary = colors.onAccent, onBackground = colors.primaryText, onSurface = colors.primaryText),
         typography = rememberNaviampTypography()) {
-        RecoveryFailureContent(failure, starting, overlay, confirmReset, onRetry, onDismiss, onRequestReset, onConfirmReset, onCancelReset)
+        RecoveryFailureContent(failure, starting, overlay, confirmReset && resetAvailable, resetAvailable,
+            onRetry, onDismiss, onRequestReset, onConfirmReset, onCancelReset)
     }
 }
 
 @Composable
 private fun RecoveryFailureContent(
     failure: NaviampRecoveryFailureUi?, starting: Boolean, overlay: Boolean, confirmReset: Boolean,
+    resetAvailable: Boolean,
     onRetry: () -> Unit, onDismiss: () -> Unit, onRequestReset: () -> Unit,
     onConfirmReset: () -> Unit, onCancelReset: () -> Unit,
 ) {
@@ -65,7 +68,7 @@ private fun RecoveryFailureContent(
     val message = stringResource(when {
         confirmReset -> Res.string.storage_recovery_reset_message
         failure == NaviampRecoveryFailureUi.Capacity -> Res.string.storage_recovery_capacity
-        failure == NaviampRecoveryFailureUi.Unreadable -> Res.string.storage_recovery_unreadable
+        failure == NaviampRecoveryFailureUi.Unreadable && resetAvailable -> Res.string.storage_recovery_unreadable
         failure == NaviampRecoveryFailureUi.Conflict -> Res.string.storage_recovery_conflict
         else -> Res.string.storage_recovery_unavailable
     })
@@ -75,8 +78,12 @@ private fun RecoveryFailureContent(
                 RecoveryAction(stringResource(Res.string.common_cancel), onCancelReset, Modifier.focusAction(first, second, Key.DirectionRight).testTag("storage-recovery-cancel"))
                 RecoveryAction(stringResource(Res.string.common_reset), onConfirmReset, Modifier.focusAction(second, first, Key.DirectionLeft).testTag("storage-recovery-confirm"))
             } else {
-                RecoveryAction(stringResource(Res.string.library_sources_retry), onRetry, Modifier.focusAction(first, second, Key.DirectionRight).testTag("storage-recovery-retry"))
-                RecoveryAction(stringResource(Res.string.common_reset), onRequestReset, Modifier.focusAction(second, first, Key.DirectionLeft).testTag("storage-recovery-reset"))
+                if (resetAvailable) {
+                    RecoveryAction(stringResource(Res.string.library_sources_retry), onRetry, Modifier.focusAction(first, second, Key.DirectionRight).testTag("storage-recovery-retry"))
+                    RecoveryAction(stringResource(Res.string.common_reset), onRequestReset, Modifier.focusAction(second, first, Key.DirectionLeft).testTag("storage-recovery-reset"))
+                } else {
+                    RecoveryAction(stringResource(Res.string.library_sources_retry), onRetry, Modifier.focusRequester(first).testTag("storage-recovery-retry"))
+                }
             }
         }
         LaunchedEffect(confirmReset) { withFrameNanos { }; first.requestFocus() }

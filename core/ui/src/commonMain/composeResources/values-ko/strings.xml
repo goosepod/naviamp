@@ -529,4 +529,6 @@
     <string name="tv_search_keyboard_space">공백</string>
     <string name="tv_search_keyboard_backspace">지우기</string>
     <string name="tv_search_system_keyboard">시스템 키보드</string>
+    <string name="storage_location_app">앱 저장 공간</string>
+    <string name="storage_location_custom">사용자 지정</string>
 </resources>

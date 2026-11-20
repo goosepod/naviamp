@@ -529,4 +529,6 @@
     <string name="tv_search_keyboard_space">Spatie</string>
     <string name="tv_search_keyboard_backspace">Backspace</string>
     <string name="tv_search_system_keyboard">Systeemtoetsenbord</string>
+    <string name="storage_location_app">App-opslag</string>
+    <string name="storage_location_custom">Aangepast</string>
 </resources>

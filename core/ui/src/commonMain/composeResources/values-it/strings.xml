@@ -529,4 +529,6 @@
     <string name="tv_search_keyboard_space">Spazio</string>
     <string name="tv_search_keyboard_backspace">Cancella</string>
     <string name="tv_search_system_keyboard">Tastiera di sistema</string>
+    <string name="storage_location_app">Spazio dell’app</string>
+    <string name="storage_location_custom">Personalizzato</string>
 </resources>

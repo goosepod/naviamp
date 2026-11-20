@@ -529,4 +529,6 @@
     <string name="tv_search_keyboard_space">Пробіл</string>
     <string name="tv_search_keyboard_backspace">Стерти</string>
     <string name="tv_search_system_keyboard">Системна клавіатура</string>
+    <string name="storage_location_app">Сховище застосунку</string>
+    <string name="storage_location_custom">Власне</string>
 </resources>

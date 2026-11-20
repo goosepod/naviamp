@@ -529,4 +529,6 @@
     <string name="tv_search_keyboard_space">Пробел</string>
     <string name="tv_search_keyboard_backspace">Стереть</string>
     <string name="tv_search_system_keyboard">Системная клавиатура</string>
+    <string name="storage_location_app">Хранилище приложения</string>
+    <string name="storage_location_custom">Пользовательское</string>
 </resources>

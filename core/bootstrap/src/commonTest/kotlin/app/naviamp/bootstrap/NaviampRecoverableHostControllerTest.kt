@@ -33,6 +33,25 @@ class NaviampRecoverableHostControllerTest {
         controller.close()
     }
 
+    @Test fun hostWithoutEraseOffersRetryButNeverReset() = runTest {
+        var opened = 0
+        val controller = NaviampRecoverableHostController(
+            open = { _, _ -> if (++opened == 1) error("Database unavailable") else opened },
+            disposeApplication = {}, closeNative = {}, erase = null, context = StandardTestDispatcher(testScheduler),
+        )
+        assertFalse(controller.resetAvailable)
+        controller.start()
+        assertEquals(NaviampRecoveryFailureUi.Unavailable, controller.state.value.failure)
+        controller.requestReset()
+        assertFalse(controller.state.value.confirmReset)
+        controller.confirmReset()
+        assertEquals(1, opened)
+        controller.retry()
+        assertEquals(2, controller.state.value.application)
+        assertNull(controller.state.value.failure)
+        controller.close()
+    }
+
     @Test fun attachmentsCloseInReverseOrderBeforeCoreAndNativeResourcesOnRetry() = runTest {
         val events = mutableListOf<String>()
         var generation = 0
