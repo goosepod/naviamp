@@ -86,6 +86,19 @@ interface NaviampCoreSettingsSyncPort {
     val available: Boolean
 }
 
+/** Default for hosts without a native document picker; network settings transfer remains shared. */
+object UnavailableNaviampCoreSettingsSyncPort : NaviampCoreSettingsSyncPort {
+    override val available = false
+    override fun configuration() = NaviampCoreSettingsSyncConfiguration()
+    override fun saveConfiguration(configuration: NaviampCoreSettingsSyncConfiguration) = Unit
+    override suspend fun readDocument(directoryPath: String): SettingsSyncDocument? = null
+    override suspend fun readDocumentFile(filePath: String): SettingsSyncDocument? = null
+    override suspend fun writeDocument(directoryPath: String, document: SettingsSyncDocument): String = throw UnsupportedOperationException()
+    override suspend fun chooseDirectory(currentPath: String?, title: String): String? = null
+    override suspend fun chooseDocument(currentPath: String?, title: String): String? = null
+    override fun defaultDirectory() = ""
+}
+
 data class NaviampCoreSettingsSyncServices(
     val controller: NaviampSettingsSyncController,
     val port: NaviampCoreSettingsSyncPort,

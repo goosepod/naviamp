@@ -26,7 +26,7 @@ class NaviampUnavailablePlaybackServicesTest {
             redownload = false,
         )
         assertEquals(effective, persisted)
-        assertEquals(0, effective.crossfadeDurationSeconds)
+        assertEquals(12, effective.crossfadeDurationSeconds)
     }
 }
 

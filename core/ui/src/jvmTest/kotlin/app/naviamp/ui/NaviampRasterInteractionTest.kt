@@ -34,6 +34,31 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampRasterInteractionTest {
+    @Test fun screenProtectionUpdatesNativeOpacityWithoutResubmittingPixels() = runComposeUiTest {
+        mainClock.autoAdvance = false
+        val presenter = RecordingPresenter()
+        val protection = mutableStateOf(TelevisionScreenProtection())
+        val image = androidx.compose.ui.graphics.ImageBitmap(100, 10)
+        setContent {
+            CompositionLocalProvider(LocalNaviampRasterPresenter provides presenter) {
+                TelevisionScreenProtectionSurface(protection.value) {
+                    NaviampAnimatedRaster(listOf(NaviampRasterLayer(image)), Modifier.size(100.dp, 10.dp))
+                }
+            }
+        }
+        mainClock.advanceTimeBy(300)
+        val presentations = runOnIdle { presenter.presentations.also { assertTrue(it > 0) } }
+        runOnIdle { protection.value = TelevisionScreenProtection(brightness = 0.55f) }
+        mainClock.advanceTimeBy(2_300)
+        runOnIdle {
+            assertEquals(0.55f, presenter.opacity)
+            assertEquals(presentations, presenter.presentations)
+        }
+        runOnIdle { protection.value = TelevisionScreenProtection() }
+        mainClock.advanceTimeBy(100)
+        runOnIdle { assertEquals(1f, presenter.opacity) }
+    }
+
     @Test fun cachedProgressStillMovesInTheSharedFallback() = runComposeUiTest {
         mainClock.autoAdvance = false
         val clock = kotlin.time.TestTimeSource()
@@ -611,6 +636,7 @@ class NaviampRasterInteractionTest {
         var presentations = 0
         var closed = 0
         var synchronizations = 0
+        var opacity = 1f
         var layers = emptyList<NaviampRasterLayer>()
         var bounds = Rect.Zero
         var ready = true
@@ -626,6 +652,7 @@ class NaviampRasterInteractionTest {
                 return ready
             }
             override fun translationX(layerIndex: Int) = offset
+            override fun setOpacity(opacity: Float) { this@RecordingPresenter.opacity = opacity }
             override fun close() { closed++ }
         }
     }

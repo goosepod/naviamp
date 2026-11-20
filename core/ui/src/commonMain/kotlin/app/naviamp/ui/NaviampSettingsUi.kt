@@ -283,6 +283,7 @@ fun NaviampSharedSettingsContent(
     supportsReplayGain: Boolean = false,
     supportsGapless: Boolean = true,
     supportsCrossfade: Boolean = false,
+    supportsStereoDownmix: Boolean = true,
     supportsEqualizer: Boolean = false,
     supportsAudioOutputDeviceSelection: Boolean = false,
     audioOutputDevices: List<AudioOutputDevice> = emptyList(),
@@ -427,6 +428,7 @@ fun NaviampSharedSettingsContent(
                     supportsReplayGain = supportsReplayGain,
                     supportsGapless = supportsGapless,
                     supportsCrossfade = supportsCrossfade,
+                    supportsStereoDownmix = supportsStereoDownmix,
                     supportsEqualizer = supportsEqualizer,
                     supportsAudioOutputDeviceSelection = supportsAudioOutputDeviceSelection,
                     audioOutputDevices = audioOutputDevices,
@@ -3736,6 +3738,7 @@ fun NaviampPlaybackSettingsSection(
     supportsReplayGain: Boolean,
     supportsGapless: Boolean,
     supportsCrossfade: Boolean,
+    supportsStereoDownmix: Boolean = true,
     supportsEqualizer: Boolean,
     supportsAudioOutputDeviceSelection: Boolean = false,
     audioOutputDevices: List<AudioOutputDevice> = emptyList(),
@@ -3760,6 +3763,7 @@ fun NaviampPlaybackSettingsSection(
                 playbackSettings = playbackSettings,
                 devices = audioOutputDevices,
                 supportsAudioDeviceSelection = supportsAudioOutputDeviceSelection,
+                supportsStereoDownmix = supportsStereoDownmix,
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,
                 onBack = { selectedSection = null },
             )
@@ -3945,6 +3949,7 @@ private fun AudioOutputSettings(
     playbackSettings: PlaybackSettings,
     devices: List<AudioOutputDevice>,
     supportsAudioDeviceSelection: Boolean,
+    supportsStereoDownmix: Boolean,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -4026,7 +4031,7 @@ private fun AudioOutputSettings(
                 colors = colors,
                 value = playbackSettings.sampleRateConverter.label,
             ) { selectedPage = AudioOutputSettingsPage.SampleRateConverter }
-            SettingsCheckboxRow(
+            if (supportsStereoDownmix) SettingsCheckboxRow(
                 colors = colors,
                 checked = playbackSettings.stereoDownmixEnabled,
                 label = stringResource(Res.string.settings_stereo_downmix_title),

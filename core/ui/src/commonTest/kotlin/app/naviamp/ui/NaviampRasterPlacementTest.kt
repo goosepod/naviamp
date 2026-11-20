@@ -26,6 +26,18 @@ class NaviampRasterPlacementTest {
         assertEquals(60f, played.right.motion!!.valueAt(10000), .001f)
     }
 
+    @Test fun pausedProgressStillPlacesTheRemainingPixelsAfterThePlayedEdge() {
+        for (fraction in listOf(0f, .375f, 1f)) {
+            val width = 200f
+            val played = naviampRasterPlacement(Offset.Zero, null, fraction, null, false, width, 20f)
+            val remaining = naviampRasterPlacement(Offset.Zero, null, fraction, null, true, width, 20f)
+            assertEquals(NaviampRasterScalar(0f), played.left)
+            assertEquals(NaviampRasterScalar(width * fraction), played.right)
+            assertEquals(played.right, remaining.left)
+            assertEquals(NaviampRasterScalar(width), remaining.right)
+        }
+    }
+
     @Test fun layoutOnlySubmissionsKeepMotionClockWhileContentAndResizeRestartIt() {
         val clock = NaviampRasterSceneClock()
         val scene = listOf(marqueeLayerMotion(100f))

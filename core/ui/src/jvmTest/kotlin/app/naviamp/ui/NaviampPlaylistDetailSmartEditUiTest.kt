@@ -1,6 +1,10 @@
 package app.naviamp.ui
 
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -23,6 +27,29 @@ import kotlin.test.assertEquals
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampPlaylistDetailSmartEditUiTest {
+    @Test
+    fun televisionPlaylistReturnWaitsForTheListAndFocusesTheSamePlaylistById() = runComposeUiTest {
+        val screen = mutableStateOf(NaviampPlaylistsScreenUi(refreshing = true))
+        val pendingId = mutableStateOf<String?>("target")
+        setContent {
+            TelevisionPlaylists(
+                screen.value, NaviampColors.Dark, NaviampPlaylistsActions({}, {}, testSmartPlaylistActions()),
+                NaviampMediaActions({}, {}), remember { FocusRequester() },
+                returnFocusPlaylistId = pendingId.value,
+                onReturnFocusHandled = { pendingId.value = null },
+            )
+        }
+        runOnIdle {
+            assertEquals("target", pendingId.value)
+            screen.value = NaviampPlaylistsScreenUi(playlists = listOf(
+                SharedMediaItemUi("target", "Zulu", "2 tracks"),
+                SharedMediaItemUi("other", "Alpha", "3 tracks"),
+            ))
+        }
+        onNodeWithTag("television-grid-item:playlist:target").assertIsFocused()
+        assertEquals(null, pendingId.value)
+    }
+
     @Test
     fun ownedReadonlySmartPlaylistShowsManageActions() = runComposeUiTest {
         val playlist = SharedMediaItemUi(

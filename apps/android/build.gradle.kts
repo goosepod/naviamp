@@ -22,14 +22,14 @@ val hasAndroidReleaseSigning = listOf(
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.compose.compiler)
 }
 
 android {
     namespace = "app.naviamp.android"
-    compileSdk = 36
+    compileSdk = 37
+    ndkVersion = "27.0.12077973"
 
     defaultConfig {
         applicationId = "app.naviamp.android"
@@ -106,7 +106,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    buildFeatures { buildConfig = true }
+    buildFeatures { buildConfig = true; resValues = true }
 
     sourceSets.getByName("main").jniLibs.srcDir(
         project.layout.projectDirectory.dir("../../native/bass-jni/vendor/android"),
@@ -119,6 +119,13 @@ android {
 
 kotlin {
     compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
+}
+
+androidComponents {
+    // Keep the existing release-unit-test CI gate when AGP creates only debug host tests by default.
+    beforeVariants(selector().withBuildType("release")) { variant ->
+        variant.hostTests.getValue(com.android.build.api.variant.HostTestBuilder.UNIT_TEST_TYPE).enable = true
+    }
 }
 
 dependencies {
@@ -138,14 +145,14 @@ dependencies {
     implementation("com.google.android.gms:play-services-cast-framework:22.3.1")
 
     testImplementation(project(":core:testkit"))
-    testImplementation(kotlin("test"))
+    testImplementation(kotlin("test-junit"))
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(project(":core:testkit"))
     androidTestImplementation(libs.sqldelight.android.driver)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.ext.junit)
-    androidTestImplementation(kotlin("test"))
+    androidTestImplementation(kotlin("test-junit"))
     androidTestImplementation(libs.ktor.client.core)
     androidTestImplementation("org.jetbrains.compose.ui:ui-test:$composeVersion")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")

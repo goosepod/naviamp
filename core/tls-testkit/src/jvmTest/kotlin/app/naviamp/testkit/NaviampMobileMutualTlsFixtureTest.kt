@@ -9,6 +9,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertContentEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
@@ -16,6 +17,43 @@ import kotlin.test.assertTrue
 import javax.net.ssl.SSLHandshakeException
 
 class NaviampMobileMutualTlsFixtureTest {
+    @Test fun faultResponsesAreObservableAndRestoringTheServerRestoresExactRangeBytes() {
+        NaviampMutualTlsFixture().use { fixture ->
+            fixture.startServer(useTls = false).use { server ->
+                fun connection(range: String = "bytes=0-127") = (URI(server.baseUrl + "/rest/stream.view").toURL().openConnection() as java.net.HttpURLConnection).apply {
+                    readTimeout = 5_000
+                    setRequestProperty("Range", range)
+                }
+                server.setAudioFault("unavailable")
+                connection().let { try { assertEquals(503, it.responseCode) } finally { it.disconnect() } }
+                server.setAudioFault("wrong-range")
+                connection("bytes=0-0").let { try {
+                    assertEquals("bytes 0-0/${fixture.audio.size}", it.getHeaderField("Content-Range"))
+                    assertEquals(1, it.inputStream.readBytes().size)
+                } finally { it.disconnect() } }
+                connection().let { try {
+                    assertEquals(206, it.responseCode)
+                    assertEquals("bytes 1-127/${fixture.audio.size}", it.getHeaderField("Content-Range"))
+                    assertEquals(128, it.inputStream.readBytes().size)
+                } finally { it.disconnect() } }
+                server.setAudioFault("truncated")
+                connection("bytes=0-0").let { try { assertEquals(1, it.inputStream.readBytes().size) } finally { it.disconnect() } }
+                connection().let { try {
+                    assertEquals(128, it.contentLength)
+                    assertEquals(64, it.inputStream.readBytes().size)
+                } finally { it.disconnect() } }
+                server.setAudioFault("none")
+                connection().let { try {
+                    assertEquals(206, it.responseCode)
+                    assertContentEquals(fixture.audio.copyOfRange(0, 128), it.inputStream.readBytes())
+                } finally { it.disconnect() } }
+                assertEquals(1L, server.rejectedAudioRequests.get())
+                assertEquals(1L, server.truncatedAudioResponses.get())
+                assertEquals(1L, server.wrongAudioRanges.get())
+                assertFailsWith<IllegalArgumentException> { server.setAudioFault("unknown") }
+            }
+        }
+    }
     @Test fun readinessRequiresTrustedIdentityAndHostnameWithoutContaminatingHttpAudits() {
         NaviampMutualTlsFixture().use { fixture ->
             val server = fixture.startServer()
@@ -66,6 +104,8 @@ class NaviampMobileMutualTlsFixtureTest {
                 assertEquals(fixture.bootstrap, URI("http://127.0.0.1:${fixture.endpoints.controlPort}/fixture").toURL().readText())
                 val rejectedStop = URI("http://127.0.0.1:${fixture.endpoints.controlPort}/stop?token=other-run").toURL().openConnection() as java.net.HttpURLConnection
                 try { assertEquals(404, rejectedStop.responseCode) } finally { rejectedStop.disconnect() }
+                val rejectedFault = URI("http://127.0.0.1:${fixture.endpoints.controlPort}/fault?token=other-run&mode=unavailable").toURL().openConnection() as java.net.HttpURLConnection
+                try { assertEquals(404, rejectedFault.responseCode) } finally { rejectedFault.disconnect() }
             }
             for (sentinel in sentinels) {
                 assertEquals("unrelated listener", URI("http://127.0.0.1:${sentinel.address.port}/fixture").toURL().readText())

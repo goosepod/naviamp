@@ -4,6 +4,72 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class NaviampExternalPlaybackLifecycleCoordinatorTest {
+    @Test fun anotherBeginBeforeAcknowledgmentRevokesTheEarlierEndUntilTheNewInterruptionEnds() {
+        var state = playable()
+        val calls = mutableListOf<String>()
+        val coordinator = NaviampExternalPlaybackLifecycleCoordinator({ state }, { calls += "play" }, { calls += "pause" })
+        coordinator.interruptionBegan()
+        coordinator.interruptionEnded(true)
+        coordinator.interruptionBegan()
+        state = state.copy(state = NaviampExternalPlaybackState.Paused)
+        coordinator.onSnapshot(state)
+        assertEquals(listOf("pause"), calls)
+        coordinator.interruptionEnded(true)
+        assertEquals(listOf("pause", "play"), calls)
+    }
+
+    @Test fun repeatedBeginBeforePauseAcknowledgmentRequestsOnlyOnePauseAndDefersResume() {
+        var state = playable()
+        val calls = mutableListOf<String>()
+        val coordinator = NaviampExternalPlaybackLifecycleCoordinator({ state }, { calls += "play" }, { calls += "pause" })
+        coordinator.interruptionBegan()
+        coordinator.interruptionBegan()
+        coordinator.interruptionEnded(true)
+        coordinator.interruptionEnded(true)
+        assertEquals(listOf("pause"), calls)
+        state = state.copy(state = NaviampExternalPlaybackState.Paused)
+        coordinator.onSnapshot(state)
+        coordinator.onSnapshot(state)
+        assertEquals(listOf("pause", "play"), calls)
+    }
+
+    @Test fun sourceReplacementCapabilityLossAndTerminalStatesCannotInheritAnInterruptionResume() {
+        for (replacement in listOf(
+            playable().copy(current = NaviampExternalMediaItem("replacement", "Replacement", "")),
+            playable().copy(currentQueueIndex = 1),
+            playable().copy(canPlayPause = false),
+            playable().copy(state = NaviampExternalPlaybackState.Idle),
+            playable().copy(state = NaviampExternalPlaybackState.Loading),
+            playable().copy(current = null),
+        )) {
+            var state = playable()
+            val calls = mutableListOf<String>()
+            val coordinator = NaviampExternalPlaybackLifecycleCoordinator({ state }, { calls += "play" }, { calls += "pause" })
+            coordinator.interruptionBegan()
+            state = replacement
+            coordinator.onSnapshot(state)
+            state = playable().copy(state = NaviampExternalPlaybackState.Paused)
+            coordinator.onSnapshot(state)
+            coordinator.interruptionEnded(true)
+            assertEquals(listOf("pause"), calls, "replacement=$replacement")
+        }
+    }
+
+    @Test fun disconnectOrExplicitIntentBeforePauseAcknowledgmentCancelsDeferredResume() {
+        for (disconnect in listOf(true, false)) {
+            var state = playable()
+            val calls = mutableListOf<String>()
+            val coordinator = NaviampExternalPlaybackLifecycleCoordinator({ state }, { calls += "play" }, { calls += "pause" })
+            coordinator.interruptionBegan()
+            coordinator.interruptionEnded(true)
+            if (disconnect) coordinator.outputDisconnected() else coordinator.cancelPendingResume()
+            state = state.copy(state = NaviampExternalPlaybackState.Paused)
+            coordinator.onSnapshot(state)
+            coordinator.interruptionEnded(true)
+            assertEquals(if (disconnect) listOf("pause", "pause") else listOf("pause"), calls)
+        }
+    }
+
     @Test
     fun repeatedInterruptionPausesPlayingTrackAndResumesOnceWhenSystemPermits() {
         var state = NaviampExternalPlaybackState.Playing
@@ -113,12 +179,48 @@ class NaviampExternalPlaybackLifecycleCoordinatorTest {
         assertEquals(listOf("pause", "pause"), actions)
     }
 
+    @Test
+    fun latePauseAcknowledgmentCannotResumeAnIdenticalItemFromAnOldSource() {
+        var state = playing()
+        val calls = mutableListOf<String>()
+        val coordinator = NaviampExternalPlaybackLifecycleCoordinator({ state }, { calls += "play" }, { calls += "pause" })
+        coordinator.interruptionBegan()
+        coordinator.interruptionEnded(shouldResume = true)
+
+        state = state.copy(
+            state = NaviampExternalPlaybackState.Paused,
+            resumeIdentity = identity().copy(sourceGeneration = 2),
+        )
+        coordinator.onSnapshot(state)
+        coordinator.interruptionEnded(shouldResume = true)
+
+        assertEquals(listOf("pause"), calls)
+    }
+
+    @Test
+    fun aDenialRevokesAnEarlyResumeRecommendationBeforePauseAcknowledgment() {
+        var state = playing()
+        val calls = mutableListOf<String>()
+        val coordinator = NaviampExternalPlaybackLifecycleCoordinator({ state }, { calls += "play" }, { calls += "pause" })
+        coordinator.interruptionBegan()
+        coordinator.interruptionEnded(shouldResume = true)
+        coordinator.interruptionEnded(shouldResume = false)
+
+        state = state.copy(state = NaviampExternalPlaybackState.Paused)
+        coordinator.onSnapshot(state)
+
+        assertEquals(listOf("pause"), calls)
+    }
+
     private fun coordinator(
         state: () -> NaviampExternalPlaybackState,
         commands: MutableList<String>,
     ) = NaviampExternalPlaybackLifecycleCoordinator(
-        snapshot = { NaviampExternalPlaybackSnapshot(state = state(), current = NaviampExternalMediaItem("track", "Track", ""), canPlayPause = true) },
+        snapshot = { playable().copy(state = state()) },
         play = { commands += "play" },
         pause = { commands += "pause" },
     )
+
+    private fun playable() = NaviampExternalPlaybackSnapshot(state = NaviampExternalPlaybackState.Playing,
+        current = NaviampExternalMediaItem("track", "Track", ""), canPlayPause = true, currentQueueIndex = 0)
 }

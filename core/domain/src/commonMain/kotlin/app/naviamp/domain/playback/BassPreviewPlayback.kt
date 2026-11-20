@@ -35,10 +35,17 @@ internal class BassPreviewPlayback(
             var bass: BassAudioBackend? = null
             try {
                 withContext(runtime.workContext) {
-                    bass = prepareBackend(verify)
-                    created = request.randomAccess?.let { bass!!.createRandomAccessStream(it, decode = false) }
-                        ?.getOrThrow() ?: bass!!.createUrlStream(request.url).getOrThrow()
-                    bass!!.setVolume(checkNotNull(created), volume).getOrThrow()
+                    val output = prepareBackend(verify)
+                    bass = output
+                    val localPath = if (request.randomAccess == null && isPlaybackLocalFileUrl(request.url)) {
+                        runtime.localFilePath(request.url)
+                    } else null
+                    created = when {
+                        request.randomAccess != null -> output.createRandomAccessStream(request.randomAccess, decode = false)
+                        localPath != null -> output.createFileStream(localPath)
+                        else -> output.createUrlStream(request.url)
+                    }.getOrThrow()
+                    output.setVolume(checkNotNull(created), volume).getOrThrow()
                 }
                 if (epoch != generation) return@launch
                 val channel = checkNotNull(created)

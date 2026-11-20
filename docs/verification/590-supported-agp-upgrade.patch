@@ -1,0 +1,630 @@
+diff --git a/.github/workflows/verify.yml b/.github/workflows/verify.yml
+index 5e0c464ad..8226dfca3 100644
+--- a/.github/workflows/verify.yml
++++ b/.github/workflows/verify.yml
+@@ -139 +139 @@ jobs:
+-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973"
++        run: sdkmanager "platforms;android-37.0" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973"
+@@ -146,0 +147 @@ jobs:
++          verifySharedAndroidSourceGraph
+@@ -249 +250 @@ jobs:
+-        api-level: [30, 35]
++        api-level: [26, 30, 35]
+@@ -288 +289 @@ jobs:
+-          sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973" "emulator" "system-images;android-${{ matrix.api-level }};google_apis;x86_64" 2>&1 | tee /tmp/naviamp-sdkmanager.log
++          sdkmanager "platforms;android-37.0" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973" "emulator" "system-images;android-${{ matrix.api-level }};google_apis;x86_64" 2>&1 | tee /tmp/naviamp-sdkmanager.log
+@@ -336 +337 @@ jobs:
+-      - name: Exercise native boundaries and raster animation
++      - name: Exercise native boundaries and shared UI
+@@ -340,3 +341,12 @@ jobs:
+-          ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.animationProbe=true \
+-            "-Pandroid.testInstrumentationRunnerArguments.naviamp.mtls.controlPort=$control_port" \
+-            :apps:android:connectedDebugAndroidTest :core:ui:connectedDebugAndroidTest
++          if [ "${{ matrix.api-level }}" = 26 ]; then
++            ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false \
++              "-Pandroid.testInstrumentationRunnerArguments.naviamp.mtls.controlPort=$control_port" \
++              :apps:android:connectedDebugAndroidTest
++            ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false \
++              -Pandroid.testInstrumentationRunnerArguments.class=app.naviamp.ui.NaviampRasterAttachmentTest,app.naviamp.ui.NaviampDialogInitialFocusTest,app.naviamp.ui.NaviampLanguageResourcesUiTest \
++              :core:ui:connectedAndroidDeviceTest
++          else
++            ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.animationProbe=true \
++              "-Pandroid.testInstrumentationRunnerArguments.naviamp.mtls.controlPort=$control_port" \
++              :apps:android:connectedDebugAndroidTest :core:ui:connectedAndroidDeviceTest
++          fi
+@@ -351 +361 @@ jobs:
+-          cp -R core/ui/build/outputs/androidTest-results/connected/debug "$evidence/initial"
++          cp -R core/ui/build/outputs/androidTest-results/connected "$evidence/initial"
+@@ -356 +366 @@ jobs:
+-              :core:ui:connectedDebugAndroidTest --rerun --console=plain \
++              :core:ui:connectedAndroidDeviceTest --rerun --console=plain \
+@@ -358 +368 @@ jobs:
+-            cp -R core/ui/build/outputs/androidTest-results/connected/debug "$evidence/run-$attempt"
++            cp -R core/ui/build/outputs/androidTest-results/connected "$evidence/run-$attempt"
+@@ -369 +379 @@ jobs:
+-          cp -R core/ui/build/outputs/androidTest-results/connected/debug "$evidence/initial"
++          cp -R core/ui/build/outputs/androidTest-results/connected "$evidence/initial"
+@@ -374 +384 @@ jobs:
+-              :core:ui:connectedDebugAndroidTest --rerun --console=plain \
++              :core:ui:connectedAndroidDeviceTest --rerun --console=plain \
+@@ -376 +386 @@ jobs:
+-            cp -R core/ui/build/outputs/androidTest-results/connected/debug "$evidence/run-$attempt"
++            cp -R core/ui/build/outputs/androidTest-results/connected "$evidence/run-$attempt"
+diff --git a/apps/android/build.gradle.kts b/apps/android/build.gradle.kts
+index aa8c09472..94f1f9d59 100644
+--- a/apps/android/build.gradle.kts
++++ b/apps/android/build.gradle.kts
+@@ -25 +24,0 @@ plugins {
+-    alias(libs.plugins.kotlin.android)
+@@ -32 +31,2 @@ android {
+-    compileSdk = 36
++    compileSdk = 37
++    ndkVersion = "27.0.12077973"
+@@ -109 +109 @@ android {
+-    buildFeatures { buildConfig = true }
++    buildFeatures { buildConfig = true; resValues = true }
+@@ -123,0 +124,7 @@ kotlin {
++androidComponents {
++    // Keep the existing release-unit-test CI gate when AGP creates only debug host tests by default.
++    beforeVariants(selector().withBuildType("release")) { variant ->
++        variant.hostTests.getValue(com.android.build.api.variant.HostTestBuilder.UNIT_TEST_TYPE).enable = true
++    }
++}
++
+@@ -141 +148 @@ dependencies {
+-    testImplementation(kotlin("test"))
++    testImplementation(kotlin("test-junit"))
+@@ -148 +155 @@ dependencies {
+-    androidTestImplementation(kotlin("test"))
++    androidTestImplementation(kotlin("test-junit"))
+diff --git a/apps/desktop/build.gradle.kts b/apps/desktop/build.gradle.kts
+index 088da3b81..cd35cc0d8 100644
+--- a/apps/desktop/build.gradle.kts
++++ b/apps/desktop/build.gradle.kts
+@@ -0,0 +1,2 @@
++import org.gradle.process.ExecOperations
++import javax.inject.Inject
+@@ -15,0 +18,5 @@ plugins {
++abstract class DesktopPackagingProcess {
++    @get:Inject abstract val operations: ExecOperations
++}
++val desktopPackagingProcess = objects.newInstance<DesktopPackagingProcess>()
++
+@@ -449 +456 @@ fun registerWindowsInstaller(format: String) = tasks.register("packageReleaseWin
+-        project.exec {
++        desktopPackagingProcess.operations.exec {
+@@ -471 +478 @@ fun registerWindowsInstaller(format: String) = tasks.register("packageReleaseWin
+-        project.exec {
++        desktopPackagingProcess.operations.exec {
+@@ -652 +659 @@ fun configureMacLocalNetworkPrivacy(appDirectory: File, checkOnly: Boolean = fal
+-    project.exec {
++    desktopPackagingProcess.operations.exec {
+@@ -665 +672 @@ fun sealMacAppBundle(appDirectory: File) {
+-    project.exec {
++    desktopPackagingProcess.operations.exec {
+@@ -681 +688 @@ fun verifyMacAppBundleSeal(appDirectory: File) {
+-    project.exec {
++    desktopPackagingProcess.operations.exec {
+diff --git a/build.gradle.kts b/build.gradle.kts
+index 6694032a6..072a6f966 100644
+--- a/build.gradle.kts
++++ b/build.gradle.kts
+@@ -1,8 +0,0 @@
+-buildscript {
+-    repositories { google() }
+-    dependencies {
+-        // Kotlin 2.4 metadata requires R8 >= 9.1.29; keep the compatible AGP host unchanged.
+-        classpath("com.android.tools:r8:9.1.57")
+-    }
+-}
+-
+@@ -11,0 +4 @@ plugins {
++    alias(libs.plugins.android.multiplatform.library) apply false
+@@ -14 +6,0 @@ plugins {
+-    alias(libs.plugins.kotlin.android) apply false
+@@ -35,0 +28,27 @@ dependencies {
++// Custom hierarchy selectors must recognize the Android-KMP plugin's target type.
++// Otherwise a main compilation can silently become NO-SOURCE and publish an empty AAR.
++tasks.register("verifySharedAndroidSourceGraph") {
++    group = "verification"
++    description = "Checks that shared Android compilations retain common production and test sources."
++    doLast {
++        val checked = mutableListOf<String>()
++        subprojects.forEach { module ->
++            val multiplatform = module.extensions.findByType<org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension>()
++                ?: return@forEach
++            multiplatform.targets.filter {
++                it.platformType == org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType.androidJvm
++            }.forEach { target ->
++                target.compilations.forEach { compilation ->
++                    val required = if (compilation.name == "main") "commonMain" else "commonTest"
++                    check(compilation.allKotlinSourceSets.any { it.name == required }) {
++                        "${module.path}:${compilation.name} lost $required; check the Android target hierarchy selector."
++                    }
++                    checked += "${module.path}:${compilation.name}"
++                }
++            }
++        }
++        check(checked.isNotEmpty()) { "No shared Android compilations were inspected." }
++        logger.lifecycle("Verified common source ownership for ${checked.size} shared Android compilations.")
++    }
++}
++
+diff --git a/core/app/build.gradle.kts b/core/app/build.gradle.kts
+index 55b479251..ca50f0299 100644
+--- a/core/app/build.gradle.kts
++++ b/core/app/build.gradle.kts
+@@ -5 +4,0 @@ plugins {
+-    alias(libs.plugins.android.library)
+@@ -6,0 +6 @@ plugins {
++    alias(libs.plugins.android.multiplatform.library)
+@@ -12,4 +12,6 @@ kotlin {
+-    androidTarget {
+-        compilerOptions {
+-            jvmTarget.set(JvmTarget.JVM_17)
+-        }
++    android {
++        namespace = "app.naviamp.core.app"
++        compileSdk = 37
++        minSdk = 26
++        compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
++        withHostTest {}
+@@ -25 +27,5 @@ kotlin {
+-                withAndroidTarget()
++                // The Android-KMP plugin implements KotlinTarget directly, rather than the
++                // legacy KotlinAndroidTarget selected by withAndroidTarget().
++                withCompilations {
++                    it.target.platformType == org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType.androidJvm
++                }
+@@ -52,12 +57,0 @@ kotlin {
+-
+-android {
+-    namespace = "app.naviamp.core.app"
+-    compileSdk = 36
+-    defaultConfig {
+-        minSdk = 26
+-    }
+-    compileOptions {
+-        sourceCompatibility = JavaVersion.VERSION_17
+-        targetCompatibility = JavaVersion.VERSION_17
+-    }
+-}
+diff --git a/core/domain/build.gradle.kts b/core/domain/build.gradle.kts
+index 7593af621..9f93277e8 100644
+--- a/core/domain/build.gradle.kts
++++ b/core/domain/build.gradle.kts
+@@ -33 +32,0 @@ plugins {
+-    alias(libs.plugins.android.library)
+@@ -34,0 +34 @@ plugins {
++    alias(libs.plugins.android.multiplatform.library)
+@@ -40,4 +40,6 @@ kotlin {
+-    androidTarget {
+-        compilerOptions {
+-            jvmTarget.set(JvmTarget.JVM_17)
+-        }
++    android {
++        namespace = "app.naviamp.domain"
++        compileSdk = 37
++        minSdk = 26
++        compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
++        withHostTest {}
+@@ -87,12 +88,0 @@ kotlin {
+-android {
+-    namespace = "app.naviamp.domain"
+-    compileSdk = 36
+-    defaultConfig {
+-        minSdk = 26
+-    }
+-    compileOptions {
+-        sourceCompatibility = JavaVersion.VERSION_17
+-        targetCompatibility = JavaVersion.VERSION_17
+-    }
+-}
+-
+diff --git a/core/presentation/build.gradle.kts b/core/presentation/build.gradle.kts
+index 4cfe2ddd9..f52f1f2b5 100644
+--- a/core/presentation/build.gradle.kts
++++ b/core/presentation/build.gradle.kts
+@@ -4 +3,0 @@ plugins {
+-    alias(libs.plugins.android.library)
+@@ -5,0 +5 @@ plugins {
++    alias(libs.plugins.android.multiplatform.library)
+@@ -12,4 +12,6 @@ kotlin {
+-    androidTarget {
+-        compilerOptions {
+-            jvmTarget.set(JvmTarget.JVM_17)
+-        }
++    android {
++        namespace = "app.naviamp.core.presentation"
++        compileSdk = 37
++        minSdk = 26
++        compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
++        withHostTest {}
+@@ -44,12 +45,0 @@ kotlin {
+-
+-android {
+-    namespace = "app.naviamp.core.presentation"
+-    compileSdk = 36
+-    defaultConfig {
+-        minSdk = 26
+-    }
+-    compileOptions {
+-        sourceCompatibility = JavaVersion.VERSION_17
+-        targetCompatibility = JavaVersion.VERSION_17
+-    }
+-}
+diff --git a/core/storage/build.gradle.kts b/core/storage/build.gradle.kts
+index 53d228728..0e365c186 100644
+--- a/core/storage/build.gradle.kts
++++ b/core/storage/build.gradle.kts
+@@ -4 +3,0 @@ plugins {
+-    alias(libs.plugins.android.library)
+@@ -5,0 +5 @@ plugins {
++    alias(libs.plugins.android.multiplatform.library)
+@@ -11,4 +11,6 @@ kotlin {
+-    androidTarget {
+-        compilerOptions {
+-            jvmTarget.set(JvmTarget.JVM_17)
+-        }
++    android {
++        namespace = "app.naviamp.storage"
++        compileSdk = 37
++        minSdk = 26
++        compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
++        withHostTest {}
+@@ -39,12 +40,0 @@ kotlin {
+-android {
+-    namespace = "app.naviamp.storage"
+-    compileSdk = 36
+-    defaultConfig {
+-        minSdk = 26
+-    }
+-    compileOptions {
+-        sourceCompatibility = JavaVersion.VERSION_17
+-        targetCompatibility = JavaVersion.VERSION_17
+-    }
+-}
+-
+diff --git a/core/testkit/build.gradle.kts b/core/testkit/build.gradle.kts
+index 717123ee6..63a751ce0 100644
+--- a/core/testkit/build.gradle.kts
++++ b/core/testkit/build.gradle.kts
+@@ -6 +5,0 @@ plugins {
+-    alias(libs.plugins.android.library)
+@@ -7,0 +7 @@ plugins {
++    alias(libs.plugins.android.multiplatform.library)
+@@ -12,4 +12,6 @@ kotlin {
+-    androidTarget {
+-        compilerOptions {
+-            jvmTarget.set(JvmTarget.JVM_17)
+-        }
++    android {
++        namespace = "app.naviamp.core.testkit"
++        compileSdk = 37
++        minSdk = 26
++        compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
++        withHostTest {}
+@@ -37,12 +38,0 @@ kotlin {
+-android {
+-    namespace = "app.naviamp.core.testkit"
+-    compileSdk = 36
+-    defaultConfig {
+-        minSdk = 26
+-    }
+-    compileOptions {
+-        sourceCompatibility = JavaVersion.VERSION_17
+-        targetCompatibility = JavaVersion.VERSION_17
+-    }
+-}
+-
+diff --git a/core/tls-testkit/build.gradle.kts b/core/tls-testkit/build.gradle.kts
+index addd8c0e1..565a44b2b 100644
+--- a/core/tls-testkit/build.gradle.kts
++++ b/core/tls-testkit/build.gradle.kts
+@@ -5 +4,0 @@ plugins {
+-    alias(libs.plugins.android.library)
+@@ -6,0 +6 @@ plugins {
++    alias(libs.plugins.android.multiplatform.library)
+@@ -11 +11,4 @@ kotlin {
+-    androidTarget {
++    android {
++        namespace = "app.naviamp.core.tls.testkit"
++        compileSdk = 37
++        minSdk = 26
+@@ -12,0 +16 @@ kotlin {
++        withHostTest {}
+@@ -22,10 +25,0 @@ kotlin {
+-
+-android {
+-    namespace = "app.naviamp.core.tls.testkit"
+-    compileSdk = 36
+-    defaultConfig { minSdk = 26 }
+-    compileOptions {
+-        sourceCompatibility = JavaVersion.VERSION_17
+-        targetCompatibility = JavaVersion.VERSION_17
+-    }
+-}
+diff --git a/core/ui/build.gradle.kts b/core/ui/build.gradle.kts
+index b42ad11f1..8ea3f3e9b 100644
+--- a/core/ui/build.gradle.kts
++++ b/core/ui/build.gradle.kts
+@@ -1,0 +2,4 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
++import com.android.build.api.artifact.SingleArtifact
++import com.android.manifmerger.ManifestMerger2
++import com.android.manifmerger.MergingReport
++import com.android.utils.StdLogger
+@@ -8 +11,0 @@ plugins {
+-    alias(libs.plugins.android.library)
+@@ -9,0 +13 @@ plugins {
++    alias(libs.plugins.android.multiplatform.library)
+@@ -14,0 +19,33 @@ plugins {
++// AGP 9.5.1's KMP test merger omits additional Sources.manifests entries. Apply the
++// existing fixture through the public artifact pipeline, preserving the generated
++// runner, package, SDK and dependency declarations and the normal merger diagnostics.
++@CacheableTask
++abstract class MergeUiTestHostManifest : DefaultTask() {
++    @get:InputFile @get:PathSensitive(PathSensitivity.NONE)
++    abstract val mergedManifest: RegularFileProperty
++
++    @get:InputFile @get:PathSensitive(PathSensitivity.NONE)
++    abstract val fixtureManifest: RegularFileProperty
++
++    @get:OutputFile
++    abstract val outputManifest: RegularFileProperty
++
++    @TaskAction
++    fun merge() {
++        val fixture = fixtureManifest.get().asFile
++        check("<uses-sdk" !in fixture.readText()) { "Fixture SDK versions must remain in the Gradle DSL." }
++        val diagnostics = StdLogger(StdLogger.Level.WARNING)
++        val report = ManifestMerger2.newMerger(
++            mergedManifest.get().asFile, diagnostics, ManifestMerger2.MergeType.APPLICATION,
++        )
++            // The input is AGP's already-validated output, including its generated <uses-sdk>.
++            // The original source-manifest SDK check stays enabled; the fixture cannot override it.
++            .withFeatures(ManifestMerger2.Invoker.Feature.USES_SDK_IN_MANIFEST_LENIENT_HANDLING)
++            .addFlavorAndBuildTypeManifests(fixture).merge()
++        report.log(diagnostics)
++        check(report.result != MergingReport.Result.ERROR) { report.reportString }
++        val xml = checkNotNull(report.getMergedDocument(MergingReport.MergedManifestKind.MERGED))
++        outputManifest.get().asFile.apply { parentFile.mkdirs(); writeText(xml) }
++    }
++}
++
+@@ -16,3 +53,30 @@ kotlin {
+-    androidTarget {
+-        compilerOptions {
+-            jvmTarget.set(JvmTarget.JVM_17)
++    android {
++        namespace = "app.naviamp.ui"
++        compileSdk = 37
++        minSdk = 26
++        compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
++        withHostTest {}
++        androidResources { enable = true }
++        withDeviceTestBuilder { sourceSetTreeName = "test" }.configure {
++            targetSdk { version = release(34) }
++            instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
++            applicationId = if (visualizerMountProbe) "app.naviamp.ui.mount544.test" else "app.naviamp.ui.test"
++            if (visualizerMountProbe) {
++                instrumentationRunnerArguments["class"] = "app.naviamp.ui.AndroidVisualizerMountTest"
++            } else if (animationProbe) {
++                instrumentationRunnerArguments["class"] = listOf(
++                    "app.naviamp.ui.AndroidAnimationProbeTest",
++                    "app.naviamp.ui.AndroidRasterPlacementTest",
++                    "app.naviamp.ui.AndroidVisualizerMountTest",
++                    "app.naviamp.ui.NaviampMenuAttachmentTest",
++                    "app.naviamp.ui.NaviampDialogInitialFocusTest",
++                    "app.naviamp.ui.NaviampSmartPlaylistReferencePickerTest",
++                    "app.naviamp.ui.NaviampSmartPlaylistSummaryUiTest",
++                    "app.naviamp.ui.NaviampArtistPlaylistsUiTest",
++                    "app.naviamp.ui.NaviampLibrarySearchLayoutTest",
++                    "app.naviamp.ui.NaviampLibrarySearchResultsUiTest",
++                    "app.naviamp.ui.NaviampArtistTopTracksUiTest",
++                    "app.naviamp.ui.NaviampArtistSectionLayoutsUiTest",
++                    "app.naviamp.ui.NaviampLanguageResourcesUiTest",
++                ).joinToString(",")
++            }
+@@ -34 +98,3 @@ kotlin {
+-        androidInstrumentedTest.get().kotlin.srcDir(renderedUiTests)
++        val androidDeviceTest = getByName("androidDeviceTest")
++        androidDeviceTest.kotlin.srcDirs(renderedUiTests, "src/androidInstrumentedTest/kotlin")
++        if (animationProbe) androidDeviceTest.kotlin.srcDir("src/animationProbeAndroid/kotlin")
+@@ -39 +105 @@ kotlin {
+-        androidInstrumentedTest.dependencies {
++        androidDeviceTest.dependencies {
+@@ -86,40 +151,0 @@ compose.resources {
+-android {
+-    namespace = "app.naviamp.ui"
+-    compileSdk = 36
+-    defaultConfig {
+-        minSdk = 26
+-        // Keep the standalone native-boundary fixture on the pre-enforced-edge-to-edge model.
+-        targetSdk = 34
+-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+-        if (visualizerMountProbe) {
+-            testApplicationId = "app.naviamp.ui.mount544.test"
+-            testInstrumentationRunnerArguments["class"] = "app.naviamp.ui.AndroidVisualizerMountTest"
+-        } else if (animationProbe) {
+-            testInstrumentationRunnerArguments["class"] = listOf(
+-                "app.naviamp.ui.AndroidAnimationProbeTest",
+-                "app.naviamp.ui.AndroidRasterPlacementTest",
+-                "app.naviamp.ui.AndroidVisualizerMountTest",
+-                "app.naviamp.ui.NaviampMenuAttachmentTest",
+-                "app.naviamp.ui.NaviampDialogInitialFocusTest",
+-                "app.naviamp.ui.NaviampSmartPlaylistReferencePickerTest",
+-                "app.naviamp.ui.NaviampSmartPlaylistSummaryUiTest",
+-                "app.naviamp.ui.NaviampArtistPlaylistsUiTest",
+-                "app.naviamp.ui.NaviampLibrarySearchLayoutTest",
+-                "app.naviamp.ui.NaviampLibrarySearchResultsUiTest",
+-                "app.naviamp.ui.NaviampArtistTopTracksUiTest",
+-                "app.naviamp.ui.NaviampArtistSectionLayoutsUiTest",
+-                "app.naviamp.ui.NaviampLanguageResourcesUiTest",
+-            ).joinToString(",")
+-        }
+-    }
+-    sourceSets.getByName("androidTest").manifest.srcFile("src/androidInstrumentedTest/AndroidManifest.xml")
+-    if (animationProbe) {
+-        sourceSets.getByName("androidTest").java.srcDir("src/animationProbeAndroid/kotlin")
+-        sourceSets.getByName("androidTest").manifest.srcFile("src/animationProbeAndroid/AndroidManifest.xml")
+-    }
+-    compileOptions {
+-        sourceCompatibility = JavaVersion.VERSION_17
+-        targetCompatibility = JavaVersion.VERSION_17
+-    }
+-}
+-
+@@ -191,0 +218,16 @@ tasks.register<JavaExec>("playerAnimationProbe") {
++
++androidComponents {
++    onVariants { variant ->
++        variant.deviceTests.values.forEach { deviceTest ->
++            val mergeFixture = tasks.register<MergeUiTestHostManifest>("merge${deviceTest.name.replaceFirstChar(Char::uppercase)}HostManifest") {
++                fixtureManifest.set(layout.projectDirectory.file(
++                    if (animationProbe) "src/animationProbeAndroid/AndroidManifest.xml"
++                    else "src/androidInstrumentedTest/AndroidManifest.xml",
++                ))
++            }
++            deviceTest.artifacts.use(mergeFixture)
++                .wiredWithFiles(MergeUiTestHostManifest::mergedManifest, MergeUiTestHostManifest::outputManifest)
++                .toTransform(SingleArtifact.MERGED_MANIFEST)
++        }
++    }
++}
+diff --git a/gradle.properties b/gradle.properties
+index 4a593de75..b18d7b9cc 100644
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -5,2 +4,0 @@ android.r8.optimizedResourceShrinking=true
+-# Keep lint's Kotlin analyzer compatible without changing the AGP host.
+-android.experimental.lint.version=9.5.1
+diff --git a/gradle/libs.versions.toml b/gradle/libs.versions.toml
+index 48a81a26b..38637db4b 100644
+--- a/gradle/libs.versions.toml
++++ b/gradle/libs.versions.toml
+@@ -3,3 +3,3 @@
+-kotlin = "2.4.10"
+-agp = "8.13.2"
+-compose = "1.11.0"
++kotlin = "2.4.21"
++agp = "9.5.1"
++compose = "1.12.2"
+@@ -9 +9 @@ androidx-fragment = "1.9.1"
+-androidx-lifecycle = "2.9.6"
++androidx-lifecycle = "2.11.0"
+@@ -15,3 +15,3 @@ kotlinx-coroutines = "1.11.0"
+-kotlinx-serialization = "1.11.0"
+-ktor = "3.5.2"
+-sqldelight = "2.3.2"
++kotlinx-serialization = "1.13.0"
++ktor = "3.6.1"
++sqldelight = "2.4.1"
+@@ -19,4 +19,4 @@ jna = "5.19.1"
+-kover = "0.9.9"
+-bouncycastle = "1.85.2"
+-jmdns = "3.6.3"
+-dbus-java = "5.2.0"
++kover = "0.9.11"
++bouncycastle = "1.87"
++jmdns = "3.6.5"
++dbus-java = "5.2.2"
+@@ -55,0 +56 @@ dbus-java-transport-native-unixsocket = { module = "com.github.hypfvieh:dbus-jav
++android-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
+@@ -60 +60,0 @@ kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+diff --git a/gradle/wrapper/gradle-wrapper.properties b/gradle/wrapper/gradle-wrapper.properties
+index 8ff605c61..0aced5e53 100644
+--- a/gradle/wrapper/gradle-wrapper.properties
++++ b/gradle/wrapper/gradle-wrapper.properties
+@@ -3 +3 @@ distributionPath=wrapper/dists
+-distributionUrl=https\://services.gradle.org/distributions/gradle-8.14.5-bin.zip
++distributionUrl=https\://services.gradle.org/distributions/gradle-9.9.1-bin.zip
+@@ -9,0 +10,2 @@ zipStorePath=wrapper/dists
++
++distributionSha256Sum=d8a18a7a841dd5df825d35a685fad6f2d7f12ac0c280e57b67c27b4a520ba228
+diff --git a/platforms/android/build.gradle.kts b/platforms/android/build.gradle.kts
+index 5a5997d17..0a845857b 100644
+--- a/platforms/android/build.gradle.kts
++++ b/platforms/android/build.gradle.kts
+@@ -5 +4,0 @@ plugins {
+-    alias(libs.plugins.kotlin.android)
+@@ -12 +11 @@ android {
+-    compileSdk = 36
++    compileSdk = 37
+@@ -47 +46 @@ dependencies {
+-    testImplementation(kotlin("test"))
++    testImplementation(kotlin("test-junit"))
+diff --git a/providers/jellyfin/build.gradle.kts b/providers/jellyfin/build.gradle.kts
+index 7ea1b0e69..63d82e692 100644
+--- a/providers/jellyfin/build.gradle.kts
++++ b/providers/jellyfin/build.gradle.kts
+@@ -4 +3,0 @@ plugins {
+-    alias(libs.plugins.android.library)
+@@ -5,0 +5 @@ plugins {
++    alias(libs.plugins.android.multiplatform.library)
+@@ -10,4 +10,6 @@ kotlin {
+-    androidTarget {
+-        compilerOptions {
+-            jvmTarget.set(JvmTarget.JVM_17)
+-        }
++    android {
++        namespace = "app.naviamp.provider.jellyfin"
++        compileSdk = 37
++        minSdk = 26
++        compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
++        withHostTest {}
+@@ -34,12 +35,0 @@ kotlin {
+-
+-android {
+-    namespace = "app.naviamp.provider.jellyfin"
+-    compileSdk = 36
+-    defaultConfig {
+-        minSdk = 26
+-    }
+-    compileOptions {
+-        sourceCompatibility = JavaVersion.VERSION_17
+-        targetCompatibility = JavaVersion.VERSION_17
+-    }
+-}
+diff --git a/providers/navidrome/build.gradle.kts b/providers/navidrome/build.gradle.kts
+index c3fa8b064..e9960beff 100644
+--- a/providers/navidrome/build.gradle.kts
++++ b/providers/navidrome/build.gradle.kts
+@@ -4 +3,0 @@ plugins {
+-    alias(libs.plugins.android.library)
+@@ -5,0 +5 @@ plugins {
++    alias(libs.plugins.android.multiplatform.library)
+@@ -10,4 +10,7 @@ kotlin {
+-    androidTarget {
+-        compilerOptions {
+-            jvmTarget.set(JvmTarget.JVM_17)
+-        }
++    android {
++        namespace = "app.naviamp.provider.navidrome"
++        compileSdk = 37
++        minSdk = 26
++        compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
++        withHostTest {}
++        optimization { consumerKeepRules.file("consumer-rules.pro") }
+@@ -54,13 +56,0 @@ kotlin {
+-
+-android {
+-    namespace = "app.naviamp.provider.navidrome"
+-    compileSdk = 36
+-    defaultConfig {
+-        minSdk = 26
+-        consumerProguardFiles("consumer-rules.pro")
+-    }
+-    compileOptions {
+-        sourceCompatibility = JavaVersion.VERSION_17
+-        targetCompatibility = JavaVersion.VERSION_17
+-    }
+-}
+diff --git a/scripts/tests/test_verification_translations.py b/scripts/tests/test_verification_translations.py
+index 47cd6dd86..864a178ac 100644
+--- a/scripts/tests/test_verification_translations.py
++++ b/scripts/tests/test_verification_translations.py
+@@ -92 +92,2 @@ class TranslationValidationTest(unittest.TestCase):
+-        self.assertIn('api-level: [30, 35]', android)
++        self.assertIn('api-level: [26, 30, 35]', android)
++        self.assertIn('verifySharedAndroidSourceGraph', shared)

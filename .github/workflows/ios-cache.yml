@@ -12,6 +12,7 @@ on:
       - 'gradle/**'
       - 'gradle.properties'
       - 'platforms/ios/**'
+      - 'platforms/apple/**'
       - 'native/**'
       - 'scripts/**'
       - '.github/actions/ios-cache/**'

@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "status": "pending-hosted-production",
+  "repository": "goosepod/naviamp",
+  "workflowPath": ".github/workflows/tvos-compose-producer.yml",
+  "sourceBundleSha256": "3eb79a0aab2314002db1694a7783aabfd67a5c6050ec048c8b1a25703db583cf"
+}

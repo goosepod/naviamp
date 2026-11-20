@@ -107,6 +107,7 @@ open class CoreBassPlaybackEngine(
 
     override val supportsGapless: Boolean = featureSupport.supportsGapless
     override val supportsCrossfade: Boolean = featureSupport.supportsCrossfade
+    override val supportsStereoDownmix: Boolean = backend?.supportsMixer == true
     override val supportsReplayGain: Boolean = true
     override val supportsEqualizer: Boolean = backend != null
 
@@ -320,7 +321,10 @@ open class CoreBassPlaybackEngine(
                         }
                         break
                     } catch (exception: Throwable) {
-                        lastFailureReason = bassPlaybackFailureReason(bass.lastErrorCode)
+                        // A rejected/failed provider read can leave BASS's decoder-format error
+                        // behind. Preserve the transport failure instead of requesting a transcode.
+                        lastFailureReason = if (activeRequest.randomAccess?.failure != null) null
+                            else bassPlaybackFailureReason(bass.lastErrorCode)
                         createdPlayback?.let { freeCreatedPlayback(bass, it) }
                         createdPlayback = null
                         if (

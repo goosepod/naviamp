@@ -23,6 +23,8 @@ class NaviampSettingsSyncController(
     nowEpochMillis: () -> Long,
     private val snapshot: () -> SettingsSyncLocalSnapshot,
     applyDocument: (SettingsSyncDocument) -> Unit,
+    persistenceTransaction: (() -> Unit) -> Unit = { it() },
+    afterDocumentApplied: (SettingsSyncDocument) -> Unit = {},
 ) {
     private val coordinator = SettingsSyncCoordinator(
         deviceId = deviceId,
@@ -37,6 +39,8 @@ class NaviampSettingsSyncController(
             )
         },
         applyDocument = applyDocument,
+        persistenceTransaction = persistenceTransaction,
+        afterDocumentApplied = afterDocumentApplied,
     )
 
     fun markLocalChanged() = coordinator.markLocalChanged()

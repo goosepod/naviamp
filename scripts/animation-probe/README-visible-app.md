@@ -61,6 +61,42 @@ loopback-only and playback muted. Exercise menus, diagnostics, pause, minimize/r
 clipping, input and accessibility, and apply the budgets in `docs/performance/desktop-popup-animation-136.md`.
 A low CPU measurement or an attached render delegate alone is insufficient acceptance evidence.
 
+For wide windows, add `--metadata-repeat 3` so the long title and artist still overflow. This
+changes only fixture metadata; the short control and the default fixture remain unchanged.
+Verify overflow visually at the measured size rather than assuming every long identity scrolls.
+
+### Isolated Windows fixture profile
+
+Compile `PerformanceFixtureLauncher.java` with `ApplicationRenderProbe.java` into the disposable
+observer JAR. Set its copied launcher's `app.mainclass=PerformanceFixtureLauncher`, add that JAR
+to `app.classpath`, and set these JVM properties to absolute paths:
+
+```text
+-Dnaviamp.probe.directory=<disposable-app-directory>
+-Dnaviamp.probe.launcher=<disposable-app-directory>/Naviamp.exe
+-Dnaviamp.probe.observe=true
+-Dnaviamp.probe.capture=false
+```
+
+The outer launcher starts a child of the same packaged executable with APPDATA and LOCALAPPDATA
+under `profile/Roaming` and `profile/Local` in the disposable directory. The child invokes the
+observer and unchanged application main. Preserve the launcher configuration before editing,
+and inventory all production payload hashes separately from the added observer. Seed only a
+synthetic fixture profile, including zero playback volume; never point this at a real profile.
+Observe both ordinary startup (`observe=false`) and instrumented startup. A launch readiness
+timeout can precede the actual window: inspect the process family/window before retrying to
+avoid duplicate instances. Wait for every owned app process to exit before restoring its profile.
+
+The November 14 runtime's JavaScript reset did **not** end its Windows observation helper.
+A target-filtered UI Automation trace still attributed requests to that task-owned helper after
+reset; terminating the verified task-owned helper removed the traffic and the same paused app's
+CPU fell from 4.53% to 0.47%. Therefore, do not treat reset alone as proof of an idle observer.
+Verify zero request traffic/helper exit for the installed tool version. Resource cleanup must
+identify the exact task-owned PID, creation time and parent/child relationships; never terminate
+arbitrary accessibility clients or disable accessibility in Naviamp. Reconnect afterward to
+verify retained paint and motion, then release the new observation session before timing again.
+Keep contaminated readings as diagnostics and do not subtract their presumed overhead.
+
 ## Windows compiler attribution with a trimmed runtime
 
 The observer records each surface's scale. If its `compilation_ms` is unavailable because the

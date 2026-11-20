@@ -15,9 +15,56 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.test.assertNull
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class CoreBassPlaybackEngineTest {
+    @Test fun authenticatedSourceFailureCannotBeMisclassifiedAsANativeCodecFailure() = runTest {
+        for (failedTransport in listOf(true, false)) {
+            val source = object : PlaybackRandomAccessSource {
+                override val lengthBytes = 1_000L
+                override val failure = if (failedTransport) IllegalStateException("Authenticated range failed") else null
+                override suspend fun read(offset: Long, count: Int) = byteArrayOf()
+            }
+            val backend = object : BassAudioBackend by RecordingPlaybackBackend() {
+                override val lastErrorCode = 41
+                override fun createRandomAccessStream(source: PlaybackRandomAccessSource, decode: Boolean): Result<BassStreamHandle> =
+                    Result.failure(IllegalStateException("Native decoder could not open the source"))
+            }
+            val engine = CoreBassPlaybackEngine(Result.success(backend), FakeBassPlaybackEngineRuntime)
+            val states = mutableListOf<PlaybackState>()
+            try {
+                engine.play(this, PlaybackRequest("http://127.0.0.1/fixture", randomAccess = source), states::add, {})
+                advanceUntilIdle()
+                val error = states.last() as PlaybackState.Error
+                if (failedTransport) {
+                    assertEquals("Authenticated range failed", error.message)
+                    assertNull(error.reason, "A failed range must not trigger codec/transcode recovery")
+                } else assertEquals(PlaybackFailureReason.UnsupportedFormat, error.reason)
+                assertFalse(PlaybackState.Playing in states || PlaybackState.Finished in states)
+            } finally { engine.release() }
+        }
+    }
+
+    @Test
+    fun mixerFreeBackendRetainsDirectPlaybackAndOnlyAdvertisesAvailableFeatures() = runTest {
+        val backend = RecordingPlaybackBackend()
+        val engine = CoreBassPlaybackEngine(Result.success(backend), FakeBassPlaybackEngineRuntime)
+        assertFalse(engine.supportsGapless)
+        assertFalse(engine.supportsCrossfade)
+        assertFalse(engine.supportsStereoDownmix)
+        assertTrue(engine.supportsReplayGain)
+        assertTrue(engine.supportsEqualizer)
+        val states = mutableListOf<PlaybackState>()
+        engine.play(this, PlaybackRequest("file:///fixture.wav"), states::add, {})
+        advanceUntilIdle()
+        assertTrue(PlaybackState.Playing in states)
+        assertTrue(PlaybackState.Finished in states)
+        assertEquals(1, backend.playCalls)
+        engine.release()
+        assertEquals(listOf(BassStreamHandle(41)), backend.releasedHandles)
+    }
+
     @Test
     fun failedAuthenticatedReadsNeverPublishFinishedFromSyncOrPolling() = runTest {
         for (sync in listOf(false, true)) {

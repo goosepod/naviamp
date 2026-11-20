@@ -91,6 +91,13 @@ class AndroidNativeBoundaryInstrumentedTest {
                 val samples = FloatArray(256)
                 assertTrue(bass.readFloatData(stream, samples) > 0, "BASS read failed: error=${bass.lastErrorCode}")
                 assertTrue(samples.any { it != 0f })
+                val backend = app.naviamp.android.playback.AndroidBassAudioBackend(bass)
+                backend.configureInternetStreams().getOrThrow()
+                val handle = app.naviamp.domain.bass.BassStreamHandle(stream)
+                val levels = backend.waveformLevels(handle, 8).getOrThrow()
+                assertEquals(8, levels.size)
+                assertTrue(levels.all { it in 0.17f..0.18f }, levels.toList().toString())
+                assertTrue(backend.readMonoRmsLevel(app.naviamp.domain.bass.BassStreamHandle(0), 0.1f).isFailure)
             } finally {
                 assertTrue(bass.freeStream(stream))
             }

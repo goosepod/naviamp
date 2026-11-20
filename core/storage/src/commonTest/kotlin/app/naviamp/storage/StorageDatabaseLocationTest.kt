@@ -19,6 +19,18 @@ class StorageDatabaseLocationTest {
     }
 
     @Test
+    fun nativeBasePathRequiresAbsolutePosixSyntaxWithoutChoosingADirectory() {
+        assertEquals("/owned/cache", StorageDatabaseLocation("/owned/cache").requireAbsolutePosixDirectoryPath())
+        listOf("Library/Caches", "../cache", "C:\\cache").forEach { path ->
+            assertFailsWith<IllegalArgumentException> {
+                StorageDatabaseLocation(path).requireAbsolutePosixDirectoryPath()
+            }
+        }
+        // Other driver contracts can still accept a relative location.
+        assertEquals("relative", StorageDatabaseLocation("relative").directoryPath)
+    }
+
+    @Test
     fun rejectsFilenamesThatCanEscapeTheSelectedDirectory() {
         assertFailsWith<IllegalArgumentException> {
             StorageDatabaseLocation("/app/support", "../outside.db")

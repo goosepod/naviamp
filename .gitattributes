@@ -2,10 +2,16 @@
 # separators that Git's whitespace/conflict-marker checks would otherwise rewrite or misclassify.
 platforms/ios/vendor/bass/** -text -diff
 native/bass-jni/vendor/** -text -diff
+platforms/apple/src/nativeInterop/cinterop/include/bass.h -text -diff
+platforms/tvos/vendor/bass/*.xcframework/** -text -diff
 
 # Naviamp-added Apple packaging declarations are reviewable text, not upstream SDK inputs.
 platforms/ios/vendor/bass/**/PrivacyInfo.xcprivacy text eol=lf diff
+platforms/tvos/vendor/bass/**/PrivacyInfo.xcprivacy text eol=lf diff
 
 # Flatpak inputs can be built from a Windows checkout through WSL.
 packaging/flatpak/** text eol=lf
 scripts/flatpak/** text eol=lf
+
+# Hash-pinned source-only producer snapshot; preserve its exact archive bytes.
+build-support/tvos-compose/sources.zip -text

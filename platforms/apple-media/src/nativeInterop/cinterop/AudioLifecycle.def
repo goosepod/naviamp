@@ -1,0 +1,5 @@
+language = Objective-C
+headers = NaviampAudioLifecycle.h
+headerFilter = NaviampAudioLifecycle.h
+package = app.naviamp.apple.media.lifecycle
+linkerOpts = -framework Foundation -framework AVFAudio

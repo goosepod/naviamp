@@ -83,6 +83,8 @@ interface SampleRateMatchingPlaybackEngine : PlaybackEngine {
 }
 
 interface StereoDownmixPlaybackEngine : PlaybackEngine {
+    val supportsStereoDownmix: Boolean get() = true
+
     fun setStereoDownmixEnabled(enabled: Boolean)
 }
 

@@ -55,15 +55,20 @@ internal interface NaviampRasterRegion {
      * they mutate; a host-owned parent is only an attachment point.
      */
     fun present(layers: List<NaviampRasterLayer>, bounds: Rect, clip: Rect, cornerRadius: Float): Boolean
-    /** Notify the shared owner when an asynchronous native attachment can replace its fallback. */
+    /**
+     * Notify the shared owner after native attachment commits. This also requests one parent
+     * refresh when attachment changes its presentation, even if [present] already returned true.
+     */
     fun whenReady(callback: () -> Unit) {}
     /** Commit prepared native changes; only drawing-dependent regions defer this to a draw pass. */
     fun synchronizeDraw() {}
+    fun setOpacity(opacity: Float) {}
     fun translationX(layerIndex: Int): Float? = null
     fun close()
 }
 
 internal val LocalNaviampRasterPresenter = staticCompositionLocalOf<NaviampRasterPresenter?> { null }
+internal val LocalNaviampRasterOpacity = staticCompositionLocalOf<(() -> Float)?> { null }
 internal val LocalNaviampAnimationVisible = staticCompositionLocalOf { true }
 private val LocalNaviampWindowVisible = staticCompositionLocalOf { true }
 
@@ -96,6 +101,10 @@ internal fun <T> NaviampAnimatedRaster(content: NaviampRasterContent<T>, modifie
     val windowVisible = LocalNaviampWindowVisible.current
     val presenter = LocalNaviampRasterPresenter.current.takeIf { visible }
     val region = remember(presenter) { presenter?.create() }
+    val opacity by rememberUpdatedState(LocalNaviampRasterOpacity.current)
+    LaunchedEffect(region) {
+        if (region != null) snapshotFlow { opacity?.invoke() ?: 1f }.collect(region::setOpacity)
+    }
     var bounds by remember { mutableStateOf(Rect.Zero) }
     var clip by remember { mutableStateOf(Rect.Zero) }
     var presented by remember(region) { mutableStateOf(false) }

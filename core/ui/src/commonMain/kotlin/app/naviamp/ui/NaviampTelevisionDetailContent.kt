@@ -29,7 +29,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import app.naviamp.domain.settings.AlbumSortOrder
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.flow.first
 
 @Composable
 internal fun TelevisionAlbumDetail(
@@ -150,6 +153,10 @@ internal fun TelevisionArtistDetail(
     val listState = rememberLazyListState()
     val firstPopularTrackFocusRequester = remember(detail.artist.id) { FocusRequester() }
     val firstAlbumFocusRequester = remember(detail.artist.id) { FocusRequester() }
+    val returningAlbumFocus = remember { FocusRequester() }
+    var returningAlbumId by rememberSaveable { mutableStateOf<String?>(null) }
+    // Capture the saved target at mount. Opening an album sets the target for the next mount.
+    val restoreAlbumId = remember { returningAlbumId }?.takeIf { it == returningAlbumId }
     val popularTracksAvailable = detail.popularTracksVisible && detail.popularTracks.isNotEmpty()
     val albumSections = detail.albumSectionsForDisplay(
         groupByReleaseType = groupAlbumsByReleaseType,
@@ -242,7 +249,23 @@ internal fun TelevisionArtistDetail(
                 TelevisionDetailSectionHeading(albumReleaseSectionLabel(section.releaseSection), colors)
             }
             item(key = "artist-albums:${section.releaseSection}") {
+                val rowState = rememberLazyListState()
+                LaunchedEffect(restoreAlbumId, section.albums) {
+                    val albumIndex = section.albums.indexOfFirst { it.id == restoreAlbumId }
+                    if (albumIndex >= 0) {
+                        val visible = snapshotFlow { rowState.layoutInfo.visibleItemsInfo }.first { it.isNotEmpty() }
+                        if (visible.none { it.index == albumIndex }) rowState.scrollToItem(albumIndex)
+                        repeat(5) {
+                            withFrameNanos { }
+                            if (returningAlbumFocus.requestFocus()) {
+                                returningAlbumId = null
+                                return@LaunchedEffect
+                            }
+                        }
+                    }
+                }
                 LazyRow(
+                    state = rowState,
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     contentPadding = PaddingValues(
                         start = TelevisionDetailFocusedItemOverflow,
@@ -257,15 +280,17 @@ internal fun TelevisionArtistDetail(
                             colors = colors,
                             width = TelevisionDetailAlbumCardWidth,
                             onClick = {
+                                returningAlbumId = album.id
                                 onAlbumOpening()
                                 actions.onAlbumAction(
                                     NaviampArtistAlbumActionRequest(album, NaviampArtistAlbumCommand.Select),
                                 )
                             },
-                            modifier = if (sectionIndex == 0 && index == 0) {
-                                Modifier.focusRequester(firstAlbumFocusRequester)
-                            } else {
-                                Modifier
+                            modifier = when {
+                                album.id == restoreAlbumId -> Modifier.focusRequester(returningAlbumFocus)
+                                    .then(if (sectionIndex == 0 && index == 0) Modifier.focusRequester(firstAlbumFocusRequester) else Modifier)
+                                sectionIndex == 0 && index == 0 -> Modifier.focusRequester(firstAlbumFocusRequester)
+                                else -> Modifier
                             },
                         ) { focused ->
                             NaviampCoverArt(
@@ -291,9 +316,16 @@ internal fun TelevisionArtistDetail(
             }
         }
     }
-    LaunchedEffect(detail.artist.id) {
-        repeat(3) { withFrameNanos { } }
-        listState.scrollToItem(0)
+    LaunchedEffect(restoreAlbumId, albumSections) {
+        val sectionIndex = albumSections.indexOfFirst { section -> section.albums.any { it.id == restoreAlbumId } }
+        if (sectionIndex >= 0) {
+            val popularItems = if (popularTracksAvailable) 1 + detail.popularTracks.size else 0
+            val rowIndex = 2 + popularItems + sectionIndex * 2
+            val visible = snapshotFlow { listState.layoutInfo.visibleItemsInfo }.first { it.isNotEmpty() }
+            if (visible.none { it.index == rowIndex }) {
+                listState.scrollToItem(rowIndex)
+            }
+        }
     }
 }
 
@@ -326,7 +358,7 @@ internal fun TelevisionPlaylistDetail(
             TelevisionDetailHero(
                 title = playlist.title,
                 mediaKind = SharedMediaItemKind.Playlist,
-                subtitle = playlist.subtitle,
+                subtitle = "",
                 metadata = televisionTrackCountLabel(detail.tracks.size),
                 coverArtUrl = playlist.coverArtUrl ?: playlist.coverArtUrls.firstOrNull(),
                 colors = colors,

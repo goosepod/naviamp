@@ -1,2 +1,2 @@
-headers = bass.h bassmix.h
+headers = bassmix.h
 package = app.naviamp.ios.bass.native

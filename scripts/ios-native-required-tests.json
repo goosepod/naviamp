@@ -1,5 +1,9 @@
 [
   [
+    "app.naviamp.ios.playback.IosBassPlaybackSessionTest",
+    "nativeInitializationPreservesTheSessionRequiredBySystemMediaControls"
+  ],
+  [
     "app.naviamp.ios.platform.IosCapabilityPresentationTest",
     "declaresAppleMediaLifecycleWithoutExposingSoftwareVolume"
   ],

@@ -1,0 +1,38 @@
+// External source producer only; this does not choose Naviamp's supported tvOS minimum.
+gradle.projectsEvaluated {
+    def helper = rootProject.findProject(':compose:ui:ui-uikit')
+    if (helper == null) {
+        if (gradle.parent != null) return // Included buildSrc builds do not own UIKit.
+        throw new GradleException('Apply the deployment probe only to the reviewed Compose source producer')
+    }
+    def requested = rootProject.findProperty('naviamp.tvos.probeDeploymentTarget')?.toString()
+    if (requested == null || !(requested ==~ /\d+\.\d+(\.\d+)?/)) {
+        throw new GradleException('Supply an explicit numeric naviamp.tvos.probeDeploymentTarget')
+    }
+    [compileKotlinTvosArm64ObjCLib: 'appletvos',
+     compileKotlinTvosSimulatorArm64ObjCLib: 'appletvsimulator'].each { taskName, sdk ->
+        def nativeArchive
+        def archiveTask = helper.tasks.named(taskName, Exec)
+        archiveTask.configure {
+            def original = getArgs().collect { it.toString() }
+            def sdkIndex = original.indexOf('-sdk')
+            def archiveIndex = original.indexOf('-archivePath')
+            if (new File(getExecutable()).name != 'xcodebuild' || sdkIndex < 0 ||
+                    sdkIndex + 1 >= original.size() || original[sdkIndex + 1] != sdk ||
+                    archiveIndex < 0 || archiveIndex + 1 >= original.size() ||
+                    original.any { it.startsWith('TVOS_DEPLOYMENT_TARGET=') }) {
+                throw new GradleException("Unreviewed UIKit helper invocation: $taskName")
+            }
+            inputs.property('naviampTvOsProbeDeploymentTarget', requested)
+            args("TVOS_DEPLOYMENT_TARGET=$requested")
+            nativeArchive = new File(original[archiveIndex + 1], 'Products/usr/local/lib/libCMPUIKitUtils.a')
+        }
+        archiveTask.get() // Validate and identify the reviewed native output before configuring its consumer.
+        helper.tasks.named(taskName.substring(0, taskName.length() - 'ObjCLib'.length())).configure {
+            dependsOn(archiveTask)
+            inputs.property('naviampTvOsProbeDeploymentTarget', requested)
+            inputs.file(nativeArchive).withPropertyName('naviampTvosUIKitArchive')
+                    .withPathSensitivity(PathSensitivity.NONE)
+        }
+    }
+}

@@ -21,6 +21,12 @@ data class StorageDatabaseLocation(
         }
         require('\u0000' !in fileName) { "The storage database filename must not contain a null byte." }
     }
+
+    /** Native SQLite base paths use POSIX syntax; validating that representation is shared policy. */
+    fun requireAbsolutePosixDirectoryPath(): String {
+        require(directoryPath.startsWith('/')) { "The native storage database directory must be an absolute path." }
+        return directoryPath
+    }
 }
 
 const val DefaultStorageDatabaseFileName = "naviamp-storage.db"

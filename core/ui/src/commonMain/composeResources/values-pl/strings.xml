@@ -600,6 +600,13 @@
     <string name="connection_aurral_companion_invalid">Podaj adres serwera Aurral HTTP lub HTTPS i nazwę użytkownika.</string>
     <string name="discovery_find_in_aurral">Szukaj w Aurral</string>
     <string name="connection_aurral_companion_save_failed">Nie udało się zapisać towarzyszącego Aurral. Połączenie muzyczne nie uległo zmianie.</string>
+    <string name="storage_recovery_title">Zapisane ustawienia</string>
+    <string name="storage_recovery_capacity">Ta zmiana przekracza limit trwałej pamięci urządzenia. Wcześniej zapisane ustawienia i połączenia pozostają bez zmian.</string>
+    <string name="storage_recovery_unreadable">Nie można otworzyć zapisanych ustawień. Zostały zachowane. Spróbuj ponownie lub zresetuj je, aby ponownie skonfigurować urządzenie.</string>
+    <string name="storage_recovery_conflict">Zapisane ustawienia zmieniły się podczas tej operacji. Wczytaj je ponownie przed kolejną próbą.</string>
+    <string name="storage_recovery_unavailable">Zapisane ustawienia są tymczasowo niedostępne. Spróbuj ponownie.</string>
+    <string name="storage_recovery_reset_title">Zresetować zapisane ustawienia?</string>
+    <string name="storage_recovery_reset_message">Zapisane ustawienia i połączenia na tym urządzeniu zostaną usunięte. Biblioteka na serwerze nie zostanie usunięta.</string>
     <string name="transport_play">Odtwórz</string>
     <string name="library_title">Biblioteka</string>
     <string name="mix_bias_favorites">Ulubione</string>
@@ -615,4 +622,8 @@
 
     <string name="vehicle_connection_setup_on_phone">Dodawaj lub aktualizuj połączenia na telefonie.</string>
     <string name="vehicle_connection_offline">Offline</string>
+    <string name="tv_keyboard_navigation_hint">Naciśnij przycisk wyboru na polu, aby otworzyć klawiaturę telewizora. Wybierz Dalej, aby przejść dalej, lub naciśnij Wstecz lub Esc, aby zamknąć klawiaturę.</string>
+    <string name="tv_search_keyboard_space">Spacja</string>
+    <string name="tv_search_keyboard_backspace">Usuń znak</string>
+    <string name="tv_search_system_keyboard">Klawiatura systemowa</string>
 </resources>

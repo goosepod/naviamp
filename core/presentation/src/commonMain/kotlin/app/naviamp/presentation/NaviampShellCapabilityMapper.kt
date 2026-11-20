@@ -3,6 +3,7 @@ package app.naviamp.presentation
 import app.naviamp.app.NaviampCapabilityPresentation
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
+import app.naviamp.domain.playback.StereoDownmixPlaybackEngine
 import app.naviamp.ui.NaviampConnectionCapabilitiesUi
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 
@@ -31,6 +32,7 @@ fun NaviampCapabilityPresentation.toShellCapabilitiesUi(
     replayGain = playbackEngine.supportsReplayGain,
     gapless = playbackEngine.supportsGapless,
     crossfade = playbackEngine.supportsCrossfade,
+    stereoDownmix = (playbackEngine as? StereoDownmixPlaybackEngine)?.supportsStereoDownmix == true,
     equalizer = (playbackEngine as? EqualizerPlaybackEngine)?.supportsEqualizer == true,
     sonicSimilarity = sonicSimilarityAvailable,
     softwareVolumeControl = softwareVolumeControl.visible && playbackEngine.supportsSoftwareVolume,

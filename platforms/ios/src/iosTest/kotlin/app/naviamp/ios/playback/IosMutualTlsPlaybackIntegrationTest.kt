@@ -4,8 +4,8 @@ package app.naviamp.ios.playback
 
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.playback.CoreBassPlaybackEngine
-import app.naviamp.ios.bass.native.BASS_Init
-import app.naviamp.ios.bass.native.BASS_ErrorGetCode
+import app.naviamp.apple.bass.native.BASS_Init
+import app.naviamp.apple.bass.native.BASS_ErrorGetCode
 import app.naviamp.testkit.NaviampMobileMutualTlsHost
 import app.naviamp.testkit.verifyNaviampMobileMutualTls
 import kotlinx.cinterop.addressOf

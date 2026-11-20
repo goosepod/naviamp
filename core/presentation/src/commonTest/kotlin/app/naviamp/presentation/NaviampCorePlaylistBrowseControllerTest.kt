@@ -207,6 +207,21 @@ class NaviampCorePlaylistBrowseControllerTest {
     }
 
     @Test
+    fun successfulDetailReconcilesTheReportedListCount() = runTest {
+        val provider = object : MediaProvider by PlaylistBrowseTestProvider() {
+            override suspend fun playlists(limit: Int) = listOf(Playlist("playlist-a", "Playlist A", 5))
+        }
+        val (store, controller) = controller(provider)
+        controller.execute(NaviampCoreCommand.Playlists.Refresh)
+        val card = store.state.value.shell.playlists.playlists.single()
+        assertEquals(5, card.trackCount)
+        controller.execute(NaviampCoreCommand.Media.ItemAction(card.playlistActionRequest(NaviampPlaylistMediaCommand.Select)))
+        val shell = store.state.value.shell
+        assertEquals(2, shell.playlists.playlists.single().trackCount)
+        assertEquals(2, shell.playlistDetail.detail?.playlist?.trackCount)
+    }
+
+    @Test
     fun reconciledMembershipUpdatesOpenDetailAndRejectsOlderLoads() = runTest {
         val gate = CompletableDeferred<Unit>()
         val provider = PlaylistBrowseTestProvider(gate)

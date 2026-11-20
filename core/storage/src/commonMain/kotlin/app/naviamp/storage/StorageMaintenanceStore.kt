@@ -4,6 +4,7 @@ import app.naviamp.domain.cache.StorageCacheStats
 
 class StorageMaintenanceStore(
     private val queries: NaviampStorageQueries,
+    private val recovery: StorageRecoveryState? = null,
 ) {
     /** Exact native paths owned by cache rows; maintenance must never infer files from a directory scan. */
     fun clearCacheData(deleteKnownAudioFile: (String) -> Boolean) {
@@ -39,7 +40,12 @@ class StorageMaintenanceStore(
     }
 
     fun clearAllRows() {
-        queries.clearMediaSources()
+        val state = recovery
+        if (state == null) queries.clearMediaSources() else state.transaction(queries) {
+            queries.clearMediaSources()
+            state.replaceConnections(emptyList())
+            state.captureUserConfiguration(queries)
+        }
     }
 
     fun stats(

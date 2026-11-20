@@ -1,26 +1,95 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import com.android.build.api.artifact.SingleArtifact
+import com.android.manifmerger.ManifestMerger2
+import com.android.manifmerger.MergingReport
+import com.android.utils.StdLogger
 
 val composeVersion = libs.versions.compose.get()
 val visualizerMountProbe = providers.gradleProperty("naviamp.visualizerMountProbe").orNull == "true"
 val animationProbe = providers.gradleProperty("naviamp.animationProbe").orNull == "true" || visualizerMountProbe
 
 plugins {
-    alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.android.multiplatform.library)
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kover)
 }
 
+// AGP 9.5.1's KMP test merger omits additional Sources.manifests entries. Apply the
+// existing fixture through the public artifact pipeline, preserving the generated
+// runner, package, SDK and dependency declarations and the normal merger diagnostics.
+@CacheableTask
+abstract class MergeUiTestHostManifest : DefaultTask() {
+    @get:InputFile @get:PathSensitive(PathSensitivity.NONE)
+    abstract val mergedManifest: RegularFileProperty
+
+    @get:InputFile @get:PathSensitive(PathSensitivity.NONE)
+    abstract val fixtureManifest: RegularFileProperty
+
+    @get:OutputFile
+    abstract val outputManifest: RegularFileProperty
+
+    @TaskAction
+    fun merge() {
+        val fixture = fixtureManifest.get().asFile
+        check("<uses-sdk" !in fixture.readText()) { "Fixture SDK versions must remain in the Gradle DSL." }
+        val diagnostics = StdLogger(StdLogger.Level.WARNING)
+        val report = ManifestMerger2.newMerger(
+            mergedManifest.get().asFile, diagnostics, ManifestMerger2.MergeType.APPLICATION,
+        )
+            // The input is AGP's already-validated output, including its generated <uses-sdk>.
+            // The original source-manifest SDK check stays enabled; the fixture cannot override it.
+            .withFeatures(ManifestMerger2.Invoker.Feature.USES_SDK_IN_MANIFEST_LENIENT_HANDLING)
+            .addFlavorAndBuildTypeManifests(fixture).merge()
+        report.log(diagnostics)
+        check(report.result != MergingReport.Result.ERROR) { report.reportString }
+        val xml = checkNotNull(report.getMergedDocument(MergingReport.MergedManifestKind.MERGED))
+        outputManifest.get().asFile.apply { parentFile.mkdirs(); writeText(xml) }
+    }
+}
+
 kotlin {
-    androidTarget {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_17)
+    android {
+        namespace = "app.naviamp.ui"
+        compileSdk = 37
+        minSdk = 26
+        compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
+        withHostTest {}
+        androidResources { enable = true }
+        withDeviceTestBuilder { sourceSetTreeName = "test" }.configure {
+            targetSdk { version = release(34) }
+            instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+            applicationId = if (visualizerMountProbe) "app.naviamp.ui.mount544.test" else "app.naviamp.ui.test"
+            if (visualizerMountProbe) {
+                instrumentationRunnerArguments["class"] = "app.naviamp.ui.AndroidVisualizerMountTest"
+            } else if (animationProbe) {
+                instrumentationRunnerArguments["class"] = listOf(
+                    "app.naviamp.ui.AndroidAnimationProbeTest",
+                    "app.naviamp.ui.AndroidRasterPlacementTest",
+                    "app.naviamp.ui.AndroidVisualizerMountTest",
+                    "app.naviamp.ui.VisualizerCompositionClockTest",
+                    "app.naviamp.ui.NaviampMenuAttachmentTest",
+                    "app.naviamp.ui.NaviampDialogInitialFocusTest",
+                    "app.naviamp.ui.NaviampSmartPlaylistReferencePickerTest",
+                    "app.naviamp.ui.NaviampSmartPlaylistSummaryUiTest",
+                    "app.naviamp.ui.NaviampArtistPlaylistsUiTest",
+                    "app.naviamp.ui.NaviampLibrarySearchLayoutTest",
+                    "app.naviamp.ui.NaviampLibrarySearchResultsUiTest",
+                    "app.naviamp.ui.NaviampArtistTopTracksUiTest",
+                    "app.naviamp.ui.NaviampArtistSectionLayoutsUiTest",
+                    "app.naviamp.ui.NaviampLanguageResourcesUiTest",
+                ).joinToString(",")
+            }
         }
     }
     jvm()
     iosArm64()
     iosSimulatorArm64()
+    if (providers.gradleProperty("naviamp.tvos.sceneHost").orNull == "true") {
+        tvosArm64()
+        tvosSimulatorArm64()
+    }
 
     if (animationProbe) {
         targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget>().configureEach {
@@ -31,12 +100,14 @@ kotlin {
     sourceSets {
         val renderedUiTests = "src/renderedTest/kotlin"
         jvmTest.get().kotlin.srcDir(renderedUiTests)
-        androidInstrumentedTest.get().kotlin.srcDir(renderedUiTests)
+        val androidDeviceTest = getByName("androidDeviceTest")
+        androidDeviceTest.kotlin.srcDirs(renderedUiTests, "src/androidInstrumentedTest/kotlin")
+        if (animationProbe) androidDeviceTest.kotlin.srcDir("src/animationProbeAndroid/kotlin")
         if (animationProbe) {
             commonMain.get().kotlin.srcDir("src/animationProbe/kotlin")
             iosMain.get().kotlin.srcDir("src/animationProbeIos/kotlin")
         }
-        androidInstrumentedTest.dependencies {
+        androidDeviceTest.dependencies {
             implementation(libs.activity.compose)
             implementation(libs.androidx.test.runner)
             implementation(libs.androidx.test.ext.junit)
@@ -58,6 +129,7 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
         }
         jvmTest.dependencies {
             implementation(compose.desktop.currentOs)
@@ -81,46 +153,6 @@ compose.resources {
     generateResClass = always
     packageOfResClass = "app.naviamp.ui.generated.resources"
     customDirectory("commonMain", prepareLanguageResources.map { packagedComposeResources.get() })
-}
-
-android {
-    namespace = "app.naviamp.ui"
-    compileSdk = 36
-    defaultConfig {
-        minSdk = 26
-        // Keep the standalone native-boundary fixture on the pre-enforced-edge-to-edge model.
-        targetSdk = 34
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        if (visualizerMountProbe) {
-            testApplicationId = "app.naviamp.ui.mount544.test"
-            testInstrumentationRunnerArguments["class"] = "app.naviamp.ui.AndroidVisualizerMountTest"
-        } else if (animationProbe) {
-            testInstrumentationRunnerArguments["class"] = listOf(
-                "app.naviamp.ui.AndroidAnimationProbeTest",
-                "app.naviamp.ui.AndroidRasterPlacementTest",
-                "app.naviamp.ui.AndroidVisualizerMountTest",
-                "app.naviamp.ui.NaviampMenuAttachmentTest",
-                "app.naviamp.ui.NaviampDialogInitialFocusTest",
-                "app.naviamp.ui.NaviampSmartPlaylistReferencePickerTest",
-                "app.naviamp.ui.NaviampSmartPlaylistSummaryUiTest",
-                "app.naviamp.ui.NaviampArtistPlaylistsUiTest",
-                "app.naviamp.ui.NaviampLibrarySearchLayoutTest",
-                "app.naviamp.ui.NaviampLibrarySearchResultsUiTest",
-                "app.naviamp.ui.NaviampArtistTopTracksUiTest",
-                "app.naviamp.ui.NaviampArtistSectionLayoutsUiTest",
-                "app.naviamp.ui.NaviampLanguageResourcesUiTest",
-            ).joinToString(",")
-        }
-    }
-    sourceSets.getByName("androidTest").manifest.srcFile("src/androidInstrumentedTest/AndroidManifest.xml")
-    if (animationProbe) {
-        sourceSets.getByName("androidTest").java.srcDir("src/animationProbeAndroid/kotlin")
-        sourceSets.getByName("androidTest").manifest.srcFile("src/animationProbeAndroid/AndroidManifest.xml")
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
 }
 
 // Opt-in real-window probe; included only in explicit device CI and excluded from release packaging.
@@ -187,5 +219,21 @@ tasks.register<JavaExec>("playerAnimationProbe") {
             providers.environmentVariable("NAVIAMP_PROBE_VERIFY").orNull == "true")) {
         dependsOn(buildAnimationCompositorProbe)
         systemProperty("naviamp.probe.compositor.library", compositorProbeLibrary.get().asFile.absolutePath)
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.deviceTests.values.forEach { deviceTest ->
+            val mergeFixture = tasks.register<MergeUiTestHostManifest>("merge${deviceTest.name.replaceFirstChar(Char::uppercase)}HostManifest") {
+                fixtureManifest.set(layout.projectDirectory.file(
+                    if (animationProbe) "src/animationProbeAndroid/AndroidManifest.xml"
+                    else "src/androidInstrumentedTest/AndroidManifest.xml",
+                ))
+            }
+            deviceTest.artifacts.use(mergeFixture)
+                .wiredWithFiles(MergeUiTestHostManifest::mergedManifest, MergeUiTestHostManifest::outputManifest)
+                .toTransform(SingleArtifact.MERGED_MANIFEST)
+        }
     }
 }

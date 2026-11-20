@@ -5,11 +5,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
@@ -44,7 +42,6 @@ internal actual fun PlatformLiveVisualizerSurface(
     lyricStage: LyricMirrorTunnelStage,
     modifier: Modifier,
 ) {
-    var frameMillis by remember { mutableLongStateOf(0L) }
     val albumArtOwner = remember {
         NaviampOwnedResource<JvmVisualizerImageLease> { lease ->
             if (lease.owned) lease.image.close()
@@ -56,30 +53,12 @@ internal actual fun PlatformLiveVisualizerSurface(
     val renderPolicy = remember(visualizer) {
         visualizerRenderPolicy(visualizer, jvmVisualizerRenderTier())
     }
+    val frameMillis by rememberVisualizerFrameClock(active, renderPolicy.targetFrameIntervalMillis, visualizer)
     val rendererMode = remember(visualizer) {
         selectedVisualizerRendererMode(
             visualizer = visualizer,
             nativeRendererAvailable = jvmNativeVisualizerAvailable(visualizer),
         )
-    }
-    LaunchedEffect(active, visualizer, renderPolicy.targetFrameIntervalMillis) {
-        if (!active) {
-            frameMillis = 0L
-            return@LaunchedEffect
-        }
-        // Drive shader animation at the display frame clock. FFT sampling is intentionally
-        // throttled upstream so visual smoothness does not require 60 BASS reads per second.
-        var lastRenderedFrameMillis = 0L
-        while (true) {
-            withFrameMillis { nextFrameMillis ->
-                if (lastRenderedFrameMillis == 0L ||
-                    nextFrameMillis - lastRenderedFrameMillis >= renderPolicy.targetFrameIntervalMillis
-                ) {
-                    lastRenderedFrameMillis = nextFrameMillis
-                    frameMillis = nextFrameMillis
-                }
-            }
-        }
     }
     val primaryLyricLine = lyricStage.primaryLineForNativeMask()
     LaunchedEffect(coverArtUrl, visualizer, primaryLyricLine?.text) {
@@ -145,7 +124,7 @@ internal actual fun PlatformLiveVisualizerSurface(
         runCatching { RuntimeEffect.makeForShader(visualizer.shaderSource) }.getOrNull()
     }
     if (effect == null) {
-        CanvasVisualizerSurface(bandsProvider, active, colors, renderPolicy, modifier)
+        NaviampCanvasBarsFallbackSurface(bandsProvider, active, colors, renderPolicy, modifier)
         return
     }
     val renderer = remember(effect, visualizer, renderPolicy) {
@@ -361,11 +340,10 @@ private class ShaderVisualizerRenderer(
     private val uniformBands = FloatArray(VisualizerFrameBandCount)
     private val smoothBands = FloatArray(VisualizerFrameBandCount)
     private val historyPixels = ByteArray(VisualizerHistoryColumns * VisualizerHistoryRows * 4)
-    private val previousHistoryBands = FloatArray(VisualizerFrameBandCount)
+    private val history = VisualizerHistoryBuffer(visualizer, renderPolicy)
     private var shader: Shader? = null
     private var historyShader: Shader? = null
     private var historyImage: Image? = null
-    private var lastHistoryPushSeconds = -1f
     private val perfLogger = JvmVisualizerPerfLogger(
         renderer = "shader",
         visualizer = visualizer,
@@ -472,34 +450,9 @@ private class ShaderVisualizerRenderer(
     }
 
     private fun updateHistoryTexture(timeSeconds: Float, active: Boolean) {
-        if (!active || !visualizer.usesHistoryShader) return
-        if (lastHistoryPushSeconds >= 0f && timeSeconds - lastHistoryPushSeconds < renderPolicy.historyIntervalSeconds) return
-        val changed = uniformBands.indices.any { index ->
-            kotlin.math.abs(uniformBands[index] - previousHistoryBands[index]) > 0.006f
-        }
-        if (!changed && lastHistoryPushSeconds >= 0f) return
-        lastHistoryPushSeconds = timeSeconds
-        repeat(VisualizerFrameBandCount) { index ->
-            previousHistoryBands[index] = uniformBands[index]
-        }
-
+        if (!history.update(timeSeconds, active, uniformBands)) return
+        history.copyRgbaTo(historyPixels)
         val rowBytes = VisualizerHistoryColumns * 4
-        historyPixels.copyInto(
-            destination = historyPixels,
-            destinationOffset = rowBytes,
-            startIndex = 0,
-            endIndex = rowBytes * (VisualizerHistoryRows - 1),
-        )
-        repeat(VisualizerHistoryColumns) { column ->
-            val sourceIndex = ((column / (VisualizerHistoryColumns - 1f)) * (VisualizerFrameBandCount - 1)).toInt()
-            val amplitude = uniformBands[sourceIndex].coerceIn(0f, 1f)
-            val value = (amplitude * 255f).toInt().coerceIn(0, 255).toByte()
-            val pixel = column * 4
-            historyPixels[pixel] = value
-            historyPixels[pixel + 1] = value
-            historyPixels[pixel + 2] = value
-            historyPixels[pixel + 3] = 255.toByte()
-        }
 
         val nextImage = Image.makeRaster(
             ImageInfo(VisualizerHistoryColumns, VisualizerHistoryRows, ColorType.RGBA_8888, ColorAlphaType.OPAQUE),
@@ -529,72 +482,14 @@ private class ShaderVisualizerRenderer(
     }
 }
 
-@Composable
-private fun CanvasVisualizerSurface(
-    bandsProvider: () -> List<Float>,
-    active: Boolean,
-    colors: NaviampColors,
-    renderPolicy: VisualizerRenderPolicy,
-    modifier: Modifier,
-) {
-    Canvas(modifier = modifier) {
-        val bands = bandsProvider()
-        val visibleBands = minOf(
-            bands.size,
-            renderPolicy.maxCanvasSamples,
-            (size.width / 6f).toInt().coerceAtLeast(16),
-        )
-        if (!active || visibleBands <= 0) {
-            drawLine(
-                color = colors.primaryText.copy(alpha = 0.16f),
-                start = Offset(0f, size.height / 2f),
-                end = Offset(size.width, size.height / 2f),
-                strokeWidth = 1.4f,
-                cap = StrokeCap.Round,
-            )
-            return@Canvas
-        }
-
-        val step = size.width / visibleBands.toFloat()
-        val strokeWidth = (step * 0.48f).coerceIn(1.2f, 3.2f)
-        val centerY = size.height / 2f
-        repeat(visibleBands) { index ->
-            val sourceIndex = if (visibleBands == 1) {
-                0
-            } else {
-                ((index / (visibleBands - 1f)) * (bands.size - 1)).toInt()
-            }
-            val amplitude = bands[sourceIndex].coerceIn(0f, 1f)
-            val barHeight = (2f + amplitude * (size.height - 2f)).coerceAtMost(size.height)
-            val x = index * step + step / 2f
-            drawLine(
-                color = colors.accent.copy(alpha = 0.30f + amplitude * 0.55f),
-                start = Offset(x, centerY - barHeight / 2f),
-                end = Offset(x, centerY + barHeight / 2f),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round,
-            )
-        }
-    }
-}
 
 private const val VisualizerPerfLogIntervalMillis = 5_000L
 private const val VisualizerPerfLogProperty = "naviamp.visualizer.perf"
 private const val VisualizerProfileProperty = "naviamp.visualizer.profile"
 private const val MacosMetalVisualizerProperty = "naviamp.visualizer.macosMetal"
 private const val WindowsOpenGlVisualizerProperty = "naviamp.visualizer.windowsOpenGl"
-private val NaviampVisualizer.usesHistoryShader: Boolean
-    get() = this == NaviampVisualizer.SpectralRidge ||
-        this == NaviampVisualizer.FftMountain ||
-        this == NaviampVisualizer.PixelRidge ||
-        this == NaviampVisualizer.PixelMountain
-
 private val NaviampVisualizer.historySamplingMode: SamplingMode
-    get() = when (this) {
-        NaviampVisualizer.PixelRidge,
-        NaviampVisualizer.PixelMountain -> SamplingMode.DEFAULT
-        else -> SamplingMode.LINEAR
-    }
+    get() = if (historyUsesNearestSampling) SamplingMode.DEFAULT else SamplingMode.LINEAR
 
 private class JvmVisualizerPerfLogger(
     private val renderer: String,

@@ -30,6 +30,7 @@ kotlin {
         compilations.getByName("main").cinterops.create("bass") {
             defFile(project.file("src/nativeInterop/cinterop/bass.def"))
             includeDirs(project.file("vendor/bass/include"))
+            includeDirs(rootProject.file("platforms/apple/src/nativeInterop/cinterop/include"))
         }
         binaries.configureEach {
             iosBassFrameworks.forEach { framework ->
@@ -44,6 +45,8 @@ kotlin {
 
     sourceSets {
         iosMain.dependencies {
+            api(project(":platforms:apple"))
+            implementation(project(":platforms:apple-media"))
             api(project(":core:app"))
             api(project(":core:domain"))
             api(project(":core:presentation"))

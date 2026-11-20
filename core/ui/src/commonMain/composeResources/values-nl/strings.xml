@@ -497,6 +497,13 @@
     <string name="connection_aurral_companion_invalid">Voer een HTTP- of HTTPS-serveradres en gebruikersnaam voor Aurral in.</string>
     <string name="discovery_find_in_aurral">Zoeken in Aurral</string>
     <string name="connection_aurral_companion_save_failed">De Aurral-aanvulling kon niet worden opgeslagen. Je muziekverbinding blijft ongewijzigd.</string>
+    <string name="storage_recovery_title">Opgeslagen instellingen</string>
+    <string name="storage_recovery_capacity">Deze wijziging overschrijdt de limiet voor permanente opslag op dit apparaat. Eerder opgeslagen instellingen en verbindingen blijven behouden.</string>
+    <string name="storage_recovery_unreadable">De opgeslagen instellingen konden niet worden geopend. Ze zijn behouden. Probeer het opnieuw of stel ze opnieuw in om dit apparaat opnieuw te configureren.</string>
+    <string name="storage_recovery_conflict">De opgeslagen instellingen zijn tijdens deze bewerking gewijzigd. Laad ze opnieuw voordat je het nogmaals probeert.</string>
+    <string name="storage_recovery_unavailable">Opgeslagen instellingen zijn tijdelijk niet beschikbaar. Probeer het opnieuw.</string>
+    <string name="storage_recovery_reset_title">Opgeslagen instellingen opnieuw instellen?</string>
+    <string name="storage_recovery_reset_message">Opgeslagen instellingen en verbindingen op dit apparaat worden gewist. Je serverbibliotheek wordt niet verwijderd.</string>
     <string name="transport_play">Afspelen</string>
     <string name="library_title">Bibliotheek</string>
     <string name="mix_bias_favorites">Favorieten</string>
@@ -518,4 +525,8 @@
     <string name="common_connecting">Verbinden</string>
     <string name="vehicle_connection_setup_on_phone">Voeg verbindingen toe of werk ze bij op je telefoon.</string>
     <string name="vehicle_connection_offline">Offline</string>
+    <string name="tv_keyboard_navigation_hint">Druk op Selecteren bij een veld om het tv-toetsenbord te openen. Kies Volgende om verder te gaan of gebruik Terug of Esc om het toetsenbord te sluiten.</string>
+    <string name="tv_search_keyboard_space">Spatie</string>
+    <string name="tv_search_keyboard_backspace">Backspace</string>
+    <string name="tv_search_system_keyboard">Systeemtoetsenbord</string>
 </resources>

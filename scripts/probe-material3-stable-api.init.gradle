@@ -1,0 +1,27 @@
+// Comparison-only extraction: include the stable API's experimental declarations too.
+// Never use this when updating golden files or running the normal compatibility checks.
+gradle.projectsEvaluated {
+    def project = rootProject.findProject(':compose:material3:material3')
+    if (project == null) return
+    def requestedTasks = gradle.startParameter.taskNames
+    if (requestedTasks != [':compose:material3:material3:klibApiMerge']) {
+        throw new GradleException('This inventory probe only permits the Material3 klibApiMerge task')
+    }
+    ['iosArm64', 'iosSimulatorArm64', 'macosArm64', 'tvosArm64', 'tvosSimulatorArm64',
+        'js', 'wasmJs'].each { target ->
+        def task = project.tasks.getByName("${target}ApiBuild")
+        if (!task.hasProperty('nonPublicMarkers')) {
+            throw new GradleException("Cannot verify the inventory filters for ${task.path}")
+        }
+        def markers = task.nonPublicMarkers.get().findAll {
+            it != 'androidx.compose.material3.ExperimentalMaterial3Api'
+        }
+        task.nonPublicMarkers.set(markers)
+        task.doFirst {
+            if (task.nonPublicMarkers.get().contains('androidx.compose.material3.ExperimentalMaterial3Api')) {
+                throw new GradleException('Stable experimental declarations would be hidden')
+            }
+            task.logger.lifecycle('Material3 comparison inventory includes ExperimentalMaterial3Api declarations')
+        }
+    }
+}

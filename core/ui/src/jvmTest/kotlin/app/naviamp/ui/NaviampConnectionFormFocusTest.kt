@@ -9,6 +9,11 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotFocused
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -21,11 +26,41 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.graphics.toAwtImage
+import androidx.compose.ui.graphics.toPixelMap
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampConnectionFormFocusTest {
+    @Test
+    fun televisionProviderFocusRingFollowsFocusWithoutChangingSelection() = runDesktopComposeUiTest(850, 1100) {
+        val colors = NaviampTelevisionColors
+        val form = mutableStateOf(ConnectionFormState())
+        setContent {
+            androidx.compose.material3.MaterialTheme {
+                CompositionLocalProvider(LocalNaviampApplicationSurface provides NaviampApplicationSurface.Television) {
+                    NaviampConnectionForm(form.value, colors, false,
+                        onFormChanged = { form.value = it }, onConnect = {}, onCancel = null)
+                }
+            }
+        }
+        val navidrome = onNode(hasText("Navidrome") and isSelectable())
+        val aurral = onNode(hasText("Aurral") and isSelectable())
+        navidrome.performSemanticsAction(SemanticsActions.RequestFocus).assertIsFocused()
+        aurral.performSemanticsAction(SemanticsActions.RequestFocus).assertIsFocused()
+
+        navidrome.assertIsSelected().assertIsNotFocused()
+        aurral.assertIsFocused().assertIsNotSelected()
+        val selectedPixels = navidrome.captureToImage().toPixelMap()
+        assertEquals(colors.accent, selectedPixels[selectedPixels.width / 2, 1])
+        val focusedPixels = aurral.captureToImage().toPixelMap()
+        assertEquals(colors.primaryText, focusedPixels[focusedPixels.width / 2, 1])
+
+        aurral.performClick()
+        aurral.assertIsSelected()
+        navidrome.assertIsNotSelected()
+    }
+
     @Test
     fun collapsedAdvancedReachesCompanionBeforeSaveInBothDirections() = runDesktopComposeUiTest(850, 1100) {
         val form = mutableStateOf(ConnectionFormState())

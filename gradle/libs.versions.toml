@@ -1,25 +1,25 @@
 [versions]
 # Recheck cold iOS Release link time when upgrading Kotlin (see #592).
-kotlin = "2.4.10"
-agp = "8.13.2"
-compose = "1.11.0"
+kotlin = "2.4.21"
+agp = "9.5.1"
+compose = "1.12.2"
 material3 = "1.9.0"
 activity-compose = "1.13.0"
 androidx-fragment = "1.9.1"
-androidx-lifecycle = "2.9.6"
+androidx-lifecycle = "2.11.0"
 androidx-media = "1.8.0"
 androidx-profileinstaller = "1.4.1"
 androidx-test = "1.7.0"
 androidx-test-junit = "1.3.0"
 kotlinx-coroutines = "1.11.0"
-kotlinx-serialization = "1.11.0"
-ktor = "3.5.2"
-sqldelight = "2.3.2"
+kotlinx-serialization = "1.13.0"
+ktor = "3.6.1"
+sqldelight = "2.4.1"
 jna = "5.19.1"
-kover = "0.9.9"
-bouncycastle = "1.85.2"
-jmdns = "3.6.3"
-dbus-java = "5.2.0"
+kover = "0.9.11"
+bouncycastle = "1.87"
+jmdns = "3.6.5"
+dbus-java = "5.2.2"
 ksoup = "0.6.0"
 
 [libraries]
@@ -53,11 +53,11 @@ dbus-java-core = { module = "com.github.hypfvieh:dbus-java-core", version.ref = 
 dbus-java-transport-native-unixsocket = { module = "com.github.hypfvieh:dbus-java-transport-native-unixsocket", version.ref = "dbus-java" }
 
 [plugins]
+android-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "compose" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

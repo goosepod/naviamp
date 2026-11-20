@@ -1,0 +1,285 @@
+diff --git a/apps/android/build.gradle.kts b/apps/android/build.gradle.kts
+index aa8c09472..7c413e8c2 100644
+--- a/apps/android/build.gradle.kts
++++ b/apps/android/build.gradle.kts
+@@ -29,7 +29,8 @@ plugins {
+ 
+ android {
+     namespace = "app.naviamp.android"
+-    compileSdk = 36
++    compileSdk = 37
++    ndkVersion = "27.0.12077973"
+ 
+     defaultConfig {
+         applicationId = "app.naviamp.android"
+@@ -106,7 +107,7 @@ android {
+         targetCompatibility = JavaVersion.VERSION_17
+     }
+ 
+-    buildFeatures { buildConfig = true }
++    buildFeatures { buildConfig = true; resValues = true }
+ 
+     sourceSets.getByName("main").jniLibs.srcDir(
+         project.layout.projectDirectory.dir("../../native/bass-jni/vendor/android"),
+diff --git a/apps/desktop/build.gradle.kts b/apps/desktop/build.gradle.kts
+index 088da3b81..cd35cc0d8 100644
+--- a/apps/desktop/build.gradle.kts
++++ b/apps/desktop/build.gradle.kts
+@@ -1,3 +1,5 @@
++import org.gradle.process.ExecOperations
++import javax.inject.Inject
+ import org.gradle.api.tasks.Sync
+ import org.gradle.api.tasks.JavaExec
+ import org.gradle.api.tasks.testing.Test
+@@ -13,6 +15,11 @@ plugins {
+     alias(libs.plugins.kover)
+ }
+ 
++abstract class DesktopPackagingProcess {
++    @get:Inject abstract val operations: ExecOperations
++}
++val desktopPackagingProcess = objects.newInstance<DesktopPackagingProcess>()
++
+ val naviampVersionName = rootProject.file("VERSION").readText().trim()
+ val naviampVersionCode = rootProject.file("VERSION_CODE").readText().trim().toInt()
+ val naviampNativePackageVersion = nativeDistributionPackageVersion(naviampVersionName)
+@@ -446,7 +453,7 @@ fun registerWindowsInstaller(format: String) = tasks.register("packageReleaseWin
+         val extractedJmodDirectory = resourcesDirectory.resolve("jmod")
+         delete(resourcesDirectory)
+         resourcesDirectory.mkdirs()
+-        project.exec {
++        desktopPackagingProcess.operations.exec {
+             commandLine(
+                 jmodTool.absolutePath,
+                 "extract",
+@@ -468,7 +475,7 @@ fun registerWindowsInstaller(format: String) = tasks.register("packageReleaseWin
+         val destination = outputDirectory.get().asFile
+         delete(destination)
+         destination.mkdirs()
+-        project.exec {
++        desktopPackagingProcess.operations.exec {
+             commandLine(
+                 jpackageTool.absolutePath,
+                 "--type", format,
+@@ -649,7 +656,7 @@ fun patchMacAppBundleVersion(appDirectory: File) {
+ 
+ fun configureMacLocalNetworkPrivacy(appDirectory: File, checkOnly: Boolean = false) {
+     if (!desktopNativePlatform.get().startsWith("macos-")) return
+-    project.exec {
++    desktopPackagingProcess.operations.exec {
+         commandLine(buildList {
+             add("python3")
+             add(rootProject.file("scripts/configure-macos-local-network.py").absolutePath)
+@@ -662,7 +669,7 @@ fun configureMacLocalNetworkPrivacy(appDirectory: File, checkOnly: Boolean = fal
+ fun sealMacAppBundle(appDirectory: File) {
+     val platform = desktopNativePlatform.get()
+     if (!platform.startsWith("macos-")) return
+-    project.exec {
++    desktopPackagingProcess.operations.exec {
+         commandLine(
+             "/usr/bin/codesign",
+             "--force",
+@@ -678,7 +685,7 @@ fun sealMacAppBundle(appDirectory: File) {
+ }
+ 
+ fun verifyMacAppBundleSeal(appDirectory: File) {
+-    project.exec {
++    desktopPackagingProcess.operations.exec {
+         commandLine(
+             "/usr/bin/codesign",
+             "--verify",
+diff --git a/build.gradle.kts b/build.gradle.kts
+index 6694032a6..965e63a32 100644
+--- a/build.gradle.kts
++++ b/build.gradle.kts
+@@ -1,11 +1,3 @@
+-buildscript {
+-    repositories { google() }
+-    dependencies {
+-        // Kotlin 2.4 metadata requires R8 >= 9.1.29; keep the compatible AGP host unchanged.
+-        classpath("com.android.tools:r8:9.1.57")
+-    }
+-}
+-
+ plugins {
+     alias(libs.plugins.android.application) apply false
+     alias(libs.plugins.android.library) apply false
+diff --git a/core/app/build.gradle.kts b/core/app/build.gradle.kts
+index 55b479251..41117768d 100644
+--- a/core/app/build.gradle.kts
++++ b/core/app/build.gradle.kts
+@@ -52,7 +52,7 @@ kotlin {
+ 
+ android {
+     namespace = "app.naviamp.core.app"
+-    compileSdk = 36
++    compileSdk = 37
+     defaultConfig {
+         minSdk = 26
+     }
+diff --git a/core/domain/build.gradle.kts b/core/domain/build.gradle.kts
+index 7593af621..33b6b4571 100644
+--- a/core/domain/build.gradle.kts
++++ b/core/domain/build.gradle.kts
+@@ -86,7 +86,7 @@ kotlin {
+ 
+ android {
+     namespace = "app.naviamp.domain"
+-    compileSdk = 36
++    compileSdk = 37
+     defaultConfig {
+         minSdk = 26
+     }
+diff --git a/core/presentation/build.gradle.kts b/core/presentation/build.gradle.kts
+index 4cfe2ddd9..f444abbbc 100644
+--- a/core/presentation/build.gradle.kts
++++ b/core/presentation/build.gradle.kts
+@@ -44,7 +44,7 @@ kotlin {
+ 
+ android {
+     namespace = "app.naviamp.core.presentation"
+-    compileSdk = 36
++    compileSdk = 37
+     defaultConfig {
+         minSdk = 26
+     }
+diff --git a/core/storage/build.gradle.kts b/core/storage/build.gradle.kts
+index 53d228728..b7eccb0e8 100644
+--- a/core/storage/build.gradle.kts
++++ b/core/storage/build.gradle.kts
+@@ -38,7 +38,7 @@ kotlin {
+ 
+ android {
+     namespace = "app.naviamp.storage"
+-    compileSdk = 36
++    compileSdk = 37
+     defaultConfig {
+         minSdk = 26
+     }
+diff --git a/core/testkit/build.gradle.kts b/core/testkit/build.gradle.kts
+index 717123ee6..85ba7bddd 100644
+--- a/core/testkit/build.gradle.kts
++++ b/core/testkit/build.gradle.kts
+@@ -36,7 +36,7 @@ kotlin {
+ 
+ android {
+     namespace = "app.naviamp.core.testkit"
+-    compileSdk = 36
++    compileSdk = 37
+     defaultConfig {
+         minSdk = 26
+     }
+diff --git a/core/tls-testkit/build.gradle.kts b/core/tls-testkit/build.gradle.kts
+index addd8c0e1..56cd037b0 100644
+--- a/core/tls-testkit/build.gradle.kts
++++ b/core/tls-testkit/build.gradle.kts
+@@ -22,7 +22,7 @@ kotlin {
+ 
+ android {
+     namespace = "app.naviamp.core.tls.testkit"
+-    compileSdk = 36
++    compileSdk = 37
+     defaultConfig { minSdk = 26 }
+     compileOptions {
+         sourceCompatibility = JavaVersion.VERSION_17
+diff --git a/core/ui/build.gradle.kts b/core/ui/build.gradle.kts
+index b42ad11f1..f05c67381 100644
+--- a/core/ui/build.gradle.kts
++++ b/core/ui/build.gradle.kts
+@@ -85,11 +85,11 @@ compose.resources {
+ 
+ android {
+     namespace = "app.naviamp.ui"
+-    compileSdk = 36
++    compileSdk = 37
++    testOptions { targetSdk = 34 }
+     defaultConfig {
+         minSdk = 26
+         // Keep the standalone native-boundary fixture on the pre-enforced-edge-to-edge model.
+-        targetSdk = 34
+         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+         if (visualizerMountProbe) {
+             testApplicationId = "app.naviamp.ui.mount544.test"
+diff --git a/gradle/libs.versions.toml b/gradle/libs.versions.toml
+index 48a81a26b..c2d9ac26d 100644
+--- a/gradle/libs.versions.toml
++++ b/gradle/libs.versions.toml
+@@ -1,8 +1,8 @@
+ [versions]
+ # Recheck cold iOS Release link time when upgrading Kotlin (see #592).
+-kotlin = "2.4.10"
+-agp = "8.13.2"
+-compose = "1.11.0"
++kotlin = "2.4.21"
++agp = "9.5.1"
++compose = "1.12.2"
+ material3 = "1.9.0"
+ activity-compose = "1.13.0"
+ androidx-fragment = "1.9.1"
+diff --git a/gradle/wrapper/gradle-wrapper.properties b/gradle/wrapper/gradle-wrapper.properties
+index 8ff605c61..0aced5e53 100644
+--- a/gradle/wrapper/gradle-wrapper.properties
++++ b/gradle/wrapper/gradle-wrapper.properties
+@@ -1,9 +1,11 @@
+ distributionBase=GRADLE_USER_HOME
+ distributionPath=wrapper/dists
+-distributionUrl=https\://services.gradle.org/distributions/gradle-8.14.5-bin.zip
++distributionUrl=https\://services.gradle.org/distributions/gradle-9.9.1-bin.zip
+ networkTimeout=10000
+ retries=0
+ retryBackOffMs=500
+ validateDistributionUrl=true
+ zipStoreBase=GRADLE_USER_HOME
+ zipStorePath=wrapper/dists
++
++distributionSha256Sum=d8a18a7a841dd5df825d35a685fad6f2d7f12ac0c280e57b67c27b4a520ba228
+diff --git a/platforms/android/build.gradle.kts b/platforms/android/build.gradle.kts
+index 5a5997d17..f6a26576d 100644
+--- a/platforms/android/build.gradle.kts
++++ b/platforms/android/build.gradle.kts
+@@ -9,7 +9,7 @@ plugins {
+ 
+ android {
+     namespace = "app.naviamp.platform.android"
+-    compileSdk = 36
++    compileSdk = 37
+ 
+     defaultConfig {
+         minSdk = 26
+diff --git a/providers/jellyfin/build.gradle.kts b/providers/jellyfin/build.gradle.kts
+index 7ea1b0e69..221dbbf68 100644
+--- a/providers/jellyfin/build.gradle.kts
++++ b/providers/jellyfin/build.gradle.kts
+@@ -34,7 +34,7 @@ kotlin {
+ 
+ android {
+     namespace = "app.naviamp.provider.jellyfin"
+-    compileSdk = 36
++    compileSdk = 37
+     defaultConfig {
+         minSdk = 26
+     }
+diff --git a/providers/navidrome/build.gradle.kts b/providers/navidrome/build.gradle.kts
+index c3fa8b064..8518c0754 100644
+--- a/providers/navidrome/build.gradle.kts
++++ b/providers/navidrome/build.gradle.kts
+@@ -54,7 +54,7 @@ kotlin {
+ 
+ android {
+     namespace = "app.naviamp.provider.navidrome"
+-    compileSdk = 36
++    compileSdk = 37
+     defaultConfig {
+         minSdk = 26
+         consumerProguardFiles("consumer-rules.pro")
+diff --git a/gradle.properties b/gradle.properties
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -7,3 +7,7 @@
+ kotlin.mpp.enableCInteropCommonization=true
+ # Preserve the existing PMCS runtime policy across the compiler upgrade (2.4 defaults to CMS).
+ kotlin.native.binary.gc=pmcs
++
++# Temporary AGP 9 compatibility bridge for the controlled upgrade experiment.
++android.builtInKotlin=false
++android.newDsl=false
