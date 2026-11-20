@@ -54,25 +54,5 @@
   [
     "app.naviamp.ios.settings.IosCoreSettingsSyncPortTest",
     "persistsNormalizedCoreConfigurationWithoutOwningSettingsPolicy"
-  ],
-  [
-    "app.naviamp.ios.storage.IosAudioStorageTest",
-    "deletionRequiresANaviampOwnedFileNameEvenInsideTheAudioDirectory"
-  ],
-  [
-    "app.naviamp.ios.storage.IosAudioStorageTest",
-    "exactDirectoryDeletionCannotRemoveAnUnrelatedSibling"
-  ],
-  [
-    "app.naviamp.ios.storage.IosAudioStorageTest",
-    "failedWriteRemovesTheTemporaryFileAndPublishesNothing"
-  ],
-  [
-    "app.naviamp.ios.storage.IosAudioStorageTest",
-    "storedPathIsRebasedWhenIosRelocatesTheApplicationContainer"
-  ],
-  [
-    "app.naviamp.ios.storage.IosAudioStorageTest",
-    "successfulWriteAtomicallyPublishesTheFinalFile"
   ]
 ]
