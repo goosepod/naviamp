@@ -93,3 +93,22 @@ val verifyTvosBassInventory = tasks.register("verifyTvosBassInventory") {
     }
 }
 tasks.named("check") { dependsOn(verifyTvosBassInventory) }
+
+// The linked framework list is the only inventory; Kotlin receives it as generated source.
+val generateTvosBassInventory by tasks.registering {
+    val output = layout.buildDirectory.dir("generated/bassInventory/kotlin")
+    val frameworks = tvosBassFrameworks
+    inputs.property("frameworks", frameworks)
+    outputs.dir(output)
+    doLast {
+        val file = output.get().file("app/naviamp/tvos/playback/TvosBassInventory.kt").asFile
+        file.parentFile.mkdirs()
+        file.writeText(
+            "package app.naviamp.tvos.playback\n\n" +
+                "/** Generated from the linked framework list in this module's build script. */\n" +
+                "internal val TvosBassFrameworks: List<String> = listOf(" +
+                frameworks.joinToString { "\"$it\"" } + ")\n",
+        )
+    }
+}
+kotlin.sourceSets.named("tvosMain") { kotlin.srcDir(generateTvosBassInventory) }

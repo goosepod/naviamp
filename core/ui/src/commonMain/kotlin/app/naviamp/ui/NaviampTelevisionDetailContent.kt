@@ -1,4 +1,6 @@
 package app.naviamp.ui
+
+import app.naviamp.domain.media.AlbumReleaseSection
 import org.jetbrains.compose.resources.pluralStringResource
 import app.naviamp.ui.generated.resources.*
 
@@ -168,7 +170,7 @@ internal fun TelevisionArtistDetail(
         contentPadding = PaddingValues(bottom = 24.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
-        item(key = "artist-hero:${detail.artist.id}") {
+        item(key = televisionArtistHeroKey(detail.artist.id)) {
             TelevisionDetailHero(
                 title = detail.artist.title,
                 subtitle = detail.artist.subtitle,
@@ -209,10 +211,10 @@ internal fun TelevisionArtistDetail(
             )
         }
         if (popularTracksAvailable) {
-            item(key = "popular-tracks-heading") {
+            item(key = TelevisionArtistPopularHeadingKey) {
                 TelevisionDetailSectionHeading(stringResource(Res.string.tv_popular_tracks), colors)
             }
-            itemsIndexed(detail.popularTracks, key = { _, track -> "popular:${track.id}" }) { index, track ->
+            itemsIndexed(detail.popularTracks, key = { _, track -> televisionArtistPopularTrackKey(track.id) }) { index, track ->
                 TelevisionTrackRow(
                     track = track,
                     leadingText = (index + 1).toString(),
@@ -245,10 +247,10 @@ internal fun TelevisionArtistDetail(
             }
         }
         albumSections.forEachIndexed { sectionIndex, section ->
-            item(key = "artist-albums-heading:${section.releaseSection}") {
+            item(key = televisionArtistAlbumsHeadingKey(section.releaseSection)) {
                 TelevisionDetailSectionHeading(albumReleaseSectionLabel(section.releaseSection), colors)
             }
-            item(key = "artist-albums:${section.releaseSection}") {
+            item(key = televisionArtistAlbumsRowKey(section.releaseSection)) {
                 val rowState = rememberLazyListState()
                 LaunchedEffect(restoreAlbumId, section.albums) {
                     val albumIndex = section.albums.indexOfFirst { it.id == restoreAlbumId }
@@ -317,15 +319,43 @@ internal fun TelevisionArtistDetail(
         }
     }
     LaunchedEffect(restoreAlbumId, albumSections) {
-        val sectionIndex = albumSections.indexOfFirst { section -> section.albums.any { it.id == restoreAlbumId } }
-        if (sectionIndex >= 0) {
-            val popularItems = if (popularTracksAvailable) 1 + detail.popularTracks.size else 0
-            val rowIndex = 2 + popularItems + sectionIndex * 2
-            val visible = snapshotFlow { listState.layoutInfo.visibleItemsInfo }.first { it.isNotEmpty() }
-            if (visible.none { it.index == rowIndex }) {
-                listState.scrollToItem(rowIndex)
-            }
+        if (restoreAlbumId == null) return@LaunchedEffect
+        val section = albumSections.firstOrNull { section -> section.albums.any { it.id == restoreAlbumId } }
+        if (section == null) {
+            // The album left this artist's catalog; do not keep restoring a missing card.
+            returningAlbumId = null
+            return@LaunchedEffect
         }
+        val rowIndex = televisionArtistDetailItemKeys(detail.artist.id, popularTracksAvailable, detail.popularTracks, albumSections)
+            .indexOf(televisionArtistAlbumsRowKey(section.releaseSection))
+        val visible = snapshotFlow { listState.layoutInfo.visibleItemsInfo }.first { it.isNotEmpty() }
+        if (rowIndex >= 0 && visible.none { it.index == rowIndex }) {
+            listState.scrollToItem(rowIndex)
+        }
+    }
+}
+
+private fun televisionArtistHeroKey(artistId: String) = "artist-hero:$artistId"
+private const val TelevisionArtistPopularHeadingKey = "popular-tracks-heading"
+private fun televisionArtistPopularTrackKey(trackId: String) = "popular:$trackId"
+private fun televisionArtistAlbumsHeadingKey(section: AlbumReleaseSection) = "artist-albums-heading:$section"
+private fun televisionArtistAlbumsRowKey(section: AlbumReleaseSection) = "artist-albums:$section"
+
+/** The artist LazyColumn's item keys in order, so restoration finds rows by key rather than position. */
+internal fun televisionArtistDetailItemKeys(
+    artistId: String,
+    popularTracksVisible: Boolean,
+    popularTracks: List<SharedTrackRowUi>,
+    albumSections: List<SharedAlbumSectionUi>,
+): List<String> = buildList {
+    add(televisionArtistHeroKey(artistId))
+    if (popularTracksVisible) {
+        add(TelevisionArtistPopularHeadingKey)
+        popularTracks.forEach { add(televisionArtistPopularTrackKey(it.id)) }
+    }
+    albumSections.forEach {
+        add(televisionArtistAlbumsHeadingKey(it.releaseSection))
+        add(televisionArtistAlbumsRowKey(it.releaseSection))
     }
 }
 

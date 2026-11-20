@@ -4,7 +4,6 @@ package app.naviamp.ios.playback
 
 import app.naviamp.apple.playback.AppleBassAudioBackend
 import app.naviamp.apple.playback.AppleBassPlaybackEngineRuntime
-import app.naviamp.apple.playback.applePlaybackLocalFilePath
 import app.naviamp.domain.bass.BassCodecPluginInventory
 import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.bassFailureMessage
@@ -90,17 +89,9 @@ class IosBassAudioBackend : AppleBassAudioBackend(IosBassFrameworks, IosBassCode
 
 }
 
-typealias IosBassPlaybackEngineRuntime = AppleBassPlaybackEngineRuntime
-
-fun iosPlaybackLocalFilePath(url: String): String? = applePlaybackLocalFilePath(url)
-
 fun createIosBassPlaybackEngine(): CoreBassPlaybackEngine = CoreBassPlaybackEngine(
     backendResult = Result.success(IosBassAudioBackend()),
-    runtime = IosBassPlaybackEngineRuntime(),
+    runtime = AppleBassPlaybackEngineRuntime(),
 )
 
-private val IosAvailableBassCodecPlugins = setOf(
-    "bassflac", "bassopus", "bassmidi", "basswv", "bassdsd", "basswebm", "basshls", "bassape", "bass_mpc",
-)
-private val IosBassCodecPlugins = BassCodecPluginInventory.stems.filter(IosAvailableBassCodecPlugins::contains).toSet()
-private val IosBassFrameworks = listOf("bass", "bassmix") + IosBassCodecPlugins
+private val IosBassCodecPlugins = IosBassFrameworks.filter(BassCodecPluginInventory.stems::contains).toSet()
