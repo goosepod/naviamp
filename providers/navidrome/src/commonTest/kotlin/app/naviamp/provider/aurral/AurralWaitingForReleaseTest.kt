@@ -9,7 +9,7 @@ import io.ktor.http.*
 import kotlinx.coroutines.test.runTest
 import kotlin.test.*
 
-/** Synthetic released 2.13 responses; never submits a live acquisition. */
+/** Synthetic Aurral 3 (app API version 2) responses; never submits a live acquisition. */
 class AurralWaitingForReleaseTest {
     @Test fun successfulMonitoredAlbumWithoutJobsRetainsWaitingDateManagerAndCorrelation() = runTest {
         withResponse(waitingBody("\"2027-03-05\"")) {
@@ -35,7 +35,7 @@ class AurralWaitingForReleaseTest {
                 assertEquals(expected, it.waitingForRelease?.releaseDate)
             }
         }
-        withResponse("""{"success":true,"managedBy":"aurral","status":"inLibrary","album":{"releaseDate":"2099-01-01"}}""") {
+        withResponse("""{"success":true,"status":"inLibrary","album":{"id":"71","managed":true,"releaseDate":"2099-01-01"}}""") {
             assertEquals(ProviderDiscoveryOperationStatus.Saved, it.status)
             assertNull(it.waitingForRelease)
         }
@@ -47,10 +47,10 @@ class AurralWaitingForReleaseTest {
             body.replace("\"unreleased\"", "\"missing\""),
             body.replace("\"unreleased\"", "\"partial\""),
             body.replace("\"unreleased\"", "\"future_status\""),
-            body.replace("\"aurral\"", "\"lidarr\""),
-            body.replace("\"aurral\"", "\"future_manager\""),
+            body.replace("\"managed\":true", "\"managed\":false"),
+            body.replace("\"managed\":true,", ""),
+            body.replace("\"managed\":true", "\"managed\":\"true\""),
             body.replace("\"monitored\":true", "\"monitored\":false"),
-            body.replace("\"albumStatus\":{", "\"albumStatus\":{\"ignored\":true,").replace("\"managedBy\":\"aurral\",\"releaseDate\"", "\"managedBy\":\"lidarr\",\"releaseDate\""),
         )) withResponse(response) {
             assertEquals(ProviderDiscoveryOperationStatus.Saved, it.status)
             assertNull(it.waitingForRelease)
@@ -90,19 +90,26 @@ class AurralWaitingForReleaseTest {
     @Test fun laterServerResponsesSupplyQueuedAndAvailableTransitionsRatherThanTheDate() = runTest {
         for ((body, expected) in listOf(
             waitingBody("\"2020-01-01\"") to ProviderDiscoveryOperationStatus.WaitingForRelease,
-            """{"success":true,"managedBy":"aurral","status":"queued","jobIds":["job-2"],"albumStatus":{"status":"queued"}}""" to ProviderDiscoveryOperationStatus.Queued,
-            """{"success":true,"managedBy":"aurral","status":"available","albumStatus":{"status":"complete"}}""" to ProviderDiscoveryOperationStatus.AlreadyOwned,
+            """{"success":true,"status":"queued","jobIds":["job-2"],"album":{"id":"71","managed":true},"albumStatus":{"status":"queued"}}""" to ProviderDiscoveryOperationStatus.Queued,
+            """{"success":true,"status":"available","album":{"id":"71","managed":true},"albumStatus":{"status":"complete"}}""" to ProviderDiscoveryOperationStatus.AlreadyOwned,
         )) withResponse(body) { assertEquals(expected, it.status) }
     }
 
-    private fun waitingBody(date: String) = """{"success":true,"managedBy":"aurral","status":"inLibrary","queued":false,"jobIds":[],"requestGroupId":null,"album":{"id":"71","canonicalId":"71","managedBy":"aurral","monitored":true},"albumStatus":{"status":"unreleased","managedBy":"aurral","releaseDate":$date}}"""
+    @Test fun albumReleaseDateIsUsedWhenTheStatusSummaryOmitsIt() = runTest {
+        withResponse(waitingBody("null").replace("\"monitored\":true", "\"monitored\":true,\"releaseDate\":\"2027-06\"")) {
+            assertEquals(ProviderDiscoveryOperationStatus.WaitingForRelease, it.status)
+            assertEquals("2027-06", it.waitingForRelease?.releaseDate)
+        }
+    }
+
+    private fun waitingBody(date: String) = """{"success":true,"createdArtist":false,"createdAlbum":true,"triggeredSearch":false,"status":"inLibrary","queued":false,"jobIds":[],"requestGroupId":null,"album":{"id":"71","managed":true,"monitored":true},"albumStatus":{"libraryId":"71","status":"unreleased","releaseDate":$date}}"""
 
     private suspend fun withResponse(body: String, code: Int = 201, track: Boolean = false,
         verify: (ProviderDiscoveryOperation) -> Unit) {
         var submissions = 0
         val ktor = HttpClient(MockEngine { request ->
             val response = when (request.url.encodedPath) {
-                "/api/health/bootstrap" -> 200 to """{"api":{"version":1,"features":["discover","trackDownloads"]}}"""
+                "/api/health/bootstrap" -> 200 to """{"appVersion":"3.0.1","api":{"version":2,"features":["libraryStatusFilter"]}}"""
                 "/api/auth/login" -> 200 to """{"token":"fixture","expiresAt":100000,"user":{"permissions":{"addAlbum":true}}}"""
                 else -> {
                     assertEquals(if (track) "/api/library/downloads/track" else "/api/library/albums/request", request.url.encodedPath)
