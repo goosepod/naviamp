@@ -35,6 +35,24 @@ class SettingsSyncMappingTest {
         }
     }
 
+    @Test fun importKeepsTheReceivingDevicesLocalPlaybackSettings() {
+        val sender = PlaybackSettings(volumePercent = 20, debugLoggingEnabled = true, allowMobileDownloads = true,
+            outputDevice = AudioOutputDevicePreference(AudioOutputDeviceMode.Pinned, "sender-device", "Sender speakers"), gaplessEnabled = false)
+        val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(playback = sender), 1L, "sender")
+        val local = PlaybackSettings(volumePercent = 34, debugLoggingEnabled = true, allowMobileDownloads = true,
+            outputDevice = AudioOutputDevicePreference(AudioOutputDeviceMode.Pinned, "local-device", "Local speakers"))
+        val applied = applySettingsSyncDocument(SettingsSyncJson.decode(SettingsSyncJson.encode(document)),
+            RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository(), localPlayback = local).playbackSettings
+        assertEquals(34, applied.volumePercent)
+        assertEquals(local.outputDevice, applied.outputDevice)
+        assertTrue(applied.debugLoggingEnabled)
+        assertTrue(applied.allowMobileDownloads)
+        assertFalse(applied.gaplessEnabled, "Portable playback preferences still come from the document")
+        val older = applySettingsSyncDocument(SettingsSyncJson.decode("""{"preferences":{"playback":{"volumePercent":100}}}"""),
+            RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository(), localPlayback = local).playbackSettings
+        assertEquals(34, older.volumePercent, "Older exports never override this device's volume")
+    }
+
     @Test fun artworkFillAndCornersAreIndependentPortablePreferences() {
         for (square in listOf(false, true)) for (fill in listOf(false, true)) {
             val settings = InterfaceSettings(squareAlbumArtwork = square,

@@ -36,10 +36,12 @@ fun applySettingsSyncDocument(
     document: SettingsSyncDocument,
     mediaSourceRepository: ProviderMediaSourceRepository,
     radioDjPresetRepository: RadioDjPresetRepository,
+    localPlayback: PlaybackSettings = PlaybackSettings(),
 ): AppliedSettingsSyncDocument {
     val preferences = document.preferences
-    // A receiving device's capabilities must never erase portable preferences.
-    val importedPlayback = preferences.playback.normalized()
+    // A receiving device's capabilities must never erase portable preferences, and a document
+    // never carries another device's volume, output device, or diagnostic settings.
+    val importedPlayback = preferences.playback.normalized().withDeviceLocalSettingsFrom(localPlayback)
     radioDjPresetRepository.replaceRadioDjPresets(importedPlayback.radioDjs)
     return AppliedSettingsSyncDocument(
         interfaceSettings = preferences.interfaceSettings.normalized(),
@@ -203,9 +205,13 @@ private val SettingsSyncServerProfile.cacheNamespace: String
     get() = "${providerId}:${primaryUrl}:${username}"
 
 private fun PlaybackSettings.withoutDeviceLocalSettings(): PlaybackSettings =
+    withDeviceLocalSettingsFrom(PlaybackSettings())
+
+/** Device-local playback settings are never exported and never replaced by an import. */
+private fun PlaybackSettings.withDeviceLocalSettingsFrom(local: PlaybackSettings): PlaybackSettings =
     copy(
-        outputDevice = PlaybackSettings().outputDevice,
-        volumePercent = PlaybackSettings().volumePercent,
-        debugLoggingEnabled = false,
-        allowMobileDownloads = false,
+        outputDevice = local.outputDevice,
+        volumePercent = local.volumePercent,
+        debugLoggingEnabled = local.debugLoggingEnabled,
+        allowMobileDownloads = local.allowMobileDownloads,
     )

@@ -744,18 +744,10 @@ class NaviampCore private constructor(
                         },
                     )
                     snapshot.serverProfiles.firstOrNull()?.let { source ->
-                        val form = source.toSettingsSyncServerProfile().toConnectionFormState()
-                        stateStore.updateShell { shell ->
-                            shell.copy(
-                                connectionSettings = shell.connectionSettings.copy(
-                                    connection = shell.connectionSettings.connection.copy(
-                                        editingConnection = true,
-                                        editingSavedConnection = false,
-                                        form = form,
-                                    ),
-                                ),
-                            )
-                        }
+                        connection.editImportedConnection(
+                            id = source.id,
+                            form = source.toSettingsSyncServerProfile().toConnectionFormState(),
+                        )
                         navigation.dispatch(NaviampCoreCommand.Navigation.SelectRoute(SharedRoute.Settings))
                     }
                     mediaDetails.interfaceSettingsChanged(snapshot.interfaceSettings)
