@@ -6,6 +6,64 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 No changes yet.
 
+## v2.12.0
+
+Naviamp 2.12.0 lets you add an Aurral account to your music server, brings Apple CarPlay as a beta, and puts playlists, recent listening, and radio first in Android Auto. Apple TV support is available as a beta for builds from source. Aurral connections now require Aurral 3.
+
+### Highlights
+
+- Use Aurral recommendations, catalog search, samples, and requests alongside the library on your primary music server.
+- Browse, play, and manage Up Next from Apple CarPlay (beta).
+- Reach playlists, Recently Played, and saved radio first in Android Auto, and start Radio from the current song.
+
+### Features
+
+- Add an Aurral account as a companion to your primary music server. Aurral recommendations, catalog search, samples, monitoring, and requests open alongside your library without switching servers or interrupting playback. Standalone Aurral connections remain available. ([Issue #587](https://github.com/goosepod/naviamp/issues/587), [PR #605](https://github.com/goosepod/naviamp/pull/605), [PR #636](https://github.com/goosepod/naviamp/pull/636))
+- Apple CarPlay (beta): browse your library, playlists, downloads, and radio, search on supported iOS versions, switch saved sources, and control playback and Up Next. CarPlay shares the iPhone's playback session. ([Issue #43](https://github.com/goosepod/naviamp/issues/43), [PR #621](https://github.com/goosepod/naviamp/pull/621))
+- Apple TV (beta): build Naviamp for Apple TV from source with the shared TV interface, connection setup including Aurral companions, remote and media keys, system Now Playing, and background playback. No Apple TV download is published with this release. ([Issue #590](https://github.com/goosepod/naviamp/issues/590), [PR #610](https://github.com/goosepod/naviamp/pull/610))
+
+### Improvements
+
+- Android Auto leads with Playlists, Recently Played, and Radio, offers the full saved Internet Radio catalog, and adds Start Radio for the current song. Live stations hide unsupported track controls, Repeat shows distinct Off, Queue, and Track states, and current-track artwork is sharper. ([Issue #350](https://github.com/goosepod/naviamp/issues/350), [PR #597](https://github.com/goosepod/naviamp/pull/597))
+- Show recently played tracks on Home and in Android Auto as soon as you listen to them. ([Issue #350](https://github.com/goosepod/naviamp/issues/350), [PR #597](https://github.com/goosepod/naviamp/pull/597))
+- Hide or reorder the Aurral section on Home like other Home sections. ([Issue #587](https://github.com/goosepod/naviamp/issues/587), [PR #605](https://github.com/goosepod/naviamp/pull/605))
+- Setting up Android TV from your phone also transfers an attached Aurral account. ([Issue #587](https://github.com/goosepod/naviamp/issues/587), [PR #605](https://github.com/goosepod/naviamp/pull/605))
+- Show a recovery screen with Retry on iPhone and iPad if Naviamp cannot start, instead of closing. ([Issue #590](https://github.com/goosepod/naviamp/issues/590), [PR #610](https://github.com/goosepod/naviamp/pull/610))
+
+### Bug fixes
+
+- Reconnect after importing settings restores the imported server instead of failing with a duplicate-connection error. ([Issue #639](https://github.com/goosepod/naviamp/issues/639), [PR #640](https://github.com/goosepod/naviamp/pull/640))
+- Importing settings keeps this device's volume, output device, debug logging, and mobile-download settings. ([Issue #639](https://github.com/goosepod/naviamp/issues/639), [PR #640](https://github.com/goosepod/naviamp/pull/640))
+
+### Upgrade notes
+
+- Aurral connections now require Aurral 3.x. Aurral 2.x servers are no longer supported. ([Issue #587](https://github.com/goosepod/naviamp/issues/587), [PR #636](https://github.com/goosepod/naviamp/pull/636))
+- The local database upgrades automatically to store Aurral companion accounts. Existing connections and settings are retained. ([PR #605](https://github.com/goosepod/naviamp/pull/605))
+
+### Known issues
+
+- Apple CarPlay and Apple TV are beta and were not verified on physical CarPlay or Apple TV hardware for this release.
+- On desktop windows of about 1280×800 or smaller, the full player can hide some of its controls.
+- Direct GitHub Windows and macOS downloads are not publisher-signed; the iOS IPA requires signing for sideloading.
+
+## v2.11.3
+
+Naviamp 2.11.3 fixes Java4Shell on Windows and Linux and corrects the Microsoft Store taskbar icon.
+
+### Bug fixes
+
+- Update the bundled Java runtime on Windows and Linux to fix Java4Shell (CVE-2026-114938).
+- Remove the blue background behind the taskbar icon in the Microsoft Store build.
+
+### Upgrade notes
+
+- Install the updated Naviamp package to replace its bundled Java runtime.
+- Store and Flatpak updates may arrive separately.
+
+### Known issues
+
+- No new known issues.
+
 ## v2.11.2
 
 Naviamp 2.11.2 fixes white bands at the top and bottom of the Android app.
