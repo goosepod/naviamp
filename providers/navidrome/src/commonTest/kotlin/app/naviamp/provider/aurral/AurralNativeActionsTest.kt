@@ -29,6 +29,19 @@ class AurralNativeActionsTest {
         assertTrue(http.binaryHeaders.isEmpty())
     }
 
+    @Test fun aurralThreeSessionCoverRoutesLoadThroughTheCoverListWithoutLeakingTheSession() = runTest {
+        val http = ActionHttp().also { it.releaseCover = "\"/api/artists/release-group/$ReleaseId/cover/image\"" }
+        val provider = NavidromeProvider(connection(), http)
+        val release = provider.discovery!!.artistDetails(artist).details!!.releases.single()
+        assertEquals("https://music.test/aurral/api/artists/release-group/$ReleaseId/cover?artistName=Artist&albumTitle=Live+release", release.imageUrl)
+        assertContentEquals(byteArrayOf(1, 2), provider.bytesForOwnedUrl(release.imageUrl!!))
+        assertEquals(1, http.coverCalls)
+        assertTrue(http.binaryHeaders.isEmpty(), "The external image host must never receive the Aurral session")
+        http.releaseCover = "\"https://images.test/direct.jpg\""
+        assertEquals("https://images.test/direct.jpg",
+            provider.discovery!!.artistDetails(artist).details!!.releases.single().imageUrl)
+    }
+
     @Test fun samplesOnlyKeepAvailableNumericIdentitiesAndUseStableMediaWithoutReportingOrDownloads() = runTest {
         val http = ActionHttp()
         val provider = NavidromeProvider(connection(), http)
@@ -73,6 +86,7 @@ class AurralNativeActionsTest {
             client.requestAlbum(artist, ProviderDiscoveryRelease(ReleaseId, "Live release")).status)
         assertEquals(ReleaseId, http.lastBody!!["albumMbid"]?.jsonPrimitive?.content)
         assertEquals(ArtistId, http.lastBody!!["artistMbid"]?.jsonPrimitive?.content)
+        assertEquals(setOf("artistName", "artistMbid", "albumName", "albumMbid"), http.lastBody!!.keys) // Aurral 3 removed triggerSearch.
         http.failWrites = 500
         val before = http.writes
         assertEquals(ProviderDiscoveryOperationStatus.Uncertain, client.requestTrack(artist, sample).status)
@@ -81,18 +95,21 @@ class AurralNativeActionsTest {
         assertEquals(ProviderDiscoveryOperationStatus.Forbidden, client.requestTrack(artist, sample).status)
     }
 
-    @Test fun monitoringUsesServerDefaultsForAurralAndVerifiesTheSavedState() = runTest {
+    @Test fun monitoringUsesServerDefaultsAndVerifiesTheSavedState() = runTest {
         val http = ActionHttp()
         val client = AurralDiscoveryClient(connection(), http)
         assertEquals(ProviderDiscoveryOperationStatus.MonitoringEnabled, client.setMonitoring(artist, true).status)
-        assertEquals(true, http.lastBody!!["monitoring"]!!.jsonObject["useDefault"]!!.jsonPrimitive.boolean)
+        val enable = http.lastBody!!["monitoring"]!!.jsonObject
+        assertEquals(true, enable["monitored"]!!.jsonPrimitive.boolean)
+        assertEquals(true, enable["useDefault"]!!.jsonPrimitive.boolean)
+        assertNull(http.lastBody!!["monitorOption"])
         assertEquals(ProviderDiscoveryOperationStatus.MonitoringDisabled, client.setMonitoring(artist, false).status)
-        http.manager = "lidarr"
-        assertEquals(ProviderDiscoveryOperationStatus.MonitoringEnabled, client.setMonitoring(artist, true).status)
-        assertEquals("all", http.lastBody!!["monitorOption"]!!.jsonPrimitive.content)
+        assertEquals(mapOf("monitored" to JsonPrimitive(false)), http.lastBody!!["monitoring"]!!.jsonObject.toMap())
+        http.ignoreWrites = true
+        assertEquals(ProviderDiscoveryOperationStatus.Uncertain, client.setMonitoring(artist, true).status)
     }
 
-    @Test fun missingPermissionsOrTrackCapabilityNeverSendAcquisitionWrites() = runTest {
+    @Test fun missingPermissionsNeverSendAcquisitionWrites() = runTest {
         val http = ActionHttp().also { it.permitted = false }
         val client = AurralDiscoveryClient(connection(), http)
         val detail = client.artistDetails(artist).details!!
@@ -100,18 +117,14 @@ class AurralNativeActionsTest {
         assertEquals(ProviderDiscoveryOperationStatus.Forbidden, client.setMonitoring(artist, true).status)
         assertEquals(ProviderDiscoveryOperationStatus.Forbidden, client.requestTrack(artist, ProviderDiscoverySample("42", "Track")).status)
         assertEquals(0, http.writes)
-        val noCapability = ActionHttp().also { it.trackCapability = false }
-        assertEquals(ProviderDiscoveryOperationStatus.Unsupported,
-            AurralDiscoveryClient(connection(), noCapability).requestTrack(artist, ProviderDiscoverySample("42", "Track")).status)
-        assertEquals(0, noCapability.writes)
     }
 }
 private const val ArtistId = "a74b1b7f-71a5-4011-9441-d0b5e4122711"
 private const val ReleaseId = "b1392450-e666-3926-a536-22c65f834433"
 private class ActionHttp : NavidromeHttpClient {
     var permitted = true
-    var trackCapability = true
-    var manager = "aurral"
+    var ignoreWrites = false
+    var releaseCover = "null"
     var monitored = false
     var result = """{"success":true,"queued":true}"""
     var failWrites: Int? = null
@@ -123,13 +136,13 @@ private class ActionHttp : NavidromeHttpClient {
     override suspend fun get(url: String) = get(url, emptyMap())
     override suspend fun get(url: String, headers: Map<String, String>): String {
         calls += url
-        if (url.endsWith("/health/bootstrap")) return """{"api":{"version":1,"features":["discover"${if (trackCapability) ",\"trackDownloads\"" else ""}]}}"""
+        if (url.endsWith("/health/bootstrap")) return """{"appVersion":"3.0.1","api":{"version":2,"features":["libraryStatusFilter"]}}"""
         assertEquals("Bearer session", headers["Authorization"])
         return when {
             "/cover?" in url -> { coverCalls++; """{"images":[{"front":true,"image":"https://images.test/cover.jpg"}]}""" }
             "/preview?" in url -> """{"tracks":[{"id":42,"title":"Track","preview_url":"/api/deezer/preview/42.mp3","album":"Album","artworkUrl":"https://images.test/sample.jpg"},{"id":43,"title":"Unavailable","preview_url":null},{"id":"unsafe/id","title":"Invalid","preview_url":"https://unsafe.test"}]}"""
-            url.endsWith("/monitoring") -> """{"manager":"$manager","added":true,"monitored":$monitored,"monitorOption":"${if (monitored) "all" else "none"}","error":null}"""
-            "/api/artists/" in url -> """{"id":"$ArtistId","name":"Artist","release-groups":[{"id":"$ReleaseId","title":"Live release","primary-type":"Album","secondary-types":["Live"]}]}"""
+            url.endsWith("/monitoring") -> """{"added":true,"monitored":$monitored,"useDefault":true,"rules":null,"defaultRules":{"catalog":"all"}}"""
+            "/api/artists/" in url -> """{"id":"$ArtistId","name":"Artist","release-groups":[{"id":"$ReleaseId","title":"Live release","primary-type":"Album","secondary-types":["Live"],"coverUrl":$releaseCover}]}"""
             "/lookup/" in url -> """{"exists":false}"""
             url.endsWith("/feedback") -> """{"feedback":[]}"""
             else -> error("Unexpected GET")
@@ -145,8 +158,7 @@ private class ActionHttp : NavidromeHttpClient {
     override suspend fun putJson(url: String, body: String, headers: Map<String, String>): String {
         assertEquals("Bearer session", headers["Authorization"])
         writes++; lastBody = Json.parseToJsonElement(body).jsonObject
-        monitored = lastBody!!["monitoring"]?.jsonObject?.get("monitored")?.jsonPrimitive?.boolean
-            ?: (lastBody!!["monitorOption"]?.jsonPrimitive?.content == "all")
+        if (!ignoreWrites) monitored = lastBody!!["monitoring"]!!.jsonObject["monitored"]!!.jsonPrimitive.boolean
         return """{"artist":{"monitored":$monitored}}"""
     }
     override suspend fun getBytes(url: String, headers: Map<String, String>): ByteArray {

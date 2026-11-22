@@ -13,10 +13,10 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.*
 import kotlin.test.*
 
-/** Synthetic excerpts of 3f01fa586f363f416f2e40c234a95550b87d74f7; not live responses.
- * See docs/verification/502-aurral-213-compatibility.md for source and test boundaries. */
-class Aurral213CompatibilityTest {
-    @Test fun released213FeaturesDoNotReplaceApiVersionOrRequireAdministratorAccess() = runTest {
+/** Synthetic excerpts of the Aurral v3.0.1 app contract (API version 2), checked against a live
+ * 3.0.1 server; not live responses. Version 1 (Aurral 2.x) servers are unsupported. */
+class Aurral3CompatibilityTest {
+    @Test fun aurralThreeFeaturesDoNotReplaceApiVersionOrRequireAdministratorAccess() = runTest {
         val http = CompatibilityHttp()
         val result = client(http).recommendations(0, 2)
         assertEquals(ProviderDiscoveryStatus.Ready, result.status)
@@ -34,10 +34,10 @@ class Aurral213CompatibilityTest {
         assertEquals(1, result.artists.size)
     }
 
-    @Test fun olderServerMissingMetadataStaysUnknownAndDoesNotRequireNewCapabilities() = runTest {
+    @Test fun serverWithoutOptionalMetadataOrLaterCapabilitiesStaysUnknown() = runTest {
         val http = CompatibilityHttp().apply {
-            appVersion = "2.12.0"
-            features = listOf("discover")
+            appVersion = "3.0.0"
+            features = emptyList()
             recommendations = """{"recommendations":[{"id":"$Artist","name":"Artist"}],"recommendationCount":1}"""
         }
         val result = client(http).recommendations(0, 2)
@@ -47,9 +47,10 @@ class Aurral213CompatibilityTest {
         assertNull(result.nextOffset)
     }
 
-    @Test fun unknownApiOrAbsentDiscoveryStopsBeforeLoginRegardlessOfAppVersion() = runTest {
-        for (http in listOf(CompatibilityHttp().apply { apiVersion = 2 },
-            CompatibilityHttp().apply { features = listOf("trending") })) {
+    @Test fun aurralTwoOrUnknownApiStopsBeforeLoginRegardlessOfFeatureNames() = runTest {
+        for (http in listOf(
+            CompatibilityHttp().apply { appVersion = "2.13.0"; apiVersion = 1; features = listOf("discover", "trending", "activity", "trackDownloads") },
+            CompatibilityHttp().apply { apiVersion = 3 })) {
             assertEquals(ProviderDiscoveryStatus.Unsupported, client(http).recommendations(0, 2).status)
             assertEquals(0, http.logins)
             assertTrue(http.writes.isEmpty())
@@ -108,14 +109,14 @@ class Aurral213CompatibilityTest {
 
     @Test fun createdAndAcceptedResponsesReachTheNativeClientThroughRealHttpTransport() = runTest {
         for ((code, response, expected) in listOf(
-            Triple(201, """{"success":true,"status":"queued","requestGroupId":"group-1","jobIds":["job-1"],"managedBy":"aurral","album":{"id":7,"canonicalId":71}}""", ProviderDiscoveryOperationStatus.Queued),
+            Triple(201, """{"success":true,"status":"queued","requestGroupId":"group-1","jobIds":["job-1"],"createdArtist":false,"createdAlbum":true,"album":{"id":"71","managed":true,"releaseDate":"2026-01-01"},"albumStatus":{"status":"queued"}}""", ProviderDiscoveryOperationStatus.Queued),
             Triple(202, """{"success":true,"queued":true,"jobId":"job-1"}""", ProviderDiscoveryOperationStatus.Queued),
             Triple(202, """{"success":true,"alreadyQueued":true,"jobId":null}""", ProviderDiscoveryOperationStatus.AlreadyQueued),
         )) {
             var submissions = 0
             val ktor = HttpClient(MockEngine { request ->
                 val (status, body) = when (request.url.encodedPath) {
-                    "/proxy/aurral/api/health/bootstrap" -> 200 to """{"appVersion":"2.13.0","api":{"version":1,"features":["discover","trackDownloads"]}}"""
+                    "/proxy/aurral/api/health/bootstrap" -> 200 to """{"appVersion":"3.0.1","api":{"version":2,"features":["libraryStatusFilter"]}}"""
                     "/proxy/aurral/api/auth/login" -> 200 to """{"token":"session","expiresAt":100000,"user":{"permissions":{"addAlbum":true}}}"""
                     else -> {
                         assertEquals(HttpMethod.Post, request.method)
@@ -136,8 +137,10 @@ class Aurral213CompatibilityTest {
                     else client.requestTrack(artist, ProviderDiscoverySample("42", "Track"))
                 assertEquals(expected, result.status)
                 assertEquals(1, submissions)
-                if (code == 201) assertEquals("71", result.identity?.canonicalAlbumId?.value)
-                else assertNull(result.identity?.canonicalAlbumId)
+                if (code == 201) {
+                    assertEquals("71", result.identity?.canonicalAlbumId?.value)
+                    assertEquals(DiscoveryManagedAlbumId(DiscoveryLibraryManager.Aurral, "71"), result.identity?.managedAlbumId)
+                } else assertNull(result.identity?.canonicalAlbumId)
             } finally { ktor.close() }
         }
     }
@@ -150,10 +153,11 @@ class Aurral213CompatibilityTest {
 private const val Artist = "a74b1b7f-71a5-4011-9441-d0b5e4122711"
 private const val Release = "b1392450-e666-3926-a536-22c65f834433"
 private class CompatibilityHttp : NavidromeHttpClient {
-    var appVersion = "2.13.0"
-    var apiVersion = 1
-    var features = listOf("discover", "flows", "playlistCoverTemplates", "activity", "review",
-        "trackDownloads", "linkSearch", "downloadCancel", "shareImports", "trending", "flowAutoDownload", "futureFeature")
+    var appVersion = "3.0.1"
+    var apiVersion = 2
+    var features = listOf("libraryStatusFilter", "albumEditions", "activityCauses", "librarySorts", "queueCancelAll",
+        "queuePause", "streamTranscoding", "communityPlaylists", "friends", "playlistMembers", "blends", "localPeople",
+        "friendProfiles", "friendBlends", "pairing", "futureFeature")
     var recommendations = """{"recommendations":[{"id":"$Artist","name":"Artist","image":null,"matchedTags":["rock"],"sourceArtists":[],"sourceType":"charts","supportingSeeds":[{"artistName":"Seed"}],"discoveryTier":null,"discoveryDepth":1,"firstDiscoveredAt":"2026-11-03T10:00:00.000Z","futureField":{}},null],"recommendationCount":5,"basedOn":[{"name":"Seed"}],"topGenres":["rock"],"topTags":[],"lastUpdated":null}"""
     var readFailure: Int? = null
     var writeFailure: Int? = null
@@ -172,7 +176,7 @@ private class CompatibilityHttp : NavidromeHttpClient {
         readFailure?.let { throw NavidromeHttpException(it) }
         return when {
             "/discover?" in url -> { assertTrue(Regex("limit=[1-3]&offset=0$").containsMatchIn(url)); recommendations }
-            url.endsWith("/requests") -> """[null,{}, {"id":"activity-1","status":"future_status","canonicalAlbumId":71,"albumId":7,"source":"tidal"}]"""
+            url.endsWith("/requests") -> """[null,{}, {"id":"activity-1","status":"future_status","libraryAlbumId":"71","albumId":7,"source":"tidal"}]"""
             else -> error("Unexpected read")
         }
     }

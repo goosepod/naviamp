@@ -396,6 +396,14 @@ fun interface NaviampConnectTargetCommandExecutor {
         command: NaviampConnectCommand,
         currentSnapshot: NaviampConnectTargetSnapshot,
     ): NaviampConnectTargetCommandResult
+
+    /**
+     * Re-samples target state that advances without publishing, such as playback position, before
+     * a controller resynchronizes. Return [currentSnapshot] when nothing changed; otherwise the
+     * returned snapshot must advance its revision.
+     */
+    suspend fun resample(currentSnapshot: NaviampConnectTargetSnapshot): NaviampConnectTargetSnapshot =
+        currentSnapshot
 }
 
 /** Target-side authenticated command, replay, revision, and snapshot owner. */
@@ -463,6 +471,18 @@ class NaviampConnectTargetSession(
         send(NaviampConnectSnapshotMessage(snapshot))
     }
 
+    /** A resynchronizing controller must not extrapolate from a position sampled long ago. */
+    private suspend fun resampleSnapshot() {
+        val resampled = try {
+            executor.resample(snapshot)
+        } catch (failure: CancellationException) {
+            throw failure
+        } catch (_: Exception) {
+            return
+        }
+        if (resampled.revision > snapshot.revision) snapshot = resampled
+    }
+
     /** Orders takeover notification within the target's single authenticated sequence stream. */
     suspend fun notifySessionReplaced() {
         send(NaviampConnectSessionReplaced)
@@ -490,6 +510,7 @@ class NaviampConnectTargetSession(
             request.expectedRevision != null &&
             request.expectedRevision != snapshot.revision
         ) {
+            resampleSnapshot()
             sendError(
                 requestId,
                 NaviampConnectErrorCode.RevisionConflict,
@@ -517,6 +538,7 @@ class NaviampConnectTargetSession(
             return
         }
         if (command == NaviampConnectRequestSnapshot) {
+            resampleSnapshot()
             val acknowledgement = NaviampConnectAcknowledgement(snapshot.revision)
             rememberCompleted(requestId, command, acknowledgement)
             sendResponse(requestId, acknowledgement)

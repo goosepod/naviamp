@@ -78,19 +78,64 @@ class NaviampCoreConnectTargetSnapshotFactory(
 }
 
 /**
- * Remote controllers do not require a live scrubber. Suppress progress-only mutations so a target
- * cannot queue repeated full-queue snapshots faster than a controller can render them.
+ * The position timeline a controller is extrapolating: the last position this target published,
+ * whether it was playing, and when (target monotonic milliseconds).
+ */
+internal data class NaviampConnectTargetTimeline(
+    val positionSeconds: Double,
+    val playing: Boolean,
+    val anchoredAtMillis: Long,
+) {
+    fun expectedPositionSecondsAt(nowMillis: Long): Double =
+        if (playing) positionSeconds + (nowMillis - anchoredAtMillis).coerceAtLeast(0L) / 1_000.0 else positionSeconds
+}
+
+internal fun NaviampLivePlaybackState.toConnectTargetTimeline(nowMillis: Long): NaviampConnectTargetTimeline? =
+    progress.positionSeconds?.takeIf { it.isFinite() }?.let { position ->
+        NaviampConnectTargetTimeline(position.coerceAtLeast(0.0), playbackState == PlaybackState.Playing, nowMillis)
+    }
+
+/** Beyond this, a controller extrapolating the published timeline would visibly disagree. */
+internal const val NaviampConnectTargetPositionDriftSeconds = 2.0
+/** Engine clocks never move backwards in normal playback; allow only sampling jitter. */
+internal const val NaviampConnectTargetBackwardToleranceSeconds = 0.5
+
+/**
+ * Remote controllers extrapolate position from the last published snapshot. Suppress progress-only
+ * mutations so a target cannot queue repeated full-queue snapshots faster than a controller can
+ * render them, but publish structural changes and any position discontinuity: a seek (from any
+ * source), a backward jump, or drift of more than [NaviampConnectTargetPositionDriftSeconds] from
+ * the [published] timeline, such as a stall while still nominally playing.
  */
 internal fun shouldPublishNaviampConnectTargetSnapshot(
     previous: NaviampLivePlaybackState?,
     updated: NaviampLivePlaybackState,
+    published: NaviampConnectTargetTimeline? = null,
+    nowMillis: Long = 0L,
 ): Boolean = previous == null ||
     previous.currentTrack != updated.currentTrack ||
     previous.currentStation != updated.currentStation ||
     previous.queue != updated.queue ||
     previous.playbackState != updated.playbackState ||
     previous.repeatMode != updated.repeatMode ||
-    previous.shuffledUpNextSnapshot != updated.shuffledUpNextSnapshot
+    previous.shuffledUpNextSnapshot != updated.shuffledUpNextSnapshot ||
+    previous.progress.seekGeneration != updated.progress.seekGeneration ||
+    updated.hasConnectPositionDiscontinuity(previous, published, nowMillis)
+
+private fun NaviampLivePlaybackState.hasConnectPositionDiscontinuity(
+    previous: NaviampLivePlaybackState,
+    published: NaviampConnectTargetTimeline?,
+    nowMillis: Long,
+): Boolean {
+    val position = progress.positionSeconds?.takeIf { it.isFinite() } ?: return false
+    val previousPosition = previous.progress.positionSeconds?.takeIf { it.isFinite() }
+    if (previousPosition != null && position < previousPosition - NaviampConnectTargetBackwardToleranceSeconds) return true
+    val unbounded = published?.expectedPositionSecondsAt(nowMillis) ?: return false
+    // Controllers stop extrapolating at the duration, so an ending track is not drift.
+    val expected = progress.durationSeconds?.takeIf { it.isFinite() && it > 0.0 }
+        ?.let(unbounded::coerceAtMost) ?: unbounded
+    return kotlin.math.abs(position - expected) > NaviampConnectTargetPositionDriftSeconds
+}
 
 /** Projects controller-local playback into a handoff command without inventing a target device. */
 fun naviampCoreConnectQueueHandoff(
@@ -207,12 +252,7 @@ class NaviampCoreConnectTargetCommandExecutor(
             )
         }
 
-        val projected = snapshots.create(
-            revision = currentSnapshot.revision,
-            live = playback.connectLiveState(),
-            volumePercent = stateStore.state.value.shell.playback.settings.volumePercent,
-            visibleSurface = currentSnapshot.playback.visibleSurface,
-        )
+        val projected = project(currentSnapshot)
         if (command.revealsNowPlayingAfter(projected.playback.state)) revealNowPlaying()
         val changed = projected != currentSnapshot
         return NaviampConnectTargetCommandResult.Success(
@@ -220,6 +260,19 @@ class NaviampCoreConnectTargetCommandExecutor(
             changed = changed,
         )
     }
+
+    /** Progress-only changes are not streamed, so a resync re-samples the live position. */
+    override suspend fun resample(currentSnapshot: NaviampConnectTargetSnapshot): NaviampConnectTargetSnapshot {
+        val projected = project(currentSnapshot)
+        return if (projected == currentSnapshot) currentSnapshot else projected.copy(revision = currentSnapshot.revision + 1)
+    }
+
+    private fun project(currentSnapshot: NaviampConnectTargetSnapshot): NaviampConnectTargetSnapshot = snapshots.create(
+        revision = currentSnapshot.revision,
+        live = playback.connectLiveState(),
+        volumePercent = stateStore.state.value.shell.playback.settings.volumePercent,
+        visibleSurface = currentSnapshot.playback.visibleSurface,
+    )
 }
 
 internal fun NaviampConnectCommand.revealsNowPlayingAfter(
