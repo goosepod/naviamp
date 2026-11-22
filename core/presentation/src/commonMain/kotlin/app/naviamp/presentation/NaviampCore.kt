@@ -36,6 +36,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -119,6 +120,17 @@ class NaviampCore private constructor(
     internal val vehicleDownloads: (app.naviamp.ui.NaviampVehicleLibraryLabels, app.naviamp.ui.NaviampVehicleDownloadsLabels) -> NaviampVehicleDownloadsAccess,
 ) {
     val state: StateFlow<NaviampCoreState> = stateStore.state
+
+    /**
+     * The progress timeline every host's shared Now Playing UI presents: local engine progress, or
+     * the attached Connect target's reported position extrapolated while it plays.
+     * [playbackProgress] remains the local engine's progress.
+     */
+    val presentedPlaybackProgress: StateFlow<PlaybackProgress> = naviampPresentedPlaybackProgress(
+        scope = runtimeScope,
+        local = playbackProgress,
+        remote = state.map { it.shell.connect.remoteNowPlaying }.remoteProgressReports(),
+    )
 
     fun dispatch(command: NaviampCoreCommand) = commands.dispatch(command)
 
