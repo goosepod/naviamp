@@ -68,6 +68,7 @@ import app.naviamp.ui.generated.resources.*
 import kotlinx.coroutines.flow.StateFlow
 import org.jetbrains.compose.resources.stringResource
 
+/** [playbackProgress] is the presented timeline for whichever output plays, including a remote target. */
 @Composable
 @NonRestartableComposable
 fun NaviampSharedAppShell(
@@ -163,7 +164,6 @@ private fun NaviampSharedAppShellContent(
     }).withSelectedRemoteOutputAction(uiState.connect, connectActions)
         .withCastOutputActions(castOutput, onCastPicker, onCastSelectLocal)
         .copy(onCreateRadioDj = { radioDjCreationOpen = true })
-    val effectivePlaybackProgress = playbackProgress.takeIf { remoteNowPlaying == null }
     PreloadNaviampNowPlayingArtwork(nowPlaying)
     val supportsDownloads = shellChrome.supportsDownloads
     val supportsApplicationUpdates = shellChrome.supportsApplicationUpdates
@@ -362,7 +362,7 @@ private fun NaviampSharedAppShellContent(
                             colors = colors,
                             uiState = uiState,
                             showFullNowPlaying = showFullNowPlaying,
-                            playbackProgress = effectivePlaybackProgress,
+                            playbackProgress = playbackProgress,
                             visualizerBandsProvider = visualizerBandsProvider,
                             settingsSync = settingsSync,
                             actions = actions,
@@ -568,7 +568,6 @@ internal fun ConnectedContent(
     }).withSelectedRemoteOutputAction(uiState.connect, connectActions)
         .withCastOutputActions(castOutput, onCastPicker, onCastSelectLocal)
         .copy(onCreateRadioDj = onCreateRadioDj)
-    val effectivePlaybackProgress = playbackProgress.takeIf { remoteNowPlaying == null }
     val selectedRoute = shellChrome.selectedRoute
     val selectedVisualizer = shellChrome.selectedVisualizer
     val onTrackAction = mediaActions.onTrackAction
@@ -878,7 +877,7 @@ internal fun ConnectedContent(
                 valueActions.onInterfaceSettingsChanged(interfaceSettings.copy(nowPlaying = interfaceSettings.nowPlaying.copy(wideLayout = it)))
             }, player = { panelLayout ->
                 NaviampFontSizeScope(interfaceSettings.nowPlayingFontSize, interfaceSettings.generalFontSize) {
-                    FullNowPlaying(nowPlaying, effectivePlaybackProgress, colors, nowPlayingPlayerColors,
+                    FullNowPlaying(nowPlaying, playbackProgress, colors, nowPlayingPlayerColors,
                         visualizerBandsProvider, selectedVisualizer, nowPlayingActions, interfaceSettings.nowPlaying, panelLayout)
                 }
             }, browser = {
@@ -892,7 +891,7 @@ internal fun ConnectedContent(
                         ) {
                             if (queueSelected) {
                                 NaviampFontSizeScope(interfaceSettings.nowPlayingFontSize, interfaceSettings.generalFontSize) {
-                                    NaviampQueueContent(nowPlaying, effectivePlaybackProgress, colors, nowPlayingActions)
+                                    NaviampQueueContent(nowPlaying, playbackProgress, colors, nowPlayingActions)
                                 }
                             } else browseContent()
                         }

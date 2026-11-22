@@ -586,6 +586,49 @@ class NaviampConnectSessionControllerTest {
     }
 
     @Test
+    fun resynchronizingControllerReceivesAFreshlySampledPosition() = runTest {
+        val sent = mutableListOf<NaviampConnectEnvelope>()
+        var livePositionMillis = 120_000L
+        val target = NaviampConnectTargetSession(
+            sessionId = SessionId,
+            protocolVersion = 1,
+            initialSnapshot = snapshot(0), // sampled at track start: position 0
+            transport = NaviampConnectSessionTransport(sent::add),
+            executor = object : NaviampConnectTargetCommandExecutor {
+                override suspend fun execute(
+                    command: app.naviamp.domain.connect.NaviampConnectCommand,
+                    currentSnapshot: NaviampConnectTargetSnapshot,
+                ) = error("A snapshot request must not execute a command.")
+
+                override suspend fun resample(currentSnapshot: NaviampConnectTargetSnapshot): NaviampConnectTargetSnapshot {
+                    val playback = currentSnapshot.playback.copy(positionMillis = livePositionMillis)
+                    return if (playback == currentSnapshot.playback) currentSnapshot
+                    else currentSnapshot.copy(revision = currentSnapshot.revision + 1, playback = playback)
+                }
+            },
+        )
+
+        target.receive(commandEnvelope(0, "resync-1", app.naviamp.domain.connect.NaviampConnectRequestSnapshot))
+        val first = sent.map { it.message }.filterIsInstance<NaviampConnectSnapshotMessage>().single().snapshot
+        assertEquals(120_000L, first.playback.positionMillis)
+        assertEquals(1, first.revision)
+        assertEquals(1, target.snapshot().revision)
+
+        // An unchanged position does not advance the revision.
+        sent.clear()
+        target.receive(commandEnvelope(1, "resync-2", app.naviamp.domain.connect.NaviampConnectRequestSnapshot))
+        assertEquals(1, sent.map { it.message }.filterIsInstance<NaviampConnectSnapshotMessage>().single().snapshot.revision)
+
+        // A revision conflict also returns a freshly sampled snapshot.
+        livePositionMillis = 150_000L
+        sent.clear()
+        target.receive(commandEnvelope(2, "stale", NaviampConnectPlay))
+        val conflict = sent.map { it.message }.filterIsInstance<NaviampConnectSnapshotMessage>().single().snapshot
+        assertEquals(150_000L, conflict.playback.positionMillis)
+        assertEquals(2, conflict.revision)
+    }
+
+    @Test
     fun localTargetMutationPublishesAnAuthoritativeSnapshot() = runTest {
         val sent = mutableListOf<NaviampConnectEnvelope>()
         val target = NaviampConnectTargetSession(
