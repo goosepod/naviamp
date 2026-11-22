@@ -52,7 +52,7 @@ private class GenreHttp : NavidromeHttpClient {
     private fun response() = kotlinx.serialization.json.buildJsonObject { put("tags", kotlinx.serialization.json.JsonArray(tags.map { kotlinx.serialization.json.JsonPrimitive(it) })) }.toString()
     override suspend fun get(url: String) = get(url, emptyMap())
     override suspend fun get(url: String, headers: Map<String, String>): String = when {
-        url.endsWith("/bootstrap") -> """{"api":{"version":1,"features":["discover"]}}"""
+        url.endsWith("/bootstrap") -> """{"appVersion":"3.0.1","api":{"version":2,"features":["libraryStatusFilter"]}}"""
         url.endsWith("/blocked-tags") -> { if (!supported) throw NavidromeHttpException(404); assertEquals("Bearer session", headers["Authorization"]); response() }
         "/discover?" in url -> """{"topGenres":["rock","post rock"]}"""
         else -> error("Unexpected fixture read")
