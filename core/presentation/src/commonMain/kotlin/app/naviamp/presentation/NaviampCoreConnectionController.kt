@@ -85,6 +85,34 @@ class NaviampCoreConnectionController(
         publishConnection()
     }
 
+    /**
+     * Opens an imported profile for its local password. Connecting reconnects that saved profile
+     * rather than adding a new connection that would duplicate it.
+     */
+    fun editImportedConnection(id: String, form: ConnectionFormState) {
+        editingConnectionId = id
+        originalEditingForm = form
+        stateStore.updateShell { shell ->
+            shell.copy(
+                connectionSettings = shell.connectionSettings.copy(
+                    connection = shell.connectionSettings.connection.copy(
+                        editingConnection = true,
+                        editingSavedConnection = true,
+                        saveWithoutReconnect = false,
+                        form = form,
+                    ),
+                ),
+            )
+        }
+    }
+
+    /**
+     * Reconnects a saved connection that an import matched and that already holds credentials,
+     * so importing settings never asks again for a password this device already has.
+     */
+    suspend fun reconnectImportedConnection(id: String): Boolean =
+        connect(NaviampCoreConnectionRequest.Saved(id))
+
     suspend fun resetAfterDatabaseClear() {
         certificateSelectionGeneration++
         accountAttempt?.cancel()

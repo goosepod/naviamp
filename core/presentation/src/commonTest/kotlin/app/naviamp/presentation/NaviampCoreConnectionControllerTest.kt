@@ -698,6 +698,26 @@ class NaviampCoreConnectionControllerTest {
         }
 
     @Test
+    fun importedConnectionsReconnectTheImportedProfileInsteadOfAddingADuplicate() =
+        kotlinx.coroutines.test.runTest {
+            val fixture = fixture()
+            val imported = ConnectionFormState(serverUrl = "https://imported.example", username = "demo")
+
+            fixture.controller.editImportedConnection("source-1", imported)
+            val editing = fixture.store.state.value.shell.connectionSettings.connection
+            assertTrue(editing.editingConnection)
+            assertTrue(editing.editingSavedConnection, "Import must offer Reconnect for the imported profile")
+            assertFalse(editing.saveWithoutReconnect)
+            assertEquals(imported, editing.form)
+
+            fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
+            assertEquals(
+                NaviampCoreConnectionRequest.Form(imported, savedConnectionId = "source-1"),
+                fixture.port.connectRequests.single().first,
+            )
+        }
+
+    @Test
     fun editAndDeleteFlowsAreCoreTransactions() = kotlinx.coroutines.test.runTest {
         val fixture = fixture()
         val saved = savedConnectionUi()
