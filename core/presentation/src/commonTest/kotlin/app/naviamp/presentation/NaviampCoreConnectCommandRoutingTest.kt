@@ -53,6 +53,31 @@ class NaviampCoreConnectCommandRoutingTest {
     }
 
     @Test
+    fun homeAlbumMixReachesConnectOnlyAsSeedTrackRadioNeverAsTheAlbum() {
+        val tile = NaviampCoreCommand.Media.ItemAction(
+            NaviampMediaItemActionRequest(album, NaviampMediaItemCommand.PlayAlbumMix),
+        )
+        val seed = app.naviamp.domain.Track(
+            id = app.naviamp.domain.TrackId("seed"), title = "Seed", artistName = "Artist",
+            albumId = app.naviamp.domain.AlbumId("album"), albumTitle = "Album",
+            durationSeconds = 180, coverArtId = null, audioInfo = null, replayGain = null,
+        )
+        val resolved = NaviampCoreCommand.Home.StartAlbumMix(
+            app.naviamp.domain.Album(app.naviamp.domain.AlbumId("album"), "Album", "Artist", null, null),
+            seed,
+        )
+
+        // The tile stays local until Core resolves its seed, so it can never be sent as an album.
+        assertNull(tile.connectMediaSelectionOrNull())
+        assertNull(tile.connectQueueSelectionOrNull())
+        val selection = resolved.connectMediaSelectionOrNull()
+        assertEquals(NaviampConnectMediaType.Track, selection?.type)
+        assertEquals("seed", selection?.id)
+        assertEquals(true, selection?.startRadio)
+        assertNull(resolved.connectQueueSelectionOrNull())
+    }
+
+    @Test
     fun trackRadioIsRoutedButCatalogNavigationStaysLocal() {
         val radio = NaviampCoreCommand.Media.TrackAction(
             SharedTrackRowActionRequest(track, SharedTrackRowAction.StartRadio),
