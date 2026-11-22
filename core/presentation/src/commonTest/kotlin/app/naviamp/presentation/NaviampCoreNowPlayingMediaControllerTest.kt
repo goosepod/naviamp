@@ -19,6 +19,10 @@ import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.DownloadJobUpdate
+import app.naviamp.domain.connect.NaviampConnectMediaType
+import app.naviamp.domain.connect.NaviampConnectPlaybackContext
+import app.naviamp.domain.connect.NaviampConnectSourceIdentity
+import app.naviamp.domain.connect.NaviampConnectStartMedia
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.home.HomeAlbumYear
 import app.naviamp.domain.home.HomeLibraryRepository
@@ -1390,3 +1394,101 @@ private fun nowPlayingTrack(id: String) = Track(
     audioInfo = null,
     replayGain = null,
 )
+
+/** Naviamp Control: a remote track selection must queue the same list a local selection does. */
+@OptIn(ExperimentalCoroutinesApi::class)
+class NaviampCoreConnectTrackSelectionTargetTest {
+    private val albumTracks = (1..4).map { nowPlayingTrack("album-$it") }
+    private val playlistTracks = listOf("p-1", "p-2", "p-3").map(::nowPlayingTrack)
+
+    @Test
+    fun remoteAlbumTrackSelectionQueuesTheWholeAlbumFromTheChosenTrackLikeLocalSelection() = runTest {
+        val remote = targetFixture(this)
+        assertTrue(remote.catalog.start(trackSelection("album-3",
+            NaviampConnectPlaybackContext(NaviampConnectMediaType.Album, "album"))))
+        advanceUntilIdle()
+        val remoteQueue = remote.fixture.live.state.value.queue
+        assertEquals(albumTracks.map { it.id }, remoteQueue.tracks.map { it.id })
+        assertEquals(2, remoteQueue.currentIndex)
+        assertEquals("album-3", remoteQueue.current?.id?.value)
+
+        val local = targetFixture(this)
+        local.registry.updateAlbum(local.provider.album(AlbumId("album")))
+        NaviampCoreTrackActionController(local.registry, local.fixture.transactions) {}.execute(
+            NaviampCoreCommand.Detail.AlbumTrack(app.naviamp.ui.SharedTrackRowActionRequest(
+                app.naviamp.ui.SharedTrackRowUi("album-3", "album-3", "Artist"),
+                app.naviamp.ui.SharedTrackRowAction.Select)))
+        advanceUntilIdle()
+        val localQueue = local.fixture.live.state.value.queue
+        assertEquals(localQueue.tracks.map { it.id }, remoteQueue.tracks.map { it.id })
+        assertEquals(localQueue.currentIndex, remoteQueue.currentIndex)
+        assertEquals(localQueue.groups.map { it.target }, remoteQueue.groups.map { it.target })
+    }
+
+    @Test
+    fun remotePlaylistTrackSelectionQueuesTheWholePlaylistFromTheChosenTrack() = runTest {
+        val remote = targetFixture(this)
+        assertTrue(remote.catalog.start(trackSelection("p-2",
+            NaviampConnectPlaybackContext(NaviampConnectMediaType.Playlist, "mix"))))
+        advanceUntilIdle()
+        val queue = remote.fixture.live.state.value.queue
+        assertEquals(playlistTracks.map { it.id }, queue.tracks.map { it.id })
+        assertEquals(1, queue.currentIndex)
+    }
+
+    @Test
+    fun legacyOrUnresolvableSelectionsStillPlayTheSingleTrack() = runTest {
+        for (context in listOf(
+            null,
+            NaviampConnectPlaybackContext(NaviampConnectMediaType.Album, "other-album"),
+            NaviampConnectPlaybackContext(NaviampConnectMediaType.Artist, "artist"),
+        )) {
+            val remote = targetFixture(this)
+            assertTrue(remote.catalog.start(trackSelection("album-3", context)))
+            advanceUntilIdle()
+            val queue = remote.fixture.live.state.value.queue
+            assertEquals(listOf("album-3"), queue.tracks.map { it.id.value }, context.toString())
+            assertEquals(0, queue.currentIndex)
+        }
+    }
+
+    private fun trackSelection(trackId: String, context: NaviampConnectPlaybackContext?) = NaviampConnectStartMedia(
+        mediaType = NaviampConnectMediaType.Track,
+        mediaId = trackId,
+        sourceIdentity = NaviampConnectSourceIdentity("navidrome", "https://music.example", "listener"),
+        context = context,
+    )
+
+    private class TargetFixture(
+        val fixture: MediaFixture,
+        val provider: MediaProvider,
+        val registry: NaviampCoreMediaRegistry,
+        val catalog: NaviampCoreConnectCatalogController,
+    )
+
+    private fun targetFixture(scope: kotlinx.coroutines.CoroutineScope): TargetFixture {
+        val fixture = mediaFixture(scope)
+        val provider = object : MediaProvider by fixture.provider {
+            override suspend fun album(albumId: AlbumId) = AlbumDetails(
+                Album(albumId, "Album", "Artist", coverArtId = null, recentlyAddedAtIso8601 = null),
+                if (albumId.value == "album") albumTracks else listOf(nowPlayingTrack("elsewhere")),
+            )
+            override suspend fun playlistTracks(playlistId: String) =
+                if (playlistId == "mix") playlistTracks else emptyList()
+            override suspend fun track(trackId: TrackId) =
+                (albumTracks + playlistTracks).firstOrNull { it.id == trackId }
+        }
+        val registry = NaviampCoreMediaRegistry()
+        val radio = NaviampCoreInternetRadioController(
+            fixture.store,
+            { provider },
+            NaviampCoreInternetRadioPlaybackPort { },
+            object : NaviampCoreInternetRadioRecentsPort {
+                override fun current() = emptyList<InternetRadioStation>()
+                override suspend fun record(station: InternetRadioStation) = listOf(station)
+            },
+        )
+        return TargetFixture(fixture, provider, registry,
+            NaviampCoreConnectCatalogController({ provider }, fixture.transactions, radio, registry))
+    }
+}

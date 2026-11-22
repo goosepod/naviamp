@@ -41,10 +41,10 @@ class AurralNativeDetailsTest {
         assertTrue(http.calls.any { "/rest/getArtist.view?" in it })
     }
 
-    @Test fun mismatchedCanonicalOrSubsonicMusicBrainzIdsNeverProduceALibraryLink() = runTest {
-        for (canonicalMismatch in listOf(true, false)) {
+    @Test fun mismatchedLibraryOrSubsonicMusicBrainzIdsNeverProduceALibraryLink() = runTest {
+        for (libraryMismatch in listOf(true, false)) {
             val http = NativeDetailsHttp().also {
-                if (canonicalMismatch) it.canonicalMbid = OtherMbid else it.subsonicMbid = OtherMbid
+                if (libraryMismatch) it.libraryMbid = OtherMbid else it.subsonicMbid = OtherMbid
             }
             val result = NavidromeProvider(connection(), http).discovery!!.artistDetails(artist)
             assertEquals(ProviderDiscoveryStatus.Ready, result.status)
@@ -89,7 +89,7 @@ private const val Mbid = "a74b1b7f-71a5-4011-9441-d0b5e4122711"
 private const val OtherMbid = "19516266-e5d9-4774-b749-812bb76a6559"
 private class NativeDetailsHttp : NavidromeHttpClient {
     val calls = mutableListOf<String>()
-    var canonicalMbid = Mbid
+    var libraryMbid = Mbid
     var subsonicMbid = Mbid
     var libraryAvailable = true
     var feedbackSupported = true
@@ -106,13 +106,13 @@ private class NativeDetailsHttp : NavidromeHttpClient {
                 assertNull(headers["Authorization"])
                 """{"subsonic-response":{"status":"ok","artist":{"id":"artist:mbid:$Mbid","name":"Example artist","musicBrainzId":"$subsonicMbid","album":[]}}}"""
             }
-            url.endsWith("/health/bootstrap") -> """{"api":{"version":1,"features":["discover"]}}"""
+            url.endsWith("/health/bootstrap") -> """{"appVersion":"3.0.1","api":{"version":2,"features":["libraryStatusFilter"]}}"""
             else -> {
                 assertEquals("Bearer session", headers["Authorization"])
                 when {
                     "/api/artists/" in url -> """{"id":"$Mbid","name":"Example artist","bio":"Biography","genres":["rock"],"release-groups":[{"id":"release","title":"Release","first-release-date":"2020-01-01","primary-type":"Album"}]}"""
                     "/lookup/" in url -> if (libraryAvailable) """{"exists":true,"libraryArtistId":"7"}""" else """{"exists":false,"libraryArtistId":null}"""
-                    "/canonical?" in url -> """{"items":[{"id":7,"identityKey":"mbid:$Mbid","mbid":"$canonicalMbid"}]}"""
+                    "/api/library?kind=artists&" in url -> """{"kind":"artists","page":1,"pageSize":1,"total":1,"hasMore":false,"items":[{"id":7,"identityKey":"mbid:$Mbid","mbid":"$libraryMbid","managed":false}]}"""
                     url.endsWith("/feedback") -> {
                         if (!feedbackSupported) throw NavidromeHttpException(404)
                         feedbackFailure?.let { throw NavidromeHttpException(it) }

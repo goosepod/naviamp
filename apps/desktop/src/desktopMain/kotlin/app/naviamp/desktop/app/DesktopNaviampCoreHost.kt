@@ -27,7 +27,6 @@ import app.naviamp.presentation.NaviampCoreProviderSessionPort
 import app.naviamp.presentation.NaviampCoreSettingsSyncServices
 import app.naviamp.presentation.toCoreActionAvailability
 import app.naviamp.presentation.withShellCapabilities
-import app.naviamp.presentation.externalPlaybackBridge
 import app.naviamp.domain.playback.AudioOutputDevice
 import app.naviamp.ui.NaviampApplicationUpdateChecker
 import app.naviamp.ui.NaviampShellCapabilitiesUi
@@ -112,7 +111,7 @@ internal fun DesktopNaviampCoreHost(
     val state by core.state.collectAsState()
     val scope = rememberCoroutineScope()
     DisposableEffect(core, scope) {
-        val mpris = DesktopMprisService.start(scope, core.externalPlaybackBridge())
+        val mpris = DesktopMprisService.start(scope, core)
         onDispose { mpris?.close() }
     }
     val platform = state.shell.capabilities.desktopShortcutPlatform

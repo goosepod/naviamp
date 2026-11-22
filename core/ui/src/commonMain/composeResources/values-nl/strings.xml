@@ -531,4 +531,5 @@
     <string name="tv_search_system_keyboard">Systeemtoetsenbord</string>
     <string name="storage_location_app">App-opslag</string>
     <string name="storage_location_custom">Aangepast</string>
+    <string name="connect_recovery_secure_storage">Naviamp kon de beveiligde opslag voor inloggegevens van dit apparaat niet openen. Ontgrendel de sleutelbos van het systeem en probeer het opnieuw.</string>
 </resources>

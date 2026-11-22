@@ -531,4 +531,5 @@
     <string name="tv_search_system_keyboard">Sistem klavyesi</string>
     <string name="storage_location_app">Uygulama depolama alanı</string>
     <string name="storage_location_custom">Özel</string>
+    <string name="connect_recovery_secure_storage">Naviamp bu cihazın güvenli kimlik bilgisi deposunu açamadı. Sistem anahtarlığının kilidini açın ve yeniden deneyin.</string>
 </resources>

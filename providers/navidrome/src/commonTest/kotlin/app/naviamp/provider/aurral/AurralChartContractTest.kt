@@ -5,7 +5,7 @@ import app.naviamp.provider.navidrome.*
 import kotlinx.coroutines.test.runTest
 import kotlin.test.*
 
-/** Synthetic v2.13 wire excerpts; no server writes. */
+/** Synthetic Aurral 3 (app API version 2) wire excerpts; no server writes. */
 class AurralChartContractTest {
     @Test fun chartsRetainNullableSectionsRanksAndOnlyValidatedPreviewPaths() = runTest {
         val http = ChartHttp()
@@ -24,20 +24,20 @@ class AurralChartContractTest {
         assertEquals(0, http.saves)
         assertEquals("Rock", chartClient(http).genreChart("152").name)
     }
-    @Test fun absentCapabilityNeverCallsNewRoutesAndMissingGenresAreUnavailable() = runTest {
-        val http = ChartHttp().apply { features = "\"discover\"" }
+    @Test fun aurralTwoNeverCallsChartRoutesAndMissingGenresAreUnavailable() = runTest {
+        val http = ChartHttp().apply { bootstrap = """{"api":{"version":1,"features":["discover","trending","flows"]}}""" }
         assertEquals(ProviderDiscoveryStatus.Unsupported, chartClient(http).charts().status)
         assertEquals(ProviderDiscoveryOperationStatus.Unsupported, chartClient(http).saveChartPlaylist("55").status)
         assertEquals(0, http.chartReads); assertEquals(0, http.saves)
-        http.features = "\"discover\",\"trending\",\"flows\""; http.missingGenre = true
+        http.bootstrap = ChartBootstrap; http.missingGenre = true
         assertEquals(ProviderDiscoveryStatus.Unavailable, chartClient(http).genreChart("152").status)
         assertFailsWith<IllegalArgumentException> { chartClient(http).genreChart("../bad") }
     }
     @Test fun chartSaveChecksPermissionReconcilesExistingAndNeverReplaysLostResponses() = runTest {
-        val http = ChartHttp().apply { accessFlow = false }
+        val http = ChartHttp().apply { accessPlaylists = false }
         assertEquals(ProviderDiscoveryOperationStatus.Forbidden, chartClient(http).saveChartPlaylist("55").status)
         assertEquals(0, http.saves)
-        http.accessFlow = true; http.saved = true
+        http.accessPlaylists = true; http.saved = true
         assertEquals("library-playlist", chartClient(http).saveChartPlaylist("55").playlistId)
         assertEquals(0, http.saves)
         http.saved = false; http.loseSave = true
@@ -51,13 +51,14 @@ class AurralChartContractTest {
 
 private fun chartClient(http: ChartHttp) = AurralDiscoveryClient(NavidromeConnection.fromPassword(
     providerId = ProviderIdAurral, baseUrl = "https://music.test/proxy", username = "listener", password = "synthetic"), http, nowMillis = { 0L })
+private const val ChartBootstrap = """{"appVersion":"3.0.1","api":{"version":2,"features":["libraryStatusFilter"]}}"""
 private class ChartHttp : NavidromeHttpClient {
-    var features = "\"discover\",\"trending\",\"flows\""
-    var accessFlow = true
+    var bootstrap = ChartBootstrap
+    var accessPlaylists = true
     var saves = 0; var chartReads = 0; var saved = false; var loseSave = false; var missingGenre = false
     override suspend fun get(url: String) = get(url, emptyMap())
     override suspend fun get(url: String, headers: Map<String, String>): String = when {
-        url.endsWith("/bootstrap") -> """{"api":{"version":1,"features":[$features]}}"""
+        url.endsWith("/bootstrap") -> bootstrap
         "/trending/genres/" in url -> {
             assertEquals("Bearer session", headers["Authorization"])
             if (missingGenre) throw NavidromeHttpException(404)
@@ -70,7 +71,7 @@ private class ChartHttp : NavidromeHttpClient {
         else -> error("Unexpected fixture read")
     }
     override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String = when {
-        url.endsWith("/login") -> """{"token":"session","expiresAt":100000,"user":{"permissions":{"accessFlow":$accessFlow}}}"""
+        url.endsWith("/login") -> """{"token":"session","expiresAt":100000,"user":{"permissions":{"accessPlaylists":$accessPlaylists}}}"""
         url.endsWith("/editorial/55/library") -> { saves++; if (loseSave) error("Lost response"); """{"playlistId":"library-playlist","alreadyAdded":false,"tracksQueued":100}""" }
         else -> error("Unexpected fixture write")
     }

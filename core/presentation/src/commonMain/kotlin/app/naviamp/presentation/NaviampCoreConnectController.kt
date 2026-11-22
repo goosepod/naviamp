@@ -8,6 +8,7 @@ import app.naviamp.app.NaviampConnectAdvertisingStatus
 import app.naviamp.app.NaviampConnectAuthenticatedCipherFactory
 import app.naviamp.app.NaviampConnectAuthenticatedSession
 import app.naviamp.app.NaviampConnectControllerSession
+import app.naviamp.app.NaviampConnectDeviceIdentity
 import app.naviamp.app.NaviampConnectDeviceIdentityEffect
 import app.naviamp.app.NaviampConnectDiscoveredTarget
 import app.naviamp.app.NaviampConnectDiscoveryController
@@ -74,6 +75,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.sync.Mutex
@@ -87,6 +90,10 @@ val NaviampCoreBidirectionalConnectCapabilities: Set<NaviampConnectDeviceCapabil
 
 val NaviampCorePlaybackTargetConnectCapabilities: Set<NaviampConnectDeviceCapability> =
     setOf(NaviampConnectDeviceCapability.PlaybackTarget)
+
+private val NaviampCoreConnectMonotonicOrigin = kotlin.time.TimeSource.Monotonic.markNow()
+private val NaviampCoreConnectMonotonicClock: () -> Long =
+    { NaviampCoreConnectMonotonicOrigin.elapsedNow().inWholeMilliseconds }
 
 /** Native effects and host facts required by the shared Connect product controller. */
 data class NaviampCoreConnectServices(
@@ -113,6 +120,8 @@ data class NaviampCoreConnectServices(
     val permissionSettings: app.naviamp.app.NaviampConnectPermissionSettingsEffect? = null,
     val networkDispatcher: kotlinx.coroutines.CoroutineDispatcher = kotlinx.coroutines.Dispatchers.Default,
     val trace: (NaviampCoreConnectTraceEvent) -> Unit = { println(it.logLine()) },
+    /** Monotonic milliseconds for playback timelines; wall-clock changes must not look like seeks. */
+    val monotonicMillis: () -> Long = NaviampCoreConnectMonotonicClock,
 ) {
     init {
         require(pairingLifetimeMillis > 0) { "The pairing lifetime must be positive." }
@@ -139,11 +148,26 @@ class NaviampCoreConnectController(
     private val targetSettings: NaviampCoreSettingsController? = null,
     private val revealTargetNowPlaying: () -> Unit = {},
     private val playbackOutputs: NaviampPlaybackOutputSelectionController = NaviampPlaybackOutputSelectionController(),
+    private val trackSelectionContext: (NaviampCoreCommand) -> app.naviamp.domain.connect.NaviampConnectPlaybackContext? =
+        { null },
 ) {
     private val controllerScope = CoroutineScope(
         scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]),
     )
-    private val localIdentity = services.identity.loadOrCreate()
+    /**
+     * The device identity lives behind the OS secure store, which can block on a keyring unlock
+     * prompt or fail outright. It is loaded off the caller's thread so constructing Core never waits
+     * on it; identity-dependent work waits for it, and a failure is a retryable recovery problem.
+     */
+    private sealed interface IdentityState {
+        data object Loading : IdentityState
+        data class Ready(val identity: NaviampConnectDeviceIdentity) : IdentityState
+        data object Unavailable : IdentityState
+    }
+    private val identityState = kotlinx.coroutines.flow.MutableStateFlow<IdentityState>(IdentityState.Loading)
+    private val localIdentity: NaviampConnectDeviceIdentity
+        get() = (identityState.value as? IdentityState.Ready)?.identity
+            ?: error("The Naviamp Connect device identity is not available.")
     private val canControl = NaviampConnectDeviceCapability.ControlPlayback in services.deviceCapabilities
     private val canPlayRemotely = NaviampConnectDeviceCapability.PlaybackTarget in services.deviceCapabilities
     private val localControllerDevice: NaviampConnectDevice
@@ -177,6 +201,8 @@ class NaviampCoreConnectController(
     private var targetSnapshotFactory: NaviampCoreConnectTargetSnapshotFactory? = null
     private var targetSnapshotPublishJob: Job? = null
     private var lastObservedTargetPlayback: NaviampLivePlaybackState? = null
+    private var targetTimeline: NaviampConnectTargetTimeline? = null
+    private var targetTimelineRevision = -1L
     private var controllerSession: NaviampConnectControllerSession? = null
     private var retryableRemoteCommands = emptyList<app.naviamp.domain.connect.NaviampConnectCommand>()
     private val targetSessionMutex = Mutex()
@@ -358,6 +384,7 @@ class NaviampCoreConnectController(
     }
 
     init {
+        loadIdentity()
         publish()
         discovery?.let { controller ->
             controllerScope.launch {
@@ -398,6 +425,40 @@ class NaviampCoreConnectController(
         if (canPlayRemotely) ensureTrustedTargetListener()
     }
 
+    private fun loadIdentity() {
+        if (identityState.value is IdentityState.Ready) return
+        identityState.value = IdentityState.Loading
+        // Undispatched: a dispatcher that runs inline (tests) settles before construction returns.
+        controllerScope.launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+            val loaded = try {
+                withContext(services.networkDispatcher) { services.identity.loadOrCreate() }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                null
+            }
+            identityState.value = loaded?.let(IdentityState::Ready) ?: IdentityState.Unavailable
+            publish()
+        }
+    }
+
+    /** Suspends until the identity load settles; false means secure storage is unavailable. */
+    private suspend fun awaitIdentity(): Boolean {
+        val settled = identityState.first { it !is IdentityState.Loading }
+        if (settled is IdentityState.Ready) return true
+        publish()
+        return false
+    }
+
+    /** Runs [action] now when the identity is ready, or once it loads; never on failure. */
+    private fun withIdentity(action: () -> Unit) {
+        if (identityState.value is IdentityState.Ready) {
+            action()
+            return
+        }
+        controllerScope.launch { if (awaitIdentity()) action() }
+    }
+
     fun close() {
         stopPairingMode()
         automaticReconnectRetryJob?.cancel()
@@ -411,11 +472,27 @@ class NaviampCoreConnectController(
     fun onLocalPlaybackChanged(live: NaviampLivePlaybackState) {
         val previous = lastObservedTargetPlayback
         lastObservedTargetPlayback = live
-        if (targetSession == null) {
+        val connectedTarget = targetSession
+        if (connectedTarget == null) {
+            targetTimeline = null
+            targetTimelineRevision = -1L
             publish()
             return
         }
-        if (!shouldPublishNaviampConnectTargetSnapshot(previous, live)) return
+        val now = services.monotonicMillis()
+        val published = connectedTarget.snapshot()
+        if (published.revision != targetTimelineRevision) {
+            // Command results and local publishes both advance the revision the controller holds.
+            targetTimelineRevision = published.revision
+            targetTimeline = NaviampConnectTargetTimeline(
+                positionSeconds = published.playback.positionMillis / 1_000.0,
+                playing = published.playback.state == app.naviamp.domain.connect.NaviampConnectPlaybackState.Playing,
+                anchoredAtMillis = now,
+            )
+        }
+        if (!shouldPublishNaviampConnectTargetSnapshot(previous, live, targetTimeline, now)) return
+        // Re-anchor at once so ticks before the debounced publish do not restart it indefinitely.
+        live.toConnectTargetTimeline(now)?.let { targetTimeline = it }
         targetSnapshotPublishJob?.cancel()
         targetSnapshotPublishJob = controllerScope.launch {
             delay(TargetSnapshotDebounceMillis)
@@ -424,8 +501,7 @@ class NaviampCoreConnectController(
     }
 
     /** Redirects shared catalog playback intents to the connected TV while browsing locally. */
-    internal fun routeProductCommand(command: NaviampCoreCommand): Boolean {
-        if (!canControl || playbackDestination.selectedTrustedDeviceId() == null) return false
+    internal fun routeProductCommand(command: NaviampCoreCommand): Boolean {        if (!canControl || playbackDestination.selectedTrustedDeviceId() == null) return false
         if (controllerSession == null || !playbackDestination.isConnectedRemote()) {
             val playbackIntent = command is NaviampCoreCommand.NowPlaying.Playback ||
                 command.connectMediaSelectionOrNull() != null || command.connectQueueSelectionOrNull() != null
@@ -469,7 +545,9 @@ class NaviampCoreConnectController(
             sendRemoteCommand(queued.toCommand(identity))
             return true
         }
-        val selection = command.connectMediaSelectionOrNull() ?: return false
+        val selection = command.connectMediaSelectionOrNull()
+            ?.withTrackListContext(trackSelectionContext(command))
+            ?: return false
         val identity = sourceIdentity()
         if (identity == null) {
             status = "Connect this device to the same music source before playing on the TV."
@@ -483,6 +561,10 @@ class NaviampCoreConnectController(
 
     private fun startPairingMode(explicitCodeConsent: Boolean = false, preserveAdvertisement: Boolean = false) {
         if (!canPlayRemotely || advertising == null) return
+        if (identityState.value !is IdentityState.Ready) {
+            withIdentity { startPairingMode(explicitCodeConsent, preserveAdvertisement) }
+            return
+        }
         advertisingFailure = null
         settingsOpenFailed = false
         val existingListener = listener
@@ -801,6 +883,8 @@ class NaviampCoreConnectController(
     private fun recoveryProblem(): app.naviamp.ui.NaviampConnectRecoveryProblem? {
         val problem = discovery?.state?.value?.problem
         return when {
+            identityState.value is IdentityState.Unavailable ->
+                app.naviamp.ui.NaviampConnectRecoveryProblem.SecureStorageUnavailable
             advertisingFailure?.permissionDenied == true || problem is NaviampConnectDiscoveryProblem.PermissionDenied ->
                 app.naviamp.ui.NaviampConnectRecoveryProblem.LocalNetworkPermission
             advertisingFailure != null -> app.naviamp.ui.NaviampConnectRecoveryProblem.AdvertisingUnavailable
@@ -819,6 +903,15 @@ class NaviampCoreConnectController(
 
     private fun retryConnection() {
         settingsOpenFailed = false
+        if (identityState.value is IdentityState.Unavailable) {
+            loadIdentity()
+            withIdentity {
+                ensureTrustedTargetListener()
+                if (canControl) beginAutomaticTrustedReconnect()
+            }
+            publish()
+            return
+        }
         // Retry only failed native operations. Keep authenticated sessions and playback authority intact.
         val retryAdvertising = advertisingFailure != null
         when (discovery?.state?.value?.problem) {
@@ -925,6 +1018,10 @@ class NaviampCoreConnectController(
         target: NaviampConnectDiscoveredTarget,
         manual: Boolean = false,
     ) {
+        if (identityState.value !is IdentityState.Ready) {
+            withIdentity { startTrustedReconnect(trust, target, manual) }
+            return
+        }
         pendingTrustedDeviceId = null
         phase = NaviampConnectPairingUiPhase.Handshaking
         playbackDestination.connecting(trust.trustedDeviceId)
@@ -1068,6 +1165,10 @@ class NaviampCoreConnectController(
         val target = selectedTarget
         val manualEndpoint = selectedManualEndpoint
         if (target == null && manualEndpoint == null) return
+        if (identityState.value !is IdentityState.Ready) {
+            withIdentity(::submitPairingCode)
+            return
+        }
         if (enteredCode.length != 6) {
             status = "Enter all six digits shown on the TV."
             statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.EnterAllSixDigitsShownOnTheTv)

@@ -199,6 +199,93 @@ class NaviampCoreConnectControllerTest {
         controller.close()
     }
 
+    private fun secureStorageFixture(
+        scope: CoroutineScope,
+        store: NaviampCoreStateStore,
+        identity: NaviampConnectDeviceIdentityEffect,
+        identityDispatcher: kotlinx.coroutines.CoroutineDispatcher,
+        listeners: MutableList<WaitingListener>,
+        now: () -> Long,
+    ) = NaviampCoreConnectController(scope, store, NaviampCoreConnectServices(
+        networkDispatcher = identityDispatcher,
+        deviceCapabilities = NaviampCorePlaybackTargetConnectCapabilities, displayName = "TV",
+        identity = identity, identityVerifier = FakeIdentityVerifier,
+        transport = object : NaviampConnectTransportFactory {
+            override suspend fun connect(host: String, port: Int) = error("unused")
+            override fun listen(port: Int) = WaitingListener(42424).also { listeners += it }
+        },
+        pake = UnusedPakeFactory, cipher = UnusedCipherFactory,
+        trust = NaviampConnectTrustRepository(NaviampConnectTrustStorageEffect {}),
+        advertising = object : NaviampConnectAdvertisingEffect {
+            override fun start(service: NaviampConnectRegistrationService, listener: NaviampConnectAdvertisingListener)
+                : NaviampConnectAdvertisingStartResult {
+                listener.onServiceRegistered(service.serviceName)
+                return NaviampConnectAdvertisingStartResult.Started
+            }
+            override fun stop() = Unit
+        },
+        newOpaqueId = { "opaque" }, newPairingCode = { "123456" },
+        nowEpochMillis = now,
+    ))
+
+    @Test
+    fun constructionDoesNotWaitForASlowSecureStoreAndPairingStartsOnceTheIdentityLoads() = runTest {
+        var loads = 0
+        val identity = object : NaviampConnectDeviceIdentityEffect {
+            override fun loadOrCreate(): NaviampConnectDeviceIdentity { loads++; return FakeIdentity.loadOrCreate() }
+            override fun sign(payload: ByteArray) = byteArrayOf(1)
+        }
+        val store = NaviampCoreStateStore()
+        val listeners = mutableListOf<WaitingListener>()
+        // The secure store runs on its own dispatcher; nothing on the caller's thread may wait for it.
+        val secureStore = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
+        val controller = secureStorageFixture(this, store, identity, secureStore, listeners) { testScheduler.currentTime }
+        assertEquals(0, loads, "constructing Connect must not touch the secure store on the caller's thread")
+        controller.actions.onStartPairingMode()
+        assertTrue(listeners.isEmpty(), "pairing waits for the identity instead of blocking")
+        assertNull(store.state.value.shell.connect.recovery)
+        runCurrent()
+        assertEquals(1, loads)
+        assertEquals(1, listeners.size)
+        assertEquals(NaviampConnectPairingUiPhase.Advertising, store.state.value.shell.connect.pairingPhase)
+        controller.close()
+    }
+
+    @Test
+    fun unavailableSecureStoreIsARetryableRecoveryProblemInsteadOfACrash() = runTest {
+        var locked = true
+        var loads = 0
+        val identity = object : NaviampConnectDeviceIdentityEffect {
+            override fun loadOrCreate(): NaviampConnectDeviceIdentity {
+                loads++
+                if (locked) throw IllegalStateException("Secure credential service failed with exit code 1")
+                return FakeIdentity.loadOrCreate()
+            }
+            override fun sign(payload: ByteArray) = byteArrayOf(1)
+        }
+        val store = NaviampCoreStateStore()
+        val listeners = mutableListOf<WaitingListener>()
+        val controller = secureStorageFixture(this, store, identity, kotlinx.coroutines.Dispatchers.Unconfined, listeners) {
+            testScheduler.currentTime
+        }
+        runCurrent()
+        assertEquals(app.naviamp.ui.NaviampConnectRecoveryProblem.SecureStorageUnavailable,
+            store.state.value.shell.connect.recovery?.problem)
+        controller.actions.onStartPairingMode()
+        runCurrent()
+        assertTrue(listeners.isEmpty(), "pairing must not start without a device identity")
+        locked = false
+        controller.actions.onRetryConnection()
+        runCurrent()
+        assertEquals(2, loads)
+        assertNull(store.state.value.shell.connect.recovery)
+        controller.actions.onStartPairingMode()
+        runCurrent()
+        assertEquals(1, listeners.size)
+        assertEquals(NaviampConnectPairingUiPhase.Advertising, store.state.value.shell.connect.pairingPhase)
+        controller.close()
+    }
+
     @Test
     fun discoveryPermissionRetryPreservesRemoteSessionAndReportsSettingsLaunchFailure() = runTest {
         val discovery = RecordingDiscoveryEffect()
@@ -994,6 +1081,71 @@ class NaviampCoreConnectControllerTest {
     }
 
     @Test
+    fun remoteAlbumTrackSelectionSendsTheChosenTrackWithinItsAlbum() = runTest {
+        val sent = mutableListOf<app.naviamp.domain.connect.NaviampConnectEnvelope>()
+        val registry = NaviampCoreMediaRegistry()
+        val tracks = (1..4).map { n ->
+            app.naviamp.domain.Track(id = app.naviamp.domain.TrackId("album-$n"), title = "Track $n", artistName = "Artist",
+                albumTitle = "Album", durationSeconds = 180, coverArtId = null, audioInfo = null, replayGain = null)
+        }
+        registry.updateAlbum(app.naviamp.domain.AlbumDetails(app.naviamp.domain.Album(app.naviamp.domain.AlbumId("album"),
+            "Album", "Artist", coverArtId = null, recentlyAddedAtIso8601 = null), tracks))
+        val identity = app.naviamp.domain.connect.NaviampConnectSourceIdentity("navidrome", "https://music.example", "listener")
+        val (controller, _, _) = remoteFixture(sourceIdentity = { identity },
+            trackSelectionContext = registry::connectTrackSelectionContext) { sent += it }
+
+        assertTrue(controller.routeProductCommand(NaviampCoreCommand.Detail.AlbumTrack(
+            app.naviamp.ui.SharedTrackRowActionRequest(app.naviamp.ui.SharedTrackRowUi("album-3", "Track 3", "Artist"),
+                app.naviamp.ui.SharedTrackRowAction.Select))))
+        runCurrent()
+
+        val start = sent.map { it.message }.filterIsInstance<app.naviamp.domain.connect.NaviampConnectCommandRequest>()
+            .map { it.command }.filterIsInstance<app.naviamp.domain.connect.NaviampConnectStartMedia>().single()
+        assertEquals(app.naviamp.domain.connect.NaviampConnectMediaType.Track, start.mediaType)
+        assertEquals("album-3", start.mediaId)
+        assertEquals(app.naviamp.domain.connect.NaviampConnectPlaybackContext(
+            app.naviamp.domain.connect.NaviampConnectMediaType.Album, "album"), start.context)
+        assertEquals(identity, start.sourceIdentity)
+        controller.close()
+    }
+
+    @Test
+    fun homeMixOnARemoteTargetIsSentAsSeedTrackRadioAndNeverAsTheAlbum() = runTest {
+        val sent = mutableListOf<app.naviamp.domain.connect.NaviampConnectEnvelope>()
+        val identity = app.naviamp.domain.connect.NaviampConnectSourceIdentity("navidrome", "https://music.test", "me")
+        val (controller, _, _) = remoteFixture(sourceIdentity = { identity },
+            extraCapabilities = setOf(app.naviamp.domain.connect.NaviampConnectCapability.CatalogPlayback)) { sent += it }
+        val local = mutableListOf<NaviampCoreCommand>()
+        val handler = NaviampCoreConnectCommandHandler(object : NaviampCoreCommandHandler {
+            override fun dispatch(command: NaviampCoreCommand) { local += command }
+            override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult {
+                local += command
+                return NaviampCoreCommandResult.Completed
+            }
+        }, controller)
+        val album = app.naviamp.domain.Album(app.naviamp.domain.AlbumId("single"), "Single", "Artist", null, null)
+        val seed = app.naviamp.domain.Track(
+            id = app.naviamp.domain.TrackId("seed"), title = "Seed", artistName = "Artist", albumId = album.id,
+            albumTitle = album.title, durationSeconds = 180, coverArtId = null, audioInfo = null, replayGain = null,
+        )
+        val tile = NaviampCoreCommand.Media.ItemAction(app.naviamp.ui.NaviampMediaItemActionRequest(
+            app.naviamp.ui.SharedMediaItemUi("single", "Single", "Artist"), app.naviamp.ui.NaviampMediaItemCommand.PlayAlbumMix))
+
+        // The tile is resolved locally first (seed lookup), then the resolved mix goes to the target.
+        handler.execute(tile)
+        handler.execute(NaviampCoreCommand.Home.StartAlbumMix(album, seed))
+        runCurrent()
+
+        assertEquals(listOf<NaviampCoreCommand>(tile), local)
+        val started = sent.map { it.message }.filterIsInstance<app.naviamp.domain.connect.NaviampConnectCommandRequest>()
+            .map { it.command }.filterIsInstance<app.naviamp.domain.connect.NaviampConnectStartMedia>().single()
+        assertEquals(app.naviamp.domain.connect.NaviampConnectMediaType.Track, started.mediaType)
+        assertEquals("seed", started.mediaId)
+        assertTrue(started.startRadio)
+        controller.close()
+    }
+
+    @Test
     fun anIdlePeerThatStopsRespondingTriggersReconnect() = runTest {
         val sent = mutableListOf<app.naviamp.domain.connect.NaviampConnectEnvelope>()
         val (controller, store, session) = remoteFixture { sent += it }
@@ -1136,6 +1288,9 @@ class NaviampCoreConnectControllerTest {
         permissionSettings: app.naviamp.app.NaviampConnectPermissionSettingsEffect? = null,
         providerSessions: NaviampCoreProviderSessionPort? = null,
         companionProvisioningSupported: Boolean = false,
+        sourceIdentity: () -> app.naviamp.domain.connect.NaviampConnectSourceIdentity? = { null },
+        trackSelectionContext: (NaviampCoreCommand) -> app.naviamp.domain.connect.NaviampConnectPlaybackContext? = { null },
+        extraCapabilities: Set<app.naviamp.domain.connect.NaviampConnectCapability> = emptySet(),
         send: suspend (app.naviamp.domain.connect.NaviampConnectEnvelope) -> Unit,
     ): Triple<NaviampCoreConnectController, NaviampCoreStateStore, NaviampConnectControllerSession> {
         var stored: String? = null
@@ -1153,13 +1308,15 @@ class NaviampCoreConnectControllerTest {
             pake = UnusedPakeFactory, cipher = UnusedCipherFactory, trust = trust,
             discovery = discovery, permissionSettings = permissionSettings,
             newOpaqueId = { "unused" }, newPairingCode = { "123456" }, nowEpochMillis = { testScheduler.currentTime },
-        ), providerSessions = providerSessions)
+        ), providerSessions = providerSessions, sourceIdentity = sourceIdentity,
+            trackSelectionContext = trackSelectionContext)
         if (discovery != null) controller.actions.onRefreshTargets()
         var next = 0
         val session = NaviampConnectControllerSession(NaviampConnectSessionTransport(send),
             NaviampConnectRequestIdFactory { "request-${++next}" })
         session.connect("session", 1, target, setOf(app.naviamp.domain.connect.NaviampConnectCapability.TransportControls,
-                app.naviamp.domain.connect.NaviampConnectCapability.ConnectionProvisioning),
+                app.naviamp.domain.connect.NaviampConnectCapability.ConnectionProvisioning,
+                app.naviamp.domain.connect.NaviampConnectCapability.CatalogPlayback) + extraCapabilities,
             NaviampConnectTargetSnapshot(0, target, emptySet()))
         controller.adoptControllerSession(session, companionProvisioningSupported)
         return Triple(controller, store, session)

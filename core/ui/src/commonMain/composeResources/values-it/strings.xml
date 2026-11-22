@@ -531,4 +531,5 @@
     <string name="tv_search_system_keyboard">Tastiera di sistema</string>
     <string name="storage_location_app">Spazio dell’app</string>
     <string name="storage_location_custom">Personalizzato</string>
+    <string name="connect_recovery_secure_storage">Naviamp non è riuscito ad aprire l&apos;archivio sicuro delle credenziali di questo dispositivo. Sblocca il portachiavi di sistema, quindi riprova.</string>
 </resources>

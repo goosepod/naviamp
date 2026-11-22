@@ -295,6 +295,31 @@ fun albumSeededRadioRequest(
         loadRest = { radioService -> radioService.albumRadio(album.id, loadedAlbumTracks) },
     )
 
+/**
+ * Home "Mixes for you" request: a similar-songs station seeded from one track of the tile's
+ * album. A mix never falls back to queueing the album's own tracks: when similar songs are
+ * unsupported or empty, the shared seeded-radio path reports the failure exactly as Start Radio.
+ *
+ * The station is remembered as the seed track's station, so a Recent Radio rebuild replays it
+ * through track radio (similar songs) and never through album radio or its album fallback. This
+ * is also exactly what a Connect target plays for the same mix (seed track with `startRadio`).
+ */
+fun albumHomeMixSeededRadioRequest(
+    album: Album,
+    seedTrack: Track,
+    preferSonicSimilarity: Boolean = false,
+): SeededRadioRequest =
+    SeededRadioRequest(
+        label = "${album.title} radio",
+        seedTrack = seedTrack,
+        recentRadioStream = trackRecentRadioStream(seedTrack),
+        loadRest = { radioService ->
+            // Artist-run tuning can widen track radio with the seed artist's catalog; a mix must
+            // still never turn into the seed album, so its own tracks are excluded.
+            radioService.trackRadio(seedTrack, preferSonicSimilarity).filterNot { it.albumId == album.id }
+        },
+    )
+
 fun albumMixSeededRadioRequest(
     albums: List<Album>,
     seedTrack: Track,

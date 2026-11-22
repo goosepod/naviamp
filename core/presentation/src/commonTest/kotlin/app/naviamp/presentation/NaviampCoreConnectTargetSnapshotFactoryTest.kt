@@ -115,6 +115,66 @@ class NaviampCoreConnectTargetSnapshotFactoryTest {
         )
     }
 
+    private fun playingAt(positionSeconds: Double, state: PlaybackState = PlaybackState.Playing): NaviampLivePlaybackState {
+        val current = track("current", "Current")
+        return NaviampLivePlaybackState(
+            currentTrack = current,
+            queue = PlaybackQueue(listOf(current), currentIndex = 0),
+            progress = PlaybackProgress(positionSeconds, 180.0),
+            playbackState = state,
+        )
+    }
+
+    @Test
+    fun normalProgressAgainstThePublishedTimelineStaysSuppressed() {
+        // Published at 10 s while playing at t=0; the engine advances in step for 60 s.
+        val published = NaviampConnectTargetTimeline(10.0, playing = true, anchoredAtMillis = 0L)
+        var previous = playingAt(10.0)
+        for (second in 1..60) {
+            val updated = playingAt(10.0 + second - 0.3) // sampling lag behind wall time
+            assertEquals(false, shouldPublishNaviampConnectTargetSnapshot(previous, updated, published, second * 1_000L),
+                "normal progress at $second s must not republish the queue")
+            previous = updated
+        }
+    }
+
+    @Test
+    fun targetSeekPublishesAsAPositionDiscontinuity() {
+        val published = NaviampConnectTargetTimeline(10.0, playing = true, anchoredAtMillis = 0L)
+        val previous = playingAt(15.0)
+        // Forward seek from the TV remote: no seek generation, position jumps well past the timeline.
+        assertTrue(shouldPublishNaviampConnectTargetSnapshot(previous, playingAt(95.0), published, 5_000L))
+        // Backward seek.
+        assertTrue(shouldPublishNaviampConnectTargetSnapshot(previous, playingAt(14.0), published, 5_000L))
+        // A seek through the shared seek plan advances seek generation even for a small move.
+        assertTrue(shouldPublishNaviampConnectTargetSnapshot(previous,
+            playingAt(16.0).let { it.copy(progress = it.progress.copy(seekGeneration = 1L)) }, published, 5_000L))
+        // A seek while paused.
+        val paused = NaviampConnectTargetTimeline(40.0, playing = false, anchoredAtMillis = 0L)
+        assertTrue(shouldPublishNaviampConnectTargetSnapshot(playingAt(40.0, PlaybackState.Paused),
+            playingAt(70.0, PlaybackState.Paused), paused, 30_000L))
+        assertEquals(false, shouldPublishNaviampConnectTargetSnapshot(playingAt(40.0, PlaybackState.Paused),
+            playingAt(40.0, PlaybackState.Paused), paused, 30_000L))
+    }
+
+    @Test
+    fun stalledPlaybackPublishesOnceItDriftsAndAnEndingTrackDoesNot() {
+        val published = NaviampConnectTargetTimeline(10.0, playing = true, anchoredAtMillis = 0L)
+        // Nominally playing but stuck at 12 s: controllers would run ahead.
+        assertEquals(false, shouldPublishNaviampConnectTargetSnapshot(playingAt(12.0), playingAt(12.0), published, 3_000L))
+        assertTrue(shouldPublishNaviampConnectTargetSnapshot(playingAt(12.0), playingAt(12.0), published, 5_000L))
+        // Holding at the end of the track matches a controller that stops at the duration.
+        val ending = NaviampConnectTargetTimeline(178.0, playing = true, anchoredAtMillis = 0L)
+        assertEquals(false, shouldPublishNaviampConnectTargetSnapshot(playingAt(180.0), playingAt(180.0), ending, 20_000L))
+    }
+
+    @Test
+    fun attachingControllerReceivesTheCurrentPosition() {
+        val snapshot = factory.create(revision = 0, live = playingAt(120.4), volumePercent = 50)
+        assertEquals(120_400L, snapshot.playback.positionMillis)
+        assertEquals(NaviampConnectPlaybackState.Playing, snapshot.playback.state)
+    }
+
     @Test
     fun successfulRemotePlayIntentRevealsTargetNowPlayingOnlyWhenPlaybackStarts() {
         assertTrue(NaviampConnectPlay.revealsNowPlayingAfter(NaviampConnectPlaybackState.Playing))

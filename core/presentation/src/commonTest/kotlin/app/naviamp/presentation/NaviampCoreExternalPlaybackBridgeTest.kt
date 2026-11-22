@@ -205,7 +205,7 @@ class NaviampCoreExternalPlaybackBridgeTest {
         val item = NaviampExternalMediaItem("radio", "Station", "", artworkUrl = "naviamp-radio-tile://tile?label=Test")
         assertEquals("naviamp-radio-tile://tile?label=Test", item.artworkUrl)
         assertNull(item.externalArtworkUrl)
-        assertEquals("https://example.test/art", item.copy(artworkUrl = "https://example.test/art").externalArtworkUrl)
+        assertNull(item.copy(artworkUrl = "https://example.test/art").externalArtworkUrl)
         assertEquals("file:///tmp/art.png", item.copy(artworkUrl = "file:///tmp/art.png").externalArtworkUrl)
     }
 

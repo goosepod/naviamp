@@ -25,6 +25,31 @@ class NaviampConnectProtocolTest {
     }
 
     @Test
+    fun trackSelectionContextIsAdditiveAndLegacyCommandsStaySingleTrack() {
+        val selected = NaviampConnectStartMedia(
+            mediaType = NaviampConnectMediaType.Track,
+            mediaId = "track-3",
+            sourceIdentity = sourceIdentity(),
+            context = NaviampConnectPlaybackContext(NaviampConnectMediaType.Album, "album"),
+        )
+        val envelope = NaviampConnectEnvelope(1, "session", 1, message = NaviampConnectCommandRequest(selected))
+        val encoded = NaviampConnectWireCodec.encode(envelope)
+        assertEquals(envelope, NaviampConnectWireCodec.decode(encoded))
+
+        val legacyEncoded = encoded.replace(",\"context\":{\"mediaType\":\"Album\",\"mediaId\":\"album\"}", "")
+        assertFalse("context" in legacyEncoded)
+        val legacy = (NaviampConnectWireCodec.decode(legacyEncoded).message as NaviampConnectCommandRequest)
+            .command as NaviampConnectStartMedia
+        assertNull(legacy.context)
+        assertEquals(selected.copy(context = null), legacy)
+
+        val withoutContext = NaviampConnectWireCodec.encode(
+            NaviampConnectEnvelope(1, "session", 1, message = NaviampConnectCommandRequest(selected.copy(context = null))),
+        )
+        assertFalse("context" in withoutContext, "An absent context must stay off the wire for older peers")
+    }
+
+    @Test
     fun setupRejectionIsAdditiveAndLegacyFailureRemainsUnclassified() {
         val result = NaviampConnectConnectionProvisioningResult(false, "", "setup", rejected = true)
         val envelope = NaviampConnectEnvelope(1, "session", 1, message = result)

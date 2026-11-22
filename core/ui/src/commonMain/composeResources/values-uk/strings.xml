@@ -531,4 +531,5 @@
     <string name="tv_search_system_keyboard">Системна клавіатура</string>
     <string name="storage_location_app">Сховище застосунку</string>
     <string name="storage_location_custom">Власне</string>
+    <string name="connect_recovery_secure_storage">Naviamp не вдалося відкрити захищене сховище облікових даних цього пристрою. Розблокуйте системну в’язку ключів і спробуйте ще раз.</string>
 </resources>

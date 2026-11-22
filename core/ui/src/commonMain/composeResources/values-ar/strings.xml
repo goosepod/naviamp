@@ -531,4 +531,5 @@
     <string name="tv_search_system_keyboard">لوحة مفاتيح النظام</string>
     <string name="storage_location_app">تخزين التطبيق</string>
     <string name="storage_location_custom">مخصص</string>
+    <string name="connect_recovery_secure_storage">تعذّر على Naviamp فتح مخزن بيانات الاعتماد الآمن على هذا الجهاز. افتح قفل سلسلة مفاتيح النظام، ثم أعد المحاولة.</string>
 </resources>

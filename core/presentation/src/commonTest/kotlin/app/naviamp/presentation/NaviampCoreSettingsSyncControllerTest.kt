@@ -6,6 +6,7 @@ import app.naviamp.domain.settings.SettingsSyncDocument
 import app.naviamp.domain.settings.SettingsSyncLocalSnapshot
 import app.naviamp.domain.settings.SettingsSyncPreferences
 import app.naviamp.domain.settings.SettingsSyncRuntimeState
+import app.naviamp.domain.settings.toSettingsSyncServerProfile
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -37,7 +38,7 @@ class NaviampCoreSettingsSyncControllerTest {
                 ),
                 port = port,
             ),
-            onDocumentApplied = { publishedSnapshot = it },
+            onDocumentApplied = { snapshot, _ -> publishedSnapshot = snapshot },
         )
 
         controller.execute(NaviampCoreCommand.SettingsSync.ChangeDirectory("/sync"))
@@ -60,6 +61,45 @@ class NaviampCoreSettingsSyncControllerTest {
         assertEquals(false, store.state.value.shell.general.interfaceSettings.showDesktopTooltips)
         assertTrue(store.state.value.shell.general.interfaceSettings.keepScreenAwake)
         assertEquals(snapshot, publishedSnapshot)
+    }
+
+    @Test
+    fun importOfAnAccountThisDeviceHoldsReportsThatConnectionAndAsksForNoPassword() = runTest {
+        val store = NaviampCoreStateStore()
+        val port = RecordingSettingsSyncPort()
+        var runtime = SettingsSyncRuntimeState()
+        val held = app.naviamp.domain.source.SavedMediaSource(
+            id = "local-1", providerId = app.naviamp.domain.provider.ProviderIdNavidrome, cacheNamespace = "ns",
+            displayName = "Home", baseUrl = "https://music.example", username = "listener",
+            token = "stored-token", salt = "salt", createdAtEpochMillis = 1L,
+            lastConnectedAtEpochMillis = null, lastSyncStartedAtEpochMillis = null, lastSyncCompletedAtEpochMillis = null,
+        )
+        val other = held.copy(id = "local-2", username = "guest")
+        val snapshot = SettingsSyncLocalSnapshot(serverProfiles = listOf(other, held))
+        var imported: app.naviamp.domain.source.SavedMediaSource? = null
+        val controller = NaviampCoreSettingsSyncController(
+            store,
+            NaviampCoreSettingsSyncServices(
+                controller = NaviampSettingsSyncController(
+                    deviceId = "test", state = { runtime }, saveState = { runtime = it }, nowEpochMillis = { 100L },
+                    snapshot = { snapshot }, applyDocument = {},
+                ),
+                port = port,
+            ),
+            onDocumentApplied = { _, connection -> imported = connection },
+        )
+
+        controller.execute(NaviampCoreCommand.SettingsSync.ChangeDirectory("/sync"))
+        port.document = SettingsSyncDocument(
+            updatedAtEpochMillis = 200L,
+            serverProfiles = listOf(held.toSettingsSyncServerProfile()),
+        )
+        controller.execute(NaviampCoreCommand.SettingsSync.Import)
+
+        // The import resolves to the matching account (not simply the first saved connection) and,
+        // because it holds credentials, the status no longer asks for a password.
+        assertEquals("local-1", imported?.id)
+        assertEquals("Settings imported.", store.state.value.settingsSync.status)
     }
 
     @Test

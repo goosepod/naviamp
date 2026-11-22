@@ -20,6 +20,7 @@ import app.naviamp.domain.playback.AudioOutputDevice
 import app.naviamp.domain.playback.PlaybackProfileTarget
 import app.naviamp.domain.playback.PlaybackProfileTargetType
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.settings.hasStoredCredentials
 import app.naviamp.domain.settings.toConnectionFormState
 import app.naviamp.domain.settings.toSettingsSyncServerProfile
 import app.naviamp.domain.settings.GlobalShortcutAction
@@ -36,6 +37,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -119,6 +121,17 @@ class NaviampCore private constructor(
     internal val vehicleDownloads: (app.naviamp.ui.NaviampVehicleLibraryLabels, app.naviamp.ui.NaviampVehicleDownloadsLabels) -> NaviampVehicleDownloadsAccess,
 ) {
     val state: StateFlow<NaviampCoreState> = stateStore.state
+
+    /**
+     * The progress timeline every host's shared Now Playing UI presents: local engine progress, or
+     * the attached Connect target's reported position extrapolated while it plays.
+     * [playbackProgress] remains the local engine's progress.
+     */
+    val presentedPlaybackProgress: StateFlow<PlaybackProgress> = naviampPresentedPlaybackProgress(
+        scope = runtimeScope,
+        local = playbackProgress,
+        remote = state.map { it.shell.connect.remoteNowPlaying }.remoteProgressReports(),
+    )
 
     fun dispatch(command: NaviampCoreCommand) = commands.dispatch(command)
 
@@ -616,6 +629,8 @@ class NaviampCore private constructor(
             )
             playback.attachNativePlayback()
             val trackActions = NaviampCoreTrackActionController(mediaRegistry, mediaTransactions, playlistMembership::open)
+            // Resolved mix commands re-enter the Connect-aware handler created below.
+            var resolvedCommandHandler: NaviampCoreCommandHandler? = null
             val collectionActions = NaviampCoreCollectionActionController(
                 providerSource,
                 mediaRegistry,
@@ -623,6 +638,7 @@ class NaviampCore private constructor(
                 mediaDetails,
                 playbackProfiles,
                 settings,
+                issueResolvedCommand = { command -> checkNotNull(resolvedCommandHandler).execute(command) },
             )
             val providerSessionLifecycle = NaviampCoreProviderSessionLifecycle(
                 sessionPort = services.connection,
@@ -730,7 +746,7 @@ class NaviampCore private constructor(
             val settingsSync = NaviampCoreSettingsSyncController(
                 stateStore = stateStore,
                 services = services.settings.sync,
-                onDocumentApplied = { snapshot ->
+                onDocumentApplied = { snapshot, imported ->
                     connection.replaceSavedConnections(
                         snapshot.serverProfiles.map { source ->
                             NaviampCoreSavedConnectionRecord(
@@ -743,20 +759,18 @@ class NaviampCore private constructor(
                             )
                         },
                     )
-                    snapshot.serverProfiles.firstOrNull()?.let { source ->
-                        val form = source.toSettingsSyncServerProfile().toConnectionFormState()
-                        stateStore.updateShell { shell ->
-                            shell.copy(
-                                connectionSettings = shell.connectionSettings.copy(
-                                    connection = shell.connectionSettings.connection.copy(
-                                        editingConnection = true,
-                                        editingSavedConnection = false,
-                                        form = form,
-                                    ),
-                                ),
+                    imported?.let { source ->
+                        // A matched connection that already holds credentials reconnects as is;
+                        // only a missing or rejected credential opens its password form.
+                        val reconnected = source.hasStoredCredentials() &&
+                            connection.reconnectImportedConnection(source.id)
+                        if (!reconnected) {
+                            connection.editImportedConnection(
+                                id = source.id,
+                                form = source.toSettingsSyncServerProfile().toConnectionFormState(),
                             )
+                            navigation.dispatch(NaviampCoreCommand.Navigation.SelectRoute(SharedRoute.Settings))
                         }
-                        navigation.dispatch(NaviampCoreCommand.Navigation.SelectRoute(SharedRoute.Settings))
                     }
                     mediaDetails.interfaceSettingsChanged(snapshot.interfaceSettings)
                     home.refreshAfterConnection()
@@ -809,6 +823,7 @@ class NaviampCore private constructor(
                     targetSettings = settings.takeIf { supportsRemotePlayback },
                     revealTargetNowPlaying = navigation::openNowPlaying,
                     playbackOutputs = playbackOutputs,
+                    trackSelectionContext = mediaRegistry::connectTrackSelectionContext,
                 )
             }
             val castEffect = services.cast?.let { castServices ->
@@ -854,6 +869,7 @@ class NaviampCore private constructor(
             val commandHandler = NaviampCoreConnectCommandHandler(router, connect, samplePlayback::stop,
                 onPlaybackIntent = { stateStore.update { it.copy(playbackIntentGeneration = it.playbackIntentGeneration + 1L) } },
                 closeDelegate = router::close)
+            resolvedCommandHandler = commandHandler
             pauseMainForSample = { commandHandler.dispatch(NaviampCoreCommand.NowPlaying.Playback(
                 NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.Pause))) }
             livePlayback.observe { live -> connect?.onLocalPlaybackChanged(live) }

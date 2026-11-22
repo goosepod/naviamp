@@ -616,6 +616,7 @@
     <string name="connect_recovery_permission">Der Zugriff auf das lokale Netzwerk wurde verweigert. Erlauben Sie Naviamp in den Systemeinstellungen den Zugriff auf das lokale Netzwerk, wenn diese Berechtigung verfügbar ist. Kehren Sie dann zurück und versuchen Sie es erneut.</string>
     <string name="connect_recovery_discovery">Naviamp konnte das lokale Netzwerk nicht durchsuchen. Überprüfen Sie, ob sich beide Geräte im selben Netzwerk befinden und dass das Netzwerk die Kommunikation der Geräte zulässt, und versuchen Sie es dann erneut.</string>
     <string name="connect_recovery_advertising">Dieses Gerät konnte sich nicht für die Kopplung verfügbar machen. Überprüfen Sie die Netzwerkverbindung und versuchen Sie es erneut.</string>
+    <string name="connect_recovery_secure_storage">Naviamp konnte den sicheren Anmeldedatenspeicher dieses Geräts nicht öffnen. Entsperren Sie den Schlüsselbund des Systems und versuchen Sie es erneut.</string>
     <string name="connect_recovery_settings_failed">Die Systemeinstellungen konnten nicht geöffnet werden. Öffnen Sie die Naviamp-Berechtigungen in den Systemeinstellungen, kehren Sie dann zurück und versuchen Sie es erneut.</string>
     <string name="connect_recovery_open_settings">Öffnen Sie die Systemeinstellungen</string>
     <string name="connect_recovery_retry">Verbindung erneut versuchen</string>
