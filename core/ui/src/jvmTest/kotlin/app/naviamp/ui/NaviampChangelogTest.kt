@@ -18,6 +18,7 @@ class NaviampChangelogTest {
         assertTrue(features[2].startsWith("Apple TV (beta)") && features[2].contains("No Apple TV download is published"))
         val improvements = sections.getValue("Improvements")
         assertTrue(improvements.first().startsWith("Android Auto") && improvements.first().contains("Start Radio"))
+        assertEquals("Android TV and Google TV are no longer beta.", improvements[1])
         val fixes = sections.getValue("Bug fixes")
         assertTrue(fixes.first().startsWith("Linux media controls") && fixes.first().contains("private local file"))
         assertTrue(fixes.any { it.startsWith("Mixes for you start a radio station") && it.contains("instead of playing the seed album") })

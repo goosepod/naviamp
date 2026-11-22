@@ -120,7 +120,7 @@ Ask on Discord before uninstalling: uninstalling erases local app data.
 - **Certificate-protected connections.** Import client identities and private server authorities for
   authenticated browsing, artwork and playback on all supported platforms.
 - **One app across devices.** Naviamp targets macOS, Windows, Linux, Android, and iOS with shared
-  product behavior, secure credential storage, and settings sync. Android Auto, Android TV (beta),
+  product behavior, secure credential storage, and settings sync. Android Auto, Android TV,
   Naviamp Connect remote control (beta), and Apple CarPlay (beta) are supported; Apple TV (beta)
   can be built from source.
 
@@ -266,7 +266,7 @@ Naviamp uses the BASS audio engine and combines its playback controls with a fle
 Naviamp is available for macOS, Windows, Linux, and Android. Try the iPhone/iPad beta through
 [TestFlight](https://testflight.apple.com/join/efbB6TFd). An unsigned arm64 IPA is also available for
 users who can provide their own signing. Apple CarPlay (beta) is part of the iPhone app and shares
-its playback session. Android TV and Google TV (beta) use the same Android package.
+its playback session. Android TV and Google TV use the same Android package.
 
 Apple TV (beta) is available only by building from source; no Apple TV download is published. See
 [Apple TV (tvOS)](docs/tvos.md). CarPlay and Apple TV have not been verified on physical CarPlay or

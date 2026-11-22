@@ -2964,6 +2964,7 @@ private val DefaultNaviampChangelog = listOf(
         title = "Improvements",
         entries = listOf(
             "Android Auto leads with Playlists, Recently Played, and Radio, offers the full saved Internet Radio catalog, and adds Start Radio for the current song. Live stations hide unsupported track controls, Repeat shows distinct Off, Queue, and Track states, and current-track artwork is sharper.",
+            "Android TV and Google TV are no longer beta.",
             "Show recently played tracks on Home and in Android Auto as soon as you listen to them.",
             "Hide or reorder the Aurral section on Home like other Home sections.",
             "Setting up Android TV from your phone also transfers an attached Aurral account.",
