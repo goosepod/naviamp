@@ -211,7 +211,9 @@ class NaviampCoreMediaDetailController(
             } else {
                 NaviampCoreImmediateCommandResult.Unhandled
             }
-            NaviampMediaItemCommand.PlayAlbum -> NaviampCoreImmediateCommandResult.Unhandled
+            NaviampMediaItemCommand.PlayAlbum,
+            NaviampMediaItemCommand.PlayAlbumMix,
+            -> NaviampCoreImmediateCommandResult.Unhandled
             is NaviampMediaItemCommand.Playlist -> NaviampCoreImmediateCommandResult.Unhandled
         }
         is NaviampCoreCommand.Detail.ArtistAlbum ->
@@ -235,7 +237,9 @@ class NaviampCoreMediaDetailController(
                     if (itemCommand.command != NaviampArtistMediaCommand.Select) return null
                     loadArtist(command.request.item)
                 }
-                NaviampMediaItemCommand.PlayAlbum -> return null
+                NaviampMediaItemCommand.PlayAlbum,
+                NaviampMediaItemCommand.PlayAlbumMix,
+                -> return null
                 is NaviampMediaItemCommand.Playlist -> return null
             }
             is NaviampCoreCommand.Detail.ArtistAlbum -> {

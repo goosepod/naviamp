@@ -10,12 +10,11 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.*
 import kotlin.test.*
 
-/** Synthetic wire fixtures pinned to 2.13.0 (3f01fa58), with the released 2.12 fallback.
- * Sources: artists/handlers/details.ts, releaseGroup.ts, preview.ts, library/handlers/misc.ts,
- * libraryIndex.ts and routes/requests.ts. These never perform real acquisition or feedback. */
-class Aurral213ReadRoutesTest {
+/** Synthetic wire fixtures in the Aurral 3 app contract (API version 2), shaped after live
+ * 3.0.1 responses. These never perform real acquisition or feedback. */
+class Aurral3ReadRoutesTest {
     @Test fun releasedReadRoutesKeepMetadataPermissionsPreviewAndIdentityNamespaces() = runTest {
-        for (version in listOf("2.12.0", "2.13.0")) {
+        for (version in listOf("3.0.0", "3.0.1")) {
             val paths = mutableListOf<String>()
             val ktor = HttpClient(MockEngine { request ->
                 val path = request.url.encodedPath
@@ -23,7 +22,7 @@ class Aurral213ReadRoutesTest {
                 val body = when (path) {
                     "/api/health/bootstrap" -> {
                         assertNull(request.headers[HttpHeaders.Authorization])
-                        """{"appVersion":"$version","api":{"version":1,"features":["discover","trackDownloads","activity","futureFeature"]}}"""
+                        """{"appVersion":"$version","api":{"version":2,"features":["libraryStatusFilter","futureFeature"]}}"""
                     }
                     "/api/auth/login" -> {
                         assertEquals(HttpMethod.Post, request.method)
@@ -38,25 +37,25 @@ class Aurral213ReadRoutesTest {
                                 """{"id":"$Artist","name":"Artist","bio":"Biography","genres":["rock"],"release-groups":[null,{}, {"id":"$Release","title":"Release","first-release-date":"2026-01-01","primary-type":"Album","secondary-types":["Live"],"coverUrl":null}],"futureField":{}}"""
                             }
                             "/api/discover/feedback" -> """{"feedback":[]}"""
-                            "/api/library/lookup/$Artist" -> """{"exists":true,"libraryArtistId":7}"""
-                            "/api/library/canonical" -> {
+                            "/api/library/lookup/$Artist" -> """{"exists":true,"fromLibraryIndex":true,"libraryArtistId":"7","artist":{"id":7,"libraryId":"7","managed":false},"albums":[]}"""
+                            "/api/library" -> {
                                 assertEquals(mapOf("kind" to "artists", "pageSize" to "1", "availableOnly" to "true", "artistId" to "7"),
                                     request.url.parameters.entries().associate { it.key to it.value.single() })
-                                """{"items":[{"id":7,"mbid":"$Artist","identityKey":"mbid:$Artist"}],"total":1}"""
+                                """{"kind":"artists","page":1,"pageSize":1,"total":1,"hasMore":false,"items":[{"id":7,"mbid":"$Artist","identityKey":"mbid:$Artist","managed":false}],"artists":[],"albums":[],"tracks":[],"genres":[]}"""
                             }
                             "/rest/getArtist.view" -> {
                                 assertNull(request.headers[HttpHeaders.Authorization])
                                 assertEquals("artist:mbid:$Artist", request.url.parameters["id"])
                                 """{"subsonic-response":{"status":"ok","artist":{"id":"artist:mbid:$Artist","name":"Artist","musicBrainzId":"$Artist","album":[]}}}"""
                             }
-                            "/api/library/artists/$Artist/monitoring" -> """{"added":true,"manager":"aurral","monitored":false,"monitorOption":null}"""
+                            "/api/library/artists/$Artist/monitoring" -> """{"added":true,"monitored":false,"useDefault":true,"rules":null,"defaultRules":{"catalog":"all"}}"""
                             "/api/artists/$Artist/preview" -> {
                                 assertEquals("Artist", request.url.parameters["artistName"])
                                 """{"tracks":[null,{}, {"id":42,"title":"Track","preview_url":"/api/deezer/preview/42.mp3","album":{"title":"Release","cover_medium":null}}]}"""
                             }
                             "/api/artists/release-group/$Release" -> """{"id":"$Release","title":"Release","first-release-date":"2026-01-01","primary-type":"Album","secondary-types":["Live"],"artist-credit":[null,{"name":"Artist","artist":{"id":"$Artist","name":"Artist"}}],"genres":["rock"],"overview":"Release notes","coverUrl":null}"""
                             "/api/artists/release-group/$Release/tracks" -> """[null,{}, {"mbid":"$Recording","title":"Track","discNumber":1,"trackNumber":2,"length":123000,"releaseMbid":null,"previewProvider":"deezer","previewTrackId":"42","preview_url":"/api/deezer/preview/42.mp3"},{"mbid":null,"title":"No preview","discNumber":1,"trackNumber":3,"length":null,"previewProvider":null,"previewTrackId":null,"preview_url":null}]"""
-                            "/api/requests" -> """[null,{}, {"id":"request-1","status":"future_status","albumMbid":"$Release","canonicalAlbumId":71,"albumId":7,"source":"tidal","requestGroupId":"group-1","jobIds":["job-1"]}]"""
+                            "/api/requests" -> """[null,{}, {"id":"request-1","status":"future_status","albumMbid":"$Release","libraryAlbumId":"71","albumId":7,"source":"tidal","requestGroupId":"group-1","jobIds":["job-1"]}]"""
                             else -> error("Unexpected released route $path")
                         }
                     }

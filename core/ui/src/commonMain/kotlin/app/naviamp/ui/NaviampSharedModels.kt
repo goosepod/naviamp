@@ -673,6 +673,7 @@ enum class SharedHomeCollectionArtwork {
 enum class SharedHomeCollectionItemAction {
     OpenArtist,
     PlayAlbum,
+    PlayAlbumMix,
     OpenAlbum,
     PlayPlaylist,
     OpenPlaylist,

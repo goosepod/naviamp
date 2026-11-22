@@ -628,6 +628,8 @@ class NaviampCore private constructor(
             )
             playback.attachNativePlayback()
             val trackActions = NaviampCoreTrackActionController(mediaRegistry, mediaTransactions, playlistMembership::open)
+            // Resolved mix commands re-enter the Connect-aware handler created below.
+            var resolvedCommandHandler: NaviampCoreCommandHandler? = null
             val collectionActions = NaviampCoreCollectionActionController(
                 providerSource,
                 mediaRegistry,
@@ -635,6 +637,7 @@ class NaviampCore private constructor(
                 mediaDetails,
                 playbackProfiles,
                 settings,
+                issueResolvedCommand = { command -> checkNotNull(resolvedCommandHandler).execute(command) },
             )
             val providerSessionLifecycle = NaviampCoreProviderSessionLifecycle(
                 sessionPort = services.connection,
@@ -821,6 +824,7 @@ class NaviampCore private constructor(
                     targetSettings = settings.takeIf { supportsRemotePlayback },
                     revealTargetNowPlaying = navigation::openNowPlaying,
                     playbackOutputs = playbackOutputs,
+                    trackSelectionContext = mediaRegistry::connectTrackSelectionContext,
                 )
             }
             val castEffect = services.cast?.let { castServices ->
@@ -866,6 +870,7 @@ class NaviampCore private constructor(
             val commandHandler = NaviampCoreConnectCommandHandler(router, connect, samplePlayback::stop,
                 onPlaybackIntent = { stateStore.update { it.copy(playbackIntentGeneration = it.playbackIntentGeneration + 1L) } },
                 closeDelegate = router::close)
+            resolvedCommandHandler = commandHandler
             pauseMainForSample = { commandHandler.dispatch(NaviampCoreCommand.NowPlaying.Playback(
                 NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.Pause))) }
             livePlayback.observe { live -> connect?.onLocalPlaybackChanged(live) }

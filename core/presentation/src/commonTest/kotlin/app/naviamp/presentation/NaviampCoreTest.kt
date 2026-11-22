@@ -492,6 +492,109 @@ class NaviampCoreTest {
     }
 
     @Test
+    fun homeMixTilePlaysAMultiTrackSimilarSongStationInsteadOfTheSeedAlbum() = runTest {
+        val similar = (1..5).map { coreTrack("similar-$it").copy(albumId = app.naviamp.domain.AlbumId("other-$it")) }
+        val fixture = homeMixFixture(similar)
+
+        fixture.playMix()
+
+        val seed = fixture.effects.selections.first().tracks.single()
+        assertEquals(fixture.album.id, seed.albumId)
+        val queue = fixture.effects.appliedQueues.last().tracks.map { it.id }
+        assertEquals(seed.id, queue.first())
+        assertEquals(similar.map { it.id }.toSet(), queue.drop(1).toSet())
+        assertEquals(listOf(seed.id), fixture.similarRequests)
+        assertEquals(emptyList(), fixture.albumRadioRequests)
+        assertEquals(listOf("track:${seed.id.value}"), fixture.persisted.map { it.id })
+    }
+
+    @Test
+    fun savedHomeMixRebuildsFromRecentRadioThroughSimilarSongsNeverAlbumRadio() = runTest {
+        val similar = (1..3).map { coreTrack("similar-$it").copy(albumId = app.naviamp.domain.AlbumId("other-$it")) }
+        val fixture = homeMixFixture(similar)
+        fixture.playMix()
+        val seed = fixture.effects.selections.first().tracks.single()
+        // Without saved session tracks, replay must regenerate the station from its identity.
+        fixture.persist(fixture.persisted.map { it.copy(sessionTracks = emptyList()) })
+
+        fixture.core.execute(NaviampCoreCommand.Home.SelectRecentRadio(
+            SharedMediaItemUi("track:${seed.id.value}", "Mix", "Radio")))
+        advanceUntilIdle()
+
+        // The rebuild asked for the seed's similar songs again and never touched album radio.
+        assertEquals(listOf(seed.id, seed.id), fixture.similarRequests)
+        assertEquals(emptyList(), fixture.albumRadioRequests)
+        val albumSiblings = (fixture.effects.selections + fixture.effects.appliedQueues).flatMap { it.tracks }
+            .filter { it.albumId == fixture.album.id && it.id != seed.id }
+        assertEquals(emptyList(), albumSiblings)
+        assertEquals(listOf("track:${seed.id.value}"), fixture.persisted.map { it.id })
+    }
+
+    @Test
+    fun homeMixWithoutSimilarSongsUsesTheRadioFailurePathAndNeverQueuesTheAlbum() = runTest {
+        val fixture = homeMixFixture(similar = emptyList())
+
+        fixture.playMix()
+
+        val seed = fixture.effects.selections.first().tracks.single()
+        val queued = (fixture.effects.selections + fixture.effects.appliedQueues).flatMap { it.tracks }.map { it.id }.toSet()
+        assertEquals(setOf(seed.id), queued)
+        assertEquals(app.naviamp.domain.radio.RadioBuildOutcome.Empty, fixture.core.state.value.overlays.radioNotice?.outcome)
+        assertEquals(emptyList(), fixture.persisted)
+        assertEquals(emptyList(), fixture.albumRadioRequests)
+    }
+
+    private class HomeMixFixture(
+        val core: NaviampCore,
+        val effects: FakeCorePlaybackEffects,
+        val album: Album,
+        val similarRequests: List<app.naviamp.domain.TrackId>,
+        val albumRadioRequests: List<app.naviamp.domain.AlbumId>,
+        private val persistedRadio: () -> List<app.naviamp.domain.settings.RecentRadioStream>,
+        val persist: (List<app.naviamp.domain.settings.RecentRadioStream>) -> Unit,
+        private val scope: kotlinx.coroutines.test.TestScope,
+    ) {
+        val persisted get() = persistedRadio()
+
+        suspend fun playMix() {
+            val item = album.toSharedMediaItemUi({ null })
+            core.execute(NaviampCoreCommand.Media.ItemAction(
+                NaviampMediaItemActionRequest(item, NaviampMediaItemCommand.Album(NaviampArtistAlbumCommand.Select))))
+            scope.advanceUntilIdle()
+            core.execute(NaviampCoreCommand.Media.ItemAction(
+                NaviampMediaItemActionRequest(item, NaviampMediaItemCommand.PlayAlbumMix)))
+            scope.advanceUntilIdle()
+        }
+    }
+
+    private fun kotlinx.coroutines.test.TestScope.homeMixFixture(similar: List<Track>): HomeMixFixture {
+        val original = FakeCoreMediaProvider()
+        val albumTracks = (1..3).map { original.track.copy(id = app.naviamp.domain.TrackId("album-$it")) }
+        val similarRequests = mutableListOf<app.naviamp.domain.TrackId>()
+        val albumRadioRequests = mutableListOf<app.naviamp.domain.AlbumId>()
+        val provider = object : MediaProvider by original {
+            override val capabilities = original.capabilities.copy(supportsTrackRadio = true, supportsAlbumRadio = true)
+            override suspend fun album(albumId: app.naviamp.domain.AlbumId) =
+                app.naviamp.domain.AlbumDetails(original.album, albumTracks)
+            override suspend fun albumRadio(albumId: app.naviamp.domain.AlbumId, count: Int): List<Track> =
+                emptyList<Track>().also { albumRadioRequests += albumId }
+            override suspend fun instantMixTracks(trackId: app.naviamp.domain.TrackId, count: Int): List<Track> {
+                similarRequests += trackId
+                return similar
+            }
+        }
+        val effects = FakeCorePlaybackEffects()
+        var persisted = emptyList<app.naviamp.domain.settings.RecentRadioStream>()
+        val defaults = fakeCoreServices(provider)
+        val core = createTrackedCore(this, defaults.copy(
+            playback = defaults.playback.copy(effects = effects),
+            radio = defaults.radio.copy(generatedRecents = NaviampCoreGeneratedRadioRecentsPort(
+                load = { persisted }, save = { persisted = it })),
+        ))
+        return HomeMixFixture(core, effects, original.album, similarRequests, albumRadioRequests, { persisted }, { persisted = it }, this)
+    }
+
+    @Test
     fun generatedRadioRecentsReplayAndPersistThroughCore() = runTest {
         var now = 10L
         val candidate = coreTrack("radio-candidate")

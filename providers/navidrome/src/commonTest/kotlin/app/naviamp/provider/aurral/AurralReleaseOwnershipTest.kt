@@ -6,22 +6,22 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.*
 
 class AurralReleaseOwnershipTest {
-    @Test fun partialOwnershipKeepsCanonicalAndManagedNamespacesAndValidatesThePlaybackBridge() = runTest {
+    @Test fun partialOwnershipKeepsLibraryAndManagedIdentityAndValidatesThePlaybackBridge() = runTest {
         val http = OwnershipHttp()
         val ownership = ownershipProvider(http).discovery!!.releaseOwnership(DiscoveryReleaseGroupMbid(Group))
         assertEquals(ProviderDiscoveryStatus.Ready, ownership.status)
         assertEquals(ProviderDiscoveryReleaseAvailability.Partial, ownership.availability)
         assertEquals(DiscoveryCanonicalAlbumId("71"), ownership.canonicalAlbumId)
-        assertEquals(DiscoveryManagedAlbumId(DiscoveryLibraryManager.Aurral, "7"), ownership.managedAlbumId)
+        assertEquals(DiscoveryManagedAlbumId(DiscoveryLibraryManager.Aurral, "71"), ownership.managedAlbumId)
         assertEquals(setOf(DiscoveryRecordingMbid(Recording)), ownership.ownedRecordings)
         assertEquals("album:mbid:$Group", ownership.libraryAlbum?.id?.value)
         assertEquals(1, http.lookupReads)
         assertEquals(1, http.restReads)
     }
 
-    @Test fun cataloguedWithoutFilesAndMissingCanonicalIdentityDoNotProducePlayableLinks() = runTest {
+    @Test fun cataloguedWithoutFilesAndMissingLibraryIdentityDoNotProducePlayableLinks() = runTest {
         for (canonical in listOf(true, false)) {
-            val http = OwnershipHttp().also { if (canonical) it.files = 0 else it.canonical = false }
+            val http = OwnershipHttp().also { if (canonical) it.files = 0 else it.library = false }
             val ownership = ownershipProvider(http).discovery!!.releaseOwnership(DiscoveryReleaseGroupMbid(Group))
             assertNull(ownership.libraryAlbum)
             assertEquals(0, http.restReads)
@@ -29,9 +29,9 @@ class AurralReleaseOwnershipTest {
         }
     }
 
-    @Test fun mismatchedCanonicalOrSubsonicIdentityAndAbsentManagerAreNeverGuessed() = runTest {
+    @Test fun mismatchedLibraryOrSubsonicIdentityAndUnmanagedAlbumsAreNeverGuessed() = runTest {
         for (canonical in listOf(true, false)) {
-            val http = OwnershipHttp().also { it.manager = false; if (canonical) it.canonicalMbid = Other else it.restMbid = Other }
+            val http = OwnershipHttp().also { it.managed = false; if (canonical) it.libraryMbid = Other else it.restMbid = Other }
             val ownership = ownershipProvider(http).discovery!!.releaseOwnership(DiscoveryReleaseGroupMbid(Group))
             assertNull(ownership.libraryAlbum)
             assertNull(ownership.managedAlbumId)
@@ -60,10 +60,10 @@ private class OwnershipHttp : NavidromeHttpClient {
     var files = 1
     var count = 2
     var state = "partial"
-    var canonical = true
-    var manager = true
+    var library = true
+    var managed = true
     var absent = false
-    var canonicalMbid = Group
+    var libraryMbid = Group
     var restMbid = Group
     var lookupReads = 0
     var restReads = 0
@@ -73,15 +73,15 @@ private class OwnershipHttp : NavidromeHttpClient {
             restReads++
             return """{"subsonic-response":{"status":"ok","version":"1.16.1","album":{"id":"album:mbid:$Group","name":"Owned","artist":"Artist","musicBrainzId":"$restMbid","songCount":1,"song":[{"id":"track:fixture","title":"Track"}]}}}"""
         }
-        if (url.endsWith("/bootstrap")) return """{"api":{"version":1,"features":["discover"]}}"""
-        assertTrue(url.contains("/api/library/canonical?kind=albums") && "albumId=71" in url)
-        return """{"items":[{"id":71,"mbid":"$canonicalMbid","identityKey":"mbid:$Group"}]}"""
+        if (url.endsWith("/bootstrap")) return """{"appVersion":"3.0.1","api":{"version":2,"features":["libraryStatusFilter"]}}"""
+        assertTrue(url.contains("/api/library?kind=albums") && "albumId=71" in url)
+        return """{"kind":"albums","page":1,"pageSize":1,"total":1,"hasMore":false,"items":[{"id":71,"mbid":"$libraryMbid","identityKey":"mbid:$Group","managed":$managed}]}"""
     }
     override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String {
         if (url.endsWith("/login")) return """{"token":"fixture","expiresAt":9999999999999,"user":{"permissions":{"addAlbum":true}}}"""
         assertTrue(url.endsWith("/api/library/albums/lookup/batch"))
         lookupReads++
         if (absent) return "{}"
-        return """{"$Group":{"inLibrary":true,"canonicalAlbumId":${if (canonical) "71" else "null"},"libraryAlbumId":7,"managedBy":${if (manager) "\"aurral\"" else "null"},"status":"$state","trackCount":$count,"trackFileCount":$files,"ownedTrackMbids":["$Recording","invalid"]}}"""
+        return """{"$Group":{"inLibrary":true,"fromLibraryIndex":true,"libraryAlbumId":${if (library) "\"71\"" else "null"},"libraryArtistId":"25","managed":$managed,"monitored":true,"trackListComplete":true,"status":"$state","trackCount":$count,"trackFileCount":$files,"ownedTrackMbids":["$Recording","invalid"]}}"""
     }
 }
