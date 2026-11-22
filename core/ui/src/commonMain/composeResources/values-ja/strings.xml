@@ -531,4 +531,5 @@
     <string name="tv_search_system_keyboard">システムキーボード</string>
     <string name="storage_location_app">アプリのストレージ</string>
     <string name="storage_location_custom">カスタム</string>
+    <string name="connect_recovery_secure_storage">Naviamp はこのデバイスの安全な資格情報ストレージを開けませんでした。システムのキーリングのロックを解除してから、もう一度お試しください。</string>
 </resources>
