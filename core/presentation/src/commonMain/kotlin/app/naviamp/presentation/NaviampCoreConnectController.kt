@@ -145,6 +145,8 @@ class NaviampCoreConnectController(
     private val targetSettings: NaviampCoreSettingsController? = null,
     private val revealTargetNowPlaying: () -> Unit = {},
     private val playbackOutputs: NaviampPlaybackOutputSelectionController = NaviampPlaybackOutputSelectionController(),
+    private val trackSelectionContext: (NaviampCoreCommand) -> app.naviamp.domain.connect.NaviampConnectPlaybackContext? =
+        { null },
 ) {
     private val controllerScope = CoroutineScope(
         scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]),
@@ -448,8 +450,7 @@ class NaviampCoreConnectController(
     }
 
     /** Redirects shared catalog playback intents to the connected TV while browsing locally. */
-    internal fun routeProductCommand(command: NaviampCoreCommand): Boolean {
-        if (!canControl || playbackDestination.selectedTrustedDeviceId() == null) return false
+    internal fun routeProductCommand(command: NaviampCoreCommand): Boolean {        if (!canControl || playbackDestination.selectedTrustedDeviceId() == null) return false
         if (controllerSession == null || !playbackDestination.isConnectedRemote()) {
             val playbackIntent = command is NaviampCoreCommand.NowPlaying.Playback ||
                 command.connectMediaSelectionOrNull() != null || command.connectQueueSelectionOrNull() != null
@@ -493,7 +494,9 @@ class NaviampCoreConnectController(
             sendRemoteCommand(queued.toCommand(identity))
             return true
         }
-        val selection = command.connectMediaSelectionOrNull() ?: return false
+        val selection = command.connectMediaSelectionOrNull()
+            ?.withTrackListContext(trackSelectionContext(command))
+            ?: return false
         val identity = sourceIdentity()
         if (identity == null) {
             status = "Connect this device to the same music source before playing on the TV."
