@@ -285,7 +285,7 @@ fun HomeContent.toSharedHomeUi(
                 mediaKind = SharedMediaItemKind.Album,
                 title = "${mediaItem.subtitle} Mix",
                 subtitle = mediaItem.title,
-                action = SharedHomeCollectionItemAction.PlayAlbum,
+                action = SharedHomeCollectionItemAction.PlayAlbumMix,
             )
         })
         addSection(HomeSectionIds.NavibeatMixes, "NAVIBEAT MIXES", navibeatMixes.map { mix ->

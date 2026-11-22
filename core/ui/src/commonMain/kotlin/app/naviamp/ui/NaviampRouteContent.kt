@@ -529,6 +529,7 @@ internal fun dispatchHomeCollectionItem(
 ) {
     when (item.action) {
         SharedHomeCollectionItemAction.PlayAlbum -> mediaActions.onMediaItemAction(item.mediaItem.playAlbumRequest())
+        SharedHomeCollectionItemAction.PlayAlbumMix -> mediaActions.onMediaItemAction(item.mediaItem.playAlbumMixRequest())
         SharedHomeCollectionItemAction.OpenAlbum ->
             mediaActions.onMediaItemAction(item.mediaItem.albumActionRequest(NaviampArtistAlbumCommand.Select))
         SharedHomeCollectionItemAction.OpenArtist ->
