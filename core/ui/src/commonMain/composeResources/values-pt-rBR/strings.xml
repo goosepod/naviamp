@@ -911,6 +911,7 @@
     <string name="connect_recovery_permission">O acesso à rede local foi negado. Nas configurações do sistema, permita que o Naviamp acesse a rede local, se essa permissão estiver disponível, depois volte e tente novamente.</string>
     <string name="connect_recovery_discovery">O Naviamp não conseguiu pesquisar a rede local. Verifique se os dois dispositivos estão na mesma rede e se ela permite a comunicação entre dispositivos, depois tente novamente.</string>
     <string name="connect_recovery_advertising">Este dispositivo não conseguiu se disponibilizar para pareamento. Verifique a conexão de rede dele e tente novamente.</string>
+    <string name="connect_recovery_secure_storage">O Naviamp não conseguiu abrir o armazenamento seguro de credenciais deste dispositivo. Desbloqueie o chaveiro do sistema e tente novamente.</string>
     <string name="connect_recovery_settings_failed">Não foi possível abrir as configurações do sistema. Abra as permissões do Naviamp nas configurações do sistema, depois volte e tente novamente.</string>
     <string name="connect_recovery_open_settings">Abrir configurações do sistema</string>
     <string name="connect_recovery_retry">Tentar conexão novamente</string>

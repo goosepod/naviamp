@@ -531,4 +531,5 @@
     <string name="tv_search_system_keyboard">Clavier système</string>
     <string name="storage_location_app">Stockage de l’app</string>
     <string name="storage_location_custom">Personnalisé</string>
+    <string name="connect_recovery_secure_storage">Naviamp n&apos;a pas pu ouvrir le stockage sécurisé des identifiants de cet appareil. Déverrouillez le trousseau du système, puis réessayez.</string>
 </resources>

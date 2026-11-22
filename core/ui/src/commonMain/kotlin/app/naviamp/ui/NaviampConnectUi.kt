@@ -3,7 +3,7 @@ package app.naviamp.ui
 import app.naviamp.ui.generated.resources.connect_remote_unavailable
 import app.naviamp.ui.generated.resources.connect_connection_timed_out
 
-enum class NaviampConnectRecoveryProblem { LocalNetworkPermission, DiscoveryUnavailable, AdvertisingUnavailable }
+enum class NaviampConnectRecoveryProblem { LocalNetworkPermission, DiscoveryUnavailable, AdvertisingUnavailable, SecureStorageUnavailable }
 
 data class NaviampConnectRecoveryUi(
     val problem: NaviampConnectRecoveryProblem,

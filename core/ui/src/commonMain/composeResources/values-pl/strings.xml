@@ -628,4 +628,5 @@
     <string name="tv_search_system_keyboard">Klawiatura systemowa</string>
     <string name="storage_location_app">Pamięć aplikacji</string>
     <string name="storage_location_custom">Niestandardowa</string>
+    <string name="connect_recovery_secure_storage">Naviamp nie może otworzyć bezpiecznego magazynu danych logowania na tym urządzeniu. Odblokuj systemowy pęk kluczy, a następnie spróbuj ponownie.</string>
 </resources>
