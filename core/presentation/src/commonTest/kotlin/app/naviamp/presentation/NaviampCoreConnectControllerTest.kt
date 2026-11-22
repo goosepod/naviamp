@@ -199,6 +199,93 @@ class NaviampCoreConnectControllerTest {
         controller.close()
     }
 
+    private fun secureStorageFixture(
+        scope: CoroutineScope,
+        store: NaviampCoreStateStore,
+        identity: NaviampConnectDeviceIdentityEffect,
+        identityDispatcher: kotlinx.coroutines.CoroutineDispatcher,
+        listeners: MutableList<WaitingListener>,
+        now: () -> Long,
+    ) = NaviampCoreConnectController(scope, store, NaviampCoreConnectServices(
+        networkDispatcher = identityDispatcher,
+        deviceCapabilities = NaviampCorePlaybackTargetConnectCapabilities, displayName = "TV",
+        identity = identity, identityVerifier = FakeIdentityVerifier,
+        transport = object : NaviampConnectTransportFactory {
+            override suspend fun connect(host: String, port: Int) = error("unused")
+            override fun listen(port: Int) = WaitingListener(42424).also { listeners += it }
+        },
+        pake = UnusedPakeFactory, cipher = UnusedCipherFactory,
+        trust = NaviampConnectTrustRepository(NaviampConnectTrustStorageEffect {}),
+        advertising = object : NaviampConnectAdvertisingEffect {
+            override fun start(service: NaviampConnectRegistrationService, listener: NaviampConnectAdvertisingListener)
+                : NaviampConnectAdvertisingStartResult {
+                listener.onServiceRegistered(service.serviceName)
+                return NaviampConnectAdvertisingStartResult.Started
+            }
+            override fun stop() = Unit
+        },
+        newOpaqueId = { "opaque" }, newPairingCode = { "123456" },
+        nowEpochMillis = now,
+    ))
+
+    @Test
+    fun constructionDoesNotWaitForASlowSecureStoreAndPairingStartsOnceTheIdentityLoads() = runTest {
+        var loads = 0
+        val identity = object : NaviampConnectDeviceIdentityEffect {
+            override fun loadOrCreate(): NaviampConnectDeviceIdentity { loads++; return FakeIdentity.loadOrCreate() }
+            override fun sign(payload: ByteArray) = byteArrayOf(1)
+        }
+        val store = NaviampCoreStateStore()
+        val listeners = mutableListOf<WaitingListener>()
+        // The secure store runs on its own dispatcher; nothing on the caller's thread may wait for it.
+        val secureStore = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
+        val controller = secureStorageFixture(this, store, identity, secureStore, listeners) { testScheduler.currentTime }
+        assertEquals(0, loads, "constructing Connect must not touch the secure store on the caller's thread")
+        controller.actions.onStartPairingMode()
+        assertTrue(listeners.isEmpty(), "pairing waits for the identity instead of blocking")
+        assertNull(store.state.value.shell.connect.recovery)
+        runCurrent()
+        assertEquals(1, loads)
+        assertEquals(1, listeners.size)
+        assertEquals(NaviampConnectPairingUiPhase.Advertising, store.state.value.shell.connect.pairingPhase)
+        controller.close()
+    }
+
+    @Test
+    fun unavailableSecureStoreIsARetryableRecoveryProblemInsteadOfACrash() = runTest {
+        var locked = true
+        var loads = 0
+        val identity = object : NaviampConnectDeviceIdentityEffect {
+            override fun loadOrCreate(): NaviampConnectDeviceIdentity {
+                loads++
+                if (locked) throw IllegalStateException("Secure credential service failed with exit code 1")
+                return FakeIdentity.loadOrCreate()
+            }
+            override fun sign(payload: ByteArray) = byteArrayOf(1)
+        }
+        val store = NaviampCoreStateStore()
+        val listeners = mutableListOf<WaitingListener>()
+        val controller = secureStorageFixture(this, store, identity, kotlinx.coroutines.Dispatchers.Unconfined, listeners) {
+            testScheduler.currentTime
+        }
+        runCurrent()
+        assertEquals(app.naviamp.ui.NaviampConnectRecoveryProblem.SecureStorageUnavailable,
+            store.state.value.shell.connect.recovery?.problem)
+        controller.actions.onStartPairingMode()
+        runCurrent()
+        assertTrue(listeners.isEmpty(), "pairing must not start without a device identity")
+        locked = false
+        controller.actions.onRetryConnection()
+        runCurrent()
+        assertEquals(2, loads)
+        assertNull(store.state.value.shell.connect.recovery)
+        controller.actions.onStartPairingMode()
+        runCurrent()
+        assertEquals(1, listeners.size)
+        assertEquals(NaviampConnectPairingUiPhase.Advertising, store.state.value.shell.connect.pairingPhase)
+        controller.close()
+    }
+
     @Test
     fun discoveryPermissionRetryPreservesRemoteSessionAndReportsSettingsLaunchFailure() = runTest {
         val discovery = RecordingDiscoveryEffect()

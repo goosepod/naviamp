@@ -187,9 +187,15 @@ private fun runCredentialCommand(
     } else {
         process.outputStream.close()
     }
+    // A keyring unlock prompt waits on the user, and a broken secret agent may never answer.
+    // Bound the native call so callers get a failure they can report and retry.
+    if (!process.waitFor(CredentialCommandTimeoutSeconds, java.util.concurrent.TimeUnit.SECONDS)) {
+        process.destroyForcibly()
+        throw IllegalStateException("Secure credential service did not respond.")
+    }
     val output = process.inputStream.bufferedReader().use { it.readText() }.trim()
     val errorOutput = process.errorStream.bufferedReader().use { it.readText() }.trim()
-    val exitCode = process.waitFor()
+    val exitCode = process.exitValue()
     if (exitCode == 0) return output.takeIf { it.isNotEmpty() }
     if (allowMissing) return null
     throw IllegalStateException(
@@ -205,6 +211,7 @@ private fun defaultWindowsCredentialKeyPath(): Path {
         .resolve("credential-key.dpapi")
 }
 
+private const val CredentialCommandTimeoutSeconds = 120L
 private const val CredentialService = "app.naviamp.credentials.v1"
 private val CredentialAccount = System.getProperty("user.name").orEmpty().ifBlank { "Naviamp" }
 private const val CredentialPrefix = "naviamp-desktop-secure-v1:"

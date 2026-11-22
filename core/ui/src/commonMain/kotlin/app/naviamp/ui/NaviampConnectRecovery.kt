@@ -21,6 +21,7 @@ internal fun NaviampConnectRecoveryUi.description(): String = stringResource(whe
     NaviampConnectRecoveryProblem.LocalNetworkPermission -> Res.string.connect_recovery_permission
     NaviampConnectRecoveryProblem.DiscoveryUnavailable -> Res.string.connect_recovery_discovery
     NaviampConnectRecoveryProblem.AdvertisingUnavailable -> Res.string.connect_recovery_advertising
+    NaviampConnectRecoveryProblem.SecureStorageUnavailable -> Res.string.connect_recovery_secure_storage
 })
 
 @Composable
