@@ -994,6 +994,35 @@ class NaviampCoreConnectControllerTest {
     }
 
     @Test
+    fun remoteAlbumTrackSelectionSendsTheChosenTrackWithinItsAlbum() = runTest {
+        val sent = mutableListOf<app.naviamp.domain.connect.NaviampConnectEnvelope>()
+        val registry = NaviampCoreMediaRegistry()
+        val tracks = (1..4).map { n ->
+            app.naviamp.domain.Track(id = app.naviamp.domain.TrackId("album-$n"), title = "Track $n", artistName = "Artist",
+                albumTitle = "Album", durationSeconds = 180, coverArtId = null, audioInfo = null, replayGain = null)
+        }
+        registry.updateAlbum(app.naviamp.domain.AlbumDetails(app.naviamp.domain.Album(app.naviamp.domain.AlbumId("album"),
+            "Album", "Artist", coverArtId = null, recentlyAddedAtIso8601 = null), tracks))
+        val identity = app.naviamp.domain.connect.NaviampConnectSourceIdentity("navidrome", "https://music.example", "listener")
+        val (controller, _, _) = remoteFixture(sourceIdentity = { identity },
+            trackSelectionContext = registry::connectTrackSelectionContext) { sent += it }
+
+        assertTrue(controller.routeProductCommand(NaviampCoreCommand.Detail.AlbumTrack(
+            app.naviamp.ui.SharedTrackRowActionRequest(app.naviamp.ui.SharedTrackRowUi("album-3", "Track 3", "Artist"),
+                app.naviamp.ui.SharedTrackRowAction.Select))))
+        runCurrent()
+
+        val start = sent.map { it.message }.filterIsInstance<app.naviamp.domain.connect.NaviampConnectCommandRequest>()
+            .map { it.command }.filterIsInstance<app.naviamp.domain.connect.NaviampConnectStartMedia>().single()
+        assertEquals(app.naviamp.domain.connect.NaviampConnectMediaType.Track, start.mediaType)
+        assertEquals("album-3", start.mediaId)
+        assertEquals(app.naviamp.domain.connect.NaviampConnectPlaybackContext(
+            app.naviamp.domain.connect.NaviampConnectMediaType.Album, "album"), start.context)
+        assertEquals(identity, start.sourceIdentity)
+        controller.close()
+    }
+
+    @Test
     fun anIdlePeerThatStopsRespondingTriggersReconnect() = runTest {
         val sent = mutableListOf<app.naviamp.domain.connect.NaviampConnectEnvelope>()
         val (controller, store, session) = remoteFixture { sent += it }
@@ -1136,6 +1165,8 @@ class NaviampCoreConnectControllerTest {
         permissionSettings: app.naviamp.app.NaviampConnectPermissionSettingsEffect? = null,
         providerSessions: NaviampCoreProviderSessionPort? = null,
         companionProvisioningSupported: Boolean = false,
+        sourceIdentity: () -> app.naviamp.domain.connect.NaviampConnectSourceIdentity? = { null },
+        trackSelectionContext: (NaviampCoreCommand) -> app.naviamp.domain.connect.NaviampConnectPlaybackContext? = { null },
         send: suspend (app.naviamp.domain.connect.NaviampConnectEnvelope) -> Unit,
     ): Triple<NaviampCoreConnectController, NaviampCoreStateStore, NaviampConnectControllerSession> {
         var stored: String? = null
@@ -1153,13 +1184,15 @@ class NaviampCoreConnectControllerTest {
             pake = UnusedPakeFactory, cipher = UnusedCipherFactory, trust = trust,
             discovery = discovery, permissionSettings = permissionSettings,
             newOpaqueId = { "unused" }, newPairingCode = { "123456" }, nowEpochMillis = { testScheduler.currentTime },
-        ), providerSessions = providerSessions)
+        ), providerSessions = providerSessions, sourceIdentity = sourceIdentity,
+            trackSelectionContext = trackSelectionContext)
         if (discovery != null) controller.actions.onRefreshTargets()
         var next = 0
         val session = NaviampConnectControllerSession(NaviampConnectSessionTransport(send),
             NaviampConnectRequestIdFactory { "request-${++next}" })
         session.connect("session", 1, target, setOf(app.naviamp.domain.connect.NaviampConnectCapability.TransportControls,
-                app.naviamp.domain.connect.NaviampConnectCapability.ConnectionProvisioning),
+                app.naviamp.domain.connect.NaviampConnectCapability.ConnectionProvisioning,
+                app.naviamp.domain.connect.NaviampConnectCapability.CatalogPlayback),
             NaviampConnectTargetSnapshot(0, target, emptySet()))
         controller.adoptControllerSession(session, companionProvisioningSupported)
         return Triple(controller, store, session)

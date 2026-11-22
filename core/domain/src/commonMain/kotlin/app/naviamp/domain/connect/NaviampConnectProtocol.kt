@@ -440,7 +440,25 @@ data class NaviampConnectStartMedia(
     val startRadio: Boolean = false,
     val shuffle: Boolean = false,
     val sourceIdentity: NaviampConnectSourceIdentity,
+    /**
+     * The catalog list a selected track was chosen from. The target resolves that list itself and
+     * starts at [mediaId], matching local track selection. The field is optional for backward
+     * compatibility: older targets ignore the unknown key and play only the selected track, and
+     * commands from older controllers omit it and keep single-track behavior.
+     */
+    val context: NaviampConnectPlaybackContext? = null,
 ) : NaviampConnectCommand
+
+/**
+ * A provider catalog list that a target resolves by ID; controller metadata is never trusted.
+ * Only [NaviampConnectMediaType.Album] and [NaviampConnectMediaType.Playlist] are meaningful;
+ * targets treat any other type as absent so a newer controller cannot make the decode fail.
+ */
+@Serializable
+data class NaviampConnectPlaybackContext(
+    val mediaType: NaviampConnectMediaType,
+    val mediaId: String,
+)
 
 @Serializable
 @SerialName("queue_media")

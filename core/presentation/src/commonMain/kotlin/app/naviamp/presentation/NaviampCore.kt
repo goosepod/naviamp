@@ -809,6 +809,7 @@ class NaviampCore private constructor(
                     targetSettings = settings.takeIf { supportsRemotePlayback },
                     revealTargetNowPlaying = navigation::openNowPlaying,
                     playbackOutputs = playbackOutputs,
+                    trackSelectionContext = mediaRegistry::connectTrackSelectionContext,
                 )
             }
             val castEffect = services.cast?.let { castServices ->
