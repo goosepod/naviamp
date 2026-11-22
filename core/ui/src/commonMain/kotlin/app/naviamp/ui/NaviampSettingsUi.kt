@@ -2973,6 +2973,11 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Bug fixes",
         entries = listOf(
+            "Linux media controls show album artwork from a private local file instead of a server link that contained your sign-in details.",
+            "Mixes for you start a radio station seeded from the mix instead of playing the seed album.",
+            "Choosing a track in an album or playlist while controlling another device with Naviamp Connect queues the album or playlist from that track instead of sending only that track.",
+            "Elapsed time keeps advancing while you control another device with Naviamp Connect instead of staying at 0:00.",
+            "On Linux, the first launch opens its window without waiting for the system keyring. If secure storage is unavailable, Naviamp Connect settings show the problem with Retry instead of the app closing.",
             "Reconnect after importing settings restores the imported server instead of failing with a duplicate-connection error.",
             "Importing settings keeps this device's volume, output device, debug logging, and mobile-download settings.",
         ),

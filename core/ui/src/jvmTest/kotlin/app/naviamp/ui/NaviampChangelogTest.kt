@@ -19,6 +19,11 @@ class NaviampChangelogTest {
         val improvements = sections.getValue("Improvements")
         assertTrue(improvements.first().startsWith("Android Auto") && improvements.first().contains("Start Radio"))
         val fixes = sections.getValue("Bug fixes")
+        assertTrue(fixes.first().startsWith("Linux media controls") && fixes.first().contains("private local file"))
+        assertTrue(fixes.any { it.startsWith("Mixes for you start a radio station") && it.contains("instead of playing the seed album") })
+        assertTrue(fixes.any { it.contains("queues the album or playlist from that track") })
+        assertTrue(fixes.any { it.startsWith("Elapsed time keeps advancing") && it.contains("0:00") })
+        assertTrue(fixes.any { it.startsWith("On Linux, the first launch") && it.contains("Retry") })
         assertTrue(fixes.any { it.contains("importing settings") && it.contains("duplicate-connection") })
         assertTrue(fixes.any { it.contains("Importing settings keeps this device's volume") })
         assertEquals("Aurral connections now require Aurral 3.x. Aurral 2.x servers are no longer supported.",

@@ -32,6 +32,11 @@ Naviamp 2.12.0 lets you add an Aurral account to your music server, brings Apple
 
 ### Bug fixes
 
+- Linux media controls show album artwork from a private local file instead of a server link that contained your sign-in details. ([Issue #655](https://github.com/goosepod/naviamp/issues/655), [PR #656](https://github.com/goosepod/naviamp/pull/656))
+- Mixes for you start a radio station seeded from the mix instead of playing the seed album. ([Issue #642](https://github.com/goosepod/naviamp/issues/642), [PR #645](https://github.com/goosepod/naviamp/pull/645))
+- Choosing a track in an album or playlist while controlling another device with Naviamp Connect queues the album or playlist from that track instead of sending only that track. ([Issue #643](https://github.com/goosepod/naviamp/issues/643), [PR #646](https://github.com/goosepod/naviamp/pull/646))
+- Elapsed time keeps advancing while you control another device with Naviamp Connect instead of staying at 0:00. ([Issue #644](https://github.com/goosepod/naviamp/issues/644), [PR #647](https://github.com/goosepod/naviamp/pull/647))
+- On Linux, the first launch opens its window without waiting for the system keyring. If secure storage is unavailable, Naviamp Connect settings show the problem with Retry instead of the app closing. ([Issue #657](https://github.com/goosepod/naviamp/issues/657), [PR #658](https://github.com/goosepod/naviamp/pull/658))
 - Reconnect after importing settings restores the imported server instead of failing with a duplicate-connection error. ([Issue #639](https://github.com/goosepod/naviamp/issues/639), [PR #640](https://github.com/goosepod/naviamp/pull/640))
 - Importing settings keeps this device's volume, output device, debug logging, and mobile-download settings. ([Issue #639](https://github.com/goosepod/naviamp/issues/639), [PR #640](https://github.com/goosepod/naviamp/pull/640))
 
