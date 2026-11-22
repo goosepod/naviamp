@@ -24,11 +24,10 @@ internal class AurralDiscoveryClient(
     private val mutationMutex = Mutex()
     private var session: Session? = null
     private data class Session(val token: String, val expiresAt: Long, val permissions: JsonObject?)
-    private class NativeContext(val session: Session, val features: Set<String>) : AbstractCoroutineContextElement(Key) {
+    private class NativeContext(val session: Session) : AbstractCoroutineContextElement(Key) {
         companion object Key : CoroutineContext.Key<NativeContext>
     }
     private suspend fun currentSession(): Session? = currentCoroutineContext()[NativeContext]?.session ?: session
-    private suspend fun currentFeatures(): Set<String> = currentCoroutineContext()[NativeContext]?.features.orEmpty()
     private val base = connection.normalizedBaseUrl
     override val requestsUrl: String get() = "$base/requests"
     override val catalogUrl: String get() = "$base/search"
@@ -48,7 +47,7 @@ internal class AurralDiscoveryClient(
             recommendations = feed.artists("recommendations"),
             trending = feed.artists("globalTop"),
             lastUpdated = status.text("lastUpdated") ?: feed.text("lastUpdated"),
-            chartsAvailable = "trending" in currentFeatures(),
+            chartsAvailable = true,
             genreBlockingAvailable = optional { get("/api/discover/blocked-tags").array("tags") } != null,
         )
     }
@@ -92,7 +91,6 @@ internal class AurralDiscoveryClient(
     }
 
     override suspend fun charts(): ProviderDiscoveryCharts = nativeCall({ ProviderDiscoveryCharts(status = it) }) {
-        if ("trending" !in currentFeatures()) throw NavidromeHttpException(404)
         val payload = get("/api/discover/trending")
         val songs = payload["songs"] as? JsonObject
         ProviderDiscoveryCharts(ProviderDiscoveryStatus.Ready, payload.text("region"), payload.chartUpdatedAt(),
@@ -119,7 +117,7 @@ internal class AurralDiscoveryClient(
                 DiscoveryChartGenre(id, genre.text("name") ?: return@mapNotNull null, genre.strings("covers").mapNotNull(::imageUrl))
             }.distinctBy { it.id }, songs?.text("playlistId")?.takeIf { it.toLongOrNull()?.let { n -> n > 0 } == true },
             songs?.text("libraryPlaylistId"),
-            "flows" in currentFeatures() && currentSession()?.permissions?.get("accessFlow")?.jsonPrimitive?.booleanOrNull == true,
+            hasPermission("accessPlaylists"),
             (songs?.get("spotlight") as? JsonObject)?.let { spotlight ->
                 DiscoveryChartSpotlight(spotlight.array("ranks").orEmpty().take(30).map { (it as? JsonPrimitive)?.intOrNull?.takeIf { n -> n > 0 } }, spotlight.nonNegativeInt("daysAtTop"))
             })
@@ -127,7 +125,6 @@ internal class AurralDiscoveryClient(
     override suspend fun genreChart(id: String): ProviderDiscoveryGenreChart {
         require(id.matches(Regex("[0-9]{1,6}")))
         return nativeCall({ ProviderDiscoveryGenreChart(status = it) }, notFoundStatus = ProviderDiscoveryStatus.Unavailable) {
-            if ("trending" !in currentFeatures()) return@nativeCall ProviderDiscoveryGenreChart()
             val payload = get("/api/discover/trending/genres/$id")
             check(payload.text("id") == id)
             ProviderDiscoveryGenreChart(ProviderDiscoveryStatus.Ready, id, payload.text("name"), payload.text("region"), payload.chartUpdatedAt(),
@@ -141,8 +138,7 @@ internal class AurralDiscoveryClient(
             ProviderDiscoveryStatus.Unsupported -> ProviderDiscoveryOperationStatus.Unsupported
             else -> ProviderDiscoveryOperationStatus.Uncertain
         }) }) {
-            if ("trending" !in currentFeatures() || "flows" !in currentFeatures()) return@nativeCall ProviderDiscoveryChartSave()
-            if (currentSession()?.permissions?.get("accessFlow")?.jsonPrimitive?.booleanOrNull != true)
+            if (!hasPermission("accessPlaylists"))
                 return@nativeCall ProviderDiscoveryChartSave(ProviderDiscoveryOperationStatus.Forbidden)
             // Reconcile before the deliberate POST; this endpoint deduplicates by account and external ID.
             val songs = get("/api/discover/trending")["songs"] as? JsonObject ?: error("Missing songs chart")
@@ -215,7 +211,7 @@ internal class AurralDiscoveryClient(
                     val title = album.text("title")?.takeIf { it.isNotBlank() } ?: return@mapIndexedNotNull null
                     val artistName = album.text("artistName")?.takeIf { it.isNotBlank() } ?: return@mapIndexedNotNull null
                     ProviderCatalogAlbum(ProviderDiscoveryRelease(id, title, album.text("releaseDate"), album.text("primaryType"),
-                        album.strings("secondaryTypes"), album.text("coverUrl")?.let(::imageUrl)), artistName,
+                        album.strings("secondaryTypes"), releaseCoverUrl(id, album.text("coverUrl"), artistName, title)), artistName,
                         album.text("artistMbid")?.takeIf(MusicBrainzId::matches)?.let(::DiscoveryArtistMbid),
                         (album["inLibrary"] as? JsonPrimitive)?.booleanOrNull, album.text("status"))
                 }.distinctBy { it.release.id } else emptyList())
@@ -261,9 +257,10 @@ internal class AurralDiscoveryClient(
             val detail = get("/api/artists/release-group/${release.value}")
             check(detail.text("id").equals(release.value, ignoreCase = true))
             val title = detail.text("title")?.takeIf { it.isNotBlank() } ?: error("Missing release title")
+            val creditedArtist = detail.array("artist-credit")?.firstNotNullOfOrNull { (it as? JsonObject)?.text("name") }
             ProviderDiscoveryReleaseDetails(ProviderDiscoveryStatus.Ready,
                 ProviderDiscoveryRelease(release.value, title, detail.text("first-release-date"), detail.text("primary-type"),
-                    detail.strings("secondary-types"), detail.text("coverUrl")?.let(::imageUrl)),
+                    detail.strings("secondary-types"), releaseCoverUrl(release.value, detail.text("coverUrl"), creditedArtist, title)),
                 detail.array("artist-credit").orEmpty().mapNotNull { row ->
                     val credit = row as? JsonObject ?: return@mapNotNull null
                     val artist = credit["artist"] as? JsonObject
@@ -278,17 +275,12 @@ internal class AurralDiscoveryClient(
         }
 
     override suspend fun requestActivity(): ProviderDiscoveryActivities = nativeCall({ ProviderDiscoveryActivities(it) }) {
-        if ("activity" !in currentFeatures()) throw NavidromeHttpException(404)
         val rows = json.parseToJsonElement(http.get("$base/api/requests", headers = authorizedHeaders())) as? JsonArray
             ?: error("Missing activity rows")
         ProviderDiscoveryActivities(ProviderDiscoveryStatus.Ready, rows.take(200).mapNotNull { row ->
             val item = row as? JsonObject ?: return@mapNotNull null
             val id = item.text("id")?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-            val qualified = if (item.text("source") == "lidarr") JsonObject(item + buildMap {
-                put("managedBy", JsonPrimitive("lidarr"))
-                item.text("albumId")?.let { put("album", buildJsonObject { put("id", it) }) }
-            }) else item
-            ProviderDiscoveryActivity(id, item.text("status"), qualified.requestIdentity(),
+            ProviderDiscoveryActivity(id, item.text("status"), item.requestIdentity(),
                 item.text("albumMbid")?.takeIf(MusicBrainzId::matches)?.let(::DiscoveryReleaseGroupMbid),
                 item.text("title") ?: item.text("albumName"), item.text("artistName"), item.text("kind"))
         })
@@ -296,27 +288,17 @@ internal class AurralDiscoveryClient(
 
     override suspend fun acquisitionStatus(identity: ProviderDiscoveryRequestIdentity): ProviderDiscoveryAcquisitionStatus =
         nativeCall({ ProviderDiscoveryAcquisitionStatus(it) }) {
-            if ("activity" !in currentFeatures()) throw NavidromeHttpException(404)
-            val managed = identity.managedAlbumId ?: return@nativeCall ProviderDiscoveryAcquisitionStatus()
-            val response = when (managed.manager) {
-                DiscoveryLibraryManager.Aurral -> {
-                    val canonical = identity.canonicalAlbumId ?: return@nativeCall ProviderDiscoveryAcquisitionStatus()
-                    get("/api/library/albums/aurral/${canonical.value}/status").also {
-                        check(it.text("canonicalId") == canonical.value && it.text("managedBy") == "aurral")
-                    }
-                }
-                DiscoveryLibraryManager.Lidarr -> (get("/api/library/downloads/status?albumIds=${managed.value}")[managed.value] as? JsonObject)
-                    ?: return@nativeCall ProviderDiscoveryAcquisitionStatus(ProviderDiscoveryStatus.Unavailable)
-            }
-            check(response.text("error") == null)
+            // Only Aurral-managed albums have a download status. Identities saved from the Aurral 2
+            // contract may name Lidarr, which Aurral 3 no longer reports; they stay unknown.
+            if (identity.managedAlbumId?.manager != DiscoveryLibraryManager.Aurral) return@nativeCall ProviderDiscoveryAcquisitionStatus()
+            val album = identity.canonicalAlbumId ?: return@nativeCall ProviderDiscoveryAcquisitionStatus()
+            val response = get("/api/library/albums/${album.value.urlEncode()}/status")
+            check(response.text("error") == null && response.text("libraryId") == album.value)
             val raw = response.text("status")
-            val phase = if (raw == "unreleased" && managed.manager != DiscoveryLibraryManager.Aurral)
-                DiscoveryAcquisitionPhase.Unknown else acquisitionPhase(raw)
+            val phase = acquisitionPhase(raw)
             ProviderDiscoveryAcquisitionStatus(ProviderDiscoveryStatus.Ready, phase, raw,
-                if (phase == DiscoveryAcquisitionPhase.WaitingForRelease && managed.manager == DiscoveryLibraryManager.Aurral)
-                    ProviderDiscoveryWaitingForRelease(managed.manager,
-                        (response["releaseDate"] as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull
-                            ?.trim()?.takeIf { it.isNotEmpty() && it.length <= 64 }) else null)
+                if (phase == DiscoveryAcquisitionPhase.WaitingForRelease)
+                    ProviderDiscoveryWaitingForRelease(DiscoveryLibraryManager.Aurral, response.displayReleaseDate()) else null)
         }
 
     override suspend fun releaseOwnership(release: DiscoveryReleaseGroupMbid): ProviderDiscoveryReleaseOwnership =
@@ -329,15 +311,10 @@ internal class AurralDiscoveryClient(
             val entry = lookup[release.value] as? JsonObject
             if (entry == null || entry["inLibrary"]?.jsonPrimitive?.booleanOrNull != true)
                 return@nativeCall ProviderDiscoveryReleaseOwnership(ProviderDiscoveryStatus.Ready, ProviderDiscoveryReleaseAvailability.NotOwned)
-            val canonical = entry.text("canonicalAlbumId")?.takeIf { it.toLongOrNull()?.let { value -> value > 0 } == true }
-                ?.let(::DiscoveryCanonicalAlbumId)
-            val manager = when (entry.text("managedBy")) {
-                "aurral" -> DiscoveryLibraryManager.Aurral
-                "lidarr" -> DiscoveryLibraryManager.Lidarr
-                else -> null
-            }
-            val managed = entry.text("libraryAlbumId")?.takeIf { it.toLongOrNull()?.let { value -> value > 0 } == true }
-                ?.let { value -> manager?.let { DiscoveryManagedAlbumId(it, value) } }
+            val libraryAlbum = entry.text("libraryAlbumId").positiveId()
+            val canonical = libraryAlbum?.let(::DiscoveryCanonicalAlbumId)
+            val managed = libraryAlbum?.takeIf { entry.flag("managed") == true }
+                ?.let { DiscoveryManagedAlbumId(DiscoveryLibraryManager.Aurral, it) }
             val files = entry.nonNegativeInt("trackFileCount")
             val count = entry.nonNegativeInt("trackCount")
             val availability = when {
@@ -349,7 +326,7 @@ internal class AurralDiscoveryClient(
                 else -> ProviderDiscoveryReleaseAvailability.Partial
             }
             val album = if (canonical != null && files != null && files > 0) optional {
-                val page = get("/api/library/canonical?kind=albums&pageSize=1&availableOnly=true&albumId=${canonical.value.urlEncode()}")
+                val page = get("/api/library?kind=albums&pageSize=1&availableOnly=true&albumId=${canonical.value.urlEncode()}")
                 val row = page.array("items")?.singleOrNull() as? JsonObject
                 if (row == null || row.text("id") != canonical.value || !row.text("mbid").equals(release.value, ignoreCase = true)) null
                 else row.text("identityKey")?.takeIf(String::isNotBlank)?.let { resolveLibraryAlbum(it, release.value) }
@@ -385,18 +362,16 @@ internal class AurralDiscoveryClient(
                     val title = release.text("title") ?: return@mapNotNull null
                     ProviderDiscoveryRelease(id, title, release.text("first-release-date"), release.text("primary-type"),
                         secondaryTypes = release.array("secondary-types").orEmpty().mapNotNull { (it as? JsonPrimitive)?.contentOrNull },
-                        imageUrl = release.text("coverUrl")?.let(::imageUrl) ?: if (MusicBrainzId.matches(id))
-                            "$base/api/artists/release-group/$id/cover?artistName=${artist.name.urlEncode()}&albumTitle=${title.urlEncode()}" else null)
+                        imageUrl = releaseCoverUrl(id, release.text("coverUrl"), artist.name, title)
+                            ?: if (MusicBrainzId.matches(id)) lazyReleaseCoverUrl(id, artist.name, title) else null)
                 }.distinctBy { it.id },
                 libraryArtist = owned,
-                canRequestTracks = permissions?.get("addAlbum")?.jsonPrimitive?.booleanOrNull == true && "trackDownloads" in currentFeatures(),
+                canRequestTracks = permissions?.get("addAlbum")?.jsonPrimitive?.booleanOrNull == true,
                 canRequestAlbums = permissions?.get("addAlbum")?.jsonPrimitive?.booleanOrNull == true,
                 canChangeMonitoring = monitoring != null && monitoring.text("error") == null &&
                     permissions?.get("changeMonitoring")?.jsonPrimitive?.booleanOrNull == true &&
                     (monitoring["added"]?.jsonPrimitive?.booleanOrNull == true || permissions["addArtist"]?.jsonPrimitive?.booleanOrNull == true),
-                monitored = monitoring?.takeIf { it.text("error") == null }?.let {
-                    it["monitored"]?.jsonPrimitive?.booleanOrNull ?: (it.text("monitorOption")?.let { mode -> mode != "none" })
-                },
+                monitored = monitoring?.takeIf { it.text("error") == null }?.flag("monitored"),
                 feedbackAvailable = feedback != null,
                 feedback = feedback.orEmpty().selectedFeedback(artist.id, artist.name),
             ))
@@ -418,7 +393,6 @@ internal class AurralDiscoveryClient(
 
     override suspend fun requestTrack(artist: ProviderDiscoveryArtist, sample: ProviderDiscoverySample) = operation {
         checkPermission("addAlbum")
-        if ("trackDownloads" !in currentFeatures()) throw NavidromeHttpException(404)
         require(MusicBrainzId.matches(artist.id))
         postOperation("/api/library/downloads/track", buildJsonObject {
             put("artistName", artist.name); put("artistMbid", artist.id); put("trackName", sample.title)
@@ -431,7 +405,7 @@ internal class AurralDiscoveryClient(
         require(MusicBrainzId.matches(artist.id) && MusicBrainzId.matches(release.id))
         postOperation("/api/library/albums/request", buildJsonObject {
             put("artistName", artist.name); put("artistMbid", artist.id)
-            put("albumName", release.title); put("albumMbid", release.id); put("triggerSearch", true)
+            put("albumName", release.title); put("albumMbid", release.id)
         })
     }
 
@@ -442,7 +416,6 @@ internal class AurralDiscoveryClient(
             return ProviderDiscoveryOperation(ProviderDiscoveryOperationStatus.Unavailable)
         return operation {
             checkPermission("addAlbum")
-            if ("trackDownloads" !in currentFeatures()) throw NavidromeHttpException(404)
             postOperation("/api/library/downloads/track", buildJsonObject {
                 put("artistName", context.artist.name); put("artistMbid", context.artist.id)
                 put("albumName", context.release.title); put("albumMbid", context.release.id)
@@ -460,25 +433,23 @@ internal class AurralDiscoveryClient(
         require(MusicBrainzId.matches(artist.id))
         val current = get("/api/library/artists/${artist.id}/monitoring")
         check(current.text("error") == null)
-        if (enabled && current["added"]?.jsonPrimitive?.booleanOrNull != true) checkPermission("addArtist")
+        if (enabled && current.flag("added") != true) checkPermission("addArtist")
+        // Enabling keeps the server's default monitoring rules; disabling sends only the flag.
         val body = buildJsonObject {
             put("artistName", artist.name)
-            if (current.text("manager") == "aurral") put("monitoring", buildJsonObject {
-                put("monitored", enabled); put("useDefault", true)
-            }) else if (current.text("manager") == "lidarr") put("monitorOption", if (enabled) "all" else "none")
-            else error("Unknown monitoring manager")
+            put("monitoring", buildJsonObject { put("monitored", enabled); if (enabled) put("useDefault", true) })
         }
         val response = http.putJson("$base/api/library/artists/${artist.id}", body.toString(), authorizedHeaders()).parseObject()
         check(response.text("error") == null)
         val verified = get("/api/library/artists/${artist.id}/monitoring")
-        val actual = verified["monitored"]?.jsonPrimitive?.booleanOrNull
-            ?: verified.text("monitorOption")?.let { it != "none" }
-        check(actual == enabled && verified.text("error") == null)
+        check(verified.flag("monitored") == enabled && verified.text("error") == null)
         ProviderDiscoveryOperation(if (enabled) ProviderDiscoveryOperationStatus.MonitoringEnabled else ProviderDiscoveryOperationStatus.MonitoringDisabled)
     }
 
+    private suspend fun hasPermission(name: String): Boolean =
+        currentSession()?.permissions?.get(name)?.jsonPrimitive?.booleanOrNull == true
     private suspend fun checkPermission(name: String) {
-        if (currentSession()?.permissions?.get(name)?.jsonPrimitive?.booleanOrNull != true) throw NavidromeHttpException(403)
+        if (!hasPermission(name)) throw NavidromeHttpException(403)
     }
     private suspend fun post(path: String, body: JsonObject) = http.postJson("$base$path", body.toString(), authorizedHeaders()).parseObject()
     private suspend fun postOperation(path: String, body: JsonObject): ProviderDiscoveryOperation = try {
@@ -509,18 +480,16 @@ internal class AurralDiscoveryClient(
         val identity = requestIdentity()
         val summary = this["albumStatus"] as? JsonObject
         val album = this["album"] as? JsonObject
-        val managers = listOfNotNull(text("managedBy"), summary?.text("managedBy"), album?.text("managedBy"))
         val waiting = albumRequest && get("success")?.jsonPrimitive?.booleanOrNull == true &&
-            summary?.text("status") == "unreleased" && managers.isNotEmpty() && managers.all { it == "aurral" } &&
+            summary?.text("status") == "unreleased" && album?.flag("managed") == true &&
             text("status") in listOf(null, "inLibrary", "blocked", "unreleased") &&
             get("alreadyOwned")?.jsonPrimitive?.booleanOrNull != true &&
             get("alreadyQueued")?.jsonPrimitive?.booleanOrNull != true &&
-            (album?.get("monitored") as? JsonPrimitive)?.booleanOrNull != false &&
+            (album["monitored"] as? JsonPrimitive)?.booleanOrNull != false &&
             get("queued")?.jsonPrimitive?.booleanOrNull != true && identity?.jobIds.isNullOrEmpty()
         // This is display metadata, including partial dates. Never schedule or infer availability from it.
         val waitingContext = if (waiting) ProviderDiscoveryWaitingForRelease(DiscoveryLibraryManager.Aurral,
-            (summary?.get("releaseDate") as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull
-                ?.trim()?.takeIf { it.isNotEmpty() && it.length <= 64 }) else null
+            summary.displayReleaseDate() ?: album.displayReleaseDate()) else null
         return ProviderDiscoveryOperation(when {
             waiting -> ProviderDiscoveryOperationStatus.WaitingForRelease
             text("status") == "download_source_missing" -> ProviderDiscoveryOperationStatus.MissingSource
@@ -566,10 +535,10 @@ internal class AurralDiscoveryClient(
     /** Never turn a native numeric ID or a display-name match into a playable identity. */
     private suspend fun lookupLibraryArtist(mbid: String): Artist? {
         val lookup = get("/api/library/lookup/$mbid")
-        val canonicalId = lookup.text("libraryArtistId")?.takeIf { it.toLongOrNull() != null } ?: return null
-        val page = get("/api/library/canonical?kind=artists&pageSize=1&availableOnly=true&artistId=${canonicalId.urlEncode()}")
+        val libraryId = lookup.text("libraryArtistId")?.takeIf { it.toLongOrNull() != null } ?: return null
+        val page = get("/api/library?kind=artists&pageSize=1&availableOnly=true&artistId=${libraryId.urlEncode()}")
         val artist = page.array("items")?.singleOrNull() as? JsonObject ?: return null
-        if (!artist.text("mbid").equals(mbid, ignoreCase = true) || artist.text("id") != canonicalId) return null
+        if (!artist.text("mbid").equals(mbid, ignoreCase = true) || artist.text("id") != libraryId) return null
         val identityKey = artist.text("identityKey")?.takeIf { it.isNotBlank() } ?: return null
         // The Subsonic adapter must validate this candidate against its actual artist response too.
         return resolveLibraryArtist(identityKey, mbid)
@@ -592,10 +561,10 @@ internal class AurralDiscoveryClient(
         return try {
             val bootstrap = get("/api/health/bootstrap", authenticated = false)
             val api = bootstrap["api"] as? JsonObject
-            if (api?.get("version")?.jsonPrimitive?.intOrNull != 1 ||
-                api.array("features")?.any { (it as? JsonPrimitive)?.contentOrNull == "discover" } != true
-            ) return fallback(ProviderDiscoveryStatus.Unsupported)
-            val features = api.array("features").orEmpty().mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.toSet()
+            // Aurral 3 app contract. Discovery, trending, flows, activity and track requests are
+            // part of version 2 itself; its `features` list only names capabilities added later.
+            val version = (api?.get("version") as? JsonPrimitive)?.takeUnless { it.isString }?.intOrNull
+            if (version != AppApiVersion) return fallback(ProviderDiscoveryStatus.Unsupported)
             if (connection.password.isNullOrBlank()) return fallback(ProviderDiscoveryStatus.PasswordRequired)
             // Only session creation is serialized; independent metadata routes must not queue behind one another.
             val active = mutex.withLock {
@@ -604,7 +573,7 @@ internal class AurralDiscoveryClient(
             }
             usedSession = active
             routeStarted = true
-            withContext(NativeContext(active, features)) { block() }
+            withContext(NativeContext(active)) { block() }
         } catch (error: Throwable) {
             if (error is CancellationException) throw error
             fallback(when ((error as? NavidromeHttpException)?.statusCode) {
@@ -671,23 +640,27 @@ internal class AurralDiscoveryClient(
     private fun JsonObject.strings(key: String): List<String> = array(key).orEmpty()
         .mapNotNull { (it as? JsonPrimitive)?.contentOrNull?.takeIf { value -> value.isNotBlank() } }
 
+    /** Request responses carry the Library album in `album`; activity rows carry `libraryAlbumId`. */
     private fun JsonObject.requestIdentity(): ProviderDiscoveryRequestIdentity? {
         val album = this["album"] as? JsonObject
-        val manager = when (text("managedBy")) {
-            "aurral" -> DiscoveryLibraryManager.Aurral
-            "lidarr" -> DiscoveryLibraryManager.Lidarr
-            else -> null
-        }
-        fun String?.positiveId() = this?.takeIf { it.toLongOrNull()?.let { n -> n > 0 } == true }
+        val libraryAlbum = (text("libraryAlbumId") ?: (this["albumGrab"] as? JsonObject)?.text("libraryAlbumId") ?: album?.text("id")).positiveId()
         val identity = ProviderDiscoveryRequestIdentity(
             requestGroupId = (text("requestGroupId") ?: album?.text("requestGroupId") ?: (this["albumStatus"] as? JsonObject)?.text("requestGroupId"))
                 ?.takeIf { it.isNotBlank() }?.let(::DiscoveryRequestGroupId),
             jobIds = (strings("jobIds") + listOfNotNull(text("jobId")?.takeIf { it.isNotBlank() })).distinct().map(::DiscoveryJobId),
-            canonicalAlbumId = (text("canonicalAlbumId") ?: album?.text("canonicalId")).positiveId()?.let(::DiscoveryCanonicalAlbumId),
-            managedAlbumId = album?.text("id").positiveId()?.let { id -> manager?.let { DiscoveryManagedAlbumId(it, id) } },
+            canonicalAlbumId = libraryAlbum?.let(::DiscoveryCanonicalAlbumId),
+            managedAlbumId = libraryAlbum?.takeIf { (flag("managed") ?: album?.flag("managed")) == true }
+                ?.let { DiscoveryManagedAlbumId(DiscoveryLibraryManager.Aurral, it) },
         )
         return identity.takeUnless { it == ProviderDiscoveryRequestIdentity() }
     }
+
+    private fun String?.positiveId(): String? = this?.takeIf { it.toLongOrNull()?.let { n -> n > 0 } == true }
+    /** A JSON boolean only; a quoted "true" is not a contract value. */
+    private fun JsonObject.flag(key: String): Boolean? = (this[key] as? JsonPrimitive)?.takeUnless { it.isString }?.booleanOrNull
+    /** Display metadata only, including partial dates; never schedule or infer availability from it. */
+    private fun JsonObject.displayReleaseDate(): String? = (this["releaseDate"] as? JsonPrimitive)?.takeIf { it.isString }
+        ?.contentOrNull?.trim()?.takeIf { it.isNotEmpty() && it.length <= 64 }
 
     private fun nextPageOffset(offset: Int, rows: Int, limit: Int, count: Int?): Int? {
         val next = offset.toLong() + rows
@@ -716,6 +689,18 @@ internal class AurralDiscoveryClient(
         return http.getBytes(resolved.first, headers = resolved.second)
     }
 
+    /**
+     * Aurral 3 may report a release cover as its session-only image route, which redirects to an
+     * external host. Never attach the session to that redirect: read the cover list lazily instead.
+     */
+    private fun releaseCoverUrl(id: String, coverUrl: String?, artistName: String?, title: String): String? {
+        val sessionRoute = "/api/artists/release-group/$id/cover/image"
+        return if (MusicBrainzId.matches(id) && (coverUrl == sessionRoute || coverUrl == "$base$sessionRoute"))
+            lazyReleaseCoverUrl(id, artistName.orEmpty(), title) else coverUrl?.let(::imageUrl)
+    }
+    private fun lazyReleaseCoverUrl(id: String, artistName: String, title: String) =
+        "$base/api/artists/release-group/$id/cover?artistName=${artistName.urlEncode()}&albumTitle=${title.urlEncode()}"
+
     private fun imageUrl(value: String): String? = when {
         value.startsWith("https://") || value.startsWith("http://") -> value
         value.startsWith('/') && !value.startsWith("//") -> "$base$value"
@@ -739,6 +724,8 @@ internal class AurralDiscoveryClient(
     }
 
     private companion object {
+        /** Aurral 3.x. Version 1 (Aurral 2.x) used different identity and route names. */
+        const val AppApiVersion = 2
         val MusicBrainzId = Regex("[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}")
     }
 }

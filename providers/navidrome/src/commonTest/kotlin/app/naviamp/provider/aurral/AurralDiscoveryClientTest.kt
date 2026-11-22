@@ -15,41 +15,49 @@ class AurralDiscoveryClientTest {
         assertEquals(scope, NavidromeProvider(original.copy(selectedMusicFolderIds = listOf("2")), FakeAurralHttp()).discoveryAccountScope)
         assertNotEquals(scope, NavidromeProvider(original.copy(username = "other"), FakeAurralHttp()).discoveryAccountScope)
     }
-    @Test fun acquisitionReadsUseQualifiedManagerRoutesAndNeverInferPlaybackAvailability() = runTest {
-        val http = FakeAurralHttp().also { it.bootstrap = """{"api":{"version":1,"features":["discover","activity"]}}""" }
+    @Test fun acquisitionReadsUseTheLibraryAlbumStatusRouteAndNeverInferPlaybackAvailability() = runTest {
+        val http = FakeAurralHttp()
         val client = AurralDiscoveryClient(connection(), http, nowMillis = { 0L })
         val aurral = ProviderDiscoveryRequestIdentity(canonicalAlbumId = DiscoveryCanonicalAlbumId("71"),
             managedAlbumId = DiscoveryManagedAlbumId(DiscoveryLibraryManager.Aurral, "71"))
-        http.status = """{"canonicalId":71,"managedBy":"aurral","status":"unreleased","releaseDate":"2027-03"}"""
+        http.status = """{"libraryId":"71","releaseDate":"2027-03","status":"unreleased","counts":{"total":0},"recovery":null,"requestGroupId":null}"""
         val waiting = client.acquisitionStatus(aurral)
         assertEquals(DiscoveryAcquisitionPhase.WaitingForRelease, waiting.phase)
         assertEquals("2027-03", waiting.waitingForRelease?.releaseDate)
-        assertTrue(http.urls.last().endsWith("/library/albums/aurral/71/status"))
-        http.status = """{"canonicalId":71,"managedBy":"aurral","status":"complete"}"""
-        assertEquals(DiscoveryAcquisitionPhase.Complete, client.acquisitionStatus(aurral).phase)
-        http.status = """{"71":{"status":"processing"}}"""
-        val lidarr = aurral.copy(managedAlbumId = DiscoveryManagedAlbumId(DiscoveryLibraryManager.Lidarr, "71"))
-        assertEquals(DiscoveryAcquisitionPhase.Processing, client.acquisitionStatus(lidarr).phase)
-        assertTrue(http.urls.last().endsWith("/library/downloads/status?albumIds=71"))
-        http.status = """{"71":{"status":"unreleased","releaseDate":"2027"}}"""
-        val unrecognizedLidarr = client.acquisitionStatus(lidarr)
-        assertEquals(DiscoveryAcquisitionPhase.Unknown, unrecognizedLidarr.phase)
-        assertNull(unrecognizedLidarr.waitingForRelease)
+        assertTrue(http.urls.last().endsWith("/api/library/albums/71/status"))
+        http.status = """{"libraryId":"71","releaseDate":"1999-01-12","status":"complete","counts":{"total":13,"available":13}}"""
+        val complete = client.acquisitionStatus(aurral)
+        assertEquals(DiscoveryAcquisitionPhase.Complete, complete.phase)
+        assertNull(complete.waitingForRelease)
         assertTrue(http.authenticatedGets.all { it["Authorization"] == "Bearer session" && it["X-Proxy"] == "value" })
         assertEquals(1, http.logins)
         assertEquals("https://music.test/aurral/requests", client.requestsUrl)
     }
-    @Test fun acquisitionReadsRejectWrongOwnerAndUnknownStatusesStayUnknown() = runTest {
-        val http = FakeAurralHttp().also { it.bootstrap = """{"api":{"version":1,"features":["discover","activity"]}}""" }
+    @Test fun aurralTwoLidarrIdentitiesAndUnmanagedAlbumsNeverReadAStatus() = runTest {
+        val http = FakeAurralHttp()
+        val client = AurralDiscoveryClient(connection(), http, nowMillis = { 0L })
+        for (identity in listOf(
+            ProviderDiscoveryRequestIdentity(canonicalAlbumId = DiscoveryCanonicalAlbumId("71"),
+                managedAlbumId = DiscoveryManagedAlbumId(DiscoveryLibraryManager.Lidarr, "7")),
+            ProviderDiscoveryRequestIdentity(canonicalAlbumId = DiscoveryCanonicalAlbumId("71")),
+        )) {
+            val result = client.acquisitionStatus(identity)
+            assertEquals(DiscoveryAcquisitionPhase.Unknown, result.phase)
+            assertNull(result.waitingForRelease)
+        }
+        assertTrue(http.urls.none { "/status" in it })
+    }
+    @Test fun acquisitionReadsRejectAnotherAlbumAndUnknownStatusesStayUnknown() = runTest {
+        val http = FakeAurralHttp()
         val client = AurralDiscoveryClient(connection(), http, nowMillis = { 0L })
         val identity = ProviderDiscoveryRequestIdentity(canonicalAlbumId = DiscoveryCanonicalAlbumId("71"),
             managedAlbumId = DiscoveryManagedAlbumId(DiscoveryLibraryManager.Aurral, "71"))
-        for (body in listOf("""{"canonicalId":72,"managedBy":"aurral","status":"complete"}""",
-            """{"canonicalId":71,"managedBy":"lidarr","status":"complete"}""")) {
+        for (body in listOf("""{"libraryId":"72","status":"complete"}""", """{"status":"complete"}""",
+            """{"libraryId":"71","status":"complete","error":"Aurral does not manage this album"}""")) {
             http.status = body
             assertEquals(ProviderDiscoveryStatus.Unavailable, client.acquisitionStatus(identity).status)
         }
-        http.status = """{"canonicalId":71,"managedBy":"aurral","status":"future"}"""
+        http.status = """{"libraryId":"71","status":"future"}"""
         assertEquals(DiscoveryAcquisitionPhase.Unknown, client.acquisitionStatus(identity).phase)
         for ((code, expected) in listOf(403 to ProviderDiscoveryStatus.Forbidden, 404 to ProviderDiscoveryStatus.Unsupported,
             401 to ProviderDiscoveryStatus.SignInRequired)) {
@@ -58,15 +66,19 @@ class AurralDiscoveryClientTest {
         }
         assertEquals(1, http.logins)
     }
-    @Test fun activityKeepsLidarrNamespacesAndDoesNotTreatDownloadSourcesAsManagers() = runTest {
-        val http = FakeAurralHttp().also { it.bootstrap = """{"api":{"version":1,"features":["discover","activity"]}}"""
-            it.activity = """[{"id":"one","source":"lidarr","albumId":71,"title":"Album","artistName":"Artist","status":"processing"},
-                {"id":"two","source":"deezer","albumId":71,"status":"completed","kind":"album_requested","requestGroupId":"group"}]""" }
+    @Test fun activityUsesLibraryAlbumIdsAndDoesNotTreatDownloadSourcesAsManagers() = runTest {
+        val http = FakeAurralHttp().also {
+            it.activity = """[{"id":"one","source":"unknown","albumId":null,"libraryAlbumId":"24987","title":"Album","artistName":"Artist","status":"pending","requestGroupId":"group","jobId":"job-1"},
+                {"id":"two","source":"deezer","albumId":7,"status":"completed","kind":"album_requested","albumGrab":{"libraryAlbumId":"71"}},
+                {"id":"three","source":"lidarr","albumId":71,"status":"processing"}]""" }
         val rows = AurralDiscoveryClient(connection(), http, nowMillis = { 0L }).requestActivity().items
-        assertEquals(DiscoveryManagedAlbumId(DiscoveryLibraryManager.Lidarr, "71"), rows[0].identity?.managedAlbumId)
+        assertEquals(DiscoveryCanonicalAlbumId("24987"), rows[0].identity?.canonicalAlbumId)
+        assertEquals(DiscoveryRequestGroupId("group"), rows[0].identity?.requestGroupId)
+        assertEquals(listOf(DiscoveryJobId("job-1")), rows[0].identity?.jobIds)
         assertEquals("Album", rows[0].title)
-        assertNull(rows[1].identity?.managedAlbumId)
-        assertEquals(DiscoveryRequestGroupId("group"), rows[1].identity?.requestGroupId)
+        assertEquals(DiscoveryCanonicalAlbumId("71"), rows[1].identity?.canonicalAlbumId)
+        assertTrue(rows.none { it.identity?.managedAlbumId != null })
+        assertNull(rows[2].identity)
     }
 
     @Test fun missingMusicBrainzIdsRemainDiscoveryCardsWithoutInventingPlaybackOrExternalIds() = runTest {
@@ -149,9 +161,16 @@ class AurralDiscoveryClientTest {
         assertEquals(3, http.logins)
     }
 
-    @Test fun olderOrFutureContractsAndMissingFeatureNeverSignIn() = runTest {
-        for (bootstrap in listOf("{}", """{"api":{"version":2,"features":["discover"]}}""",
-            """{"api":{"version":1,"features":["flows"]}}""")) {
+    @Test fun aurralThreeContractNeedsNoFeatureNamesForBuiltInDiscovery() = runTest {
+        val http = FakeAurralHttp().also { it.bootstrap = """{"appVersion":"3.0.1","api":{"version":2,"features":[]}}""" }
+        assertEquals(ProviderDiscoveryStatus.Building, AurralDiscoveryClient(connection(), http, nowMillis = { 0L }).load().status)
+        assertEquals(1, http.logins)
+    }
+
+    @Test fun aurralTwoFutureAndMissingContractsNeverSignIn() = runTest {
+        for (bootstrap in listOf("{}", """{"api":{}}""", """{"api":{"version":"2"}}""",
+            """{"appVersion":"2.13.0","api":{"version":1,"features":["discover","trending","activity"]}}""",
+            """{"api":{"version":3,"features":[]}}""")) {
             val http = FakeAurralHttp().also { it.bootstrap = bootstrap }
             assertEquals(ProviderDiscoveryStatus.Unsupported, AurralDiscoveryClient(connection(), http).load().status)
             assertEquals(0, http.logins)
@@ -196,7 +215,7 @@ class AurralDiscoveryClientTest {
 
 private const val ArtistMbid = "6925db17-f35e-42f3-a4eb-84ee6bf5d4b0"
 private class FakeAurralHttp : NavidromeHttpClient {
-    var bootstrap = """{"api":{"version":1,"features":["discover","future"]}}"""
+    var bootstrap = """{"appVersion":"3.0.1","api":{"version":2,"features":["libraryStatusFilter","future"]}}"""
     var logins = 0
     var expiry: Long? = null
     var discovery = """{"recommendations":[{"id":"$ArtistMbid","name":"Discovery artist","image":"/api/image-proxy/portrait","tags":["rock"],"matchPercent":99}],"globalTop":[],"unknown":true}"""
@@ -222,7 +241,7 @@ private class FakeAurralHttp : NavidromeHttpClient {
         urls += url
         failure?.let { throw it }
         if (url.endsWith("/requests")) return activity
-        if (url.contains("/library/albums/aurral/") || url.contains("/library/downloads/status?")) return status
+        if (url.contains("/library/albums/") && url.endsWith("/status")) return status
         if (url.contains("/cover?artistName=")) { coverRequests++; return cover }
         return if (url.endsWith("/discover/status")) """{"isUpdating":true,"error":null,"lastUpdated":"yesterday"}"""
         else discovery
@@ -234,6 +253,6 @@ private class FakeAurralHttp : NavidromeHttpClient {
         assertEquals("value", headers["X-Proxy"])
         assertFalse(headers.containsKey("X-Api-Key"))
         logins++
-        return """{"token":"session","expiresAt":${expiry ?: logins * 100_000},"user":{"permissions":{"accessFlow":false}}}"""
+        return """{"token":"session","expiresAt":${expiry ?: logins * 100_000},"user":{"permissions":{"accessPlaylists":false}}}"""
     }
 }

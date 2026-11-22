@@ -159,7 +159,7 @@ private class ReleaseHttp : NavidromeHttpClient {
     override suspend fun get(url: String) = get(url, emptyMap())
     override suspend fun get(url: String, headers: Map<String, String>): String {
         urls += url
-        if (url.endsWith("/bootstrap")) return """{"api":{"version":1,"features":["discover","trackDownloads"]}}"""
+        if (url.endsWith("/bootstrap")) return """{"appVersion":"3.0.1","api":{"version":2,"features":["libraryStatusFilter"]}}"""
         assertTrue(headers.getValue("Authorization").startsWith("Bearer "))
         if ("/tracks" in url) return """[{"mbid":"$Recording","title":"Second disc","discNumber":2,"trackNumber":1,"releaseMbid":"$Edition","length":123456,"preview_url":"https://preview.test/42","previewProvider":"deezer","previewTrackId":"42"},{"title":"First disc","discNumber":1,"trackNumber":1,"previewProvider":"unknown","previewTrackId":"42","preview_url":"https://preview.test/42"}]"""
         return """{"id":"$Group","title":"Two discs","artist-credit":[{"name":"One","artist":{"id":"$Artist"}},{"name":"Two","artist":{"id":"$OtherArtist"}}],"releases":[{"id":"$Edition","title":"Edition","date":"2026-01-01","status":"Official"},{"id":"invalid"}]}"""

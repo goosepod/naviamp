@@ -26,7 +26,7 @@ class AurralMutationHttpTest {
 
     @Test fun conflictIsExplicitAndManagerIdsAreNeverInterpretedAsCanonicalOrPlayableIds() = runTest {
         val wire = MutationWire(HttpStatusCode.Conflict,
-            """{"error":"Ownership conflict","code":"album_owner_conflict","managedBy":"lidarr","canonicalId":71,"providerId":7}""")
+            """{"error":"Ownership conflict","code":"album_owner_conflict"}""")
         try {
             val result = wire.request()
             assertEquals(ProviderDiscoveryOperationStatus.Conflict, result.status)
@@ -39,7 +39,7 @@ class AurralMutationHttpTest {
     @Test fun recordingRequestsUseReleasedValidationAndDoNotInheritAlbumConflictSemantics() = runTest {
         for ((status, body, expected) in listOf(
             Triple(HttpStatusCode.BadRequest, """{"error":"Invalid request"}""", ProviderDiscoveryOperationStatus.Rejected),
-            Triple(HttpStatusCode.Conflict, """{"code":"album_owner_conflict","canonicalId":71}""", ProviderDiscoveryOperationStatus.Uncertain),
+            Triple(HttpStatusCode.Conflict, """{"code":"album_owner_conflict","libraryId":"71"}""", ProviderDiscoveryOperationStatus.Uncertain),
             Triple(HttpStatusCode.UnprocessableEntity, """{"code":"ambiguous_identity"}""", ProviderDiscoveryOperationStatus.Uncertain),
             Triple(HttpStatusCode.InternalServerError, """{"error":"Invalid request"}""", ProviderDiscoveryOperationStatus.Uncertain),
         )) {
@@ -82,7 +82,7 @@ private class MutationWire(status: HttpStatusCode, body: String, loseResponse: B
     private val engine = MockEngine { request ->
         val responseHeaders = headersOf(HttpHeaders.ContentType, "application/json")
         when (request.url.encodedPath) {
-            "/api/health/bootstrap" -> respond("""{"api":{"version":1,"features":["discover","trackDownloads"]}}""", headers = responseHeaders)
+            "/api/health/bootstrap" -> respond("""{"appVersion":"3.0.1","api":{"version":2,"features":["libraryStatusFilter"]}}""", headers = responseHeaders)
             "/api/auth/login" -> respond("""{"token":"fixture","expiresAt":100000,"user":{"permissions":{"addAlbum":true}}}""", headers = responseHeaders)
             "/api/library/albums/request", "/api/library/downloads/track" -> {
                 submissions++
