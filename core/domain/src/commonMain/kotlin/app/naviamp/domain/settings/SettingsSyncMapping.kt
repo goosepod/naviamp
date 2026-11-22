@@ -140,6 +140,45 @@ fun SettingsSyncServerProfile.toConnectionFormState(
         }
         ?: ConnectionFormState(password = password)
 
+/**
+ * A saved connection is the same identity as an imported profile when provider, server,
+ * username, and library selection match. An import can therefore only reuse credentials the
+ * device already holds for that exact account; it can never redirect them to another server.
+ */
+internal fun SettingsSyncServerProfile.identifies(saved: SavedMediaSource): Boolean =
+    saved.providerId == providerId &&
+        app.naviamp.domain.source.normalizedBaseUrl(saved.baseUrl) == primaryUrl &&
+        saved.username == username &&
+        saved.selectedMusicFolderIds.normalizedLibraryIds() == selectedMusicFolderIds.normalizedLibraryIds()
+
+private fun List<String>.normalizedLibraryIds(): Set<String> =
+    mapNotNull { id -> id.trim().takeIf { it.isNotEmpty() } }.toSet()
+
+/** Whether a saved connection can reconnect without asking for a password. */
+fun SavedMediaSource.hasStoredCredentials(): Boolean =
+    token.isNotBlank() || !password.isNullOrBlank() || !nativeToken.isNullOrBlank()
+
+/**
+ * Whether finishing an import needs the user's password: true only when the document's first
+ * server profile has no saved connection on this device that already holds credentials.
+ */
+fun settingsSyncImportNeedsCredentials(
+    document: SettingsSyncDocument,
+    savedConnections: List<SavedMediaSource>,
+): Boolean {
+    if (document.serverProfiles.none { it.normalized() != null }) return false
+    return settingsSyncImportedConnection(document, savedConnections)?.hasStoredCredentials() != true
+}
+
+/** The saved connection an applied document's first server profile resolved to on this device. */
+fun settingsSyncImportedConnection(
+    document: SettingsSyncDocument,
+    savedConnections: List<SavedMediaSource>,
+): SavedMediaSource? {
+    val profile = document.serverProfiles.firstNotNullOfOrNull { it.normalized() } ?: return null
+    return savedConnections.firstOrNull { profile.identifies(it) }
+}
+
 fun importSettingsSyncServerProfiles(
     serverProfiles: List<SettingsSyncServerProfile>,
     repository: ProviderMediaSourceRepository,
@@ -147,10 +186,8 @@ fun importSettingsSyncServerProfiles(
     val profiles = serverProfiles.mapNotNull { it.normalized() }
     var importedCount = 0
     profiles.forEach { profile ->
-        val existing = (repository as? app.naviamp.domain.cache.MediaSourceRepository)?.mediaSources()?.firstOrNull {
-            it.providerId == profile.providerId && app.naviamp.domain.source.normalizedBaseUrl(it.baseUrl) == profile.primaryUrl &&
-                it.username == profile.username && it.selectedMusicFolderIds.toSet() == profile.selectedMusicFolderIds.toSet()
-        }
+        val existing = (repository as? app.naviamp.domain.cache.MediaSourceRepository)?.mediaSources()
+            ?.firstOrNull { profile.identifies(it) }
         repository.upsertProviderMediaSource(
             connection = profile.toProviderMediaSourceConnection(existing),
             cacheNamespace = existing?.cacheNamespace ?: profile.cacheNamespace,

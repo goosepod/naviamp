@@ -67,7 +67,7 @@ class NaviampSettingsSyncHostController(
                         onProviderPullSucceeded()
                     }
                 }
-                publishStatus(settingsSyncImportStatus(result.hasServerProfiles))
+                publishStatus(settingsSyncImportStatus(result.needsCredentials))
             }
             SettingsSyncOperationKind.Exported -> {
                 result.documentToWrite?.let { document ->

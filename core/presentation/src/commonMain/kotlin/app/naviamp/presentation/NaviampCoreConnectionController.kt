@@ -106,6 +106,13 @@ class NaviampCoreConnectionController(
         }
     }
 
+    /**
+     * Reconnects a saved connection that an import matched and that already holds credentials,
+     * so importing settings never asks again for a password this device already has.
+     */
+    suspend fun reconnectImportedConnection(id: String): Boolean =
+        connect(NaviampCoreConnectionRequest.Saved(id))
+
     suspend fun resetAfterDatabaseClear() {
         certificateSelectionGeneration++
         accountAttempt?.cancel()

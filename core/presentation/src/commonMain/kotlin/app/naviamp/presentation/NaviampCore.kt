@@ -20,6 +20,7 @@ import app.naviamp.domain.playback.AudioOutputDevice
 import app.naviamp.domain.playback.PlaybackProfileTarget
 import app.naviamp.domain.playback.PlaybackProfileTargetType
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.settings.hasStoredCredentials
 import app.naviamp.domain.settings.toConnectionFormState
 import app.naviamp.domain.settings.toSettingsSyncServerProfile
 import app.naviamp.domain.settings.GlobalShortcutAction
@@ -730,7 +731,7 @@ class NaviampCore private constructor(
             val settingsSync = NaviampCoreSettingsSyncController(
                 stateStore = stateStore,
                 services = services.settings.sync,
-                onDocumentApplied = { snapshot ->
+                onDocumentApplied = { snapshot, imported ->
                     connection.replaceSavedConnections(
                         snapshot.serverProfiles.map { source ->
                             NaviampCoreSavedConnectionRecord(
@@ -743,12 +744,18 @@ class NaviampCore private constructor(
                             )
                         },
                     )
-                    snapshot.serverProfiles.firstOrNull()?.let { source ->
-                        connection.editImportedConnection(
-                            id = source.id,
-                            form = source.toSettingsSyncServerProfile().toConnectionFormState(),
-                        )
-                        navigation.dispatch(NaviampCoreCommand.Navigation.SelectRoute(SharedRoute.Settings))
+                    imported?.let { source ->
+                        // A matched connection that already holds credentials reconnects as is;
+                        // only a missing or rejected credential opens its password form.
+                        val reconnected = source.hasStoredCredentials() &&
+                            connection.reconnectImportedConnection(source.id)
+                        if (!reconnected) {
+                            connection.editImportedConnection(
+                                id = source.id,
+                                form = source.toSettingsSyncServerProfile().toConnectionFormState(),
+                            )
+                            navigation.dispatch(NaviampCoreCommand.Navigation.SelectRoute(SharedRoute.Settings))
+                        }
                     }
                     mediaDetails.interfaceSettingsChanged(snapshot.interfaceSettings)
                     home.refreshAfterConnection()

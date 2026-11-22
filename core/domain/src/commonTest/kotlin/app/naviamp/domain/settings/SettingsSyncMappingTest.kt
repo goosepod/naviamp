@@ -16,6 +16,7 @@ import app.naviamp.domain.source.SavedMediaSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SettingsSyncMappingTest {
@@ -343,6 +344,25 @@ class SettingsSyncMappingTest {
         assertEquals(1, applied.importedServerProfiles.importedCount)
         assertEquals("wide", radioDjs.radioDjPresets().single().id)
         assertEquals(1, mediaSources.connections.size)
+    }
+
+    @Test
+    fun importNeedsAPasswordOnlyWhenNoMatchingSavedConnectionHoldsCredentials() {
+        val local = savedSource()
+        val document = SettingsSyncDocument(serverProfiles = listOf(local.toSettingsSyncServerProfile()))
+        val withoutCredentials = local.copy(token = "", salt = "", nativeToken = null, password = null)
+        val otherAccount = savedSource(id = "source_2", displayName = "Other", baseUrl = "https://navidrome.lan/", username = "guest")
+
+        // The device already holds this exact account: reconnect it, no password prompt.
+        assertEquals(local, settingsSyncImportedConnection(document, listOf(otherAccount, local)))
+        assertFalse(settingsSyncImportNeedsCredentials(document, listOf(otherAccount, local)))
+        // A matching connection without credentials (a fresh device) still asks for the password.
+        assertTrue(settingsSyncImportNeedsCredentials(document, listOf(withoutCredentials)))
+        // Credentials for a different account on the same server are never reused.
+        assertNull(settingsSyncImportedConnection(document, listOf(otherAccount)))
+        assertTrue(settingsSyncImportNeedsCredentials(document, listOf(otherAccount)))
+        // A document without server profiles never asks for a password.
+        assertFalse(settingsSyncImportNeedsCredentials(SettingsSyncDocument(), listOf(local)))
     }
 
     private fun savedSource(): SavedMediaSource =
