@@ -22,9 +22,12 @@ class NaviampCoreCollectionActionController(
     private val mediaDetails: NaviampCoreMediaDetailController,
     private val playbackProfiles: NaviampCorePlaybackProfileController? = null,
     private val settings: NaviampCoreSettingsController? = null,
+    /** Issues a resolved command through the full (Connect-aware) handler; local when absent. */
+    private val issueResolvedCommand: (suspend (NaviampCoreCommand) -> Unit)? = null,
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.Home.SelectStation,
+        is NaviampCoreCommand.Home.StartAlbumMix,
         is NaviampCoreCommand.Detail.Album,
         -> NaviampCoreImmediateCommandResult.Deferred
         is NaviampCoreCommand.Detail.Artist -> NaviampCoreImmediateCommandResult.Deferred
@@ -38,7 +41,9 @@ class NaviampCoreCollectionActionController(
             is NaviampMediaItemCommand.Artist ->
                 if (item.command == NaviampArtistMediaCommand.Select) NaviampCoreImmediateCommandResult.Unhandled
                 else NaviampCoreImmediateCommandResult.Deferred
-            NaviampMediaItemCommand.PlayAlbum -> NaviampCoreImmediateCommandResult.Deferred
+            NaviampMediaItemCommand.PlayAlbum,
+            NaviampMediaItemCommand.PlayAlbumMix,
+            -> NaviampCoreImmediateCommandResult.Deferred
             is NaviampMediaItemCommand.Playlist -> NaviampCoreImmediateCommandResult.Unhandled
         }
         else -> NaviampCoreImmediateCommandResult.Unhandled
@@ -47,6 +52,7 @@ class NaviampCoreCollectionActionController(
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? {
         when (command) {
             is NaviampCoreCommand.Home.SelectStation -> executeStation(command.station.id)
+            is NaviampCoreCommand.Home.StartAlbumMix -> transactions.startAlbumMix(command.album, command.seed)
             is NaviampCoreCommand.Detail.Album -> executeAlbum(command.request.album.id, command.request.command)
             is NaviampCoreCommand.Detail.Artist -> executeArtist(command.request.artist.id, command.request.artist, command.request.command)
             is NaviampCoreCommand.Detail.ArtistAlbum -> executeAlbum(command.request.album.id, command.request.command)
@@ -54,6 +60,7 @@ class NaviampCoreCollectionActionController(
                 is NaviampMediaItemCommand.Album -> executeAlbum(command.request.item.id, item.command)
                 is NaviampMediaItemCommand.Artist -> executeArtistMedia(command.request.item.id, command.request.item, item.command)
                 NaviampMediaItemCommand.PlayAlbum -> playAlbum(command.request.item.id)
+                NaviampMediaItemCommand.PlayAlbumMix -> playAlbumMix(command.request.item.id)
                 is NaviampMediaItemCommand.Playlist -> return null
             }
             else -> return null
@@ -95,6 +102,14 @@ class NaviampCoreCollectionActionController(
     private suspend fun playAlbum(id: String) {
         val album = registry.album(id) ?: return transactions.publish("Album not found.")
         transactions.playAlbum(album, albumTracks(album))
+    }
+
+    private suspend fun playAlbumMix(id: String) {
+        val album = registry.album(id) ?: return transactions.publish("Album not found.")
+        val seed = transactions.albumMixSeed(album) ?: return
+        val resolved = NaviampCoreCommand.Home.StartAlbumMix(album, seed)
+        val issue = issueResolvedCommand
+        if (issue != null) issue(resolved) else execute(resolved)
     }
 
     private suspend fun executeAlbum(album: Album, command: NaviampAlbumDetailCommand) {
