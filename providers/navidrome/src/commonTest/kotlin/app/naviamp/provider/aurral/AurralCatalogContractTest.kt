@@ -128,7 +128,7 @@ class AurralCatalogContractTest {
         assertEquals(ProviderDiscoveryStatus.Unavailable, client.releaseDetails(DiscoveryReleaseGroupMbid(ReleaseMbid)).status)
     }
 
-    @Test fun acquisitionCorrelationKeepsManagerCanonicalAndJobNamespaces() = runTest {
+    @Test fun acquisitionCorrelationKeepsLibraryAndJobNamespaces() = runTest {
         val http = ContractHttp()
         val client = client(http)
         val operation = client.requestAlbum(ProviderDiscoveryArtist(ArtistMbid, "Artist"), ProviderDiscoveryRelease(ReleaseMbid, "Release"))
@@ -137,26 +137,23 @@ class AurralCatalogContractTest {
         assertEquals("group-1", identity.requestGroupId?.value)
         assertEquals(listOf("job-1", "job-2"), identity.jobIds.map { it.value })
         assertEquals("71", identity.canonicalAlbumId?.value)
-        assertEquals(DiscoveryManagedAlbumId(DiscoveryLibraryManager.Aurral, "7"), identity.managedAlbumId)
+        assertEquals(DiscoveryManagedAlbumId(DiscoveryLibraryManager.Aurral, "71"), identity.managedAlbumId)
         val activity = client.requestActivity().items.single()
         assertEquals("completed", activity.status)
         assertEquals("group-1", activity.identity?.requestGroupId?.value)
         assertEquals("71", activity.identity?.canonicalAlbumId?.value)
-        assertNull(activity.identity?.managedAlbumId) // Activity albumId has no declared manager.
+        assertNull(activity.identity?.managedAlbumId) // Activity rows do not declare that Aurral manages the album.
         assertEquals(listOf("login", "album"), http.writes)
     }
 
-    @Test fun unknownManagersAndAbsentCapabilitiesDoNotInventActionsOrIdentities() = runTest {
-        val http = ContractHttp().also {
-            it.operation = """{"success":true,"managedBy":"future","album":{"id":7},"jobId":null}"""
-            it.features = listOf("discover", "downloadCancel")
+    @Test fun unmanagedOrUnflaggedAlbumsNeverClaimAurralManagement() = runTest {
+        for (album in listOf("""{"id":"7","managed":false}""", """{"id":"7"}""", """{"id":"7","managed":"true"}""")) {
+            val http = ContractHttp().also { it.operation = """{"success":true,"album":$album,"jobId":null}""" }
+            val result = client(http).requestAlbum(ProviderDiscoveryArtist(ArtistMbid, "Artist"), ProviderDiscoveryRelease(ReleaseMbid, "Release"))
+            assertEquals(ProviderDiscoveryOperationStatus.Saved, result.status)
+            assertEquals("7", result.identity?.canonicalAlbumId?.value)
+            assertNull(result.identity?.managedAlbumId)
         }
-        val client = client(http)
-        val result = client.requestAlbum(ProviderDiscoveryArtist(ArtistMbid, "Artist"), ProviderDiscoveryRelease(ReleaseMbid, "Release"))
-        assertEquals(ProviderDiscoveryOperationStatus.Saved, result.status)
-        assertNull(result.identity)
-        assertEquals(ProviderDiscoveryStatus.Unsupported, client.requestActivity().status)
-        assertTrue(http.urls.none { it.endsWith("/api/requests") })
     }
 
     @Test fun readFailuresRemainTypedAndDoNotAutomaticallyRetryMutations() = runTest {
@@ -197,14 +194,13 @@ private const val ReleaseMbid = "b1392450-e666-3926-a536-22c65f834433"
 private const val RecordingMbid = "01234567-89ab-cdef-0123-456789abcdef"
 
 private class ContractHttp : NavidromeHttpClient {
-    var features = listOf("discover", "activity", "trackDownloads")
     var logins = 0
     var newMetadata = false
     var discoveryOverride: String? = null
     var releaseOverride: String? = null
     var artistSearchOverride: String? = null
     var albumSearchOverride: String? = null
-    var operation = """{"success":true,"status":"queued","managedBy":"aurral","requestGroupId":"group-1","jobIds":["job-1","job-2"],"album":{"id":7,"canonicalId":71}}"""
+    var operation = """{"success":true,"status":"queued","requestGroupId":"group-1","jobIds":["job-1","job-2"],"album":{"id":"71","managed":true},"albumStatus":{"status":"queued"}}"""
     var failure: Throwable? = null
     val writes = mutableListOf<String>()
     val urls = mutableListOf<String>()
@@ -216,7 +212,7 @@ private class ContractHttp : NavidromeHttpClient {
         assertTrue(url.startsWith("https://music.test/proxy/aurral/api/"))
         assertEquals("value", headers["X-Proxy"])
         if (url.endsWith("/bootstrap")) return buildJsonObject {
-            put("api", buildJsonObject { put("version", 1); put("features", JsonArray(features.map(::JsonPrimitive))) })
+            put("api", buildJsonObject { put("version", 2); put("features", buildJsonArray { add("libraryStatusFilter") }) })
         }.toString()
         tokens += headers.getValue("Authorization")
         failure?.let { throw it }
@@ -244,7 +240,7 @@ private class ContractHttp : NavidromeHttpClient {
             "/search?" in url -> albumSearchOverride ?: """{"scope":"album","count":1,"offset":0,"items":[{"id":"$ReleaseMbid","title":"Release","artistName":"Artist","artistMbid":"$ArtistMbid","inLibrary":true,"status":"available"}]}"""
             url.endsWith("/tracks") -> """[{"mbid":"$RecordingMbid","title":"Track","discNumber":2,"trackNumber":3,"length":210000,"previewProvider":"deezer","previewTrackId":"42","preview_url":"https://preview.test/42"},{"mbid":null,"title":"Unavailable","previewTrackId":"$RecordingMbid","preview_url":"https://preview.test/x"},{"title":"Future preview","previewTrackId":"43","previewProvider":"future","preview_url":"https://preview.test/43"}]"""
             "/release-group/" in url -> releaseOverride ?: """{"id":"$ReleaseMbid","title":"Release","primary-type":"Album","secondary-types":["Live"],"artist-credit":[{"name":"Artist","artist":{"id":"$ArtistMbid"}}]}"""
-            url.endsWith("/requests") -> """[{"id":"activity-1","status":"completed","jobId":"job-1","requestGroupId":"group-1","canonicalAlbumId":"71","albumId":"7","albumMbid":"$ReleaseMbid"}]"""
+            url.endsWith("/requests") -> """[{"id":"activity-1","status":"completed","jobId":"job-1","requestGroupId":"group-1","libraryAlbumId":"71","albumId":"7","albumMbid":"$ReleaseMbid"}]"""
             else -> error("Unexpected read: $url")
         }
     }
