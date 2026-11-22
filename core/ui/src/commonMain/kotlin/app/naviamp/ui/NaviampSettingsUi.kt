@@ -2953,21 +2953,49 @@ private val DefaultNaviampLibraries = listOf(
 // Release notes stay in English and out of localized string resources.
 private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
+        title = "Features",
+        entries = listOf(
+            "Add an Aurral account as a companion to your primary music server. Aurral recommendations, catalog search, samples, monitoring, and requests open alongside your library without switching servers or interrupting playback. Standalone Aurral connections remain available.",
+            "Apple CarPlay (beta): browse your library, playlists, downloads, and radio, search on supported iOS versions, switch saved sources, and control playback and Up Next. CarPlay shares the iPhone's playback session.",
+            "Apple TV (beta): build Naviamp for Apple TV from source with the shared TV interface, connection setup including Aurral companions, remote and media keys, system Now Playing, and background playback. No Apple TV download is published with this release.",
+        ),
+    ),
+    NaviampChangelogSectionUi(
+        title = "Improvements",
+        entries = listOf(
+            "Android Auto leads with Playlists, Recently Played, and Radio, offers the full saved Internet Radio catalog, and adds Start Radio for the current song. Live stations hide unsupported track controls, Repeat shows distinct Off, Queue, and Track states, and current-track artwork is sharper.",
+            "Android TV and Google TV are no longer beta.",
+            "Show recently played tracks on Home and in Android Auto as soon as you listen to them.",
+            "Hide or reorder the Aurral section on Home like other Home sections.",
+            "Setting up Android TV from your phone also transfers an attached Aurral account.",
+            "Show a recovery screen with Retry on iPhone and iPad if Naviamp cannot start, instead of closing.",
+        ),
+    ),
+    NaviampChangelogSectionUi(
         title = "Bug fixes",
         entries = listOf(
-            "Remove white bands above and below the Android app by extending the selected background and filled Now Playing artwork behind the system bars while keeping controls safely inset.",
+            "Linux media controls show album artwork from a private local file instead of a server link that contained your sign-in details.",
+            "Mixes for you start a radio station seeded from the mix instead of playing the seed album.",
+            "Choosing a track in an album or playlist while controlling another device with Naviamp Connect queues the album or playlist from that track instead of sending only that track.",
+            "Elapsed time keeps advancing while you control another device with Naviamp Connect instead of staying at 0:00.",
+            "On Linux, the first launch opens its window without waiting for the system keyring. If secure storage is unavailable, Naviamp Connect settings show the problem with Retry instead of the app closing.",
+            "Reconnect after importing settings restores the imported server instead of failing with a duplicate-connection error.",
+            "Importing settings keeps this device's volume, output device, debug logging, and mobile-download settings.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Upgrade notes",
         entries = listOf(
-            "No special upgrade steps are required.",
+            "Aurral connections now require Aurral 3.x. Aurral 2.x servers are no longer supported.",
+            "The local database upgrades automatically to store Aurral companion accounts. Existing connections and settings are retained.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Known issues",
         entries = listOf(
-            "No new known issues. Existing playback, presentation, performance, and platform acceptance investigations continue.",
+            "Apple CarPlay and Apple TV are beta and were not verified on physical CarPlay or Apple TV hardware for this release.",
+            "On desktop windows of about 1280×800 or smaller, the full player can hide some of its controls.",
+            "Direct GitHub Windows and macOS downloads are not publisher-signed; the iOS IPA requires signing for sideloading.",
         ),
     ),
 )
