@@ -3,6 +3,9 @@ package app.naviamp.ui
 sealed interface NaviampMediaItemCommand {
     data class Album(val command: NaviampArtistAlbumCommand) : NaviampMediaItemCommand
     data object PlayAlbum : NaviampMediaItemCommand
+
+    /** Plays a multi-track mix seeded from the album, such as a Home "Mixes for you" tile. */
+    data object PlayAlbumMix : NaviampMediaItemCommand
     data class Artist(val command: NaviampArtistMediaCommand) : NaviampMediaItemCommand
     data class Playlist(val command: NaviampPlaylistMediaCommand) : NaviampMediaItemCommand
 }
@@ -36,6 +39,9 @@ fun SharedMediaItemUi.artistActionRequest(command: NaviampArtistMediaCommand) =
 
 fun SharedMediaItemUi.playlistActionRequest(command: NaviampPlaylistMediaCommand) =
     NaviampMediaItemActionRequest(this, NaviampMediaItemCommand.Playlist(command))
+
+fun SharedMediaItemUi.playAlbumMixRequest() =
+    NaviampMediaItemActionRequest(this, NaviampMediaItemCommand.PlayAlbumMix)
 
 fun SharedMediaItemUi.playAlbumRequest() =
     NaviampMediaItemActionRequest(this, NaviampMediaItemCommand.PlayAlbum)

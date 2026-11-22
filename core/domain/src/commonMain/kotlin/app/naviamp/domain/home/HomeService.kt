@@ -168,7 +168,8 @@ class HomeService(
                     maxAgeMillis = if (forceRefreshRecentlyAdded) 0L else HomeRecentlyAddedMaximumAgeMillis,
                 )
             }.getOrDefault(emptyList()),
-            mixAlbums = randomPool.take(8),
+            // Mix tiles start similar-song radio; without track radio they would only replay albums.
+            mixAlbums = if (provider.capabilities.supportsTrackRadio) randomPool.take(8) else emptyList(),
             recentAlbums = runCatching { albumList(AlbumListType.Recent, limit = 6) }.getOrDefault(emptyList()),
             frequentAlbums = runCatching { albumList(AlbumListType.Frequent, limit = 6) }.getOrDefault(emptyList()),
             randomAlbums = randomPool.drop(8).ifEmpty { randomPool }.take(6),

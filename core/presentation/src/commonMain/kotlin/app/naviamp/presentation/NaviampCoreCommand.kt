@@ -208,6 +208,12 @@ sealed interface NaviampCoreCommand {
         data class SelectInternetRadio(val item: SharedMediaItemUi) : Home
         data class SelectMixBuilder(val item: SharedMixBuilderUi) : Home
         data class SelectStation(val station: SharedHomeStationUi) : Home
+
+        /**
+         * A "Mixes for you" tile after Core resolved its seed track. It is issued through the full
+         * command handler so a remote Connect player receives seed-track radio, never the album.
+         */
+        data class StartAlbumMix(val album: app.naviamp.domain.Album, val seed: app.naviamp.domain.Track) : Home
         data class SonicTrackAction(val request: SharedHomeDiscoveryTrackActionRequest) : Home
         data class RecentTrackAction(val request: SharedTrackRowActionRequest) : Home
         data class OpenCollection(val sectionId: String) : Home
