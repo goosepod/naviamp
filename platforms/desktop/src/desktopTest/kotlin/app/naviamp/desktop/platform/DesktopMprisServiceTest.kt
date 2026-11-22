@@ -88,7 +88,8 @@ class DesktopMprisServiceTest {
             subtitle = "Artist",
             description = "Album",
             albumTitle = "Album",
-            artworkUrl = "https://example.test/art",
+            artworkUrl = "https://example.test/rest/getCoverArt?id=al-1&u=user&t=token&s=salt",
+            localArtworkUri = "file:///tmp/naviamp-mpris-artwork/now-playing-0",
         )
         val snapshot = NaviampExternalPlaybackSnapshot(
             state = NaviampExternalPlaybackState.Playing,
@@ -115,9 +116,11 @@ class DesktopMprisServiceTest {
         assertEquals("Title", (metadata["xesam:title"] as Variant<*>).value)
         assertEquals(listOf("Artist"), (metadata["xesam:artist"] as Variant<*>).value)
         assertEquals("Album", (metadata["xesam:album"] as Variant<*>).value)
-        assertEquals("https://example.test/art", (metadata["mpris:artUrl"] as Variant<*>).value)
+        assertEquals("file:///tmp/naviamp-mpris-artwork/now-playing-0", (metadata["mpris:artUrl"] as Variant<*>).value)
+        val unresolved = playerProperties(snapshot.copy(current = current.copy(localArtworkUri = null)))
+        assertFalse("mpris:artUrl" in (unresolved.getValue("Metadata").value as Map<*, *>), "provider URLs carry credentials")
         assertEquals(180_000_000L, (metadata["mpris:length"] as Variant<*>).value)
-        val synthetic = playerProperties(snapshot.copy(current = current.copy(artworkUrl = "naviamp-radio-tile://tile")))
+        val synthetic = playerProperties(snapshot.copy(current = current.copy(artworkUrl = "naviamp-radio-tile://tile", localArtworkUri = null)))
         assertFalse("mpris:artUrl" in (synthetic.getValue("Metadata").value as Map<*, *>))
         assertEquals(trackObjectPath(current.mediaId), trackObjectPath(current.mediaId))
         assertNotEquals(trackObjectPath(current.mediaId), trackObjectPath("another-track"))
@@ -246,4 +249,24 @@ private class RecordingExternalPlaybackControl : NaviampExternalPlaybackControl 
     override fun setShuffleActive(active: Boolean) { commands += "shuffle:$active" }
     override fun setRepeatMode(mode: NaviampRepeatMode) { commands += "repeat:$mode" }
     override fun setVolumePercent(percent: Int) { commands += "volume:$percent" }
+}
+
+class DesktopMprisArtworkFilesTest {
+    @Test
+    fun writesReplacesAndRemovesPrivateArtworkFiles() = runBlocking {
+        val root = java.nio.file.Files.createTempDirectory("mpris-artwork-test")
+        val directory = root.resolve("art")
+        val files = DesktopMprisArtworkFiles { java.nio.file.Files.createDirectory(directory) }
+        val first = files.write("now-playing-0", byteArrayOf(1, 2))
+        assertTrue(first!!.startsWith("file:"))
+        assertEquals(listOf<Byte>(1, 2), java.nio.file.Files.readAllBytes(java.nio.file.Path.of(java.net.URI(first))).toList())
+        assertEquals(first, files.write("now-playing-0", byteArrayOf(3)))
+        assertEquals(listOf<Byte>(3), java.nio.file.Files.readAllBytes(java.nio.file.Path.of(java.net.URI(first))).toList())
+        assertFailsWith<IllegalArgumentException> { files.write("../escape", byteArrayOf(1)) }
+        files.close()
+        assertFalse(java.nio.file.Files.exists(directory))
+        assertEquals(null, files.write("now-playing-1", byteArrayOf(1)))
+        java.nio.file.Files.deleteIfExists(root)
+        Unit
+    }
 }
