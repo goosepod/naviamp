@@ -1023,6 +1023,42 @@ class NaviampCoreConnectControllerTest {
     }
 
     @Test
+    fun homeMixOnARemoteTargetIsSentAsSeedTrackRadioAndNeverAsTheAlbum() = runTest {
+        val sent = mutableListOf<app.naviamp.domain.connect.NaviampConnectEnvelope>()
+        val identity = app.naviamp.domain.connect.NaviampConnectSourceIdentity("navidrome", "https://music.test", "me")
+        val (controller, _, _) = remoteFixture(sourceIdentity = { identity },
+            extraCapabilities = setOf(app.naviamp.domain.connect.NaviampConnectCapability.CatalogPlayback)) { sent += it }
+        val local = mutableListOf<NaviampCoreCommand>()
+        val handler = NaviampCoreConnectCommandHandler(object : NaviampCoreCommandHandler {
+            override fun dispatch(command: NaviampCoreCommand) { local += command }
+            override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult {
+                local += command
+                return NaviampCoreCommandResult.Completed
+            }
+        }, controller)
+        val album = app.naviamp.domain.Album(app.naviamp.domain.AlbumId("single"), "Single", "Artist", null, null)
+        val seed = app.naviamp.domain.Track(
+            id = app.naviamp.domain.TrackId("seed"), title = "Seed", artistName = "Artist", albumId = album.id,
+            albumTitle = album.title, durationSeconds = 180, coverArtId = null, audioInfo = null, replayGain = null,
+        )
+        val tile = NaviampCoreCommand.Media.ItemAction(app.naviamp.ui.NaviampMediaItemActionRequest(
+            app.naviamp.ui.SharedMediaItemUi("single", "Single", "Artist"), app.naviamp.ui.NaviampMediaItemCommand.PlayAlbumMix))
+
+        // The tile is resolved locally first (seed lookup), then the resolved mix goes to the target.
+        handler.execute(tile)
+        handler.execute(NaviampCoreCommand.Home.StartAlbumMix(album, seed))
+        runCurrent()
+
+        assertEquals(listOf<NaviampCoreCommand>(tile), local)
+        val started = sent.map { it.message }.filterIsInstance<app.naviamp.domain.connect.NaviampConnectCommandRequest>()
+            .map { it.command }.filterIsInstance<app.naviamp.domain.connect.NaviampConnectStartMedia>().single()
+        assertEquals(app.naviamp.domain.connect.NaviampConnectMediaType.Track, started.mediaType)
+        assertEquals("seed", started.mediaId)
+        assertTrue(started.startRadio)
+        controller.close()
+    }
+
+    @Test
     fun anIdlePeerThatStopsRespondingTriggersReconnect() = runTest {
         val sent = mutableListOf<app.naviamp.domain.connect.NaviampConnectEnvelope>()
         val (controller, store, session) = remoteFixture { sent += it }
@@ -1167,6 +1203,7 @@ class NaviampCoreConnectControllerTest {
         companionProvisioningSupported: Boolean = false,
         sourceIdentity: () -> app.naviamp.domain.connect.NaviampConnectSourceIdentity? = { null },
         trackSelectionContext: (NaviampCoreCommand) -> app.naviamp.domain.connect.NaviampConnectPlaybackContext? = { null },
+        extraCapabilities: Set<app.naviamp.domain.connect.NaviampConnectCapability> = emptySet(),
         send: suspend (app.naviamp.domain.connect.NaviampConnectEnvelope) -> Unit,
     ): Triple<NaviampCoreConnectController, NaviampCoreStateStore, NaviampConnectControllerSession> {
         var stored: String? = null
@@ -1192,7 +1229,7 @@ class NaviampCoreConnectControllerTest {
             NaviampConnectRequestIdFactory { "request-${++next}" })
         session.connect("session", 1, target, setOf(app.naviamp.domain.connect.NaviampConnectCapability.TransportControls,
                 app.naviamp.domain.connect.NaviampConnectCapability.ConnectionProvisioning,
-                app.naviamp.domain.connect.NaviampConnectCapability.CatalogPlayback),
+                app.naviamp.domain.connect.NaviampConnectCapability.CatalogPlayback) + extraCapabilities,
             NaviampConnectTargetSnapshot(0, target, emptySet()))
         controller.adoptControllerSession(session, companionProvisioningSupported)
         return Triple(controller, store, session)

@@ -122,20 +122,20 @@ class AurralLiveTest {
         println("Aurral release context: editions=${details.editions.size}, tracks=${tracks.tracks.size}, previews=${tracks.tracks.count { it.previewId != null }}")
     }
 
-    @Test fun upgradedBootstrapRetainsV1AndAdvertisesTheExpectedRelease() = runBlocking {
+    @Test fun aurralThreeBootstrapUsesAppApiVersionTwo() = runBlocking {
         val connection = liveConnection() ?: return@runBlocking
         val transport = createDefaultNavidromeHttpClient(connection.tlsSettings)
         val bootstrap = Json.parseToJsonElement(transport.get(
             connection.normalizedBaseUrl + "/api/health/bootstrap")).jsonObject
         val api = bootstrap.getValue("api").jsonObject
-        assertEquals(1, api.getValue("version").jsonPrimitive.int)
+        // Version 2 includes discovery, trending, flows, activity and track requests without naming them.
+        assertEquals(2, api.getValue("version").jsonPrimitive.int)
         val version = bootstrap.getValue("appVersion").jsonPrimitive.content
+        assertTrue(version.startsWith("3."), "Naviamp supports Aurral 3.x; server reports $version")
         System.getenv("NAVIAMP_AURRAL_TEST_EXPECTED_VERSION")?.let { assertEquals(it, version) }
         val features = api.getValue("features").jsonArray.map { it.jsonPrimitive.content }.toSet()
-        assertTrue("discover" in features)
-        if (version == "2.13.0") assertTrue(features.containsAll(setOf(
-            "playlistCoverTemplates", "shareImports", "trending", "flowAutoDownload")))
-        println("Aurral bootstrap live result: appVersion=$version, apiVersion=1, featureCount=${features.size}")
+        assertTrue("discover" !in features, "Version 2 no longer lists version 1 feature names")
+        println("Aurral bootstrap live result: appVersion=$version, apiVersion=2, featureCount=${features.size}")
     }
 
     @Test fun libraryAudioServesInitialAndNonzeroByteRangesThroughTheProvider() = runBlocking {
@@ -234,7 +234,11 @@ class AurralLiveTest {
         val artist = ProviderDiscoveryArtist("a74b1b7f-71a5-4011-9441-d0b5e4122711", "Radiohead", detailsAvailable = true)
         val details = provider.discovery!!.artistDetails(artist).details!!
         assertTrue(details.releases.isNotEmpty())
-        val images = details.releases.take(3).mapNotNull { it.imageUrl?.let { url -> provider.bytesForOwnedUrl(url) } }
+        // Aurral 3 reports external cover URLs directly; those load without any credential.
+        val plain = createDefaultNavidromeHttpClient(connection.tlsSettings)
+        val images = details.releases.take(3).mapNotNull { it.imageUrl?.let { url ->
+            provider.bytesForOwnedUrl(url) ?: if (!url.startsWith(connection.normalizedBaseUrl)) plain.getBytes(url, emptyMap()) else null
+        } }
         assertTrue(images.any { javax.imageio.ImageIO.read(java.io.ByteArrayInputStream(it)) != null })
         val samples = provider.discovery!!.samples(artist)
         assertEquals(ProviderDiscoveryStatus.Ready, samples.status)

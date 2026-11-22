@@ -387,7 +387,7 @@ class NaviampCoreHomeControllerTest {
         val store = NaviampCoreStateStore()
         val controller = NaviampCoreHomeController(
             stateStore = store,
-            providerSource = NaviampCoreMediaProviderSource { HomeTestProvider() },
+            providerSource = NaviampCoreMediaProviderSource { HomeTestProvider(supportsTrackRadio = true) },
             navigationController = NaviampCoreNavigationController(
                 NaviampNavigationController(),
                 store,
@@ -591,6 +591,7 @@ class NaviampCoreHomeControllerTest {
 
 private class HomeTestProvider(
     supportsSonicSimilarity: Boolean = false,
+    supportsTrackRadio: Boolean = false,
     override val discovery: app.naviamp.domain.provider.ProviderDiscovery? = null,
 ) : MediaProvider {
     override val id = ProviderId("home")
@@ -600,7 +601,7 @@ private class HomeTestProvider(
         supportsDownloadTranscode = false,
         supportsArtistRadio = false,
         supportsAlbumRadio = false,
-        supportsTrackRadio = false,
+        supportsTrackRadio = supportsTrackRadio,
         supportsAlbumFavorites = true,
         supportsSonicSimilarity = supportsSonicSimilarity,
     )

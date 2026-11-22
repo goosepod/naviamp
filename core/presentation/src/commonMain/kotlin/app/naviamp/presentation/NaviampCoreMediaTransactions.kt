@@ -24,6 +24,7 @@ import app.naviamp.domain.media.resolveTrackArtistNavigation
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.SeededRadioBuildResult
 import app.naviamp.domain.radio.SeededRadioRequest
+import app.naviamp.domain.radio.albumHomeMixSeededRadioRequest
 import app.naviamp.domain.radio.albumMixSeededRadioRequest
 import app.naviamp.domain.radio.albumSeededRadioRequest
 import app.naviamp.domain.radio.artistMixSeededRadioRequest
@@ -241,23 +242,42 @@ class NaviampCoreMediaTransactions(
     }
 
     suspend fun startAlbumRadio(album: Album, recentStream: RecentRadioStream? = null) {
+        val (seed, loadedTracks) = albumRadioSeed(album) ?: return
+        val request = albumSeededRadioRequest(album, seed, loadedTracks)
+        startSeededMix(if (recentStream == null) request else request.copy(recentRadioStream = recentStream))
+    }
+
+    /**
+     * Resolves the seed track of a Home "Mixes for you" tile, or publishes why there is none.
+     * The seed is resolved before playback is routed so a Connect target receives seed-track radio.
+     */
+    suspend fun albumMixSeed(album: Album): Track? = albumRadioSeed(album)?.first
+
+    /** Plays a Home "Mixes for you" tile locally as a similar-songs station seeded from [seed]. */
+    suspend fun startAlbumMix(album: Album, seed: Track) {
+        startSeededMix(
+            albumHomeMixSeededRadioRequest(
+                album,
+                seed,
+                stateStore.state.value.shell.playback.settings.effectiveSonicSimilarityEnabled(),
+            ),
+        )
+    }
+
+    private suspend fun albumRadioSeed(album: Album): Pair<Track, List<Track>>? {
         val cachedTracks = registry.albumDetails?.takeIf { it.album.id == album.id }?.tracks.orEmpty()
             .ifEmpty { registry.tracks().filter { it.albumId == album.id } }
         val loadedTracks = if (cachedTracks.isNotEmpty()) {
             cachedTracks
         } else {
-            val provider = providerOrPublish() ?: return
+            val provider = providerOrPublish() ?: return null
             publish("Finding a track from ${album.title}…")
             runCatching { provider.album(album.id).tracks }
-                .getOrElse { return publish(it.message ?: "Could not load ${album.title}.") }
+                .getOrElse { publish(it.message ?: "Could not load ${album.title}."); return null }
         }
         val seed = selectRadioSeed(loadedTracks)
-        if (seed != null) {
-            val request = albumSeededRadioRequest(album, seed, loadedTracks)
-            startSeededMix(if (recentStream == null) request else request.copy(recentRadioStream = recentStream))
-        } else {
-            publish("${album.title} has no tracks to play.")
-        }
+        if (seed == null) publish("${album.title} has no tracks to play.")
+        return seed?.let { it to loadedTracks }
     }
 
     suspend fun startArtistRadio(artist: Artist) {

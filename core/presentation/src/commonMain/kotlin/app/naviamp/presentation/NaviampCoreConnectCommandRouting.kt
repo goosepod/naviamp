@@ -84,7 +84,9 @@ internal fun NaviampCoreCommand.connectQueueSelectionOrNull(): NaviampCoreConnec
             is NaviampPlaylistMediaCommand.Detail -> playlist.command.playlistQueueSelection(request.item.id)
             else -> null
         }
-        NaviampMediaItemCommand.PlayAlbum -> null
+        NaviampMediaItemCommand.PlayAlbum,
+        NaviampMediaItemCommand.PlayAlbumMix,
+        -> null
     }
     is NaviampCoreCommand.Detail.Album -> request.command.albumQueueSelection(request.album.id)
     is NaviampCoreCommand.Detail.Artist -> request.command.artistQueueSelection(request.artist.id)
@@ -117,6 +119,8 @@ internal fun NaviampCoreCommand.connectMediaSelectionOrNull(): NaviampCoreConnec
             NaviampConnectMediaType.Album,
             request.item.id,
         )
+        // Not routed until Core resolves the seed: see NaviampCoreCommand.Home.StartAlbumMix.
+        NaviampMediaItemCommand.PlayAlbumMix -> null
         is NaviampMediaItemCommand.Album -> when (itemCommand.command) {
             NaviampArtistAlbumCommand.StartRadio -> NaviampCoreConnectMediaSelection(
                 NaviampConnectMediaType.Album,
@@ -180,6 +184,10 @@ internal fun NaviampCoreCommand.connectMediaSelectionOrNull(): NaviampCoreConnec
     }
     is NaviampCoreCommand.Home.SelectInternetRadio ->
         NaviampCoreConnectMediaSelection(NaviampConnectMediaType.InternetRadioStation, item.id)
+    // Existing protocol intent: every target, old or new, plays seed-track radio (similar songs),
+    // which has no album fallback, so a remote mix can never become the seed album.
+    is NaviampCoreCommand.Home.StartAlbumMix ->
+        NaviampCoreConnectMediaSelection(NaviampConnectMediaType.Track, seed.id.value, startRadio = true)
     else -> null
 }
 
