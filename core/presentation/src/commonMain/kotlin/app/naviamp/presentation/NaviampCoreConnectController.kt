@@ -88,6 +88,10 @@ val NaviampCoreBidirectionalConnectCapabilities: Set<NaviampConnectDeviceCapabil
 val NaviampCorePlaybackTargetConnectCapabilities: Set<NaviampConnectDeviceCapability> =
     setOf(NaviampConnectDeviceCapability.PlaybackTarget)
 
+private val NaviampCoreConnectMonotonicOrigin = kotlin.time.TimeSource.Monotonic.markNow()
+private val NaviampCoreConnectMonotonicClock: () -> Long =
+    { NaviampCoreConnectMonotonicOrigin.elapsedNow().inWholeMilliseconds }
+
 /** Native effects and host facts required by the shared Connect product controller. */
 data class NaviampCoreConnectServices(
     val deviceCapabilities: Set<NaviampConnectDeviceCapability>,
@@ -113,6 +117,8 @@ data class NaviampCoreConnectServices(
     val permissionSettings: app.naviamp.app.NaviampConnectPermissionSettingsEffect? = null,
     val networkDispatcher: kotlinx.coroutines.CoroutineDispatcher = kotlinx.coroutines.Dispatchers.Default,
     val trace: (NaviampCoreConnectTraceEvent) -> Unit = { println(it.logLine()) },
+    /** Monotonic milliseconds for playback timelines; wall-clock changes must not look like seeks. */
+    val monotonicMillis: () -> Long = NaviampCoreConnectMonotonicClock,
 ) {
     init {
         require(pairingLifetimeMillis > 0) { "The pairing lifetime must be positive." }
@@ -179,6 +185,8 @@ class NaviampCoreConnectController(
     private var targetSnapshotFactory: NaviampCoreConnectTargetSnapshotFactory? = null
     private var targetSnapshotPublishJob: Job? = null
     private var lastObservedTargetPlayback: NaviampLivePlaybackState? = null
+    private var targetTimeline: NaviampConnectTargetTimeline? = null
+    private var targetTimelineRevision = -1L
     private var controllerSession: NaviampConnectControllerSession? = null
     private var retryableRemoteCommands = emptyList<app.naviamp.domain.connect.NaviampConnectCommand>()
     private val targetSessionMutex = Mutex()
@@ -413,11 +421,27 @@ class NaviampCoreConnectController(
     fun onLocalPlaybackChanged(live: NaviampLivePlaybackState) {
         val previous = lastObservedTargetPlayback
         lastObservedTargetPlayback = live
-        if (targetSession == null) {
+        val connectedTarget = targetSession
+        if (connectedTarget == null) {
+            targetTimeline = null
+            targetTimelineRevision = -1L
             publish()
             return
         }
-        if (!shouldPublishNaviampConnectTargetSnapshot(previous, live)) return
+        val now = services.monotonicMillis()
+        val published = connectedTarget.snapshot()
+        if (published.revision != targetTimelineRevision) {
+            // Command results and local publishes both advance the revision the controller holds.
+            targetTimelineRevision = published.revision
+            targetTimeline = NaviampConnectTargetTimeline(
+                positionSeconds = published.playback.positionMillis / 1_000.0,
+                playing = published.playback.state == app.naviamp.domain.connect.NaviampConnectPlaybackState.Playing,
+                anchoredAtMillis = now,
+            )
+        }
+        if (!shouldPublishNaviampConnectTargetSnapshot(previous, live, targetTimeline, now)) return
+        // Re-anchor at once so ticks before the debounced publish do not restart it indefinitely.
+        live.toConnectTargetTimeline(now)?.let { targetTimeline = it }
         targetSnapshotPublishJob?.cancel()
         targetSnapshotPublishJob = controllerScope.launch {
             delay(TargetSnapshotDebounceMillis)
