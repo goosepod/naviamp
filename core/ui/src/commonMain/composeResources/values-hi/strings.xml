@@ -531,4 +531,5 @@
     <string name="tv_search_system_keyboard">सिस्टम कीबोर्ड</string>
     <string name="storage_location_app">ऐप स्टोरेज</string>
     <string name="storage_location_custom">कस्टम</string>
+    <string name="connect_recovery_secure_storage">Naviamp इस डिवाइस का सुरक्षित क्रेडेंशियल संग्रह नहीं खोल सका। सिस्टम कीरिंग अनलॉक करें, फिर दोबारा प्रयास करें।</string>
 </resources>

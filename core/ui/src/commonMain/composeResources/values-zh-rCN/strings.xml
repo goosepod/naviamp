@@ -531,4 +531,5 @@
     <string name="tv_search_system_keyboard">系统键盘</string>
     <string name="storage_location_app">应用存储</string>
     <string name="storage_location_custom">自定义</string>
+    <string name="connect_recovery_secure_storage">Naviamp 无法打开此设备的安全凭据存储。请解锁系统密钥环，然后重试。</string>
 </resources>
