@@ -29,7 +29,7 @@ and share feedback.
 ### Linux Flatpak
 
 Install the official Linux x86_64 Flatpak from Naviamp's signed GitHub Pages repository.
-The signed package contains v2.11.2, including Java, and runs on X11 or XWayland.
+The signed package contains v2.11.3, including Java, and runs on X11 or XWayland.
 Existing Flatpak installations can update through the same signed remote.
 [Bundles, checksums and release information](https://github.com/goosepod/naviamp-flatpak/releases)
 are hosted on GitHub Releases. A Flathub listing is not required; Flathub supplies the
@@ -100,8 +100,9 @@ Ask on Discord before uninstalling: uninstalling erases local app data.
   and recently played music, random picks, and every credited artist on a track.
 - **Powerful discovery.** Build Artist, Album, and Genre mixes; use Sonic Mix and Sonic Path; start
   track radio; explore related music; and let sonic autoplay keep the queue moving when the server
-  supports similarity data. Aurral adds recommended and trending artists, samples, library requests,
-  and artist monitoring when your account permits it.
+  supports similarity data. Aurral, connected directly or as a companion to your music server, adds
+  recommended and trending artists, samples, library requests, and artist monitoring when your
+  account permits it.
 - **Playlists that go further.** Create and edit regular playlists, add music from throughout the
   app, save generated queues, and build reusable smart playlists on compatible servers.
 - **A full Now Playing experience.** Manage Back To, Up Next, and related queues alongside waveform
@@ -119,7 +120,9 @@ Ask on Discord before uninstalling: uninstalling erases local app data.
 - **Certificate-protected connections.** Import client identities and private server authorities for
   authenticated browsing, artwork and playback on all supported platforms.
 - **One app across devices.** Naviamp targets macOS, Windows, Linux, Android, and iOS with shared
-  product behavior, secure credential storage, settings sync, and Android Auto support.
+  product behavior, secure credential storage, and settings sync. Android Auto, Android TV,
+  Naviamp Connect remote control (beta), and Apple CarPlay (beta) are supported; Apple TV (beta)
+  can be built from source.
 
 ## Supported music services
 
@@ -166,6 +169,10 @@ Format support describes direct Naviamp playback, including downloaded originals
 streams and downloads use the format produced by the server. MIDI is not advertised even where a
 decoder is packaged because Naviamp does not ship the soundfont required for reliable playback.
 
+Apple TV (beta) builds from source include only BASS, BASSFLAC, and BASSOPUS, so formats that need
+other add-ons are not available there, and gapless playback, crossfade, and multichannel downmixing
+are unavailable. See [Apple TV (tvOS)](docs/tvos.md).
+
 ## Naviamp and Navidrome feature support
 
 Most app behavior is shared across every release platform. Server-backed features depend on the
@@ -174,6 +181,7 @@ controls that the active server cannot fulfill.
 
 | Capability | Naviamp support | Navidrome or server requirement |
 | --- | --- | --- |
+| Aurral recommendations, catalog search, samples, requests, and artist monitoring | Aurral connection or companion | Aurral 3.x, server capabilities, and account permissions; requests are distinct from playable library media |
 | Browse and search artists, albums, tracks, genres, favorites, recent music, and random picks | Yes | Standard Subsonic/OpenSubsonic library APIs |
 | Browse every credited artist and follow artist links from a track | Yes | Rich artist-credit metadata when supplied by the server |
 | Select and combine music libraries | Yes | Multiple music folders exposed by the server |
@@ -197,6 +205,7 @@ controls that the active server cannot fulfill.
 | Gapless playback, crossfade, ReplayGain, equalizer, sample-rate matching, and downmixing | Yes | Performed locally by Naviamp's BASS playback engine |
 | Waveform seeking, audio metadata, lyrics timing, and visualizers | Yes | Performed locally; metadata and lyrics depend on the source |
 | Android Auto | Android only | Android host and a connected media-capable vehicle or head unit |
+| Apple CarPlay | iPhone only (beta) | iPhone app and a CarPlay-capable vehicle or head unit; search requires a supported iOS version |
 | Podcasts, server chat, public shares, and jukebox control | Not currently supported | — |
 
 ## Screenshots
@@ -256,7 +265,12 @@ Naviamp uses the BASS audio engine and combines its playback controls with a fle
 
 Naviamp is available for macOS, Windows, Linux, and Android. Try the iPhone/iPad beta through
 [TestFlight](https://testflight.apple.com/join/efbB6TFd). An unsigned arm64 IPA is also available for
-users who can provide their own signing.
+users who can provide their own signing. Apple CarPlay (beta) is part of the iPhone app and shares
+its playback session. Android TV and Google TV use the same Android package.
+
+Apple TV (beta) is available only by building from source; no Apple TV download is published. See
+[Apple TV (tvOS)](docs/tvos.md). CarPlay and Apple TV have not been verified on physical CarPlay or
+Apple TV hardware.
 
 Get Naviamp for macOS from the [Mac App Store](https://apps.apple.com/app/naviamp-music-player/id6821135881?platform=mac).
 
@@ -296,8 +310,8 @@ Gatekeeper system-wide and do not require `sudo`.
 
 ## Translations
 
-Choose System default or any of the 17 bundled interface languages in Settings. German and Spanish
-cover all current string keys; the other catalogs are partial and fall back to English where text
+Choose System default or any of the 17 bundled interface languages in Settings. German, Spanish, and
+Brazilian Portuguese cover all current string keys; the other catalogs are partial and fall back to English where text
 is missing. Language preferences participate in settings export/import and sync. Upgrade receiving
 devices to v2.10.0 or later before syncing one of the newly selectable language choices.
 
@@ -336,7 +350,7 @@ make android-debug
   App Bundle; see [Android distribution](docs/android-distribution.md).
 - Windows and Linux standalone/installer targets must run on their respective operating systems.
 
-Release operators should use the [v2.11.1 release readiness record](docs/releases/v2.11.1-readiness.md)
+Release operators should use the [v2.12.0 release readiness record](docs/releases/v2.12.0-readiness.md)
 for exact packages, signing and remaining store gates.
 
 The complete test matrix is documented in [Testing Naviamp](docs/testing.md). The shared
@@ -352,11 +366,11 @@ change, use a short-lived issue branch, and submit the result through a linked p
 ## Project layout
 
 ```text
-apps/             Thin Android, Desktop, and iOS application hosts
+apps/             Thin Android, Desktop, iOS, and Apple TV application hosts
 core/domain/      Shared models, playback, discovery, settings, and provider contracts
 core/storage/     Shared SQLDelight persistence and migrations
 core/ui/          Shared Compose UI and platform UI seams
-providers/        Navidrome/OpenSubsonic and Jellyfin provider implementations
+providers/        Navidrome/OpenSubsonic (with Aurral and Bandcamp) and Jellyfin providers
 platforms/        Narrow operating-system and native playback adapters
 native/           Native BASS playback and visualizer support
 readme-assets/    Images used by this README
