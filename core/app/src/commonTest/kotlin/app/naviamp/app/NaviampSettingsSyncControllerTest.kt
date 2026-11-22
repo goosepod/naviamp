@@ -87,10 +87,10 @@ class NaviampSettingsSyncControllerTest {
 
     @Test
     fun sharedStatusesCoverImportSetupAndAutomaticSync() {
-        assertEquals("Settings imported.", settingsSyncImportStatus(hasServerProfiles = false))
+        assertEquals("Settings imported.", settingsSyncImportStatus(needsCredentials = false))
         assertEquals(
             "Settings imported. Enter the Navidrome password to finish connecting.",
-            settingsSyncImportStatus(hasServerProfiles = true),
+            settingsSyncImportStatus(needsCredentials = true),
         )
         assertEquals("Auto-sync enabled.", settingsSyncAutoExportStatus(enabled = true))
         assertEquals("Settings sync disabled.", settingsSyncLocationStatus(configured = false))

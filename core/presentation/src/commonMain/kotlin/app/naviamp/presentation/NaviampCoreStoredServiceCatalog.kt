@@ -150,6 +150,7 @@ fun naviampCoreStoredServiceCatalog(
                     document = document,
                     mediaSourceRepository = repositories.providerMediaSources,
                     radioDjPresetRepository = repositories.radioDjPresets,
+                    localPlayback = settings.loadPlayback(),
                 )
                 settings.saveInterface(applied.interfaceSettings)
                 if (persistImportedPlayback == null) playback.settings.apply(applied.playbackSettings, redownload = false)
