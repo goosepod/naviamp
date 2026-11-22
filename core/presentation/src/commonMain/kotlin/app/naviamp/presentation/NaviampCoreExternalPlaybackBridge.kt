@@ -65,15 +65,22 @@ data class NaviampExternalMediaItem(
     val playable: Boolean = true,
     val queueIndex: Int? = null,
     val mediaKind: app.naviamp.ui.SharedMediaItemKind = app.naviamp.ui.SharedMediaItemKind.Unknown,
+    /** Private local copy of [artworkUrl] for native integrations that accept only a URI. */
+    val localArtworkUri: String? = null,
 ) {
-    /** Native URI consumers cannot load the in-app synthetic artwork schemes. */
+    /**
+     * Artwork URI that may leave the process. Provider URLs can carry credentials (for example
+     * Subsonic token and salt parameters), so only local files are ever exposed; synthetic in-app
+     * schemes cannot be loaded by native consumers at all.
+     */
     val externalArtworkUrl: String?
-        get() = artworkUrl?.takeIf { url ->
-            url.startsWith("https://", ignoreCase = true) ||
-                url.startsWith("http://", ignoreCase = true) ||
-                url.startsWith("file://", ignoreCase = true)
-        }
+        get() = localArtworkUri ?: artworkUrl?.takeIf(::isLocalArtworkUri)
 }
+
+internal fun isLocalArtworkUri(url: String): Boolean = url.startsWith("file://", ignoreCase = true)
+
+internal fun isRemoteArtworkUrl(url: String): Boolean =
+    url.startsWith("https://", ignoreCase = true) || url.startsWith("http://", ignoreCase = true)
 
 /** Runtime-only eligibility token, shared by phone, car and native interruption callbacks. */
 data class NaviampExternalPlaybackResumeIdentity(
@@ -780,6 +787,21 @@ private fun <T> List<T>.findByMediaId(
 
 fun NaviampCore.externalPlaybackBridge(): NaviampCoreExternalPlaybackBridge =
     NaviampCoreExternalPlaybackBridge(state, ::dispatch, playbackProgress)
+
+/**
+ * External playback for native integrations that accept only an artwork URI. Artwork is fetched
+ * through Core's provider-aware cache and published as a private local file.
+ */
+fun NaviampCore.localArtworkExternalPlayback(
+    scope: kotlinx.coroutines.CoroutineScope,
+    files: NaviampExternalArtworkFileWriter,
+): NaviampLocalArtworkExternalPlayback {
+    val bridge = externalPlaybackBridge()
+    val artwork = vehicleArtwork
+    return NaviampLocalArtworkExternalPlayback(scope, bridge, bridge.snapshots, { url ->
+        artwork?.load(NaviampVehicleArtworkReference(app.naviamp.ui.SharedMediaItemKind.Album, url = url))
+    }, files)
+}
 
 fun NaviampCoreExternalPlaybackBridge.lifecycleCoordinator(): NaviampExternalPlaybackLifecycleCoordinator =
     NaviampExternalPlaybackLifecycleCoordinator(::snapshot, ::play, ::pause, ::stop)
