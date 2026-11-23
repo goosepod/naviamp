@@ -36,6 +36,9 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
@@ -701,7 +704,10 @@ private fun PlaylistDetailContent(
                 val offline = detail.playlist.offlineAvailability
                 Text(offline?.let { offlineAvailabilityLabel(it) } ?: detail.playlist.subtitle, color = colors.secondaryText, fontSize = 12.sp)
                 if (offline != null) Text(offlinePlaylistSavedCopyNote(), color = colors.secondaryText, fontSize = 11.sp)
-                status?.let { Text(it, color = colors.secondaryText, fontSize = 11.sp) }
+                status?.let {
+                    Text(it, color = colors.secondaryText, fontSize = 11.sp,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                }
                 NaviampResponsiveActionRow(
                     colors = colors,
                     actions = if (offline != null) buildList {

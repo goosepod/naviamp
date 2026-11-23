@@ -16,6 +16,19 @@ data class NaviampCoreDownloadedTrack(
     val qualityLabel: String = "",
 )
 
+/** How a requested download ended; reasons are only those the product reports specifically. */
+sealed interface NaviampCoreDownloadOutcome {
+    data object Completed : NaviampCoreDownloadOutcome
+    data object Cancelled : NaviampCoreDownloadOutcome
+    data class Failed(val reason: NaviampCoreDownloadFailure) : NaviampCoreDownloadOutcome
+}
+
+enum class NaviampCoreDownloadFailure { StorageLimit, MobileDataDisabled, Other }
+
+internal fun downloadFailureFromMessage(message: String?): NaviampCoreDownloadFailure =
+    if (message == app.naviamp.domain.cache.DownloadStorageLimitExceededMessage) NaviampCoreDownloadFailure.StorageLimit
+    else NaviampCoreDownloadFailure.Other
+
 data class NaviampCoreDownloadStorageSnapshot(
     val downloads: List<NaviampCoreDownloadedTrack> = emptyList(),
     val audioCacheCount: Long = 0L,

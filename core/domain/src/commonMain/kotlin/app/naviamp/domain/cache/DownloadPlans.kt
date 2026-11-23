@@ -309,6 +309,9 @@ fun downloadCompletedStatus(label: String, completed: Int? = null): String =
         "Downloaded $label ($completed tracks)."
     }
 
+/** Shared so download outcomes can recognize the storage budget failure without parsing free text. */
+const val DownloadStorageLimitExceededMessage = "Download storage limit exceeded."
+
 fun downloadErrorStatus(label: String, error: Throwable): String =
     error.message ?: "Could not download $label."
 

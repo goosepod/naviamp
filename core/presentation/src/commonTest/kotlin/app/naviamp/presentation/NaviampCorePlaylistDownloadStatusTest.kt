@@ -5,6 +5,7 @@ import app.naviamp.app.NaviampConnectionRuntimeState
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.DownloadJobUpdate
+import app.naviamp.domain.cache.DownloadStorageLimitExceededMessage
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.ui.NaviampPlaylistDetailActionRequest
 import app.naviamp.ui.NaviampPlaylistDetailCommand
@@ -26,6 +27,7 @@ class NaviampCorePlaylistDownloadStatusTest {
 
     private fun TestScope.core(
         provider: MediaProvider = FakeCoreMediaProvider(),
+        mobileData: Boolean = false,
         transfer: NaviampCoreDownloadTransferPort,
     ): NaviampCore {
         val defaults = fakeCoreServices(provider)
@@ -36,8 +38,18 @@ class NaviampCorePlaylistDownloadStatusTest {
                     connectionSettings = state.product.shell.connectionSettings.copy(currentSourceId = "source"))),
             )
         }
-        return NaviampCore.create(this, defaults.copy(downloads = defaults.downloads.copy(transfer = transfer)), initial,
+        return NaviampCore.create(this, defaults.copy(downloads = defaults.downloads.copy(transfer = transfer,
+            network = NaviampCoreMobileNetworkPort { mobileData })), initial,
             onAsyncFailure = { command, cause -> throw IllegalStateException("Core command failed: $command", cause) })
+    }
+
+    // Translated messages load resources off the test scheduler, so let real time pass between idles.
+    private fun TestScope.settle(core: NaviampCore, rounds: Int = 300, untilChanged: Boolean = true) {
+        repeat(rounds) {
+            advanceUntilIdle()
+            if (untilChanged && core.state.value.shell.playlists.status != starting) return
+            Thread.sleep(10)
+        }
     }
 
     private suspend fun NaviampCore.download(provider: FakeCoreMediaProvider = FakeCoreMediaProvider()) = execute(
@@ -56,15 +68,56 @@ class NaviampCorePlaylistDownloadStatusTest {
         assertEquals(starting, core.state.value.shell.playlists.status)
 
         gate.complete(Unit)
-        advanceUntilIdle()
+        settle(core)
         assertNull(core.state.value.shell.playlists.status)
         core.close()
     }
 
-    @Test fun failedDownloadClearsTheStartingStatus() = runTest {
+    @Test fun failedDownloadReportsTheFailureForThePlaylist() = runTest {
         val core = core(transfer = NaviampCoreDownloadTransferPort { _, _, _ -> error("Disk full") })
         core.download()
+        settle(core)
+        assertEquals("Could not download Core Playlist.", core.state.value.shell.playlists.status)
+        assertEquals("Could not download Core Playlist.", core.state.value.shell.playlistDetail.status)
+        core.close()
+    }
+
+    @Test fun storageLimitFailureNamesTheReason() = runTest {
+        val core = core(transfer = NaviampCoreDownloadTransferPort { request, _, update ->
+            update(DownloadJobUpdate.Started)
+            update(DownloadJobUpdate.Failed(request.tracks.first().id.value, DownloadStorageLimitExceededMessage))
+            NaviampCoreDownloadTransferResult(refreshDownloads = false)
+        })
+        core.download()
+        settle(core)
+        val expected = "Could not download Core Playlist. The download storage limit was reached."
+        assertEquals(expected, core.state.value.shell.playlists.status)
+        assertEquals(expected, core.state.value.shell.playlistDetail.status)
+        core.close()
+    }
+
+    @Test fun blockedStartReportsTheFailureInsteadOfStarting() = runTest {
+        val core = core(mobileData = true, transfer = NaviampCoreDownloadTransferPort { _, _, _ -> error("Started") })
+        core.download()
+        settle(core)
+        assertEquals("Could not download Core Playlist. Downloads over mobile data are turned off.",
+            core.state.value.shell.playlists.status)
+        assertEquals(emptyList(), core.state.value.shell.downloads.jobs)
+        core.close()
+    }
+
+    @Test fun aNewerStatusIsNeverReplacedByTheOutcome() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        val core = core(transfer = NaviampCoreDownloadTransferPort { _, _, _ ->
+            gate.await()
+            error("Disk full")
+        })
+        core.download()
+        runCurrent()
+        core.execute(NaviampCoreCommand.Playlists.Refresh)
         advanceUntilIdle()
+        gate.complete(Unit)
+        settle(core, rounds = 50, untilChanged = false)
         assertNull(core.state.value.shell.playlists.status)
         core.close()
     }
@@ -79,7 +132,7 @@ class NaviampCorePlaylistDownloadStatusTest {
         runCurrent()
         val job = core.state.value.shell.downloads.jobs.single()
         core.execute(NaviampCoreCommand.Downloads.CancelJob(job.id))
-        advanceUntilIdle()
+        settle(core)
         assertNull(core.state.value.shell.playlists.status)
         core.close()
     }
@@ -89,9 +142,9 @@ class NaviampCorePlaylistDownloadStatusTest {
             override suspend fun playlistTracks(playlistId: String): List<Track> = error("Connection timed out")
             override suspend fun playlists(limit: Int): List<Playlist> = emptyList()
         }
-        val core = core(provider, NaviampCoreDownloadTransferPort { _, _, _ -> error("Not started") })
+        val core = core(provider, transfer = NaviampCoreDownloadTransferPort { _, _, _ -> error("Not started") })
         core.download()
-        advanceUntilIdle()
+        settle(core)
         assertNull(core.state.value.shell.playlists.status)
         assertEquals("Connection timed out", core.state.value.shell.playlistDetail.status)
         core.close()

@@ -1,6 +1,7 @@
 package app.naviamp.storage
 
 import app.naviamp.domain.AlbumId
+import app.naviamp.domain.cache.DownloadStorageLimitExceededMessage
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.StreamQuality
@@ -231,7 +232,7 @@ class StorageAudioStore(
             val limit = maxDownloadBytes.coerceAtLeast(0L)
             writeDownload(sourceId, provider, track, quality, limit - queries.downloadedAudioSize().executeAsOne()) { stored ->
                 if (queries.downloadedAudioSize().executeAsOne() + stored.sizeBytes > limit) {
-                    throw IllegalStateException(DownloadLimitExceeded)
+                    throw IllegalStateException(DownloadStorageLimitExceededMessage)
                 }
                 upsertDownloadedAudio(sourceId, track, quality.cacheKey(), stored, nowEpochMillis())
                 emptyList()
@@ -253,7 +254,7 @@ class StorageAudioStore(
                 .filter { it.remote_track_id == track.id.value }
             fun othersSize() = queries.downloadedAudioSize().executeAsOne() - existingRows().sumOf { it.size_bytes }
             writeDownload(sourceId, provider, track, quality, limit - othersSize()) { stored ->
-                if (othersSize() + stored.sizeBytes > limit) throw IllegalStateException(DownloadLimitExceeded)
+                if (othersSize() + stored.sizeBytes > limit) throw IllegalStateException(DownloadStorageLimitExceededMessage)
                 val obsolete = existingRows().map { it.file_path }.filter { it != stored.filePath }.distinct()
                 val now = nowEpochMillis()
                 obsolete.forEach { path -> queries.insertPendingAudioFile(path, DownloadStoreKind, now) }
@@ -298,7 +299,7 @@ class StorageAudioStore(
                     streamUrl = provider.downloadUrl(StreamRequest(trackId = track.id, quality = quality)),
                     errorMessage = "Could not download audio track.",
                     maxBytes = remainingBytes.coerceAtLeast(0L),
-                    sizeLimitErrorMessage = DownloadLimitExceeded,
+                    sizeLimitErrorMessage = DownloadStorageLimitExceededMessage,
                     recordPendingFile = recordPendingFile,
                 )
             },
@@ -478,7 +479,6 @@ private fun Downloaded_audio.toTrack(): Track = Track(
 
 private const val CacheStoreKind = "cache"
 private const val DownloadStoreKind = "download"
-private const val DownloadLimitExceeded = "Download storage limit exceeded."
 
 private fun StreamQuality.cacheKey(): String = when (this) {
     StreamQuality.Original -> "original"

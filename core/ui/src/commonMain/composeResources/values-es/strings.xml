@@ -1357,4 +1357,8 @@
     <string name="offline_playlist_track_unavailable">No disponible sin conexión</string>
     <string name="offline_playlist_action_unavailable">Vuelve a conectarte a tu servidor de música para usar esta acción.</string>
     <string name="offline_playlist_nothing_playable">Ninguna pista de esta lista está disponible sin conexión.</string>
+    <string name="playlist_download_failed">No se pudo descargar %1$s.</string>
+    <string name="playlist_download_failed_storage_limit">No se pudo descargar %1$s. Se alcanzó el límite de almacenamiento de descargas.</string>
+    <string name="playlist_download_failed_mobile_data">No se pudo descargar %1$s. Las descargas con datos móviles están desactivadas.</string>
+    <string name="offline_playlist_track_not_downloaded">Esta pista no está descargada. Vuelve a conectarte para reproducirla.</string>
 </resources>

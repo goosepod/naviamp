@@ -606,4 +606,8 @@
     <string name="offline_playlist_track_unavailable">Çevrimdışı kullanılamaz</string>
     <string name="offline_playlist_action_unavailable">Bu işlemi kullanmak için müzik sunucunuza yeniden bağlanın.</string>
     <string name="offline_playlist_nothing_playable">Bu çalma listesindeki hiçbir parça çevrimdışı kullanılamıyor.</string>
+    <string name="playlist_download_failed">%1$s indirilemedi.</string>
+    <string name="playlist_download_failed_storage_limit">%1$s indirilemedi. İndirme depolama sınırına ulaşıldı.</string>
+    <string name="playlist_download_failed_mobile_data">%1$s indirilemedi. Mobil veri üzerinden indirme kapalı.</string>
+    <string name="offline_playlist_track_not_downloaded">Bu parça indirilmedi. Çalmak için yeniden bağlanın.</string>
 </resources>

@@ -278,12 +278,12 @@ class NaviampCoreDownloadsController(
         includeCompletedCount: Boolean = true,
         manualRetention: Boolean = true,
         qualityOverride: app.naviamp.domain.StreamQuality? = null,
-        onFinished: () -> Unit = {},
+        onFinished: (NaviampCoreDownloadOutcome) -> Unit = {},
     ): Boolean {
-        val started = startDownload(label, tracks, replaceExisting, includeCompletedCount, manualRetention,
+        val notStarted = startDownload(label, tracks, replaceExisting, includeCompletedCount, manualRetention,
             qualityOverride, onFinished)
-        if (!started) onFinished()
-        return started
+        notStarted?.let(onFinished)
+        return notStarted == null
     }
 
     private fun startDownload(
@@ -293,8 +293,8 @@ class NaviampCoreDownloadsController(
         includeCompletedCount: Boolean,
         manualRetention: Boolean,
         qualityOverride: app.naviamp.domain.StreamQuality?,
-        onFinished: () -> Unit,
-    ): Boolean {
+        onFinished: (NaviampCoreDownloadOutcome) -> Unit,
+    ): NaviampCoreDownloadOutcome? {
         val provider = providerSource.current()
         val sourceId = currentSourceId()
         val playbackSettings = stateStore.state.value.shell.playback.settings
@@ -307,12 +307,15 @@ class NaviampCoreDownloadsController(
         )
         if (blocked != null) {
             publishStatus(blocked)
-            return false
+            return NaviampCoreDownloadOutcome.Failed(
+                if (provider != null && sourceId != null) NaviampCoreDownloadFailure.MobileDataDisabled
+                else NaviampCoreDownloadFailure.Other,
+            )
         }
         val job = jobController.create(label, tracks, replaceExisting, manualRetention, sourceId)
         if (job == null) {
             publishStatus(noTracksToDownloadStatus())
-            return false
+            return NaviampCoreDownloadOutcome.Completed
         }
         val activeProvider = requireNotNull(provider)
         val activeSourceId = requireNotNull(sourceId)
@@ -332,7 +335,7 @@ class NaviampCoreDownloadsController(
             persistedJobs.remove(job.id)
             jobController.dismiss(job.id)
             publishStatus(keepDownloadedErrorStatus(label, cause))
-            return false
+            return NaviampCoreDownloadOutcome.Failed(NaviampCoreDownloadFailure.Other)
         }
         jobSources[job.id] = activeSourceId
         publishJobs()
@@ -369,9 +372,22 @@ class NaviampCoreDownloadsController(
         }
         runningJobs[job.id] = running
         // Completion also covers a job cancelled before its body started running.
-        running.invokeOnCompletion { onFinished() }
+        running.invokeOnCompletion { cause -> onFinished(downloadOutcome(job.id, cause)) }
         jobController.registerCancellation(job.id, running::cancel)
-        return true
+        return null
+    }
+
+    private fun downloadOutcome(jobId: String, cause: Throwable?): NaviampCoreDownloadOutcome {
+        val job = jobs.firstOrNull { it.id == jobId }
+        return when {
+            cause is kotlinx.coroutines.CancellationException || job?.status == DownloadJobStatus.Cancelled ->
+                NaviampCoreDownloadOutcome.Cancelled
+            // Completed jobs leave the list as soon as they finish.
+            job == null || job.status == DownloadJobStatus.Completed -> NaviampCoreDownloadOutcome.Completed
+            else -> NaviampCoreDownloadOutcome.Failed(
+                downloadFailureFromMessage(job?.items?.firstNotNullOfOrNull { it.failureMessage }),
+            )
+        }
     }
 
     /**
@@ -379,26 +395,32 @@ class NaviampCoreDownloadsController(
      * [onFinished] runs once the started download completes, fails or is cancelled, or at once
      * when nothing was started.
      */
-    suspend fun downloadPlaylist(playlist: Playlist, tracks: List<Track>, option: String?, onFinished: () -> Unit = {}) {
+    suspend fun downloadPlaylist(
+        playlist: Playlist,
+        tracks: List<Track>,
+        option: String?,
+        onFinished: suspend (NaviampCoreDownloadOutcome) -> Unit = {},
+    ) {
+        val finished: (NaviampCoreDownloadOutcome) -> Unit = { outcome -> scope.launch { onFinished(outcome) } }
         if (option != KeepDownloadedActionValue) {
             currentSourceId()?.let { sourceId ->
                 val kept = keepDownloaded.policies(sourceId).any { it.isPlaylistPolicy() && it.collectionId == playlist.id }
                 saveOfflinePlaylist(sourceId, playlist, tracks,
                     if (kept) OfflinePlaylistRetention.KeepDownloaded else OfflinePlaylistRetention.Manual)
             }
-            downloadTracks(playlist.name, tracks, onFinished = onFinished)
+            downloadTracks(playlist.name, tracks, onFinished = finished)
             return
         }
-        val sourceId = sourceIdOrPublish() ?: return onFinished()
+        val sourceId = sourceIdOrPublish() ?: return onFinished(NaviampCoreDownloadOutcome.Failed(NaviampCoreDownloadFailure.Other))
         val policy = naviampKeepDownloadedPlaylistPolicy(sourceId, playlist)
         if (keepDownloaded.toggle(policy) == NaviampKeepDownloadedToggleResult.Disabled) {
             runCatching { offlinePlaylists.deleteOfflinePlaylist(sourceId, playlist.id) }
             reloadPolicies(sourceId)
             publishStatus(keepDownloadedDisabledStatus(playlist.name))
-            onFinished()
+            onFinished(NaviampCoreDownloadOutcome.Completed)
         } else {
             saveOfflinePlaylist(sourceId, playlist, tracks, OfflinePlaylistRetention.KeepDownloaded)
-            reconcilePolicy(policy, tracks, onFinished)
+            reconcilePolicy(policy, tracks, finished)
         }
     }
 
@@ -576,13 +598,13 @@ class NaviampCoreDownloadsController(
     private fun reconcilePolicy(
         policy: KeepDownloadedCollectionPolicy,
         tracks: List<Track>,
-        onFinished: () -> Unit = {},
+        onFinished: (NaviampCoreDownloadOutcome) -> Unit = {},
     ) {
         val application = keepDownloaded.reconcile(policy, tracks)
         reloadPolicies(policy.sourceId)
         application.status?.let(::publishStatus)
         val label = application.downloadLabel
-        if (label == null) onFinished()
+        if (label == null) onFinished(NaviampCoreDownloadOutcome.Completed)
         else downloadTracks(label, application.tracksToDownload, manualRetention = false, onFinished = onFinished)
         if (application.refreshDownloads) scope.launch { loadSnapshot(policy.sourceId) }
     }

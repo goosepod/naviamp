@@ -181,6 +181,29 @@ class NaviampCoreOfflinePlaylistsTest {
         fixture.core.close()
     }
 
+    @Test fun tappingAnUnavailableRowExplainsWhyAndDoesNotPlay() = runTest {
+        val fixture = fixture(reachable = false)
+        advanceUntilIdle()
+        fixture.open(fixture.listed("road"))
+        val unavailable = checkNotNull(fixture.core.state.value.shell.playlistDetail.detail).tracks[1]
+
+        fixture.core.execute(NaviampCoreCommand.Detail.PlaylistTrack(
+            app.naviamp.ui.SharedTrackRowActionRequest(unavailable, app.naviamp.ui.SharedTrackRowAction.Select)))
+        // The translated notice loads its resource off the test scheduler.
+        run {
+            repeat(300) {
+                advanceUntilIdle()
+                if (fixture.core.state.value.overlays.status != null) return@run
+                Thread.sleep(10)
+            }
+        }
+
+        assertEquals("This track is not downloaded. Reconnect to play it.", fixture.core.state.value.overlays.status)
+        assertTrue(fixture.effects.selections.isEmpty())
+        assertEquals(0, fixture.server.requests)
+        fixture.core.close()
+    }
+
     @Test fun reconnectRefreshesAChangedKeptPlaylistAndReturnsToServerBrowsing() = runTest {
         val policy = KeepDownloadedCollectionPolicy("source", KeepDownloadedCollectionKind.Playlist, "road", "Road Trip")
         val fixture = fixture(reachable = false, policies = listOf(policy))

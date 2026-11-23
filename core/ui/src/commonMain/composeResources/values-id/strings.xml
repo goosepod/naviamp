@@ -605,4 +605,8 @@
     <string name="offline_playlist_track_unavailable">Tidak tersedia offline</string>
     <string name="offline_playlist_action_unavailable">Sambungkan kembali ke server musik Anda untuk menggunakan tindakan ini.</string>
     <string name="offline_playlist_nothing_playable">Tidak ada lagu di daftar putar ini yang tersedia offline.</string>
+    <string name="playlist_download_failed">Tidak dapat mengunduh %1$s.</string>
+    <string name="playlist_download_failed_storage_limit">Tidak dapat mengunduh %1$s. Batas penyimpanan unduhan telah tercapai.</string>
+    <string name="playlist_download_failed_mobile_data">Tidak dapat mengunduh %1$s. Unduhan melalui data seluler dinonaktifkan.</string>
+    <string name="offline_playlist_track_not_downloaded">Lagu ini belum diunduh. Sambungkan kembali untuk memutarnya.</string>
 </resources>

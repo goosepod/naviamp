@@ -65,7 +65,8 @@ class NaviampOfflinePlaylistUiTest {
 
         onNodeWithText("Bravo").performClick()
         onNodeWithText("Charlie").performClick()
-        assertEquals(listOf("Charlie"), selected)
+        // Core answers an unavailable row with a notice instead of playing it.
+        assertEquals(listOf("Bravo", "Charlie"), selected)
     }
 
     @Test fun zeroAvailablePlaylistStaysVisibleWithPlaybackDisabled() = runComposeUiTest {

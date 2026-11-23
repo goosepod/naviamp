@@ -1359,4 +1359,8 @@
     <string name="offline_playlist_track_unavailable">Indisponível offline</string>
     <string name="offline_playlist_action_unavailable">Reconecte-se ao seu servidor de música para usar esta ação.</string>
     <string name="offline_playlist_nothing_playable">Nenhuma faixa desta playlist está disponível offline.</string>
+    <string name="playlist_download_failed">Não foi possível baixar %1$s.</string>
+    <string name="playlist_download_failed_storage_limit">Não foi possível baixar %1$s. O limite de armazenamento de downloads foi atingido.</string>
+    <string name="playlist_download_failed_mobile_data">Não foi possível baixar %1$s. Os downloads por dados móveis estão desativados.</string>
+    <string name="offline_playlist_track_not_downloaded">Esta faixa não foi baixada. Reconecte-se para reproduzi-la.</string>
 </resources>

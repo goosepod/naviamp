@@ -605,4 +605,8 @@
     <string name="offline_playlist_track_unavailable">オフラインでは利用できません</string>
     <string name="offline_playlist_action_unavailable">この操作を行うには音楽サーバーに再接続してください。</string>
     <string name="offline_playlist_nothing_playable">このプレイリストにはオフラインで再生できる曲がありません。</string>
+    <string name="playlist_download_failed">%1$s をダウンロードできませんでした。</string>
+    <string name="playlist_download_failed_storage_limit">%1$s をダウンロードできませんでした。ダウンロードの保存容量の上限に達しました。</string>
+    <string name="playlist_download_failed_mobile_data">%1$s をダウンロードできませんでした。モバイルデータでのダウンロードはオフになっています。</string>
+    <string name="offline_playlist_track_not_downloaded">この曲はダウンロードされていません。再生するには再接続してください。</string>
 </resources>

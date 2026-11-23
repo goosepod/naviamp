@@ -606,4 +606,8 @@
     <string name="offline_playlist_track_unavailable">Niet offline beschikbaar</string>
     <string name="offline_playlist_action_unavailable">Maak opnieuw verbinding met je muziekserver om deze actie te gebruiken.</string>
     <string name="offline_playlist_nothing_playable">Geen nummers uit deze afspeellijst zijn offline beschikbaar.</string>
+    <string name="playlist_download_failed">Kan %1$s niet downloaden.</string>
+    <string name="playlist_download_failed_storage_limit">Kan %1$s niet downloaden. De opslaglimiet voor downloads is bereikt.</string>
+    <string name="playlist_download_failed_mobile_data">Kan %1$s niet downloaden. Downloaden via mobiele data staat uit.</string>
+    <string name="offline_playlist_track_not_downloaded">Dit nummer is niet gedownload. Maak opnieuw verbinding om het af te spelen.</string>
 </resources>

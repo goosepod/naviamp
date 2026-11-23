@@ -437,7 +437,9 @@ internal fun TelevisionPlaylistDetail(
                 showArtwork = true,
                 colors = colors,
                 onAction = { action ->
-                    if (!track.unavailableOffline) actions.onTrackAction(SharedTrackRowActionRequest(track, action))
+                    if (!track.unavailableOffline || action == SharedTrackRowAction.Select) {
+                        actions.onTrackAction(SharedTrackRowActionRequest(track, action))
+                    }
                 },
                 modifier = if (index == 0) Modifier.focusRequester(firstTrackFocusRequester) else Modifier,
                 artistContext = track.artistCredits.joinToString(", ") { it.name },

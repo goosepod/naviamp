@@ -11,7 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,6 +26,17 @@ suspend fun offlinePlaylistActionUnavailableMessage(): String =
 suspend fun offlinePlaylistNothingPlayableMessage(): String =
     getString(Res.string.offline_playlist_nothing_playable)
 
+suspend fun offlinePlaylistTrackNotDownloadedMessage(): String =
+    getString(Res.string.offline_playlist_track_not_downloaded)
+
+suspend fun playlistDownloadFailedMessage(name: String): String = getString(Res.string.playlist_download_failed, name)
+
+suspend fun playlistDownloadStorageLimitMessage(name: String): String =
+    getString(Res.string.playlist_download_failed_storage_limit, name)
+
+suspend fun playlistDownloadMobileDataMessage(name: String): String =
+    getString(Res.string.playlist_download_failed_mobile_data, name)
+
 @Composable
 internal fun offlineAvailabilityLabel(availability: NaviampOfflineAvailabilityUi): String =
     pluralStringResource(
@@ -38,7 +49,7 @@ internal fun offlineAvailabilityLabel(availability: NaviampOfflineAvailabilityUi
 @Composable
 internal fun offlinePlaylistSavedCopyNote(): String = stringResource(Res.string.offline_playlist_saved_copy)
 
-/** Every saved row stays in place; only playable rows respond to selection or offer queue actions. */
+/** Every saved row stays in place; unavailable rows ask Core to explain instead of playing. */
 @Composable
 internal fun OfflinePlaylistTrackList(
     colors: NaviampColors,
@@ -55,10 +66,8 @@ internal fun OfflinePlaylistTrackList(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .then(
-                        if (available) Modifier.clickable { onTrackSelected(track) }
-                        else Modifier.semantics { disabled() },
-                    )
+                    .clickable(onClickLabel = if (available) null else unavailableLabel) { onTrackSelected(track) }
+                    .then(if (available) Modifier else Modifier.semantics { stateDescription = unavailableLabel })
                     .padding(horizontal = 6.dp, vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),

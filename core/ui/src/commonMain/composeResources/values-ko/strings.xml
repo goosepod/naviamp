@@ -605,4 +605,8 @@
     <string name="offline_playlist_track_unavailable">오프라인에서 사용할 수 없음</string>
     <string name="offline_playlist_action_unavailable">이 작업을 사용하려면 음악 서버에 다시 연결하세요.</string>
     <string name="offline_playlist_nothing_playable">이 재생목록에는 오프라인에서 재생할 수 있는 곡이 없습니다.</string>
+    <string name="playlist_download_failed">%1$s을(를) 다운로드할 수 없습니다.</string>
+    <string name="playlist_download_failed_storage_limit">%1$s을(를) 다운로드할 수 없습니다. 다운로드 저장 공간 한도에 도달했습니다.</string>
+    <string name="playlist_download_failed_mobile_data">%1$s을(를) 다운로드할 수 없습니다. 모바일 데이터 다운로드가 꺼져 있습니다.</string>
+    <string name="offline_playlist_track_not_downloaded">이 곡은 다운로드되지 않았습니다. 재생하려면 다시 연결하세요.</string>
 </resources>

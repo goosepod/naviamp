@@ -3,11 +3,14 @@ package app.naviamp.presentation
 import app.naviamp.domain.Track
 import app.naviamp.domain.media.inAlbumOrder
 import app.naviamp.ui.SharedTrackRowActionRequest
+import app.naviamp.ui.offlinePlaylistTrackNotDownloadedMessage
 
 /** Routes every non-Now-Playing track row through the same Core-owned transaction policy. */
 class NaviampCoreTrackActionController(
     private val registry: NaviampCoreMediaRegistry,
     private val media: NaviampCoreMediaTransactions,
+    private val isUnavailableOfflinePlaylistTrack: (String) -> Boolean = { false },
+    private val notDownloadedMessage: suspend () -> String = ::offlinePlaylistTrackNotDownloadedMessage,
     private val openPlaylistMembership: suspend (Track) -> Unit,
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
@@ -46,6 +49,11 @@ class NaviampCoreTrackActionController(
         }
         val index = tracks.indexOfFirst { it.id.value == request.track.id }
         val track = tracks.getOrNull(index)
+        if (track == null && command is NaviampCoreCommand.Detail.PlaylistTrack &&
+            isUnavailableOfflinePlaylistTrack(request.track.id)) {
+            media.publish(notDownloadedMessage())
+            return NaviampCoreCommandResult.Completed
+        }
         if (track == null) {
             media.publish("Track is no longer available.")
             return NaviampCoreCommandResult.Completed

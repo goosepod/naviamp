@@ -606,4 +606,8 @@
     <string name="offline_playlist_track_unavailable">Non disponible hors ligne</string>
     <string name="offline_playlist_action_unavailable">Reconnectez-vous à votre serveur de musique pour utiliser cette action.</string>
     <string name="offline_playlist_nothing_playable">Aucune piste de cette playlist n’est disponible hors ligne.</string>
+    <string name="playlist_download_failed">Impossible de télécharger %1$s.</string>
+    <string name="playlist_download_failed_storage_limit">Impossible de télécharger %1$s. La limite de stockage des téléchargements est atteinte.</string>
+    <string name="playlist_download_failed_mobile_data">Impossible de télécharger %1$s. Les téléchargements via les données mobiles sont désactivés.</string>
+    <string name="offline_playlist_track_not_downloaded">Cette piste n’est pas téléchargée. Reconnectez-vous pour la lire.</string>
 </resources>

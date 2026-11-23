@@ -653,7 +653,9 @@ class NaviampCore private constructor(
                 queue = NaviampCoreSonicQueuePort { tracks, _ -> mediaTransactions.addToQueue(tracks) },
             )
             playback.attachNativePlayback()
-            val trackActions = NaviampCoreTrackActionController(mediaRegistry, mediaTransactions, playlistMembership::open)
+            val trackActions = NaviampCoreTrackActionController(mediaRegistry, mediaTransactions,
+                isUnavailableOfflinePlaylistTrack = playlistBrowse::isUnavailableOffline,
+                openPlaylistMembership = playlistMembership::open)
             // Resolved mix commands re-enter the Connect-aware handler created below.
             var resolvedCommandHandler: NaviampCoreCommandHandler? = null
             val collectionActions = NaviampCoreCollectionActionController(

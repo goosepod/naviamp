@@ -67,6 +67,7 @@ class NaviampCorePlaylistBrowseController(
     private var playlistsById = emptyMap<String, Playlist>()
     // Playlists currently presented from saved snapshots; their actions use only local audio.
     private var offlinePlaylistIds = emptySet<String>()
+    private var offlineUnavailableTrackIds = emptySet<String>()
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         NaviampCoreCommand.Playlists.Refresh -> NaviampCoreImmediateCommandResult.Deferred
@@ -160,6 +161,9 @@ class NaviampCorePlaylistBrowseController(
 
     internal fun isPresentedOffline(playlistId: String): Boolean = playlistId in offlinePlaylistIds
 
+    /** True for a row of the open saved copy whose audio is not on this device. */
+    internal fun isUnavailableOffline(trackId: String): Boolean = trackId in offlineUnavailableTrackIds
+
     /** Re-reads availability so a file removed since the page opened is never queued. */
     internal suspend fun offlinePlayableTracks(playlistId: String): List<app.naviamp.domain.Track> {
         val sourceId = currentSourceId() ?: return emptyList()
@@ -222,6 +226,7 @@ class NaviampCorePlaylistBrowseController(
         val coverArtUrl = offlineCoverArtUrl(provider)
         playlistsById = playlistsById + (playlist.id to playlist)
         offlinePlaylistIds = offlinePlaylistIds + playlist.id
+        offlineUnavailableTrackIds = availability.entries.filterNot { it.available }.mapTo(mutableSetOf()) { it.track.id.value }
         mediaRegistry.updateSelectedPlaylist(playlist, availability.playableTracks)
         val mapped = playlist.toSharedMediaItemUi(
             coverArtUrl = coverArtUrl,
@@ -261,6 +266,7 @@ class NaviampCorePlaylistBrowseController(
         detailGeneration++
         playlistsById = emptyMap()
         offlinePlaylistIds = emptySet()
+        offlineUnavailableTrackIds = emptySet()
         mediaRegistry.updatePlaylists(emptyList())
         mediaRegistry.updateSelectedPlaylist(null, emptyList())
         stateStore.updateShell { shell -> shell.copy(
@@ -413,6 +419,7 @@ class NaviampCorePlaylistBrowseController(
                     mediaRegistry.updatePlaylists(playlistsById.values.toList())
                 }
                 offlinePlaylistIds = offlinePlaylistIds - playlist.id
+                offlineUnavailableTrackIds = emptySet()
                 mediaRegistry.updateSelectedPlaylist(resolvedPlaylist, tracks)
                 val mappedPlaylist = resolvedPlaylist.toSharedMediaItemUi(
                     coverArtUrl = coverArtUrl,

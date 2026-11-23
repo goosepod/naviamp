@@ -1382,4 +1382,8 @@
     <string name="offline_playlist_track_unavailable">Not available offline</string>
     <string name="offline_playlist_action_unavailable">Reconnect to your music server to use this action.</string>
     <string name="offline_playlist_nothing_playable">No tracks in this playlist are available offline.</string>
+    <string name="playlist_download_failed">Could not download %1$s.</string>
+    <string name="playlist_download_failed_storage_limit">Could not download %1$s. The download storage limit was reached.</string>
+    <string name="playlist_download_failed_mobile_data">Could not download %1$s. Downloads over mobile data are turned off.</string>
+    <string name="offline_playlist_track_not_downloaded">This track is not downloaded. Reconnect to play it.</string>
 </resources>

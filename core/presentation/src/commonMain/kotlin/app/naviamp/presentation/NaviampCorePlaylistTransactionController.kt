@@ -18,6 +18,9 @@ import app.naviamp.ui.NaviampPlaylistMediaCommand
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.offlinePlaylistActionUnavailableMessage
 import app.naviamp.ui.offlinePlaylistNothingPlayableMessage
+import app.naviamp.ui.playlistDownloadFailedMessage
+import app.naviamp.ui.playlistDownloadMobileDataMessage
+import app.naviamp.ui.playlistDownloadStorageLimitMessage
 import app.naviamp.ui.playlistStaleDraftMessage
 import app.naviamp.ui.smartPlaylistSelfReferenceMessage
 import kotlinx.coroutines.CancellationException
@@ -34,8 +37,13 @@ fun interface NaviampCorePlaylistQueuePort {
 
 /** Common download-owner boundary; composition delegates this to Naviamp's shared coordinator. */
 fun interface NaviampCorePlaylistDownloadPort {
-    /** [onFinished] runs when the started download ends for any reason, or at once if none started. */
-    suspend fun download(playlist: Playlist, tracks: List<Track>, option: String?, onFinished: () -> Unit)
+    /** [onFinished] reports how the started download ended, or why none started. */
+    suspend fun download(
+        playlist: Playlist,
+        tracks: List<Track>,
+        option: String?,
+        onFinished: suspend (NaviampCoreDownloadOutcome) -> Unit,
+    )
 }
 
 fun interface NaviampCorePlaylistHistoryPort {
@@ -91,6 +99,13 @@ class NaviampCorePlaylistTransactionController(
     private val syncLibrary: app.naviamp.ui.NaviampSmartPlaylistSync = { error("Library sync is unavailable") },
     private val offlineActionUnavailableMessage: suspend () -> String = ::offlinePlaylistActionUnavailableMessage,
     private val offlineNothingPlayableMessage: suspend () -> String = ::offlinePlaylistNothingPlayableMessage,
+    private val downloadFailedMessage: suspend (String, NaviampCoreDownloadFailure) -> String = { name, reason ->
+        when (reason) {
+            NaviampCoreDownloadFailure.StorageLimit -> playlistDownloadStorageLimitMessage(name)
+            NaviampCoreDownloadFailure.MobileDataDisabled -> playlistDownloadMobileDataMessage(name)
+            NaviampCoreDownloadFailure.Other -> playlistDownloadFailedMessage(name)
+        }
+    },
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.Playlists.Detail,
@@ -183,8 +198,10 @@ class NaviampCorePlaylistTransactionController(
                     val detailStatus = "Download started."
                     publishListStatus(listStatus)
                     publishStatus(detailStatus)
-                    downloads.download(playlist, tracks, command.value) {
-                        clearStatusesIfUnchanged(listStatus, detailStatus)
+                    downloads.download(playlist, tracks, command.value) { outcome ->
+                        val result = (outcome as? NaviampCoreDownloadOutcome.Failed)
+                            ?.let { downloadFailedMessage(playlist.name, it.reason) }
+                        replaceStatusesIfUnchanged(listStatus, detailStatus, result)
                     }
                     return
                 }
@@ -447,12 +464,12 @@ class NaviampCorePlaylistTransactionController(
         }
     }
 
-    private fun clearStatusesIfUnchanged(listStatus: String, detailStatus: String) {
+    private fun replaceStatusesIfUnchanged(listStatus: String, detailStatus: String, result: String?) {
         stateStore.updateShell { shell ->
             shell.copy(
-                playlists = if (shell.playlists.status == listStatus) shell.playlists.copy(status = null) else shell.playlists,
+                playlists = if (shell.playlists.status == listStatus) shell.playlists.copy(status = result) else shell.playlists,
                 playlistDetail = if (shell.playlistDetail.status == detailStatus) {
-                    shell.playlistDetail.copy(status = null)
+                    shell.playlistDetail.copy(status = result)
                 } else shell.playlistDetail,
             )
         }
