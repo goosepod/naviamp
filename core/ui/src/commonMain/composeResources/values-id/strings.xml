@@ -192,6 +192,10 @@
     <string name="smart_playlist_limit_tracks">Jumlah lagu</string>
     <string name="smart_playlist_limit_percent">Persen</string>
     <string name="smart_playlist_unsupported_import">Playlist ini berisi pengaturan yang tidak valid atau tidak didukung. Playlist tidak dapat diedit dengan aman di editor ini.</string>
+    <string name="smart_playlist_discard_title">Buang perubahan?</string>
+    <string name="smart_playlist_discard_message">Perubahan yang belum disimpan pada playlist pintar ini akan hilang.</string>
+    <string name="smart_playlist_keep_editing">Lanjutkan mengedit</string>
+    <string name="smart_playlist_discard">Buang</string>
     <string name="smart_playlist_validation_required">Masukkan nilai yang belum diisi.</string>
     <string name="smart_playlist_validation_number">Masukkan angka berhingga.</string>
     <string name="smart_playlist_validation_date">Masukkan tanggal valid dalam format YYYY-MM-DD.</string>

@@ -192,6 +192,10 @@
     <string name="smart_playlist_limit_tracks">Parça sayısı</string>
     <string name="smart_playlist_limit_percent">Yüzde</string>
     <string name="smart_playlist_unsupported_import">Bu çalma listesi geçersiz veya desteklenmeyen ayarlar içeriyor. Bu düzenleyicide güvenle düzenlenemez.</string>
+    <string name="smart_playlist_discard_title">Değişiklikler atılsın mı?</string>
+    <string name="smart_playlist_discard_message">Bu akıllı çalma listesindeki kaydedilmemiş değişiklikler kaybolacak.</string>
+    <string name="smart_playlist_keep_editing">Düzenlemeye devam et</string>
+    <string name="smart_playlist_discard">At</string>
     <string name="smart_playlist_validation_required">Eksik değeri girin.</string>
     <string name="smart_playlist_validation_number">Sonlu bir sayı girin.</string>
     <string name="smart_playlist_validation_date">YYYY-AA-GG biçiminde geçerli bir tarih girin.</string>

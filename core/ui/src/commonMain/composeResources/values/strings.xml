@@ -1007,6 +1007,10 @@
     <string name="smart_playlist_limit_tracks">Track count</string>
     <string name="smart_playlist_limit_percent">Percent</string>
     <string name="smart_playlist_unsupported_import">This playlist contains invalid or unsupported settings. It cannot be edited safely in this builder.</string>
+    <string name="smart_playlist_discard_title">Discard changes?</string>
+    <string name="smart_playlist_discard_message">Your unsaved changes to this smart playlist will be lost.</string>
+    <string name="smart_playlist_keep_editing">Keep editing</string>
+    <string name="smart_playlist_discard">Discard</string>
     <string name="smart_playlist_validation_required">Enter the missing value.</string>
     <string name="smart_playlist_validation_number">Enter a finite number.</string>
     <string name="smart_playlist_validation_date">Enter a valid date in YYYY-MM-DD format.</string>

@@ -192,6 +192,10 @@
     <string name="smart_playlist_limit_tracks">Nombre de titres</string>
     <string name="smart_playlist_limit_percent">Pourcentage</string>
     <string name="smart_playlist_unsupported_import">Cette liste contient des paramètres invalides ou non pris en charge. Elle ne peut pas être modifiée en toute sécurité dans cet éditeur.</string>
+    <string name="smart_playlist_discard_title">Abandonner les modifications ?</string>
+    <string name="smart_playlist_discard_message">Les modifications non enregistrées de cette liste intelligente seront perdues.</string>
+    <string name="smart_playlist_keep_editing">Continuer la modification</string>
+    <string name="smart_playlist_discard">Abandonner</string>
     <string name="smart_playlist_validation_required">Saisissez la valeur manquante.</string>
     <string name="smart_playlist_validation_number">Saisissez un nombre fini.</string>
     <string name="smart_playlist_validation_date">Saisissez une date valide au format AAAA-MM-JJ.</string>

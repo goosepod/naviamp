@@ -192,6 +192,10 @@
     <string name="smart_playlist_limit_tracks">트랙 수</string>
     <string name="smart_playlist_limit_percent">백분율</string>
     <string name="smart_playlist_unsupported_import">이 재생목록에는 잘못되었거나 지원되지 않는 설정이 있습니다. 이 편집기에서 안전하게 편집할 수 없습니다.</string>
+    <string name="smart_playlist_discard_title">변경 사항을 삭제할까요?</string>
+    <string name="smart_playlist_discard_message">이 스마트 재생목록의 저장되지 않은 변경 사항이 사라집니다.</string>
+    <string name="smart_playlist_keep_editing">계속 편집</string>
+    <string name="smart_playlist_discard">삭제</string>
     <string name="smart_playlist_validation_required">누락된 값을 입력하세요.</string>
     <string name="smart_playlist_validation_number">유한한 숫자를 입력하세요.</string>
     <string name="smart_playlist_validation_date">YYYY-MM-DD 형식으로 유효한 날짜를 입력하세요.</string>

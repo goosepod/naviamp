@@ -982,6 +982,10 @@
     <string name="smart_playlist_limit_tracks">Número de pistas</string>
     <string name="smart_playlist_limit_percent">Porcentaje</string>
     <string name="smart_playlist_unsupported_import">Esta lista contiene ajustes no válidos o no compatibles. No se puede editar de forma segura en este editor.</string>
+    <string name="smart_playlist_discard_title">¿Descartar los cambios?</string>
+    <string name="smart_playlist_discard_message">Se perderán los cambios sin guardar de esta lista inteligente.</string>
+    <string name="smart_playlist_keep_editing">Seguir editando</string>
+    <string name="smart_playlist_discard">Descartar</string>
     <string name="smart_playlist_validation_required">Introduce el valor que falta.</string>
     <string name="smart_playlist_validation_number">Introduce un número finito.</string>
     <string name="smart_playlist_validation_date">Introduce una fecha válida con el formato AAAA-MM-DD.</string>
