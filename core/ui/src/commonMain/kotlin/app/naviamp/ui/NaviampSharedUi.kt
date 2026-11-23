@@ -221,10 +221,9 @@ private fun NaviampSharedAppShellContent(
         connected = connected,
         remoteNowPlayingAvailable = remoteNowPlaying != null,
     )
-    val showFullNowPlaying = canShowNowPlaying &&
+    val nowPlayingPresentable = canShowNowPlaying &&
         !editingConnection &&
         !restoringConnection &&
-        nowPlayingOpen &&
         nowPlaying != null
     val outerContentScrollState = rememberScrollState()
     LaunchedEffect(editingConnection) {
@@ -237,13 +236,12 @@ private fun NaviampSharedAppShellContent(
             outerContentScrollState.animateScrollTo(0)
         }
     }
-    val routeUsesOwnScroll = sharedRouteUsesOwnScroll(
+    val routeCanUseOwnScroll = sharedRouteUsesOwnScroll(
         connected = connected,
         editingConnection = editingConnection,
         selectedRoute = selectedRoute,
     ) &&
         !restoringConnection &&
-        !showFullNowPlaying &&
         (
             albumDetail.selectedAlbum != null ||
                 artistDetail.selectedArtist != null ||
@@ -293,7 +291,7 @@ private fun NaviampSharedAppShellContent(
                 )
             }
         }
-        Box(
+        BoxWithConstraints(
             modifier = Modifier.fillMaxSize(),
         ) {
             NaviampAppBackground(
@@ -301,102 +299,134 @@ private fun NaviampSharedAppShellContent(
                 colors = colors,
                 playerColors = nowPlayingPlayerColors,
             )
-            Column(
-                modifier
-                    .fillMaxSize()
-                    .naviampContentInsets(systemInsets = if (showFullNowPlaying) WindowInsets(0) else WindowInsets.safeDrawing),
-            ) {
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .then(
-                            if (showFullNowPlaying || routeUsesOwnScroll) {
-                                Modifier
-                            } else {
-                                Modifier.verticalScroll(outerContentScrollState)
-                            },
-                        )
-                        .padding(
-                            horizontal = if (showFullNowPlaying || routeUsesOwnScroll) 0.dp else 12.dp,
-                            vertical = if (showFullNowPlaying || routeUsesOwnScroll) 0.dp else 12.dp,
-                        ),
-                    verticalArrangement = if (showFullNowPlaying) Arrangement.spacedBy(0.dp) else Arrangement.spacedBy(8.dp),
-                ) {
-                    val showingRouteConnectionForm = editingConnection && selectedRoute != SharedRoute.Settings
-                    if (!showFullNowPlaying && (restoringConnection || !connected || showingRouteConnectionForm)) {
-                        Text("Naviamp", color = colors.primaryText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                        if (!connection.statusIsError) {
-                            Text(status, color = colors.secondaryText, fontSize = 13.sp)
-                        }
-                        serverVersion?.let {
-                            Text("Connected to Navidrome $it.", color = colors.secondaryText, fontSize = 13.sp)
-                        }
-                    }
-
-                    if (restoringConnection && !editingConnection) {
-                        RestoringConnectionCard(status = status, colors = colors)
-                    } else if (showingRouteConnectionForm || (!connected && selectedRoute != SharedRoute.Settings)) {
-                        NaviampConnectionForm(
-                            form = connectionForm,
-                            colors = colors,
-                            isReconnect = connection.editingSavedConnection,
-                            saveWithoutReconnect = connection.saveWithoutReconnect,
-                            isConnecting = isConnecting,
-                            connectionStatus = connectionStatus,
-                            connectionStatusIsError = connection.statusIsError,
-                            availableMusicFolders = availableMusicFolders,
-                            musicFoldersStatus = musicFoldersStatus,
-                            capabilities = connectionCapabilities,
-                            settingsSyncStatus = settingsSyncStatus,
-                            onFormChanged = connectionActions.onFormChanged,
-                            onChooseServerCertificate = connectionActions.onChooseServerCertificate,
-                            onChooseCompanionServerCertificate = connectionActions.onChooseCompanionServerCertificate,
-                            onChooseCompanionClientCertificate = connectionActions.onChooseCompanionClientCertificate,
-                            onChooseClientCertificate = connectionActions.onChooseClientCertificate,
-                            onConnect = connectionActions.onConnect,
-                            onImportSettingsSyncFile = syncActions.onImportFile,
-                            onCancel = connectionActions.onCancelConnectionForm.takeIf { connected },
-                        )
-                    } else {
-                        ConnectedContent(
-                            colors = colors,
-                            uiState = uiState,
-                            showFullNowPlaying = showFullNowPlaying,
-                            playbackProgress = playbackProgress,
-                            visualizerBandsProvider = visualizerBandsProvider,
-                            settingsSync = settingsSync,
-                            actions = actions,
-                            syncActions = syncActions,
-                            castOutput = castOutput,
-                            onCastPicker = onCastPicker,
-                            onCastSelectLocal = onCastSelectLocal,
-                            onCreateRadioDj = { radioDjCreationOpen = true },
-                        )
-                    }
-                }
-                if (!showFullNowPlaying) {
-                    if (canShowNowPlaying && !editingConnection && !restoringConnection && nowPlaying != null) {
+            // Phone-sized windows slide Now Playing over the browse screen; workspace layouts
+            // keep replacing the route content as before.
+            val sheetPresentation = !supportsPlayerWorkspace(maxWidth.value, maxHeight.value)
+            val showFullNowPlaying = nowPlayingPresentable && nowPlayingOpen && !sheetPresentation
+            val routeUsesOwnScroll = routeCanUseOwnScroll && !showFullNowPlaying
+            val sheetState = rememberNaviampNowPlayingSheetState(
+                open = nowPlayingPresentable && nowPlayingOpen && sheetPresentation,
+            )
+            NaviampNowPlayingSheetLayers(
+                state = sheetState,
+                onClose = navigationActions.onCloseNowPlaying,
+                sheet = {
+                    if (nowPlaying != null) {
                         NaviampFontSizeScope(interfaceSettings.nowPlayingFontSize, interfaceSettings.generalFontSize) {
-                            NaviampMiniNowPlaying(
-                                nowPlaying = nowPlaying,
-                                colors = colors,
-                                onOpen = navigationActions.onOpenNowPlaying,
-                                actions = nowPlayingActions,
-                                modifier = Modifier.padding(vertical = 2.dp),
+                            FullNowPlaying(
+                                nowPlaying, playbackProgress, colors, nowPlayingPlayerColors, visualizerBandsProvider,
+                                shellChrome.selectedVisualizer, nowPlayingActions, interfaceSettings.nowPlaying,
                             )
                         }
                     }
-                    SharedBottomNavigationBar(
-                        colors = colors,
-                        selectedRoute = selectedRoute,
-                        supportsDownloads = supportsDownloads,
-                        onRouteSelected = {
-                            navigationActions.onCloseNowPlaying()
-                            navigationActions.onRouteSelected(it)
-                        },
-                    )
-                }
-            }
+                },
+                base = {
+                    Column(
+                        modifier
+                            .fillMaxSize()
+                            .naviampContentInsets(systemInsets = if (showFullNowPlaying) WindowInsets(0) else WindowInsets.safeDrawing),
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .then(
+                                    if (showFullNowPlaying || routeUsesOwnScroll) {
+                                        Modifier
+                                    } else {
+                                        Modifier.verticalScroll(outerContentScrollState)
+                                    },
+                                )
+                                .padding(
+                                    horizontal = if (showFullNowPlaying || routeUsesOwnScroll) 0.dp else 12.dp,
+                                    vertical = if (showFullNowPlaying || routeUsesOwnScroll) 0.dp else 12.dp,
+                                ),
+                            verticalArrangement = if (showFullNowPlaying) Arrangement.spacedBy(0.dp) else Arrangement.spacedBy(8.dp),
+                        ) {
+                            val showingRouteConnectionForm = editingConnection && selectedRoute != SharedRoute.Settings
+                            if (!showFullNowPlaying && (restoringConnection || !connected || showingRouteConnectionForm)) {
+                                Text("Naviamp", color = colors.primaryText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                                if (!connection.statusIsError) {
+                                    Text(status, color = colors.secondaryText, fontSize = 13.sp)
+                                }
+                                serverVersion?.let {
+                                    Text("Connected to Navidrome $it.", color = colors.secondaryText, fontSize = 13.sp)
+                                }
+                            }
+
+                            if (restoringConnection && !editingConnection) {
+                                RestoringConnectionCard(status = status, colors = colors)
+                            } else if (showingRouteConnectionForm || (!connected && selectedRoute != SharedRoute.Settings)) {
+                                NaviampConnectionForm(
+                                    form = connectionForm,
+                                    colors = colors,
+                                    isReconnect = connection.editingSavedConnection,
+                                    saveWithoutReconnect = connection.saveWithoutReconnect,
+                                    isConnecting = isConnecting,
+                                    connectionStatus = connectionStatus,
+                                    connectionStatusIsError = connection.statusIsError,
+                                    availableMusicFolders = availableMusicFolders,
+                                    musicFoldersStatus = musicFoldersStatus,
+                                    capabilities = connectionCapabilities,
+                                    settingsSyncStatus = settingsSyncStatus,
+                                    onFormChanged = connectionActions.onFormChanged,
+                                    onChooseServerCertificate = connectionActions.onChooseServerCertificate,
+                                    onChooseCompanionServerCertificate = connectionActions.onChooseCompanionServerCertificate,
+                                    onChooseCompanionClientCertificate = connectionActions.onChooseCompanionClientCertificate,
+                                    onChooseClientCertificate = connectionActions.onChooseClientCertificate,
+                                    onConnect = connectionActions.onConnect,
+                                    onImportSettingsSyncFile = syncActions.onImportFile,
+                                    onCancel = connectionActions.onCancelConnectionForm.takeIf { connected },
+                                )
+                            } else {
+                                ConnectedContent(
+                                    colors = colors,
+                                    uiState = uiState,
+                                    showFullNowPlaying = showFullNowPlaying,
+                                    playbackProgress = playbackProgress,
+                                    visualizerBandsProvider = visualizerBandsProvider,
+                                    settingsSync = settingsSync,
+                                    actions = actions,
+                                    syncActions = syncActions,
+                                    castOutput = castOutput,
+                                    onCastPicker = onCastPicker,
+                                    onCastSelectLocal = onCastSelectLocal,
+                                    onCreateRadioDj = { radioDjCreationOpen = true },
+                                )
+                            }
+                        }
+                        if (!showFullNowPlaying) {
+                            if (canShowNowPlaying && !editingConnection && !restoringConnection && nowPlaying != null) {
+                                NaviampFontSizeScope(interfaceSettings.nowPlayingFontSize, interfaceSettings.generalFontSize) {
+                                    NaviampMiniNowPlaying(
+                                        nowPlaying = nowPlaying,
+                                        colors = colors,
+                                        onOpen = navigationActions.onOpenNowPlaying,
+                                        actions = nowPlayingActions,
+                                        modifier = Modifier
+                                            .then(
+                                                if (sheetPresentation) {
+                                                    Modifier.naviampNowPlayingOpenGesture(sheetState, navigationActions.onOpenNowPlaying)
+                                                } else {
+                                                    Modifier
+                                                },
+                                            )
+                                            .padding(vertical = 2.dp),
+                                    )
+                                }
+                            }
+                            SharedBottomNavigationBar(
+                                colors = colors,
+                                selectedRoute = selectedRoute,
+                                supportsDownloads = supportsDownloads,
+                                onRouteSelected = {
+                                    navigationActions.onCloseNowPlaying()
+                                    navigationActions.onRouteSelected(it)
+                                },
+                            )
+                        }
+                    }
+                },
+            )
         }
         if (radioDjCreationOpen) {
             NaviampRadioDjCreationDialog(
