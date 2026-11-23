@@ -673,6 +673,7 @@ class NaviampCore private constructor(
                 playTrack = { track -> mediaTransactions.play(listOf(track)) },
                 issueResolvedCommand = { command -> checkNotNull(resolvedCommandHandler).execute(command) },
             )
+            val noticeLifetimes = NaviampCoreNoticeLifetimeController(scope, stateStore).also { it.start() }
             val providerSessionLifecycle = NaviampCoreProviderSessionLifecycle(
                 sessionPort = services.connection,
             )
@@ -835,6 +836,7 @@ class NaviampCore private constructor(
                     trackActions,
                     collectionActions,
                     somethingNew,
+                    noticeLifetimes,
                 ),
                 onAsyncFailure = onAsyncFailure,
             )

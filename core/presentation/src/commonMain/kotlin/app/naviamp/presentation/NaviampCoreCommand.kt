@@ -224,6 +224,7 @@ sealed interface NaviampCoreCommand {
          */
         data class StartSomethingNewRadio(val seed: app.naviamp.domain.Track, val startRadio: Boolean = true) : Home
         data object DismissSomethingNewNotice : Home
+        data class NoticeLifetime(val request: app.naviamp.ui.NaviampTimedNoticeRequest) : Home
         data class SonicTrackAction(val request: SharedHomeDiscoveryTrackActionRequest) : Home
         data class RecentTrackAction(val request: SharedTrackRowActionRequest) : Home
         data class OpenCollection(val sectionId: String) : Home

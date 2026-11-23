@@ -176,10 +176,11 @@ fun NaviampRadioNotice(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     systemInsets: WindowInsets = WindowInsets.safeDrawing,
+    onLifetime: (NaviampTimedNoticeAction, Long?) -> Unit = { _, _ -> },
 ) {
     // Shown above the inset-aware shell at the bottom edge, so only the bottom and side bars can overlap it.
     Row(
-        modifier.background(colors.background)
+        modifier.timedNotice(result, onLifetime).background(colors.background)
             .naviampContentInsets(systemInsets.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
             .padding(12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),

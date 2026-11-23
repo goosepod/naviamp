@@ -619,7 +619,7 @@ class NaviampCoreTest {
         val fixture = somethingNewFixture(batches = listOf(listOf(coreTrack("played").copy(playCount = 1))))
 
         fixture.core.execute(NaviampCoreCommand.Home.PlaySomethingNew)
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(app.naviamp.domain.radio.SomethingNewMaxBatches, fixture.randomRequests())
         assertEquals(emptyList(), fixture.effects.selections)
@@ -638,7 +638,7 @@ class NaviampCoreTest {
         )
 
         fixture.core.execute(NaviampCoreCommand.Home.PlaySomethingNew)
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(0, fixture.randomRequests())
         assertEquals("downloaded-new", fixture.effects.selections.first().tracks.single().id.value)
@@ -655,7 +655,7 @@ class NaviampCoreTest {
         val offline = somethingNewFixture(batches = listOf(emptyList()), offline = true)
 
         offline.core.execute(NaviampCoreCommand.Home.StartSomethingNewRadio(coreTrack("seed")))
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals("seed", offline.effects.selections.first().tracks.single().id.value)
         assertEquals(app.naviamp.domain.radio.RadioBuildOutcome.Offline,
