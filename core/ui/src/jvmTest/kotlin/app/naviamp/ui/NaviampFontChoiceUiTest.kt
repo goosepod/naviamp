@@ -162,6 +162,7 @@ class NaviampFontChoiceUiTest {
         onNodeWithTag("font-unavailable").assertExists()
         onNodeWithText("Missing Font 625 is not available on this device, so Naviamp is using Nunito Sans.").assertExists()
         assertEquals(nunito, layout("Outside the font page").layoutInput.style.fontFamily)
+        runOnIdle { assertEquals("Missing Font 625", settings.value.installedFontFamily, "The stored choice is kept") }
         onNodeWithText("Inter").performScrollTo().performClick()
         runOnIdle {
             assertNull(settings.value.installedFontFamily)
@@ -188,14 +189,30 @@ class NaviampFontChoiceUiTest {
                 }
             }
         }
+        val row = hasText(name) and hasAnyAncestor(hasTestTag("installed-font-list"))
+        waitUntil(timeoutMillis = 10_000) { onAllNodes(row).fetchSemanticsNodes().isNotEmpty() }
         onNodeWithTag("installed-font-search").performScrollTo().performTextInput(name)
-        onNode(hasText(name) and hasAnyAncestor(hasTestTag("installed-font-list"))).performClick()
+        onNode(row).performClick()
         runOnIdle { assertEquals(name, settings.value.installedFontFamily) }
         waitForIdle()
         val applied = layout("Outside the font page").layoutInput.style.fontFamily as FontListFontFamily
         assertTrue(applied.fonts.all { (it as SystemFont).identity == name }, "$name must be applied: ${applied.fonts}")
         onNodeWithText("Nunito Sans").performScrollTo().performClick()
         runOnIdle { assertEquals(InterfaceSettings(), settings.value) }
+    }
+
+    @Test
+    fun desktopReportsRealSymbolFontsAsUnusable() {
+        val installed = assertNotNull(naviampInstalledFonts())
+        val names = presentableInstalledFontFamilies(installed.familyNames())
+        val text = names.firstOrNull { it.equals("DejaVu Sans", ignoreCase = true) } ?: names.first()
+        assertTrue(isUsableInstalledFont(installed, text), "$text draws Latin text")
+        assertTrue(text in usableInstalledFontFamilies(installed))
+        // OpenSymbol ships with LibreOffice; skip where it is not installed.
+        val symbol = names.firstOrNull { it.equals("OpenSymbol", ignoreCase = true) } ?: return
+        assertTrue(!isUsableInstalledFont(installed, symbol), "$symbol must be filtered out")
+        assertTrue(symbol !in usableInstalledFontFamilies(installed))
+        assertEquals(emptyList(), usableInstalledFamiliesMatching(installed, symbol))
     }
 
     @OptIn(ExperimentalTextApi::class)

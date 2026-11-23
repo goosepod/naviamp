@@ -74,7 +74,7 @@
     <string name="settings_font_system">Sistema</string>
     <string name="settings_font_system_subtitle">Usa a fonte da interface deste dispositivo.</string>
     <string name="settings_font_installed_title">Fontes instaladas</string>
-    <string name="settings_font_installed_subtitle">Use qualquer família de fontes instalada neste computador. Essa escolha fica só neste computador.</string>
+    <string name="settings_font_installed_subtitle">Use qualquer família de fontes instalada neste computador.</string>
     <string name="settings_font_installed_search">Pesquisar fontes instaladas</string>
     <string name="settings_font_installed_empty">Nenhuma fonte instalada corresponde.</string>
     <string name="settings_font_unavailable">%1$s não está disponível neste dispositivo, então o Naviamp está usando Nunito Sans.</string>

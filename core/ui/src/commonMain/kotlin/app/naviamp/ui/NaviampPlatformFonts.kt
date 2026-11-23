@@ -7,6 +7,12 @@ import androidx.compose.ui.text.font.FontWeight
 internal interface NaviampInstalledFonts {
     fun familyNames(): List<String>
     fun fontFamily(name: String, weights: List<FontWeight>): FontFamily
+
+    /** Whether the family's regular face maps every code point to a glyph; false when it cannot be loaded. */
+    fun hasGlyphs(name: String, codePoints: IntArray): Boolean
+
+    /** The raw OpenType `cmap` table of the family's regular face, or null when it is unavailable. */
+    fun characterMapTable(name: String): ByteArray?
 }
 
 /** Null where the host has no installed-font enumeration. */

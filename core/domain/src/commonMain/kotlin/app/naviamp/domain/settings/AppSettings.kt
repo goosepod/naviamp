@@ -195,7 +195,7 @@ data class InterfaceSettings(
     val generalFontSize: InterfaceFontSize = InterfaceFontSize.Standard,
     val nowPlayingFontSize: InterfaceFontSize = InterfaceFontSize.Standard,
     val fontFamily: InterfaceFontFamily = InterfaceFontFamily.NunitoSans,
-    /** Device-local: an installed family name is never exported, synced, or offered over Connect. */
+    /** An installed font family name; it syncs with the other font settings and falls back where missing. */
     val installedFontFamily: String? = null,
     val homeSectionPresentations: Map<String, HomeSectionPresentationSettings> = emptyMap(),
     val homeSectionOrder: List<String> = emptyList(),

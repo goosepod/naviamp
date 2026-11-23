@@ -157,27 +157,28 @@ class SettingsSyncDocumentTest {
     }
 
     @Test
-    fun portableFontFamilyRoundTripsWhileTheInstalledFamilyStaysOnTheDevice() {
-        for (family in InterfaceFontFamily.entries) {
-            val local = InterfaceSettings(fontFamily = family, installedFontFamily = "Fira Sans")
+    fun fontFamilyAndInstalledFamilyRoundTripThroughExportImportAndSync() {
+        for (family in InterfaceFontFamily.entries) for (installed in listOf(null, "Fira Sans")) {
+            val local = InterfaceSettings(fontFamily = family, installedFontFamily = installed)
             val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(interfaceSettings = local), 1L, "test")
-            val encoded = SettingsSyncJson.encode(document)
-            assertFalse("Fira Sans" in encoded)
-            val decoded = SettingsSyncJson.decode(encoded)
-            assertEquals(family, decoded.preferences.interfaceSettings.fontFamily)
-            assertNull(decoded.preferences.interfaceSettings.installedFontFamily)
-            val applied = applySettingsSyncDocument(
-                decoded, NoopProviderMediaSources, NoopRadioDjPresets,
-                localInterface = InterfaceSettings(installedFontFamily = "Local Font"),
-            )
-            assertEquals(family, applied.interfaceSettings.fontFamily)
-            assertEquals("Local Font", applied.interfaceSettings.installedFontFamily)
+            val decoded = SettingsSyncJson.decode(SettingsSyncJson.encode(document))
+            assertEquals(local, decoded.preferences.interfaceSettings)
+            val applied = applySettingsSyncDocument(decoded, NoopProviderMediaSources, NoopRadioDjPresets)
+            assertEquals(local, applied.interfaceSettings)
         }
-        val handEdited = SettingsSyncJson.decode(
-            """{"preferences":{"interfaceSettings":{"fontFamily":"Inter","installedFontFamily":"Other Device Font"}}}""",
-        )
-        assertNull(handEdited.preferences.interfaceSettings.installedFontFamily)
-        assertEquals(InterfaceFontFamily.Inter, handEdited.preferences.interfaceSettings.fontFamily)
+        val older = SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"language":"System"}}}""")
+            .preferences.interfaceSettings
+        assertEquals(InterfaceFontFamily.NunitoSans, older.fontFamily)
+        assertNull(older.installedFontFamily)
+        val padded = SettingsSyncJson.decode(
+            """{"preferences":{"interfaceSettings":{"fontFamily":"Inter","installedFontFamily":"  Fira Sans  "}}}""",
+        ).preferences.interfaceSettings
+        assertEquals("Fira Sans", padded.installedFontFamily)
+        assertNull(SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"installedFontFamily":"   "}}}""")
+            .preferences.interfaceSettings.installedFontFamily)
+        assertEquals(256, SettingsSyncJson.decode(
+            """{"preferences":{"interfaceSettings":{"installedFontFamily":"${"x".repeat(400)}"}}}""",
+        ).preferences.interfaceSettings.installedFontFamily?.length)
         kotlin.test.assertFailsWith<kotlinx.serialization.SerializationException> {
             SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"fontFamily":"Comic Sans"}}}""")
         }

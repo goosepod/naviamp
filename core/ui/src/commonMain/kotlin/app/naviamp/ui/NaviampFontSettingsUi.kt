@@ -125,12 +125,12 @@ private fun InstalledFontFamilyPicker(
             modifier = Modifier.testTag("installed-font-search"),
         )
         // Listed once per visit so fonts installed while Naviamp runs appear on the next visit.
-        val families = rememberNaviampInstalledFontFamilies().orEmpty()
+        val families = rememberNaviampInstalledFontFamilies()
         val matches = remember(families, query) {
             val needle = query.trim()
-            if (needle.isEmpty()) families else families.filter { it.contains(needle, ignoreCase = true) }
+            families.orEmpty().filter { needle.isEmpty() || it.contains(needle, ignoreCase = true) }
         }
-        if (matches.isEmpty()) {
+        if (families != null && matches.isEmpty()) {
             Text(stringResource(Res.string.settings_font_installed_empty), color = colors.mutedText, fontSize = 13.sp)
         }
         LazyColumn(Modifier.fillMaxWidth().heightIn(max = 320.dp).testTag("installed-font-list")) {

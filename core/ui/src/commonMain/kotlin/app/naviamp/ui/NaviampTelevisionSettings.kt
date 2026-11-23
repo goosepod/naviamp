@@ -1735,14 +1735,14 @@ private fun televisionSettingsChoices(
                 actions.valueActions.onInterfaceSettingsChanged(interfaceSettings.copy(language = value).normalized())
             }
         }
-        TelevisionSettingsChoicePage.Font -> InterfaceFontFamily.entries.map { value ->
-            TelevisionChoiceUi(
+        TelevisionSettingsChoicePage.Font -> rememberNaviampFontSelection(interfaceSettings).let { selection ->
+            InterfaceFontFamily.entries.map { value -> TelevisionChoiceUi(
                 value.title(),
                 value.subtitle(),
-                interfaceSettings.installedFontFamily == null && value == interfaceSettings.fontFamily,
+                selection.installedFamily == null && value == selection.family,
             ) {
                 actions.valueActions.onInterfaceSettingsChanged(interfaceSettings.withBundledFontFamily(value))
-            }
+            } }
         }
         TelevisionSettingsChoicePage.GeneralFontSize -> InterfaceFontSize.Steps.map { value ->
             TelevisionChoiceUi(

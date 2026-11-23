@@ -5,6 +5,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -16,6 +18,8 @@ import app.naviamp.domain.settings.resolvedFontSelection
 import app.naviamp.ui.generated.resources.Res
 import app.naviamp.ui.generated.resources.inter
 import app.naviamp.ui.generated.resources.nunito_sans
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.Font
 
 /** The app typography for the font chosen in [interfaceSettings], with this device's fallback applied. */
@@ -35,16 +39,23 @@ internal fun rememberNaviampTypography(selection: InterfaceFontSelection): Typog
 
 @Composable
 internal fun rememberNaviampFontSelection(interfaceSettings: InterfaceSettings): InterfaceFontSelection {
-    val installed = interfaceSettings.installedFontFamily?.let { rememberNaviampInstalledFontFamilies() }
-    return remember(interfaceSettings.fontFamily, interfaceSettings.installedFontFamily, installed) {
+    val requested = interfaceSettings.installedFontFamily
+    // Only the stored family is inspected here, so startup never scans every installed font.
+    val installed = requested?.let { name -> remember(name) { naviampInstalledFonts()?.let { usableInstalledFamiliesMatching(it, name) } } }
+    return remember(interfaceSettings.fontFamily, requested, installed) {
         interfaceSettings.resolvedFontSelection(installed)
     }
 }
 
-/** Installed family names offered for selection, or null where this device cannot list them. */
+/** Installed families that can be chosen, listed off the UI thread; null until listed or where the host cannot list them. */
 @Composable
-internal fun rememberNaviampInstalledFontFamilies(refreshKey: Any? = Unit): List<String>? =
-    remember(refreshKey) { naviampInstalledFonts()?.familyNames()?.let(::presentableInstalledFontFamilies) }
+internal fun rememberNaviampInstalledFontFamilies(): List<String>? {
+    val fonts = naviampInstalledFonts() ?: return null
+    val families by produceState<List<String>?>(null, fonts) {
+        value = withContext(Dispatchers.Default) { usableInstalledFontFamilies(fonts) }
+    }
+    return families
+}
 
 internal fun presentableInstalledFontFamilies(names: List<String>): List<String> =
     names.map(String::trim)
@@ -52,6 +63,39 @@ internal fun presentableInstalledFontFamilies(names: List<String>): List<String>
         .filter { it.isNotEmpty() && !it.startsWith(".") }
         .distinctBy(String::lowercase)
         .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it })
+
+internal fun usableInstalledFontFamilies(fonts: NaviampInstalledFonts): List<String> =
+    presentableInstalledFontFamilies(fonts.familyNames()).filter { isUsableInstalledFont(fonts, it) }
+
+internal fun usableInstalledFamiliesMatching(fonts: NaviampInstalledFonts, name: String): List<String> =
+    presentableInstalledFontFamilies(fonts.familyNames())
+        .filter { it.equals(name.trim(), ignoreCase = true) && isUsableInstalledFont(fonts, it) }
+
+/**
+ * Symbol and dingbat fonts would make the whole interface unreadable, so a family must draw basic
+ * Latin letters and digits and, when its character map is readable, map them as Unicode text.
+ */
+internal fun isUsableInstalledFont(fonts: NaviampInstalledFonts, name: String): Boolean {
+    if (!fonts.hasGlyphs(name, ReadableTextProbe)) return false
+    val characterMap = fonts.characterMapTable(name) ?: return true
+    return hasUnicodeCharacterMap(characterMap)
+}
+
+/** True unless a readable OpenType `cmap` lists only non-Unicode (for example Microsoft Symbol) subtables. */
+internal fun hasUnicodeCharacterMap(table: ByteArray): Boolean {
+    fun u16(offset: Int) = ((table[offset].toInt() and 0xFF) shl 8) or (table[offset + 1].toInt() and 0xFF)
+    if (table.size < 4) return true
+    val count = u16(2)
+    if (table.size < 4 + count * 8) return true
+    return (0 until count).any { index ->
+        val platform = u16(4 + index * 8)
+        val encoding = u16(6 + index * 8)
+        platform == 0 || (platform == 3 && (encoding == 1 || encoding == 10))
+    }
+}
+
+private val ReadableTextProbe: IntArray =
+    (('A'..'Z') + ('a'..'z') + ('0'..'9')).map { it.code }.toIntArray()
 
 @Composable
 private fun naviampFontFamily(selection: InterfaceFontSelection): FontFamily {

@@ -120,7 +120,7 @@ data class SettingsSyncPreferences(
 ) {
     fun normalized(): SettingsSyncPreferences =
         copy(
-            interfaceSettings = interfaceSettings.normalized().withoutDeviceLocalSettings(),
+            interfaceSettings = interfaceSettings.normalized(),
             playback = playback.normalized(),
             recentRadioStreams = app.naviamp.domain.radio.reconciledRecentRadioStreams(recentRadioStreams, MaxSyncedRecentItems),
             recentInternetRadioStations = recentInternetRadioStations.take(MaxSyncedRecentItems),

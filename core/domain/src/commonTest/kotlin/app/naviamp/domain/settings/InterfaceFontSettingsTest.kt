@@ -35,6 +35,17 @@ class InterfaceFontSettingsTest {
     }
 
     @Test
+    fun aDeviceWithoutTheSyncedFamilyRendersNunitoSansAndKeepsTheStoredChoice() {
+        val synced = InterfaceSettings(fontFamily = InterfaceFontFamily.Inter, installedFontFamily = "Fira Sans")
+        val phone = synced.resolvedFontSelection(availableInstalledFamilies = null)
+        assertEquals(InterfaceFontFamily.NunitoSans, phone.family)
+        assertNull(phone.installedFamily)
+        assertEquals("Fira Sans", synced.normalized().installedFontFamily)
+        val desktop = synced.resolvedFontSelection(listOf("Fira Sans"))
+        assertEquals("Fira Sans", desktop.installedFamily)
+    }
+
+    @Test
     fun choosingABundledFamilyClearsTheInstalledFamily() {
         val installed = InterfaceSettings().withInstalledFontFamily("Fira Sans")
         assertEquals("Fira Sans", installed.installedFontFamily)

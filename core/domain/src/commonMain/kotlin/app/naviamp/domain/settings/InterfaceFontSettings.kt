@@ -41,17 +41,18 @@ enum class InterfaceFontFamily {
     System,
 }
 
-/** The font this device renders after applying the device-local installed family and fallback rules. */
+/** The font this device renders; the stored choice itself is never changed by a fallback. */
 data class InterfaceFontSelection(
     val family: InterfaceFontFamily,
     val installedFamily: String? = null,
-    /** An installed family chosen on this device that is no longer available here. */
+    /** The stored installed family when it is not installed, or not usable, on this device. */
     val unavailableInstalledFamily: String? = null,
 )
 
 /**
- * [availableInstalledFamilies] is null when this device cannot list installed fonts, so a
- * remembered installed family can never be honored there.
+ * [availableInstalledFamilies] holds the usable installed families on this device, or null where
+ * none can be listed. A synced family that is missing or unusable here falls back to Nunito Sans
+ * and applies again on a device that has it.
  */
 fun InterfaceSettings.resolvedFontSelection(availableInstalledFamilies: Collection<String>?): InterfaceFontSelection {
     val requested = normalizedInstalledFontFamily(installedFontFamily)
@@ -70,12 +71,6 @@ fun InterfaceSettings.withBundledFontFamily(family: InterfaceFontFamily): Interf
 
 fun InterfaceSettings.withInstalledFontFamily(name: String): InterfaceSettings =
     copy(installedFontFamily = name).normalized()
-
-/** Removes values that only make sense on the device that chose them. */
-fun InterfaceSettings.withoutDeviceLocalSettings(): InterfaceSettings = copy(installedFontFamily = null)
-
-fun InterfaceSettings.withDeviceLocalSettingsFrom(local: InterfaceSettings): InterfaceSettings =
-    copy(installedFontFamily = local.installedFontFamily)
 
 internal fun normalizedInstalledFontFamily(name: String?): String? =
     name?.trim()?.takeIf { it.isNotEmpty() }?.take(MaxInstalledFontFamilyLength)

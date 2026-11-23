@@ -74,7 +74,7 @@
     <string name="settings_font_system">System</string>
     <string name="settings_font_system_subtitle">Verwendet die Oberflächenschrift dieses Geräts.</string>
     <string name="settings_font_installed_title">Installierte Schriften</string>
-    <string name="settings_font_installed_subtitle">Verwende eine beliebige auf diesem Computer installierte Schriftfamilie. Diese Auswahl bleibt auf diesem Computer.</string>
+    <string name="settings_font_installed_subtitle">Verwende eine beliebige auf diesem Computer installierte Schriftfamilie.</string>
     <string name="settings_font_installed_search">Installierte Schriften durchsuchen</string>
     <string name="settings_font_installed_empty">Keine installierte Schrift passt.</string>
     <string name="settings_font_unavailable">%1$s ist auf diesem Gerät nicht verfügbar, daher verwendet Naviamp Nunito Sans.</string>
