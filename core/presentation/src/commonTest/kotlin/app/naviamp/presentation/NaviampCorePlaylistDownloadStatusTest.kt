@@ -54,11 +54,11 @@ class NaviampCorePlaylistDownloadStatusTest {
     }
 
     // Translated messages load resources off the test scheduler, so let real time pass between idles.
-    private fun TestScope.settle(core: NaviampCore, rounds: Int = 300, untilChanged: Boolean = true) {
+    private suspend fun TestScope.settle(core: NaviampCore, rounds: Int = 300, untilChanged: Boolean = true) {
         repeat(rounds) {
             advanceUntilIdle()
             if (untilChanged && core.state.value.shell.playlists.status != starting) return
-            Thread.sleep(10)
+            awaitRealTime()
         }
     }
 

@@ -194,7 +194,7 @@ class NaviampCoreOfflinePlaylistsTest {
             repeat(300) {
                 advanceUntilIdle()
                 if (fixture.core.state.value.shell.playlistDetail.status != null) return@run
-                Thread.sleep(10)
+                awaitRealTime()
             }
         }
 
