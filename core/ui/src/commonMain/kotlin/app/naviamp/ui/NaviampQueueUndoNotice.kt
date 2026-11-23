@@ -27,6 +27,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.naviamp.ui.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -63,15 +64,22 @@ data class NaviampQueueUndoActionRequest(
 /** Base visible duration; Core widens it when the platform asks for more time for actionable content. */
 const val NaviampQueueUndoBaseTimeoutMillis = 10_000L
 
+/** Tallest Now Playing bottom action row (Radio, DJs, Collapse, Cast, Lyrics, More). */
+val NaviampNowPlayingBottomActionsHeight = 46.dp
+
+/** Lifts bottom notices above the Now Playing bottom actions while the player is open. */
+val NaviampNowPlayingNoticeClearance = NaviampNowPlayingBottomActionsHeight + 8.dp
+
 /** Transient bottom notices share the content inset policy so system bars and the keyboard never hide them. */
 @Composable
 fun NaviampBottomNoticeStack(
     modifier: Modifier = Modifier,
     systemInsets: WindowInsets = WindowInsets.safeDrawing,
+    bottomClearance: Dp = 0.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
-        modifier.fillMaxWidth().naviampContentInsets(systemInsets),
+        modifier.fillMaxWidth().naviampContentInsets(systemInsets).padding(bottom = bottomClearance),
         horizontalAlignment = Alignment.CenterHorizontally,
         content = content,
     )

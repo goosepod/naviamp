@@ -89,4 +89,29 @@ class NaviampQueueUndoNoticeTest {
         assertTrue(notice.bottom <= window.bottom - 48f + 0.5f, "notice bottom ${notice.bottom}")
         assertTrue(notice.top >= window.top)
     }
+
+    @Test fun noticeNeverCoversTheNowPlayingBottomActionsOnPhoneOrDesktop() {
+        listOf(412 to 818, 1280 to 800).forEach { (width, height) ->
+            runDesktopComposeUiTest(width, height) {
+                setContent {
+                    Box(Modifier.fillMaxSize()) {
+                        NaviampNowPlayingPanel(
+                            NowPlayingUi(id = "track", title = "Track", subtitle = "Artist",
+                                stateLabel = "Paused", isPaused = true, canPlayPause = true),
+                            colors = NaviampColors.Dark,
+                            actions = NaviampNowPlayingActions({}, {}, {}, {}, {}, {}, {}),
+                            contentInsets = WindowInsets(top = 24, bottom = 32),
+                        )
+                        NaviampBottomNoticeStack(Modifier.align(Alignment.BottomCenter), WindowInsets(bottom = 32),
+                            bottomClearance = NaviampNowPlayingNoticeClearance) {
+                            NaviampQueueUndoNotice(NaviampColors.Dark, removed, {})
+                        }
+                    }
+                }
+                val actions = onNodeWithTag("now-playing-bottom-actions").fetchSemanticsNode().boundsInRoot
+                val notice = onNodeWithTag("queue-undo-notice").fetchSemanticsNode().boundsInRoot
+                assertTrue(notice.bottom <= actions.top + 0.5f, "${width}x$height notice ${notice.bottom} actions ${actions.top}")
+            }
+        }
+    }
 }

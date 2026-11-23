@@ -26,6 +26,8 @@ import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.NaviampQueueUndoAction
 import app.naviamp.ui.NaviampQueueUndoActionRequest
 import app.naviamp.ui.NaviampQueueUndoKind
+import app.naviamp.ui.NowPlayingPlaybackAction
+import app.naviamp.ui.NowPlayingPlaybackActionRequest
 import app.naviamp.ui.NowPlayingQueueAction
 import app.naviamp.ui.NowPlayingQueueActionRequest
 import app.naviamp.ui.SharedTrackRowAction
@@ -101,7 +103,7 @@ class NaviampCoreQueueUndoTest {
         assertEquals(original, core.liveQueue())
         assertEquals("b", core.livePlayback().currentTrack?.id?.value)
         assertEquals(listOf<Pair<PlaybackQueue, Double?>>(original to 42.0), effects.restored)
-        assertEquals(1, effects.stops)
+        assertEquals(0, effects.stops)
         assertEquals(1, effects.startOrRestoreCount)
         assertEquals(RepeatMode.Queue, core.livePlayback().repeatMode)
     }
@@ -243,6 +245,114 @@ class NaviampCoreQueueUndoTest {
         }
     }
 
+    @Test
+    fun undoingAReplacementOverAPausedQueueKeepsAPausedSessionAtTheCapturedPosition() = undoTest {
+        val native = nativeCore(pauseOriginal = true)
+        native.replaceWithLibrarySong()
+        val undo = assertNotNull(native.core.state.value.overlays.queueUndo)
+        native.states.clear()
+        val playsBeforeUndo = native.engine.plays.size
+
+        undo(native.core, undo.id)
+        runCurrent()
+
+        assertTrue(native.states.none { it == PlaybackState.Stopped || it == PlaybackState.Idle }, "states ${native.states}")
+        val restored = native.core.livePlayback()
+        assertEquals(PlaybackState.Paused, restored.playbackState)
+        assertEquals(original, restored.queue)
+        assertEquals("b", restored.currentTrack?.id?.value)
+        assertEquals(42.0, restored.progress.positionSeconds)
+        assertEquals(0, native.engine.stops)
+
+        advanceTimeBy(120_000)
+        runCurrent()
+        assertEquals(playsBeforeUndo, native.engine.plays.size, "nothing plays until the user presses play")
+        assertEquals(PlaybackState.Paused, native.core.livePlayback().playbackState)
+        assertEquals(1, native.core.livePlayback().queue.currentIndex)
+
+        native.core.execute(NaviampCoreCommand.NowPlaying.Playback(
+            NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.TogglePlayPause)))
+        runCurrent()
+        val resumed = native.engine.plays.last()
+        assertEquals("b", resumed.mediaId)
+        assertEquals(42.0, resumed.startPositionSeconds)
+        assertEquals(PlaybackState.Playing, native.core.livePlayback().playbackState)
+    }
+
+    @Test
+    fun undoingAReplacementOverAPlayingQueueResumesTheOriginalTrackAtItsPosition() = undoTest {
+        val native = nativeCore(pauseOriginal = false)
+        native.replaceWithLibrarySong()
+        val undo = assertNotNull(native.core.state.value.overlays.queueUndo)
+        native.states.clear()
+
+        undo(native.core, undo.id)
+        runCurrent()
+
+        assertTrue(native.states.none { it == PlaybackState.Stopped || it == PlaybackState.Idle }, "states ${native.states}")
+        val resumed = native.engine.plays.last()
+        assertEquals("b", resumed.mediaId)
+        assertEquals(42.0, resumed.startPositionSeconds)
+        val restored = native.core.livePlayback()
+        assertEquals(PlaybackState.Playing, restored.playbackState)
+        assertEquals(original, restored.queue)
+        assertEquals(42.0, restored.progress.positionSeconds)
+    }
+
+    private inner class NativeUndoFixture(
+        val core: NaviampCore,
+        val engine: UndoNativeEngine,
+        val states: MutableList<PlaybackState>,
+    ) {
+        suspend fun replaceWithLibrarySong() {
+            core.execute(NaviampCoreCommand.Library.ChangeView(NaviampLibraryView.Songs))
+            val song = core.state.value.shell.library.songs.tracks.single()
+            core.execute(NaviampCoreCommand.Library.TrackAction(SharedTrackRowActionRequest(song, SharedTrackRowAction.Select)))
+            scope.runCurrent()
+            assertEquals("core-track", engine.plays.last().mediaId)
+        }
+    }
+
+    /** The shared engine adapter over a native fake, primed like a device that played and maybe paused b at 0:42. */
+    private suspend fun nativeCore(pauseOriginal: Boolean): NativeUndoFixture {
+        val provider = FakeCoreMediaProvider()
+        val engine = UndoNativeEngine()
+        val adapter = NaviampCorePlaybackEngineAdapter(scope, engine,
+            NaviampCoreMediaProviderSource { provider }, settings = { app.naviamp.domain.settings.PlaybackSettings() })
+        val states = mutableListOf<PlaybackState>()
+        val recording = object : NaviampCorePlaybackEffectPort by adapter {
+            override fun attach(observer: NaviampCorePlaybackObserver) = adapter.attach(object : NaviampCorePlaybackObserver by observer {
+                override fun onStateChanged(state: PlaybackState) {
+                    states += state
+                    observer.onStateChanged(state)
+                }
+            })
+        }
+        val defaults = fakeCoreServices(provider)
+        val core = NaviampCore.create(
+            scope,
+            defaults.copy(playback = defaults.playback.copy(effects = recording)),
+            NaviampCoreInitialState(
+                playback = NaviampLivePlaybackState(currentTrack = original.current, queue = original),
+                connection = NaviampConnectionRuntimeState(phase = NaviampConnectionPhase.Connected, sourceId = "source"),
+            ).let { initial ->
+                initial.copy(product = initial.product.copy(shell = initial.product.shell.copy(
+                    connectionSettings = initial.product.shell.connectionSettings.copy(currentSourceId = "source"),
+                )))
+            },
+        ).also(cores::add)
+        recording.playQueueSelection(original, original.currentIndex)
+        scope.runCurrent()
+        engine.emitProgress(PlaybackProgress(42.0, 180.0))
+        if (pauseOriginal) {
+            core.execute(NaviampCoreCommand.NowPlaying.Playback(NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.Pause)))
+            scope.runCurrent()
+            assertEquals(PlaybackState.Paused, core.livePlayback().playbackState)
+        }
+        assertEquals(42.0, core.livePlayback().progress.positionSeconds)
+        return NativeUndoFixture(core, engine, states)
+    }
+
     private val group = PlaybackQueueGroup(
         id = "Album:album-1",
         target = PlaybackProfileTarget(PlaybackProfileTargetType.Album, "album-1"),
@@ -311,6 +421,42 @@ class NaviampCoreQueueUndoTest {
         return checkNotNull(live)
     }
     private fun NaviampCore.liveQueue() = livePlayback().queue
+}
+
+private class UndoNativeEngine : app.naviamp.domain.playback.PlaybackEngine {
+    override val name = "Native"
+    override val supportsPause = true
+    override val supportsSeek = true
+    override val supportsGapless = false
+    override val supportsCrossfade = false
+    override val supportsReplayGain = false
+    override val supportsSoftwareVolume = true
+    override val prefersOriginalStream = true
+    val plays = mutableListOf<app.naviamp.domain.playback.PlaybackRequest>()
+    var stops = 0
+    private var state: ((PlaybackState) -> Unit)? = null
+    private var progress: ((PlaybackProgress) -> Unit)? = null
+
+    override fun play(
+        scope: kotlinx.coroutines.CoroutineScope,
+        request: app.naviamp.domain.playback.PlaybackRequest,
+        onStateChanged: (PlaybackState) -> Unit,
+        onProgressChanged: (PlaybackProgress) -> Unit,
+        onMetadataChanged: (app.naviamp.domain.playback.PlaybackStreamMetadata) -> Unit,
+    ) {
+        plays += request
+        state = onStateChanged
+        progress = onProgressChanged
+        onStateChanged(PlaybackState.Playing)
+        onProgressChanged(PlaybackProgress(request.startPositionSeconds ?: 0.0, 180.0))
+    }
+
+    override fun pause() { state?.invoke(PlaybackState.Paused) }
+    override fun resume() { state?.invoke(PlaybackState.Playing) }
+    override fun seek(positionSeconds: Double) = Unit
+    override fun setVolume(percent: Int) = Unit
+    override fun stop() { stops += 1 }
+    fun emitProgress(value: PlaybackProgress) { progress?.invoke(value) }
 }
 
 private class UndoPlaybackEffects : NaviampCorePlaybackEffectPort {

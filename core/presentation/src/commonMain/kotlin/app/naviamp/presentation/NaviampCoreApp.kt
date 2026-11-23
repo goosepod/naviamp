@@ -11,6 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import app.naviamp.ui.NaviampLocaleEnvironment
@@ -161,7 +162,14 @@ fun NaviampCoreApp(
                     state.overlays.busyMessage?.let { message ->
                         NaviampBusyDialog(message)
                     }
-                    app.naviamp.ui.NaviampBottomNoticeStack(Modifier.align(Alignment.BottomCenter)) {
+                    app.naviamp.ui.NaviampBottomNoticeStack(
+                        Modifier.align(Alignment.BottomCenter),
+                        bottomClearance = if (state.shell.shellChrome.nowPlayingOpen) {
+                            app.naviamp.ui.NaviampNowPlayingNoticeClearance
+                        } else {
+                            0.dp
+                        },
+                    ) {
                         state.overlays.radioNotice?.let { notice ->
                             app.naviamp.ui.NaviampRadioNotice(
                                 app.naviamp.ui.NaviampColors.Dark, notice,

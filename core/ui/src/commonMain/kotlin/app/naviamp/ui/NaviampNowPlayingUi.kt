@@ -1261,7 +1261,7 @@ private fun NowPlayingDetails(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .requiredHeight(if (mobileLayout) 46.dp else 44.dp)
+                    .requiredHeight(if (mobileLayout) NaviampNowPlayingBottomActionsHeight else 44.dp)
                     .testTag("now-playing-bottom-actions")
                     .padding(horizontal = if (pinBottomActions) 8.dp else 0.dp),
             ) {

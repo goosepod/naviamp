@@ -139,13 +139,18 @@ class NaviampCoreQueueUndoController(
             effects.applyQueue(before.queue, clearPreparedNext = true)
         } else {
             val resume = before.playbackState == PlaybackState.Playing || before.playbackState == PlaybackState.Loading
-            effects.stop()
+            // Never stop: hosts end the media session on Stopped/Idle. A paused restore silences the new
+            // stream and defers the previous track's start to its captured position until Play.
+            if (!resume) {
+                effects.prepareForPreview()
+                effects.pause()
+            }
             playback.replace(
                 before.copy(
                     repeatMode = live.repeatMode,
                     pendingSeekPositionSeconds = null,
                     pendingSeekIssuedAtMillis = null,
-                    playbackState = if (resume) before.playbackState else PlaybackState.Idle,
+                    playbackState = if (resume) before.playbackState else PlaybackState.Paused,
                 ),
             )
             effects.restoreQueue(before.queue, before.progress.positionSeconds)
