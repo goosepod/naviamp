@@ -73,6 +73,7 @@ internal class StorageProviderIdentityMigrationStore(
             }
 
             migrateKeepDownloaded(sourceId, ::migrate)
+            migrateOfflinePlaylists(sourceId, ::migrate)
 
             queries.selectManagedKeepDownloadedTrackIdsForIdentityMigration(sourceId).executeAsList().forEach { oldId ->
                 queries.updateManagedKeepDownloadedTrackId(migrate(oldId), sourceId, oldId)
@@ -170,6 +171,22 @@ internal class StorageProviderIdentityMigrationStore(
             row.trackIds.forEach { trackId ->
                 queries.insertKeepDownloadedCollectionTrack(sourceId, row.kind, migratedId, migrate(trackId))
             }
+        }
+    }
+
+    private fun migrateOfflinePlaylists(sourceId: String, migrate: (String) -> String) {
+        val store = StorageKeepDownloadedStore(queries) { 0L }
+        val ids = queries.selectOfflinePlaylists(sourceId).executeAsList().map { it.playlist_id }
+        val snapshots = ids.mapNotNull { id -> runCatching { store.offlinePlaylist(sourceId, id) }.getOrNull() }
+        ids.forEach { store.deleteOfflinePlaylist(sourceId, it) }
+        snapshots.forEach { snapshot ->
+            store.saveOfflinePlaylist(snapshot.copy(
+                playlist = snapshot.playlist.copy(
+                    id = migrate(snapshot.playlist.id),
+                    coverArtId = snapshot.playlist.coverArtId?.let(migrate),
+                ),
+                tracks = snapshot.tracks.map { SavedTrack.fromTrack(it).migratedProviderIdentities(migrate).toTrack() },
+            ))
         }
     }
 

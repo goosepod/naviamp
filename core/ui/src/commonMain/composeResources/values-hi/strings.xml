@@ -598,4 +598,12 @@
     <string name="something_new_failed">चुनने के लिए ट्रैक लोड नहीं हो सके।</string>
     <string name="something_new_from_downloads">ऑफ़लाइन: ऐसा डाउनलोड किया गया ट्रैक चल रहा है जो आपने नहीं सुना।</string>
     <string name="radio_offline">आप ऑफ़लाइन हैं। और ट्रैक के लिए आपके सर्वर से कनेक्शन ज़रूरी है।</string>
+    <plurals name="offline_playlist_availability">
+        <item quantity="one">%2$d में से %1$d ट्रैक ऑफ़लाइन उपलब्ध</item>
+        <item quantity="other">%2$d में से %1$d ट्रैक ऑफ़लाइन उपलब्ध</item>
+    </plurals>
+    <string name="offline_playlist_saved_copy">डाउनलोड की गई कॉपी दिखाई जा रही है। इस प्लेलिस्ट को संपादित करने के लिए फिर से कनेक्ट करें।</string>
+    <string name="offline_playlist_track_unavailable">ऑफ़लाइन उपलब्ध नहीं</string>
+    <string name="offline_playlist_action_unavailable">यह कार्रवाई इस्तेमाल करने के लिए अपने संगीत सर्वर से फिर से कनेक्ट करें।</string>
+    <string name="offline_playlist_nothing_playable">इस प्लेलिस्ट का कोई भी ट्रैक ऑफ़लाइन उपलब्ध नहीं है।</string>
 </resources>

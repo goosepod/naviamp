@@ -598,4 +598,16 @@
     <string name="something_new_failed">تعذّر تحميل مقاطع للاختيار منها.</string>
     <string name="something_new_from_downloads">غير متصل: يتم تشغيل مقطع منزَّل لم تستمع إليه.</string>
     <string name="radio_offline">أنت غير متصل. تتطلب المقاطع الإضافية اتصالًا بالخادم.</string>
+    <plurals name="offline_playlist_availability">
+        <item quantity="zero">%1$d من %2$d مقطع متاحة دون اتصال</item>
+        <item quantity="one">%1$d من %2$d مقطع متاح دون اتصال</item>
+        <item quantity="two">%1$d من %2$d مقطعين متاحة دون اتصال</item>
+        <item quantity="few">%1$d من %2$d مقاطع متاحة دون اتصال</item>
+        <item quantity="many">%1$d من %2$d مقطعًا متاحة دون اتصال</item>
+        <item quantity="other">%1$d من %2$d مقطع متاحة دون اتصال</item>
+    </plurals>
+    <string name="offline_playlist_saved_copy">تُعرض النسخة المنزّلة. أعد الاتصال لتعديل قائمة التشغيل هذه.</string>
+    <string name="offline_playlist_track_unavailable">غير متاح دون اتصال</string>
+    <string name="offline_playlist_action_unavailable">أعد الاتصال بخادم الموسيقى لاستخدام هذا الإجراء.</string>
+    <string name="offline_playlist_nothing_playable">لا تتوفر أي مقاطع من قائمة التشغيل هذه دون اتصال.</string>
 </resources>

@@ -65,6 +65,9 @@ class StorageDiscoveryAcquisitionStoreTest {
     }
     @Test fun migrationAfterAcceptedBaselineAddsTheStoreWithoutChangingSources() = database { driver, db ->
         val source = source(db)
+        driver.execute(null, "DROP INDEX offline_playlist_entry_track", 0)
+        driver.execute(null, "DROP TABLE offline_playlist_entry", 0)
+        driver.execute(null, "DROP TABLE offline_playlist", 0)
         driver.execute(null, "DROP TABLE discovery_acquisition", 0)
         driver.execute(null, "ALTER TABLE media_source DROP COLUMN aurral_companion", 0)
         driver.execute(null, "DROP TABLE pending_audio_file", 0)

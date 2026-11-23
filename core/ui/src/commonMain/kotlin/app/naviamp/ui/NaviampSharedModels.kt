@@ -141,6 +141,8 @@ data class SharedTrackRowUi(
     val detailSections: List<NaviampDetailSectionUi> = emptyList(),
     val trackNumber: Int? = null,
     val canStartRadio: Boolean = false,
+    /** A saved offline row whose audio is not currently playable on this device. */
+    val unavailableOffline: Boolean = false,
 )
 
 data class SharedArtistCreditUi(
@@ -285,7 +287,11 @@ data class SharedMediaItemUi(
     val keepDownloadedActive: Boolean = false,
     val favoriteActive: Boolean = false,
     val canFavorite: Boolean = false,
+    /** Present only while this item is shown from its saved offline copy. */
+    val offlineAvailability: NaviampOfflineAvailabilityUi? = null,
 )
+
+data class NaviampOfflineAvailabilityUi(val availableCount: Int, val totalCount: Int)
 
 enum class SharedMediaItemKind {
     Unknown,

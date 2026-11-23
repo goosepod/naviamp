@@ -598,4 +598,11 @@
     <string name="something_new_failed">无法加载可供选择的曲目。</string>
     <string name="something_new_from_downloads">离线：正在播放你尚未播放过的已下载曲目。</string>
     <string name="radio_offline">你处于离线状态。需要连接到服务器才能添加更多曲目。</string>
+    <plurals name="offline_playlist_availability">
+        <item quantity="other">%2$d 首曲目中有 %1$d 首可离线播放</item>
+    </plurals>
+    <string name="offline_playlist_saved_copy">正在显示已下载的副本。重新连接后即可编辑此播放列表。</string>
+    <string name="offline_playlist_track_unavailable">无法离线播放</string>
+    <string name="offline_playlist_action_unavailable">请重新连接到音乐服务器以使用此操作。</string>
+    <string name="offline_playlist_nothing_playable">此播放列表中没有可离线播放的曲目。</string>
 </resources>

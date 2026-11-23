@@ -598,4 +598,11 @@
     <string name="something_new_failed">Tidak dapat memuat lagu untuk dipilih.</string>
     <string name="something_new_from_downloads">Offline: memutar lagu unduhan yang belum pernah Anda putar.</string>
     <string name="radio_offline">Anda sedang offline. Lagu lainnya memerlukan koneksi ke server Anda.</string>
+    <plurals name="offline_playlist_availability">
+        <item quantity="other">%1$d dari %2$d lagu tersedia offline</item>
+    </plurals>
+    <string name="offline_playlist_saved_copy">Menampilkan salinan yang diunduh. Sambungkan kembali untuk mengedit daftar putar ini.</string>
+    <string name="offline_playlist_track_unavailable">Tidak tersedia offline</string>
+    <string name="offline_playlist_action_unavailable">Sambungkan kembali ke server musik Anda untuk menggunakan tindakan ini.</string>
+    <string name="offline_playlist_nothing_playable">Tidak ada lagu di daftar putar ini yang tersedia offline.</string>
 </resources>

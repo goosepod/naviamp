@@ -695,4 +695,14 @@
     <string name="something_new_failed">Nie udało się wczytać utworów do wyboru.</string>
     <string name="something_new_from_downloads">Offline: odtwarzanie pobranego utworu, którego jeszcze nie odtwarzano.</string>
     <string name="radio_offline">Jesteś offline. Kolejne utwory wymagają połączenia z serwerem.</string>
+    <plurals name="offline_playlist_availability">
+        <item quantity="one">%1$d z %2$d utworu dostępny offline</item>
+        <item quantity="few">%1$d z %2$d utworów dostępne offline</item>
+        <item quantity="many">%1$d z %2$d utworów dostępnych offline</item>
+        <item quantity="other">%1$d z %2$d utworu dostępne offline</item>
+    </plurals>
+    <string name="offline_playlist_saved_copy">Wyświetlana jest pobrana kopia. Połącz się ponownie, aby edytować tę playlistę.</string>
+    <string name="offline_playlist_track_unavailable">Niedostępny offline</string>
+    <string name="offline_playlist_action_unavailable">Połącz się ponownie z serwerem muzyki, aby użyć tej akcji.</string>
+    <string name="offline_playlist_nothing_playable">Żaden utwór z tej playlisty nie jest dostępny offline.</string>
 </resources>

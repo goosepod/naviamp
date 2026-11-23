@@ -376,6 +376,9 @@ internal fun TelevisionPlaylistDetail(
         return
     }
     val playlist = detail.playlist
+    val offline = playlist.offlineAvailability
+    val playableCount = offline?.availableCount ?: detail.tracks.size
+    val unavailableLabel = stringResource(Res.string.offline_playlist_track_unavailable)
     val listState = rememberLazyListState()
     val firstTrackFocusRequester = remember(playlist.id) { FocusRequester() }
     LazyColumn(
@@ -389,13 +392,13 @@ internal fun TelevisionPlaylistDetail(
                 title = playlist.title,
                 mediaKind = SharedMediaItemKind.Playlist,
                 subtitle = "",
-                metadata = televisionTrackCountLabel(detail.tracks.size),
+                metadata = offline?.let { offlineAvailabilityLabel(it) } ?: televisionTrackCountLabel(detail.tracks.size),
                 coverArtUrl = playlist.coverArtUrl ?: playlist.coverArtUrls.firstOrNull(),
                 colors = colors,
                 topNavigationFocusRequester = topNavigationFocusRequester,
                 initialActionDownFocusRequester = firstTrackFocusRequester,
                 actions = listOf(
-                    TelevisionHeroAction(stringResource(Res.string.transport_play), NaviampTransportIcons.Play, detail.tracks.isNotEmpty()) {
+                    TelevisionHeroAction(stringResource(Res.string.transport_play), NaviampTransportIcons.Play, playableCount > 0) {
                         actions.onPlaylistAction(
                             NaviampPlaylistDetailActionRequest(
                                 playlist,
@@ -406,7 +409,7 @@ internal fun TelevisionPlaylistDetail(
                     TelevisionHeroAction(
                         stringResource(Res.string.transport_shuffle),
                         NaviampTransportIcons.Shuffle,
-                        televisionPlaylistSupportsShuffle(detail.tracks.size),
+                        televisionPlaylistSupportsShuffle(playableCount),
                     ) {
                         actions.onPlaylistAction(
                             NaviampPlaylistDetailActionRequest(
@@ -415,7 +418,7 @@ internal fun TelevisionPlaylistDetail(
                             ),
                         )
                     },
-                    TelevisionHeroAction(stringResource(Res.string.mix_add_to_queue), NaviampIcons.Queue, detail.tracks.isNotEmpty()) {
+                    TelevisionHeroAction(stringResource(Res.string.mix_add_to_queue), NaviampIcons.Queue, playableCount > 0) {
                         actions.onPlaylistAction(
                             NaviampPlaylistDetailActionRequest(playlist, NaviampPlaylistDetailCommand.AddToQueue),
                         )
@@ -426,18 +429,19 @@ internal fun TelevisionPlaylistDetail(
         item(key = "playlist-tracks-heading") {
             TelevisionDetailSectionHeading(stringResource(Res.string.tv_tracks), colors)
         }
-        itemsIndexed(detail.tracks, key = { _, track -> track.id }) { index, track ->
+        // Positions keep repeated playlist tracks distinct.
+        itemsIndexed(detail.tracks, key = { index, track -> "$index:${track.id}" }) { index, track ->
             TelevisionTrackRow(
                 track = track,
                 leadingText = (index + 1).toString(),
                 showArtwork = true,
                 colors = colors,
                 onAction = { action ->
-                    actions.onTrackAction(SharedTrackRowActionRequest(track, action))
+                    if (!track.unavailableOffline) actions.onTrackAction(SharedTrackRowActionRequest(track, action))
                 },
                 modifier = if (index == 0) Modifier.focusRequester(firstTrackFocusRequester) else Modifier,
                 artistContext = track.artistCredits.joinToString(", ") { it.name },
-                albumContext = track.albumTitle,
+                albumContext = if (track.unavailableOffline) unavailableLabel else track.albumTitle,
             )
         }
         screen.status?.let { status ->

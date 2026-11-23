@@ -1351,4 +1351,12 @@
     <string name="something_new_failed">Não foi possível carregar faixas para escolher.</string>
     <string name="something_new_from_downloads">Offline: tocando uma faixa baixada que você ainda não ouviu.</string>
     <string name="radio_offline">Você está offline. Para adicionar mais faixas é preciso conexão com o seu servidor.</string>
+    <plurals name="offline_playlist_availability">
+        <item quantity="one">%1$d de %2$d faixa disponível offline</item>
+        <item quantity="other">%1$d de %2$d faixas disponíveis offline</item>
+    </plurals>
+    <string name="offline_playlist_saved_copy">Mostrando a cópia baixada. Reconecte-se para editar esta playlist.</string>
+    <string name="offline_playlist_track_unavailable">Indisponível offline</string>
+    <string name="offline_playlist_action_unavailable">Reconecte-se ao seu servidor de música para usar esta ação.</string>
+    <string name="offline_playlist_nothing_playable">Nenhuma faixa desta playlist está disponível offline.</string>
 </resources>

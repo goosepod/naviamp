@@ -1349,4 +1349,12 @@
     <string name="something_new_failed">No se pudieron cargar pistas para elegir.</string>
     <string name="something_new_from_downloads">Sin conexión: reproduciendo una pista descargada que no has escuchado.</string>
     <string name="radio_offline">Estás sin conexión. Para añadir más pistas se necesita conexión con tu servidor.</string>
+    <plurals name="offline_playlist_availability">
+        <item quantity="one">%1$d de %2$d pista disponible sin conexión</item>
+        <item quantity="other">%1$d de %2$d pistas disponibles sin conexión</item>
+    </plurals>
+    <string name="offline_playlist_saved_copy">Se muestra la copia descargada. Vuelve a conectarte para editar esta lista.</string>
+    <string name="offline_playlist_track_unavailable">No disponible sin conexión</string>
+    <string name="offline_playlist_action_unavailable">Vuelve a conectarte a tu servidor de música para usar esta acción.</string>
+    <string name="offline_playlist_nothing_playable">Ninguna pista de esta lista está disponible sin conexión.</string>
 </resources>

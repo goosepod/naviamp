@@ -51,6 +51,7 @@ fun <DownloadedFile, StoredDownload> repositoryNaviampCoreDownloadServices(
             downloadRepository.removeDownloadedAudio(sourceId, track.id)
             if (downloadRepository.downloadedTracks(sourceId).none { toCoreDownload(it).track.id == track.id }) {
                 keepDownloadedRepository.releaseTrackRetention(sourceId, track.id.value)
+                keepDownloadedRepository.pruneOrphanedOfflinePlaylists(sourceId, track.id.value)
             }
         }
 
@@ -63,6 +64,7 @@ fun <DownloadedFile, StoredDownload> repositoryNaviampCoreDownloadServices(
                     keepDownloadedRepository.releaseTrackRetention(sourceId, trackId.value)
                 }
             }
+            keepDownloadedRepository.pruneOrphanedOfflinePlaylists(sourceId)
             return downloads.size
         }
     }
@@ -165,7 +167,7 @@ fun <DownloadedFile, StoredDownload> repositoryNaviampCoreDownloadServices(
                 keepDownloadedRepository.unmarkManagedKeepDownloadedTracks(policy.sourceId, plan.trackIdsToRemove)
             }.let { keepDownloadedReconciliationApplication(policy, it) }
     }
-    return NaviampCoreDownloadServices(storage, transfer, keepDownloaded, network)
+    return NaviampCoreDownloadServices(storage, transfer, keepDownloaded, network, offlinePlaylists = keepDownloadedRepository)
 }
 
 internal suspend fun cacheDownloadedTrackArtwork(

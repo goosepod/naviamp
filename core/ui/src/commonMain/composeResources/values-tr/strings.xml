@@ -598,4 +598,12 @@
     <string name="something_new_failed">Seçilecek parçalar yüklenemedi.</string>
     <string name="something_new_from_downloads">Çevrimdışı: henüz dinlemediğiniz indirilmiş bir parça çalınıyor.</string>
     <string name="radio_offline">Çevrimdışısınız. Daha fazla parça için sunucunuza bağlantı gerekiyor.</string>
+    <plurals name="offline_playlist_availability">
+        <item quantity="one">%2$d parçadan %1$d tanesi çevrimdışı kullanılabilir</item>
+        <item quantity="other">%2$d parçadan %1$d tanesi çevrimdışı kullanılabilir</item>
+    </plurals>
+    <string name="offline_playlist_saved_copy">İndirilen kopya gösteriliyor. Bu çalma listesini düzenlemek için yeniden bağlanın.</string>
+    <string name="offline_playlist_track_unavailable">Çevrimdışı kullanılamaz</string>
+    <string name="offline_playlist_action_unavailable">Bu işlemi kullanmak için müzik sunucunuza yeniden bağlanın.</string>
+    <string name="offline_playlist_nothing_playable">Bu çalma listesindeki hiçbir parça çevrimdışı kullanılamıyor.</string>
 </resources>

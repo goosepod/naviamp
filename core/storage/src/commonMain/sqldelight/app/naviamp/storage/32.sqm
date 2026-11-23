@@ -1,0 +1,29 @@
+-- #620; main ends at migration 31 (database version 32) after #501. All unreleased #620 persistence changes belong in this migration.
+CREATE TABLE offline_playlist (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  playlist_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  cover_art_id TEXT,
+  duration_seconds INTEGER,
+  is_smart INTEGER NOT NULL DEFAULT 0,
+  comment TEXT,
+  owner TEXT,
+  retention TEXT NOT NULL,
+  saved_at_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, playlist_id)
+);
+
+CREATE TABLE offline_playlist_entry (
+  source_id TEXT NOT NULL,
+  playlist_id TEXT NOT NULL,
+  position INTEGER NOT NULL,
+  remote_track_id TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  PRIMARY KEY(source_id, playlist_id, position),
+  FOREIGN KEY(source_id, playlist_id)
+    REFERENCES offline_playlist(source_id, playlist_id)
+    ON DELETE CASCADE
+);
+
+CREATE INDEX offline_playlist_entry_track
+ON offline_playlist_entry(source_id, remote_track_id);

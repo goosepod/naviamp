@@ -1374,4 +1374,12 @@
     <string name="something_new_failed">Couldn't load tracks to choose from.</string>
     <string name="something_new_from_downloads">Offline: playing a downloaded track you haven't played.</string>
     <string name="radio_offline">You're offline. More tracks need a connection to your server.</string>
+    <plurals name="offline_playlist_availability">
+        <item quantity="one">%1$d of %2$d track available offline</item>
+        <item quantity="other">%1$d of %2$d tracks available offline</item>
+    </plurals>
+    <string name="offline_playlist_saved_copy">Showing the downloaded copy. Reconnect to edit this playlist.</string>
+    <string name="offline_playlist_track_unavailable">Not available offline</string>
+    <string name="offline_playlist_action_unavailable">Reconnect to your music server to use this action.</string>
+    <string name="offline_playlist_nothing_playable">No tracks in this playlist are available offline.</string>
 </resources>

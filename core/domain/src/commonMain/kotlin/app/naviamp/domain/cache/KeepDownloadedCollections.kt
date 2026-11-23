@@ -22,7 +22,8 @@ data class KeepDownloadedCollectionPolicy(
     val artistAlbumScope: ArtistAlbumScope = ArtistAlbumScope.FullCatalog,
 )
 
-interface KeepDownloadedRepository {
+/** Saved playlist snapshots belong with download-collection persistence so every store keeps them together. */
+interface KeepDownloadedRepository : OfflinePlaylistRepository {
     fun savedDownloadJobs(sourceId: String): List<PersistedDownloadJob>
 
     fun saveDownloadJob(job: PersistedDownloadJob)

@@ -16,6 +16,8 @@ import app.naviamp.ui.NaviampPlaylistDetailActionRequest
 import app.naviamp.ui.NaviampPlaylistDetailCommand
 import app.naviamp.ui.NaviampPlaylistMediaCommand
 import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.offlinePlaylistActionUnavailableMessage
+import app.naviamp.ui.offlinePlaylistNothingPlayableMessage
 import app.naviamp.ui.playlistStaleDraftMessage
 import app.naviamp.ui.smartPlaylistSelfReferenceMessage
 import kotlinx.coroutines.CancellationException
@@ -86,6 +88,8 @@ class NaviampCorePlaylistTransactionController(
     private val staleDraftMessage: suspend () -> String = ::playlistStaleDraftMessage,
     private val selfReferenceMessage: suspend () -> String = ::smartPlaylistSelfReferenceMessage,
     private val syncLibrary: app.naviamp.ui.NaviampSmartPlaylistSync = { error("Library sync is unavailable") },
+    private val offlineActionUnavailableMessage: suspend () -> String = ::offlinePlaylistActionUnavailableMessage,
+    private val offlineNothingPlayableMessage: suspend () -> String = ::offlinePlaylistNothingPlayableMessage,
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.Playlists.Detail,
@@ -154,6 +158,10 @@ class NaviampCorePlaylistTransactionController(
     }
 
     private suspend fun executeDetail(request: NaviampPlaylistDetailActionRequest) {
+        if (browseController.isPresentedOffline(request.playlist.id)) {
+            executeOfflineDetail(browseController.resolvePlaylist(request.playlist), request.command)
+            return
+        }
         val provider = providerOrPublish() ?: return
         val playlist = browseController.resolvePlaylist(request.playlist)
         publishStatus("Loading ${playlist.name}...")
@@ -219,7 +227,46 @@ class NaviampCorePlaylistTransactionController(
         }
     }
 
+    /** A saved copy plays and queues only verified local audio; server changes wait for reconnection. */
+    private suspend fun executeOfflineDetail(playlist: Playlist, command: NaviampPlaylistDetailCommand) {
+        runCatching {
+            when (command) {
+                is NaviampPlaylistDetailCommand.Play -> {
+                    val tracks = browseController.offlinePlayableTracks(playlist.id)
+                    if (tracks.isEmpty()) return publishStatus(offlineNothingPlayableMessage())
+                    playback.play(playlist, tracks, command.shuffle)
+                    publishStatus(null)
+                    openNowPlaying()
+                    recordPlayed(playlist.id)
+                }
+                NaviampPlaylistDetailCommand.AddToQueue -> {
+                    val tracks = browseController.offlinePlayableTracks(playlist.id)
+                    if (tracks.isEmpty()) return publishStatus(offlineNothingPlayableMessage())
+                    queue.addToQueue(playlist, tracks)
+                    publishStatus(null)
+                }
+                is NaviampPlaylistDetailCommand.SavePlaybackProfile ->
+                    playbackProfiles.savePlaylistProfile(playlist.id, command.profile)
+                is NaviampPlaylistDetailCommand.Download,
+                is NaviampPlaylistDetailCommand.AddToPlaylist,
+                is NaviampPlaylistDetailCommand.CreatePlaylistAndAdd,
+                is NaviampPlaylistDetailCommand.Copy,
+                is NaviampPlaylistDetailCommand.Rename,
+                NaviampPlaylistDetailCommand.Delete,
+                -> publishStatus(offlineActionUnavailableMessage())
+            }
+        }.onFailure { cause ->
+            if (cause is CancellationException) throw cause
+            publishStatus(cause.message ?: "Playlist action failed.")
+        }
+    }
+
     private suspend fun updateTracks(item: SharedMediaItemUi, requestedTrackIds: List<TrackId>, expectedTrackIds: List<String>?) {
+        if (browseController.isPresentedOffline(item.id)) {
+            val message = offlineActionUnavailableMessage()
+            publishStatus(message)
+            throw IllegalStateException(message)
+        }
         val provider = providerOrPublish() ?: return
         val generation = browseController.sourceGeneration
         fun isCurrent() = generation == browseController.sourceGeneration && providerSource.isCurrent(provider)

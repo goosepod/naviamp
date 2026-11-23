@@ -60,6 +60,8 @@ data class NaviampCoreDownloadServices(
     val transfer: NaviampCoreDownloadTransferPort,
     val keepDownloaded: NaviampCoreKeepDownloadedPort,
     val network: NaviampCoreMobileNetworkPort,
+    val offlinePlaylists: app.naviamp.domain.cache.OfflinePlaylistRepository =
+        app.naviamp.domain.cache.EmptyOfflinePlaylistRepository,
 )
 
 /** Native audio and sidecar effects behind the shared playback product. */

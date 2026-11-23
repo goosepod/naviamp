@@ -428,6 +428,10 @@ class NaviampCore private constructor(
                 services.content.playlistSupplement,
                 mediaRegistry = mediaRegistry,
                 playbackProfiles = playbackProfiles,
+                offlinePlaylists = NaviampCoreOfflinePlaylistSource(services.downloads.offlinePlaylists) { sourceId ->
+                    services.downloads.storage.availableDownloads(sourceId)
+                        ?.filter { it.sizeBytes > 0L }?.mapTo(mutableSetOf()) { it.track.id.value }
+                },
             )
             val radio = NaviampCoreInternetRadioController(
                 stateStore,
@@ -489,6 +493,7 @@ class NaviampCore private constructor(
                 services.downloads.keepDownloaded,
                 NaviampCoreDownloadedPlaybackPort { tracks, index -> queuePlayback.play(tracks, index) },
                 services.downloads.network,
+                services.downloads.offlinePlaylists,
             )
             val publishPlaylistQueueUpdate: () -> Unit = nowPlayingPresenter::publish
             val playlistTransactions = NaviampCorePlaylistTransactionController(
@@ -767,7 +772,10 @@ class NaviampCore private constructor(
                 onUserConnected = {
                     navigation.dispatch(NaviampCoreCommand.Navigation.SelectRoute(app.naviamp.ui.SharedRoute.Home))
                 },
-                onOfflineRestored = { sourceId -> restoreLocalSession(sourceId, false) },
+                onOfflineRestored = { sourceId ->
+                    restoreLocalSession(sourceId, false)
+                    scope.launch { playlistBrowse.refreshAfterConnection() }
+                },
             )
             if (initialState.connectionInventory.currentSourceId != null) {
                 scope.launch { providerSessionLifecycle.refreshNow() }

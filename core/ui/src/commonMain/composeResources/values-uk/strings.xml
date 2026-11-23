@@ -598,4 +598,14 @@
     <string name="something_new_failed">Не вдалося завантажити треки для вибору.</string>
     <string name="something_new_from_downloads">Офлайн: відтворюється завантажений трек, який ви ще не слухали.</string>
     <string name="radio_offline">Ви офлайн. Для нових треків потрібне підключення до сервера.</string>
+    <plurals name="offline_playlist_availability">
+        <item quantity="one">%1$d з %2$d трека доступний офлайн</item>
+        <item quantity="few">%1$d з %2$d треків доступні офлайн</item>
+        <item quantity="many">%1$d з %2$d треків доступні офлайн</item>
+        <item quantity="other">%1$d з %2$d трека доступні офлайн</item>
+    </plurals>
+    <string name="offline_playlist_saved_copy">Показано завантажену копію. Підключіться знову, щоб редагувати цей список відтворення.</string>
+    <string name="offline_playlist_track_unavailable">Недоступно офлайн</string>
+    <string name="offline_playlist_action_unavailable">Підключіться до музичного сервера знову, щоб скористатися цією дією.</string>
+    <string name="offline_playlist_nothing_playable">Жоден трек із цього списку відтворення не доступний офлайн.</string>
 </resources>

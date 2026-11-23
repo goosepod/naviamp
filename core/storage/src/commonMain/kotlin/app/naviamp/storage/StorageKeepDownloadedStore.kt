@@ -4,7 +4,12 @@ import app.naviamp.domain.cache.KeepDownloadedCollectionKind
 import app.naviamp.domain.cache.ArtistAlbumScope
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.cache.KeepDownloadedRepository
+import app.naviamp.domain.cache.OfflinePlaylistRetention
+import app.naviamp.domain.cache.OfflinePlaylistSnapshot
+import app.naviamp.domain.cache.OfflinePlaylistSummary
 import app.naviamp.domain.cache.PersistedDownloadJob
+import app.naviamp.domain.Playlist
+import app.naviamp.domain.settings.SavedTrack
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
@@ -96,6 +101,97 @@ class StorageKeepDownloadedStore(
     override fun releaseTrackRetention(sourceId: String, trackId: String) {
         queries.deleteDownloadRetentionForTrack(sourceId, trackId)
     }
+
+    override fun offlinePlaylistSummaries(sourceId: String): List<OfflinePlaylistSummary> {
+        val trackIds = queries.selectOfflinePlaylistTrackIds(sourceId).executeAsList()
+            .groupBy({ it.playlist_id }, { it.remote_track_id })
+        return queries.selectOfflinePlaylists(sourceId).executeAsList().map { row ->
+            val ids = trackIds[row.playlist_id].orEmpty()
+            OfflinePlaylistSummary(sourceId, row.toPlaylist().copy(trackCount = ids.size), ids, row.toRetention())
+        }
+    }
+
+    override fun offlinePlaylist(sourceId: String, playlistId: String): OfflinePlaylistSnapshot? {
+        val row = queries.selectOfflinePlaylist(sourceId, playlistId).executeAsOneOrNull() ?: return null
+        // A row that cannot be decoded is unknown content; omitting it would silently renumber the playlist.
+        val tracks = queries.selectOfflinePlaylistEntries(sourceId, playlistId).executeAsList().map { payload ->
+            jobJson.decodeFromString<SavedTrack>(payload).toTrack()
+        }
+        return OfflinePlaylistSnapshot(sourceId, row.toPlaylist().copy(trackCount = tracks.size), tracks, row.toRetention(), row.saved_at_epoch_millis)
+    }
+
+    override fun saveOfflinePlaylist(snapshot: OfflinePlaylistSnapshot) {
+        val playlist = snapshot.playlist
+        queries.transaction {
+            queries.deleteOfflinePlaylistEntries(snapshot.sourceId, playlist.id)
+            queries.upsertOfflinePlaylist(
+                snapshot.sourceId,
+                playlist.id,
+                playlist.name,
+                playlist.coverArtId,
+                playlist.durationSeconds?.toLong(),
+                if (playlist.isSmart) 1L else 0L,
+                playlist.comment,
+                playlist.owner,
+                snapshot.retention.name,
+                snapshot.savedAtEpochMillis.takeIf { it > 0L } ?: nowEpochMillis(),
+            )
+            snapshot.tracks.forEachIndexed { position, track ->
+                queries.insertOfflinePlaylistEntry(
+                    snapshot.sourceId,
+                    playlist.id,
+                    position.toLong(),
+                    track.id.value,
+                    jobJson.encodeToString(SavedTrack.fromTrack(track)),
+                )
+            }
+        }
+    }
+
+    override fun updateOfflinePlaylistDetails(sourceId: String, playlist: Playlist) {
+        queries.updateOfflinePlaylistDetails(
+            playlist.name,
+            playlist.coverArtId,
+            playlist.durationSeconds?.toLong(),
+            if (playlist.isSmart) 1L else 0L,
+            playlist.comment,
+            playlist.owner,
+            sourceId,
+            playlist.id,
+        )
+    }
+
+    override fun deleteOfflinePlaylist(sourceId: String, playlistId: String) {
+        queries.transaction {
+            queries.deleteOfflinePlaylistEntries(sourceId, playlistId)
+            queries.deleteOfflinePlaylist(sourceId, playlistId)
+        }
+    }
+
+    override fun pruneOrphanedOfflinePlaylists(sourceId: String, removedTrackId: String?) {
+        queries.transaction {
+            queries.selectOrphanedManualOfflinePlaylistIds(sourceId, removedTrackId).executeAsList().forEach {
+                queries.deleteOfflinePlaylistEntries(sourceId, it)
+                queries.deleteOfflinePlaylist(sourceId, it)
+            }
+        }
+    }
+
+    private fun Offline_playlist.toPlaylist() = Playlist(
+        id = playlist_id,
+        name = name,
+        trackCount = 0,
+        durationSeconds = duration_seconds?.toInt(),
+        coverArtId = cover_art_id,
+        isSmart = is_smart != 0L,
+        comment = comment,
+        owner = owner,
+        canEdit = false,
+        canManage = false,
+    )
+
+    private fun Offline_playlist.toRetention() =
+        runCatching { OfflinePlaylistRetention.valueOf(retention) }.getOrDefault(OfflinePlaylistRetention.Manual)
 
     private fun toPolicy(row: Keep_downloaded_collection) = KeepDownloadedCollectionPolicy(
         sourceId = row.source_id,

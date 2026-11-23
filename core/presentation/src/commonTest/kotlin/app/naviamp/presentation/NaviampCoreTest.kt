@@ -1205,7 +1205,7 @@ private fun fakeCoreSettingsSyncServices(): NaviampCoreSettingsSyncServices {
     )
 }
 
-private class FakeCorePlaybackEffects : NaviampCorePlaybackEffectPort {
+internal class FakeCorePlaybackEffects : NaviampCorePlaybackEffectPort {
     override val capabilities = NaviampCorePlaybackCapabilities()
     override val playbackSource = PlaybackSource.ProviderStream
     val selections = mutableListOf<PlaybackQueue>()

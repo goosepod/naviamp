@@ -1345,4 +1345,12 @@
     <string name="something_new_failed">Titel zur Auswahl konnten nicht geladen werden.</string>
     <string name="something_new_from_downloads">Offline: Ein heruntergeladener Titel, den du noch nicht gehört hast, wird abgespielt.</string>
     <string name="radio_offline">Du bist offline. Für weitere Titel ist eine Verbindung zu deinem Server nötig.</string>
+    <plurals name="offline_playlist_availability">
+        <item quantity="one">%1$d von %2$d Titel offline verfügbar</item>
+        <item quantity="other">%1$d von %2$d Titeln offline verfügbar</item>
+    </plurals>
+    <string name="offline_playlist_saved_copy">Heruntergeladene Kopie. Verbinde dich erneut, um diese Wiedergabeliste zu bearbeiten.</string>
+    <string name="offline_playlist_track_unavailable">Offline nicht verfügbar</string>
+    <string name="offline_playlist_action_unavailable">Verbinde dich erneut mit deinem Musikserver, um diese Aktion zu verwenden.</string>
+    <string name="offline_playlist_nothing_playable">Keine Titel dieser Wiedergabeliste sind offline verfügbar.</string>
 </resources>
