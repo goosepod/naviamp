@@ -655,6 +655,7 @@ class NaviampCore private constructor(
             playback.attachNativePlayback()
             val trackActions = NaviampCoreTrackActionController(mediaRegistry, mediaTransactions,
                 isUnavailableOfflinePlaylistTrack = playlistBrowse::isUnavailableOffline,
+                publishPlaylistNotice = playlistBrowse::publishDetailNotice,
                 openPlaylistMembership = playlistMembership::open)
             // Resolved mix commands re-enter the Connect-aware handler created below.
             var resolvedCommandHandler: NaviampCoreCommandHandler? = null

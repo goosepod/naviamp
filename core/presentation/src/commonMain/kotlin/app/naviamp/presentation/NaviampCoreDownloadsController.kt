@@ -403,12 +403,17 @@ class NaviampCoreDownloadsController(
     ) {
         val finished: (NaviampCoreDownloadOutcome) -> Unit = { outcome -> scope.launch { onFinished(outcome) } }
         if (option != KeepDownloadedActionValue) {
-            currentSourceId()?.let { sourceId ->
-                val kept = keepDownloaded.policies(sourceId).any { it.isPlaylistPolicy() && it.collectionId == playlist.id }
-                saveOfflinePlaylist(sourceId, playlist, tracks,
-                    if (kept) OfflinePlaylistRetention.KeepDownloaded else OfflinePlaylistRetention.Manual)
+            val notStarted = startDownload(playlist.name, tracks, replaceExisting = false, includeCompletedCount = true,
+                manualRetention = true, qualityOverride = null, onFinished = finished)
+            // A blocked start downloads nothing, so it must not create an offline copy.
+            if (notStarted == null || notStarted == NaviampCoreDownloadOutcome.Completed) {
+                currentSourceId()?.let { sourceId ->
+                    val kept = keepDownloaded.policies(sourceId).any { it.isPlaylistPolicy() && it.collectionId == playlist.id }
+                    saveOfflinePlaylist(sourceId, playlist, tracks,
+                        if (kept) OfflinePlaylistRetention.KeepDownloaded else OfflinePlaylistRetention.Manual)
+                }
             }
-            downloadTracks(playlist.name, tracks, onFinished = finished)
+            notStarted?.let(finished)
             return
         }
         val sourceId = sourceIdOrPublish() ?: return onFinished(NaviampCoreDownloadOutcome.Failed(NaviampCoreDownloadFailure.Other))

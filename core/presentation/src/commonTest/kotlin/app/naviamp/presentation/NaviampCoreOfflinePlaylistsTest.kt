@@ -193,12 +193,14 @@ class NaviampCoreOfflinePlaylistsTest {
         run {
             repeat(300) {
                 advanceUntilIdle()
-                if (fixture.core.state.value.overlays.status != null) return@run
+                if (fixture.core.state.value.shell.playlistDetail.status != null) return@run
                 Thread.sleep(10)
             }
         }
 
-        assertEquals("This track is not downloaded. Reconnect to play it.", fixture.core.state.value.overlays.status)
+        // The playlist page renders and announces its status line; the overlay status is never shown.
+        assertEquals("This track is not downloaded. Reconnect to play it.",
+            fixture.core.state.value.shell.playlistDetail.status)
         assertTrue(fixture.effects.selections.isEmpty())
         assertEquals(0, fixture.server.requests)
         fixture.core.close()

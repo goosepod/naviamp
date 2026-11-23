@@ -196,11 +196,13 @@ class NaviampCorePlaylistTransactionController(
                     val tracks = provider.playlistTracks(playlist.id)
                     val listStatus = "Starting download for ${playlist.name}..."
                     val detailStatus = "Download started."
+                    browseController.recordDownloadFailure(playlist.id, null)
                     publishListStatus(listStatus)
                     publishStatus(detailStatus)
                     downloads.download(playlist, tracks, command.value) { outcome ->
                         val result = (outcome as? NaviampCoreDownloadOutcome.Failed)
                             ?.let { downloadFailedMessage(playlist.name, it.reason) }
+                        browseController.recordDownloadFailure(playlist.id, result)
                         replaceStatusesIfUnchanged(listStatus, detailStatus, result)
                     }
                     return

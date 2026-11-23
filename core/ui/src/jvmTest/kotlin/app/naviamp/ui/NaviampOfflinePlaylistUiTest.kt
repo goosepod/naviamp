@@ -1,6 +1,11 @@
 package app.naviamp.ui
 
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -67,6 +72,28 @@ class NaviampOfflinePlaylistUiTest {
         onNodeWithText("Charlie").performClick()
         // Core answers an unavailable row with a notice instead of playing it.
         assertEquals(listOf("Bravo", "Charlie"), selected)
+    }
+
+    @Test fun playlistNoticeIsDisplayedAndAnnouncedPolitely() = runComposeUiTest {
+        val playlist = SharedMediaItemUi("road", "Road Trip", "1 track", canEditPlaylist = false,
+            offlineAvailability = NaviampOfflineAvailabilityUi(availableCount = 0, totalCount = 1))
+        val notice = "This track is not downloaded. Reconnect to play it."
+        setContent {
+            NaviampPlaylistDetailContent(
+                colors = NaviampColors(),
+                screen = NaviampPlaylistDetailScreenUi(
+                    selectedPlaylist = playlist,
+                    detail = SharedPlaylistDetailUi(playlist, listOf(row("x", "Xray", unavailable = true))),
+                    status = notice,
+                ),
+                actions = NaviampPlaylistDetailActions({}, {}, { _, _, _ -> }, {}),
+                playlistsActions = actions,
+                playlistChoices = emptyList(),
+            )
+        }
+
+        onNodeWithText(notice).assertIsDisplayed()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
     }
 
     @Test fun zeroAvailablePlaylistStaysVisibleWithPlaybackDisabled() = runComposeUiTest {

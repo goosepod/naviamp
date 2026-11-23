@@ -68,6 +68,8 @@ class NaviampCorePlaylistBrowseController(
     // Playlists currently presented from saved snapshots; their actions use only local audio.
     private var offlinePlaylistIds = emptySet<String>()
     private var offlineUnavailableTrackIds = emptySet<String>()
+    // The last failed download per playlist; opening its page must show it, not a generic status.
+    private var downloadFailures = emptyMap<String, String>()
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         NaviampCoreCommand.Playlists.Refresh -> NaviampCoreImmediateCommandResult.Deferred
@@ -161,6 +163,16 @@ class NaviampCorePlaylistBrowseController(
 
     internal fun isPresentedOffline(playlistId: String): Boolean = playlistId in offlinePlaylistIds
 
+    /** Records how the latest download of [playlistId] ended; null clears an earlier failure. */
+    internal fun recordDownloadFailure(playlistId: String, failure: String?) {
+        downloadFailures = if (failure == null) downloadFailures - playlistId else downloadFailures + (playlistId to failure)
+    }
+
+    /** Shows a notice on the open playlist page, whose status line is rendered and announced. */
+    internal fun publishDetailNotice(message: String) {
+        stateStore.updateShell { shell -> shell.copy(playlistDetail = shell.playlistDetail.copy(status = message)) }
+    }
+
     /** True for a row of the open saved copy whose audio is not on this device. */
     internal fun isUnavailableOffline(trackId: String): Boolean = trackId in offlineUnavailableTrackIds
 
@@ -251,7 +263,7 @@ class NaviampCorePlaylistBrowseController(
                             )
                         },
                     ),
-                    status = null,
+                    status = downloadFailures[playlist.id],
                     playbackProfile = playbackProfiles.playlistProfile(playlist.id),
                     playbackProfileStatus = null,
                 ),
@@ -267,6 +279,7 @@ class NaviampCorePlaylistBrowseController(
         playlistsById = emptyMap()
         offlinePlaylistIds = emptySet()
         offlineUnavailableTrackIds = emptySet()
+        downloadFailures = emptyMap()
         mediaRegistry.updatePlaylists(emptyList())
         mediaRegistry.updateSelectedPlaylist(null, emptyList())
         stateStore.updateShell { shell -> shell.copy(
@@ -450,7 +463,7 @@ class NaviampCorePlaylistBrowseController(
                                     canToggleFavorite = provider.capabilities.supportsTrackFavorites,
                                 ) },
                             ),
-                            status = "Connected.",
+                            status = downloadFailures[playlist.id] ?: "Connected.",
                             playbackProfile = playbackProfiles.playlistProfile(resolvedPlaylist.id),
                             playbackProfileStatus = null,
                         ),

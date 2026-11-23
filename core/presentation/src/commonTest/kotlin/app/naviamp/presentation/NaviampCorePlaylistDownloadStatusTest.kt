@@ -25,6 +25,16 @@ import kotlin.test.assertNull
 class NaviampCorePlaylistDownloadStatusTest {
     private val starting = "Starting download for Core Playlist..."
 
+    private class Snapshots : app.naviamp.domain.cache.OfflinePlaylistRepository by
+        app.naviamp.domain.cache.EmptyOfflinePlaylistRepository {
+        val saved = mutableMapOf<String, app.naviamp.domain.cache.OfflinePlaylistSnapshot>()
+        override fun saveOfflinePlaylist(snapshot: app.naviamp.domain.cache.OfflinePlaylistSnapshot) {
+            saved[snapshot.playlist.id] = snapshot
+        }
+    }
+
+    private val snapshots = Snapshots()
+
     private fun TestScope.core(
         provider: MediaProvider = FakeCoreMediaProvider(),
         mobileData: Boolean = false,
@@ -39,7 +49,7 @@ class NaviampCorePlaylistDownloadStatusTest {
             )
         }
         return NaviampCore.create(this, defaults.copy(downloads = defaults.downloads.copy(transfer = transfer,
-            network = NaviampCoreMobileNetworkPort { mobileData })), initial,
+            network = NaviampCoreMobileNetworkPort { mobileData }, offlinePlaylists = snapshots)), initial,
             onAsyncFailure = { command, cause -> throw IllegalStateException("Core command failed: $command", cause) })
     }
 
@@ -93,6 +103,50 @@ class NaviampCorePlaylistDownloadStatusTest {
         val expected = "Could not download Core Playlist. The download storage limit was reached."
         assertEquals(expected, core.state.value.shell.playlists.status)
         assertEquals(expected, core.state.value.shell.playlistDetail.status)
+        core.close()
+    }
+
+    @Test fun failureStaysOnThePlaylistPageWhenItIsOpenedLater() = runTest {
+        val core = core(transfer = NaviampCoreDownloadTransferPort { request, _, update ->
+            update(DownloadJobUpdate.Failed(request.tracks.first().id.value, DownloadStorageLimitExceededMessage))
+            NaviampCoreDownloadTransferResult(refreshDownloads = false)
+        })
+        core.download()
+        settle(core)
+        val item = FakeCoreMediaProvider().playlist.toSharedMediaItemUi(coverArtUrl = { null })
+        core.execute(NaviampCoreCommand.Media.ItemAction(app.naviamp.ui.NaviampMediaItemActionRequest(item,
+            app.naviamp.ui.NaviampMediaItemCommand.Playlist(app.naviamp.ui.NaviampPlaylistMediaCommand.Select))))
+        advanceUntilIdle()
+
+        assertEquals("Could not download Core Playlist. The download storage limit was reached.",
+            core.state.value.shell.playlistDetail.status)
+        core.close()
+    }
+
+    @Test fun blockedStartFromTheListReplacesAnEarlierFailureAndSavesNoSnapshot() = runTest {
+        val core = core(mobileData = true, transfer = NaviampCoreDownloadTransferPort { _, _, _ -> error("Started") })
+        core.stateStore.updateShell { it.copy(playlists = it.playlists.copy(status = "Could not download Folk Music.")) }
+        val item = FakeCoreMediaProvider().playlist.toSharedMediaItemUi(coverArtUrl = { null })
+        core.execute(NaviampCoreCommand.Media.ItemAction(app.naviamp.ui.NaviampMediaItemActionRequest(item,
+            app.naviamp.ui.NaviampMediaItemCommand.Playlist(app.naviamp.ui.NaviampPlaylistMediaCommand.Detail(
+                NaviampPlaylistDetailCommand.Download(null))))))
+        settle(core)
+
+        val expected = "Could not download Core Playlist. Downloads over mobile data are turned off."
+        assertEquals(expected, core.state.value.shell.playlists.status)
+        assertEquals(expected, core.state.value.shell.playlistDetail.status)
+        assertEquals(emptyMap(), snapshots.saved, "Nothing was downloaded, so no offline copy may appear")
+        core.close()
+    }
+
+    @Test fun startedDownloadSavesTheSnapshot() = runTest {
+        val core = core(transfer = NaviampCoreDownloadTransferPort { _, _, update ->
+            update(DownloadJobUpdate.Completed)
+            NaviampCoreDownloadTransferResult(refreshDownloads = false)
+        })
+        core.download()
+        settle(core)
+        assertEquals(setOf("core-playlist"), snapshots.saved.keys)
         core.close()
     }
 

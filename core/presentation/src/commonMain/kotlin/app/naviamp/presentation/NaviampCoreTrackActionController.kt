@@ -11,6 +11,7 @@ class NaviampCoreTrackActionController(
     private val media: NaviampCoreMediaTransactions,
     private val isUnavailableOfflinePlaylistTrack: (String) -> Boolean = { false },
     private val notDownloadedMessage: suspend () -> String = ::offlinePlaylistTrackNotDownloadedMessage,
+    private val publishPlaylistNotice: (String) -> Unit = {},
     private val openPlaylistMembership: suspend (Track) -> Unit,
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
@@ -51,11 +52,13 @@ class NaviampCoreTrackActionController(
         val track = tracks.getOrNull(index)
         if (track == null && command is NaviampCoreCommand.Detail.PlaylistTrack &&
             isUnavailableOfflinePlaylistTrack(request.track.id)) {
-            media.publish(notDownloadedMessage())
+            publishPlaylistNotice(notDownloadedMessage())
             return NaviampCoreCommandResult.Completed
         }
         if (track == null) {
-            media.publish("Track is no longer available.")
+            // The playlist page renders its own status line; other surfaces keep the shared notice.
+            if (command is NaviampCoreCommand.Detail.PlaylistTrack) publishPlaylistNotice("Track is no longer available.")
+            else media.publish("Track is no longer available.")
             return NaviampCoreCommandResult.Completed
         }
         when (request.action) {
