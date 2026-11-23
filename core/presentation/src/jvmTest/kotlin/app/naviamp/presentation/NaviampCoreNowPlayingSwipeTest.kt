@@ -1,5 +1,6 @@
 package app.naviamp.presentation
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsActions
@@ -20,7 +21,11 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.runDesktopComposeUiTest
 import androidx.compose.ui.test.swipe
+import app.naviamp.ui.LocalNaviampSystemBackDispatcher
+import app.naviamp.ui.NaviampAlbumDetailScreenUi
 import app.naviamp.ui.NaviampAppShellUiState
+import app.naviamp.ui.NaviampSystemBackDispatcher
+import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.NaviampConnectionSettingsUi
 import app.naviamp.ui.NaviampShellChromeUi
 import app.naviamp.ui.NaviampShellConnectionUi
@@ -89,6 +94,57 @@ class NaviampCoreNowPlayingSwipeTest {
             onAllNodesWithContentDescription("Home").onFirst().assertIsDisplayed()
             assertEquals(scrolled, settings.verticalScroll())
             onNode(hasText("Song") and hasAnyAncestor(hasTestTag(sheetTag))).assertDoesNotExist()
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun backDuringASwipeOpenSettleKeepsTheAlbumUnderneath() = runDesktopComposeUiTest(400, 540) {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val core = NaviampCore.create(scope, fakeCoreServices())
+        val open = mutableStateOf(false)
+        var opens = 0
+        var albumBacks = 0
+        val dispatcher = NaviampSystemBackDispatcher()
+        val shell = core.actions.shell
+        val actions = shell.copy(
+            navigationActions = shell.navigationActions.copy(
+                onOpenNowPlaying = { opens++; open.value = true },
+                onCloseNowPlaying = { open.value = false },
+            ),
+            albumDetailActions = shell.albumDetailActions.copy(onBack = { albumBacks++ }),
+        )
+        try {
+            setContent {
+                CompositionLocalProvider(LocalNaviampSystemBackDispatcher provides dispatcher) {
+                    NaviampSharedAppShell(
+                        uiState = NaviampAppShellUiState(
+                            connectionSettings = NaviampConnectionSettingsUi(
+                                connection = NaviampShellConnectionUi(connected = true),
+                            ),
+                            shellChrome = NaviampShellChromeUi(selectedRoute = SharedRoute.Library, nowPlayingOpen = open.value),
+                            albumDetail = NaviampAlbumDetailScreenUi(selectedAlbum = SharedMediaItemUi("album", "Album", "Artist")),
+                            nowPlaying = NowPlayingUi(id = "song", title = "Song", subtitle = "Artist", stateLabel = "Paused"),
+                        ),
+                        actions = actions,
+                        syncActions = core.actions.settingsSync,
+                    )
+                }
+            }
+            waitForIdle()
+            mainClock.autoAdvance = false
+            onNode(hasText("Song")).performTouchInput { swipe(Offset(centerX, centerY), Offset(centerX, centerY - 400f), 300) }
+            repeat(3) { mainClock.advanceTimeByFrame() }
+            runOnUiThread { dispatcher.currentHandler?.invoke() }
+            mainClock.autoAdvance = true
+            waitForIdle()
+            assertEquals(0, opens)
+            assertEquals(0, albumBacks)
+            assertEquals(false, open.value)
+            onNodeWithTag(sheetTag).assertDoesNotExist()
+            runOnIdle { dispatcher.currentHandler?.invoke() }
+            assertEquals(1, albumBacks)
         } finally {
             scope.cancel()
         }

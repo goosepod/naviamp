@@ -13,6 +13,7 @@ import androidx.compose.foundation.gestures.verticalDrag
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
@@ -113,6 +114,10 @@ internal class NaviampNowPlayingSheetState internal constructor(
     private var lastVelocity = 0f
     private var animation: Job? = null
     private var preparation: Job? = null
+    internal var backDispatcher: NaviampSystemBackDispatcher? = null
+    private val backKey = Any()
+    private var pendingOpen: Boolean? = null
+    private var pendingCommand: (() -> Unit)? = null
 
     /** True while a touch on the mini player may become a drag, so the player is built before it moves. */
     private var preparing by mutableStateOf(false)
@@ -123,11 +128,15 @@ internal class NaviampNowPlayingSheetState internal constructor(
     val coversBase by derivedStateOf { open && !dragging && closedFraction <= 0f && sheetAlpha >= 1f }
 
     internal fun onOpenChanged(value: Boolean) {
+        // The shared state moved on its own (for example a route change), so a deferred
+        // command from an earlier release no longer applies.
+        clearPending()
         open = value
         if (!dragging) settleTo(value)
     }
 
     internal fun startDrag() {
+        commitPending()
         animation?.cancel()
         dragStartedOpen = open
         dragFraction = closedFraction
@@ -164,10 +173,41 @@ internal class NaviampNowPlayingSheetState internal constructor(
         dragging = false
         val settleOpen = naviampNowPlayingSheetSettlesOpen(dragStartedOpen, dragFraction, velocityPx, flingThresholdPx)
         lastVelocity = if (heightPx > 0f) velocityPx / heightPx else 0f
+        if (settleOpen == open) {
+            settleTo(settleOpen)
+            return
+        }
         // The command recomposes the shell, so it is committed once the player has settled
         // instead of in the frame where the finger lifts.
-        settleTo(settleOpen) {
-            if (settleOpen != open) if (settleOpen) onOpen() else onClose()
+        pendingOpen = settleOpen
+        pendingCommand = if (settleOpen) onOpen else onClose
+        backDispatcher?.register(backKey, ::backWhilePending)
+        settleTo(settleOpen) { commitPending() }
+    }
+
+    /**
+     * Sends a settle's deferred command now. Any touch on the player does this first, so controls
+     * and later gestures act on the state the user already sees.
+     */
+    internal fun commitPending() {
+        val target = pendingOpen ?: return
+        val command = pendingCommand
+        clearPending()
+        open = target
+        command?.invoke()
+    }
+
+    internal fun clearPending() {
+        pendingOpen = null
+        pendingCommand = null
+        backDispatcher?.unregister(backKey)
+    }
+
+    /** Back acts on where the player is heading, never on the browse route behind it. */
+    private fun backWhilePending() {
+        if (pendingOpen == true) {
+            clearPending()
+            settleTo(false)
         }
     }
 
@@ -241,7 +281,12 @@ internal fun rememberNaviampNowPlayingSheetState(open: Boolean): NaviampNowPlayi
         NaviampNowPlayingSheetState(open, scope, naviampNowPlayingSheetFlingThresholdPx(density))
     }
     val reducedMotion = naviampReducedMotion()
-    SideEffect { state.reducedMotion = reducedMotion }
+    val backDispatcher = LocalNaviampSystemBackDispatcher.current
+    SideEffect {
+        state.reducedMotion = reducedMotion
+        state.backDispatcher = backDispatcher
+    }
+    DisposableEffect(state) { onDispose { state.clearPending() } }
     LaunchedEffect(state, open) { state.onOpenChanged(open) }
     return state
 }
@@ -370,6 +415,7 @@ private fun NaviampNowPlayingDismissSurface(
             .pointerInput(state) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    state.commitPending()
                     gesture.touch = down.isTouch()
                     gesture.contentScrolled = false
                     gesture.velocity.resetTracking()

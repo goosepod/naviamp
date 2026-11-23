@@ -32,6 +32,7 @@ import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.runDesktopComposeUiTest
 import androidx.compose.ui.test.swipe
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.unit.dp
 import kotlin.test.Test
@@ -45,6 +46,11 @@ class NaviampNowPlayingSheetUiTest {
         var closes = 0
         var opens = 0
         val displayActions = mutableListOf<NowPlayingDisplayAction>()
+        val backDispatcher = NaviampSystemBackDispatcher()
+        var routeBacks = 0
+
+        /** Delivers one system Back press the way the hosts do: to the deepest shared handler. */
+        fun pressBack() = backDispatcher.currentHandler?.invoke()
     }
 
     private fun sheetTest(
@@ -63,7 +69,12 @@ class NaviampNowPlayingSheetUiTest {
     ) {
         val harness = Harness().apply { open.value = initiallyOpen }
         setContent {
-            CompositionLocalProvider(LocalNaviampReducedMotion provides reducedMotion) {
+            CompositionLocalProvider(
+                LocalNaviampReducedMotion provides reducedMotion,
+                LocalNaviampSystemBackDispatcher provides harness.backDispatcher,
+            ) {
+                // Stands in for the browse route's own Back handling underneath the player.
+                NaviampSystemBackHandler(enabled = true) { harness.routeBacks++ }
                 SheetHarness(harness, solidLayers, sheetColor)
             }
         }
@@ -75,7 +86,13 @@ class NaviampNowPlayingSheetUiTest {
     private fun SheetHarness(harness: Harness, solidLayers: Boolean, sheetColor: Color) {
         val nowPlaying = NowPlayingUi(id = "song", title = "Song", subtitle = "Artist", stateLabel = "Paused")
         val actions = NaviampNowPlayingActions(
-            {}, { harness.displayActions += it.action }, {}, {}, {}, {}, {},
+            {},
+            {
+                harness.displayActions += it.action
+                // Like the shared navigation controller, Collapse closes and is a no-op when closed.
+                if (it.action == NowPlayingDisplayAction.Collapse) harness.open.value = false
+            },
+            {}, {}, {}, {}, {},
         )
         val state = rememberNaviampNowPlayingSheetState(harness.open.value)
         NaviampNowPlayingSheetLayers(
@@ -240,6 +257,54 @@ class NaviampNowPlayingSheetUiTest {
         waitForIdle()
         onNodeWithTag("browse").assertIsDisplayed()
         assertEquals(Color.Blue, pixel(200, 400))
+    }
+
+    @Test
+    fun backDuringASwipeOpenSettleReturnsToMinimized() = sheetTest(initiallyOpen = false) { harness ->
+        mainClock.autoAdvance = false
+        onNodeWithTag("mini").performTouchInput { swipe(Offset(centerX, centerY), Offset(centerX, centerY - 500f), 300) }
+        repeat(3) { mainClock.advanceTimeByFrame() }
+        assertTrue(sheet().top() > 0f, "expected the player to still be settling")
+        runOnUiThread { harness.pressBack() }
+        finishTransition()
+        assertEquals(0, harness.opens)
+        assertEquals(false, harness.open.value)
+        assertEquals(0, harness.routeBacks)
+        sheet().assertDoesNotExist()
+        onNodeWithTag("browse").assertIsDisplayed()
+    }
+
+    @Test
+    fun backDuringASwipeCloseSettleIsConsumed() = sheetTest { harness ->
+        mainClock.autoAdvance = false
+        sheet().performTouchInput { swipe(Offset(centerX, 150f), Offset(centerX, 600f), 300) }
+        repeat(3) { mainClock.advanceTimeByFrame() }
+        assertEquals(0, harness.closes)
+        runOnUiThread { harness.pressBack() }
+        finishTransition()
+        assertEquals(1, harness.closes)
+        assertEquals(0, harness.routeBacks)
+        sheet().assertDoesNotExist()
+        onNodeWithTag("browse").assertIsDisplayed()
+        harness.pressBack()
+        assertEquals(1, harness.routeBacks)
+    }
+
+    @Test
+    fun tapInsideThePlayerRightAfterASwipeOpenUsesTheOpenState() = sheetTest(initiallyOpen = false) { harness ->
+        mainClock.autoAdvance = false
+        onNodeWithTag("mini").performTouchInput { swipe(Offset(centerX, centerY), Offset(centerX, centerY - 500f), 300) }
+        var frames = 0
+        // The visible end of the spring: the player has arrived but has not settled to 0 yet.
+        while (sheet().top() > 3f && frames++ < 120) mainClock.advanceTimeByFrame()
+        assertTrue(sheet().top() > 0f, "expected the player to still be settling")
+        assertEquals(0, harness.opens)
+        onNodeWithContentDescription("Collapse player").performTouchInput { click() }
+        finishTransition()
+        assertEquals(1, harness.opens)
+        assertEquals(listOf(NowPlayingDisplayAction.Collapse), harness.displayActions)
+        assertEquals(false, harness.open.value)
+        sheet().assertDoesNotExist()
     }
 
     @Test
