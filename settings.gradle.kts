@@ -45,3 +45,6 @@ if (providers.gradleProperty("naviamp.tvos.sceneHost").orNull == "true") {
     include(":apps:tvos")
 }
 include(":tools:genre-ontology")
+if (providers.gradleProperty("naviamp.spikes.localFolder").orNull == "true") {
+    include(":tools:spikes:local-folder")
+}
