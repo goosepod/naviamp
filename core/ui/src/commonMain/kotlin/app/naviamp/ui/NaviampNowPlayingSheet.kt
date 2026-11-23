@@ -389,7 +389,6 @@ internal fun NaviampNowPlayingSheetLayers(
 
 private class NaviampSheetGesture {
     var touch = false
-    var pointerDown = false
     var contentScrolled = false
     val velocity = VelocityTracker()
 }
@@ -402,7 +401,6 @@ private fun NaviampNowPlayingDismissSurface(
 ) {
     val currentOnClose by rememberUpdatedState(onClose)
     val gesture = remember { NaviampSheetGesture() }
-    val watchdogScope = rememberCoroutineScope()
     val connection = remember(state) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource) =
@@ -448,23 +446,10 @@ private fun NaviampNowPlayingDismissSurface(
                     gesture.contentScrolled = false
                     gesture.velocity.resetTracking()
                     gesture.velocity.addPointerInputChange(down)
-                    gesture.pointerDown = true
-                    try {
-                        do {
-                            val event = awaitPointerEvent(PointerEventPass.Initial)
-                            event.changes.firstOrNull { it.id == down.id }?.let { gesture.velocity.addPointerInputChange(it) }
-                        } while (event.changes.any { it.pressed })
-                    } finally {
-                        gesture.pointerDown = false
-                        // A scrollable removed mid-drag never delivers its fling, so a dismiss
-                        // drag it started would otherwise stay open-ended.
-                        if (state.dragging) {
-                            watchdogScope.launch {
-                                repeat(2) { withFrameNanos { } }
-                                if (state.dragging && !gesture.pointerDown) state.release(0f, onOpen = {}, onClose = currentOnClose)
-                            }
-                        }
-                    }
+                    do {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        event.changes.firstOrNull { it.id == down.id }?.let { gesture.velocity.addPointerInputChange(it) }
+                    } while (event.changes.any { it.pressed })
                 }
             }
             .nestedScroll(connection)

@@ -462,7 +462,7 @@ class NaviampNowPlayingSheetUiTest {
         }
         mainClock.advanceTimeByFrame()
         assertTrue(sheet().top() > 0f, "expected a dismiss drag through nested scroll")
-        // The scrolling panel leaves composition mid-drag, so it never sends its fling.
+        // The scrolling panel that carries the dismiss drag leaves composition mid-drag.
         runOnUiThread { harness.plainSheet.value = true }
         repeat(2) { mainClock.advanceTimeByFrame() }
         sheet().performTouchInput { up() }
