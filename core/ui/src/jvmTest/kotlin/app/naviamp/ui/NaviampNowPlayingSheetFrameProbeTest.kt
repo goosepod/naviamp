@@ -24,7 +24,9 @@ import kotlin.test.assertEquals
 
 /**
  * Counts composition, measure, placement and draw work in the browse layer and the player for
- * individual frames of a drag, a tap-open and a close, so first-frame bursts are visible on the JVM.
+ * individual frames of a drag, a release, a tap-open and a close, so frame bursts are visible on
+ * the JVM. Release probes give the browse layer the app state that carries the open command, as
+ * the shared shell does, so committing that command recomposes it.
  */
 @OptIn(ExperimentalTestApi::class)
 class NaviampNowPlayingSheetFrameProbeTest {
@@ -33,6 +35,7 @@ class NaviampNowPlayingSheetFrameProbeTest {
         var measures = 0
         var placements = 0
         var draws = 0
+        var lastAppState: Any? = null
         fun snapshot() = listOf(compositions, measures, placements, draws)
     }
 
@@ -52,23 +55,38 @@ class NaviampNowPlayingSheetFrameProbeTest {
     }.drawBehind { counters.draws++ }
 
     @Composable
-    private fun Rows(counters: Counters, count: Int) {
+    private fun Rows(counters: Counters, count: Int, appState: Any? = null) {
         Column(Modifier.fillMaxSize()) {
             repeat(count) {
-                SideEffect { counters.compositions++ }
+                // Reading appState keeps the compiler from skipping rows when only it changes.
+                SideEffect { counters.compositions++; counters.lastAppState = appState }
                 Box(Modifier.fillMaxWidth().height(20.dp).counted(counters))
             }
         }
     }
 
-    private fun probeTest(block: ComposeUiTest.(Probe) -> Unit) = runDesktopComposeUiTest(400, 800) {
-        val probe = Probe()
+    private fun probeTest(
+        initiallyOpen: Boolean = true,
+        browseReceivesAppState: Boolean = false,
+        block: ComposeUiTest.(Probe) -> Unit,
+    ) = runDesktopComposeUiTest(400, 800) {
+        val probe = Probe().apply { open.value = initiallyOpen }
         setContent {
-            val state = rememberNaviampNowPlayingSheetState(probe.open.value)
+            val open = probe.open.value
+            val state = rememberNaviampNowPlayingSheetState(open)
             NaviampNowPlayingSheetLayers(
                 state = state,
                 onClose = { probe.open.value = false },
-                base = { Rows(probe.browse, 40) },
+                base = {
+                    Column(Modifier.fillMaxSize()) {
+                        Box(
+                            Modifier.fillMaxWidth().height(60.dp)
+                                .naviampNowPlayingOpenGesture(state) { probe.open.value = true }
+                                .testTag("probe-mini"),
+                        )
+                        Rows(probe.browse, 40, appState = open.takeIf { browseReceivesAppState })
+                    }
+                },
                 sheet = { Box(Modifier.fillMaxSize().testTag("probe-sheet")) { Rows(probe.sheet, 20) } },
             )
         }
@@ -122,6 +140,72 @@ class NaviampNowPlayingSheetFrameProbeTest {
         moves.forEach { (_, player) -> assertEquals(idle, player) }
         sheet.performTouchInput { up() }
         waitForIdle()
+    }
+
+    @Test
+    fun releaseFrames() = probeTest(browseReceivesAppState = true) { probe ->
+        val sheet = onNodeWithTag("probe-sheet")
+        sheet.performTouchInput {
+            down(Offset(centerX, 100f))
+            repeat(9) { moveBy(Offset(0f, 50f), delayMillis = 32) }
+        }
+        waitForIdle()
+        val settle = report("release past the threshold", frames(probe, 40) { sheet.performTouchInput { up() } })
+        // Lifting the finger only starts the settle animation; the close command is committed
+        // once the player has left the screen.
+        settle.take(5).forEach { (browse, player) ->
+            assertEquals(idle, browse)
+            assertEquals(idle, player)
+        }
+        waitForIdle()
+        assertEquals(false, probe.open.value)
+    }
+
+    @Test
+    fun springBackReleaseFrames() = probeTest(browseReceivesAppState = true) { probe ->
+        val sheet = onNodeWithTag("probe-sheet")
+        sheet.performTouchInput {
+            down(Offset(centerX, 100f))
+            repeat(3) { moveBy(Offset(0f, 30f), delayMillis = 200) }
+        }
+        waitForIdle()
+        val settle = report("release below the threshold", frames(probe, 30) { sheet.performTouchInput { up() } })
+        settle.forEach { (browse, player) ->
+            assertEquals(idle, browse)
+            assertEquals(idle, player)
+        }
+        assertEquals(true, probe.open.value)
+    }
+
+    @Test
+    fun miniPlayerDragBuildsThePlayerBeforeItMoves() = probeTest(initiallyOpen = false, browseReceivesAppState = true) { probe ->
+        val mini = onNodeWithTag("probe-mini")
+        val down = report("mini player touch-down", frames(probe, 3) { mini.performTouchInput { down(center) } })
+        val firstMove = report("mini player first move", frames(probe, 2) { mini.performTouchInput { moveBy(Offset(0f, -40f)) } })
+        assertEquals(20, down.sumOf { (_, player) -> player[0] })
+        firstMove.forEach { (browse, player) ->
+            assertEquals(idle, browse)
+            assertEquals(0, player[0])
+            assertEquals(0, player[1])
+        }
+        val release = report("mini player release", frames(probe, 5) {
+            mini.performTouchInput { repeat(8) { moveBy(Offset(0f, -50f), delayMillis = 32) }; up() }
+        })
+        release.forEach { (browse, _) -> assertEquals(idle, browse) }
+        waitForIdle()
+        assertEquals(true, probe.open.value)
+    }
+
+    @Test
+    fun miniPlayerTouchWithoutDragDoesNotKeepThePlayer() = probeTest(initiallyOpen = false) { probe ->
+        onNodeWithTag("probe-mini").performTouchInput { down(center); up() }
+        mainClock.advanceTimeBy(1_000)
+        waitForIdle()
+        onNodeWithTag("probe-sheet").assertDoesNotExist()
+        report("minimized idle", frames(probe, 3) {}).forEach { (browse, player) ->
+            assertEquals(idle, browse)
+            assertEquals(idle, player)
+        }
     }
 
     @Test

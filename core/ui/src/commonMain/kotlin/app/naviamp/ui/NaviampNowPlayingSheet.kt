@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Velocity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 internal const val NaviampNowPlayingSheetDistanceFraction = 0.25f
@@ -62,6 +63,7 @@ internal const val NaviampNowPlayingSheetFlingDpPerSecond = 1000f
 internal const val NaviampNowPlayingSheetTestTag = "now-playing-sheet"
 private const val NaviampNowPlayingSheetScrimAlpha = 0.32f
 internal const val NaviampNowPlayingSheetFadeMillis = 200
+private const val NaviampNowPlayingSheetPreparationMillis = 500L
 
 internal fun naviampNowPlayingSheetFlingThresholdPx(density: Float): Float =
     NaviampNowPlayingSheetFlingDpPerSecond * density
@@ -110,8 +112,12 @@ internal class NaviampNowPlayingSheetState internal constructor(
     private var dragFraction = closedFraction
     private var lastVelocity = 0f
     private var animation: Job? = null
+    private var preparation: Job? = null
 
-    val presented by derivedStateOf { open || dragging || closedFraction < 1f }
+    /** True while a touch on the mini player may become a drag, so the player is built before it moves. */
+    private var preparing by mutableStateOf(false)
+
+    val presented by derivedStateOf { open || dragging || preparing || closedFraction < 1f }
 
     /** The settled player hides the browse layer completely, so that layer must not be visible. */
     val coversBase by derivedStateOf { open && !dragging && closedFraction <= 0f && sheetAlpha >= 1f }
@@ -138,25 +144,49 @@ internal class NaviampNowPlayingSheetState internal constructor(
         return used
     }
 
+    /** Composes the player off screen when a touch lands on the mini player. */
+    internal fun prepare() {
+        preparation?.cancel()
+        preparing = true
+    }
+
+    /** Releases a preparation that did not become a drag, after a tap has had time to open. */
+    internal fun endPreparation() {
+        preparation?.cancel()
+        preparation = scope.launch {
+            delay(NaviampNowPlayingSheetPreparationMillis)
+            if (!dragging) preparing = false
+        }
+    }
+
     internal fun release(velocityPx: Float, onOpen: () -> Unit, onClose: () -> Unit) {
         if (!dragging) return
         dragging = false
         val settleOpen = naviampNowPlayingSheetSettlesOpen(dragStartedOpen, dragFraction, velocityPx, flingThresholdPx)
         lastVelocity = if (heightPx > 0f) velocityPx / heightPx else 0f
-        settleTo(settleOpen)
-        if (settleOpen != open) if (settleOpen) onOpen() else onClose()
+        // The command recomposes the shell, so it is committed once the player has settled
+        // instead of in the frame where the finger lifts.
+        settleTo(settleOpen) {
+            if (settleOpen != open) if (settleOpen) onOpen() else onClose()
+        }
     }
 
-    private fun settleTo(open: Boolean) {
+    private fun finishSettle(onSettled: (() -> Unit)?) {
+        lastVelocity = 0f
+        preparing = false
+        onSettled?.invoke()
+    }
+
+    private fun settleTo(open: Boolean, onSettled: (() -> Unit)? = null) {
         animation?.cancel()
         if (reducedMotion) {
-            fadeTo(open)
+            fadeTo(open, onSettled)
             return
         }
         sheetAlpha = 1f
         val target = if (open) 0f else 1f
         if (closedFraction == target) {
-            lastVelocity = 0f
+            finishSettle(onSettled)
             return
         }
         animation = scope.launch {
@@ -173,11 +203,11 @@ internal class NaviampNowPlayingSheetState internal constructor(
                 closedFraction = value
                 lastVelocity = velocity
             }
-            lastVelocity = 0f
+            finishSettle(onSettled)
         }
     }
 
-    private fun fadeTo(open: Boolean) {
+    private fun fadeTo(open: Boolean, onSettled: (() -> Unit)?) {
         lastVelocity = 0f
         if (open && closedFraction > 0f) {
             sheetAlpha = 0f
@@ -187,6 +217,7 @@ internal class NaviampNowPlayingSheetState internal constructor(
         if (closedFraction >= 1f || sheetAlpha == target) {
             if (!open) closedFraction = 1f
             sheetAlpha = 1f
+            finishSettle(onSettled)
             return
         }
         animation = scope.launch {
@@ -197,6 +228,7 @@ internal class NaviampNowPlayingSheetState internal constructor(
             ) { value, _ -> sheetAlpha = value }
             if (!open) closedFraction = 1f
             sheetAlpha = 1f
+            finishSettle(onSettled)
         }
     }
 }
@@ -391,6 +423,7 @@ internal fun Modifier.naviampNowPlayingOpenGesture(
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false)
         if (!down.isTouch() || state.open) return@awaitEachGesture
+        state.prepare()
         val velocity = VelocityTracker().apply { addPointerInputChange(down) }
         var overSlop = 0f
         val drag = awaitVerticalTouchSlopOrCancellation(down.id) { change, over ->
@@ -398,7 +431,11 @@ internal fun Modifier.naviampNowPlayingOpenGesture(
                 change.consume()
                 overSlop = over
             }
-        } ?: return@awaitEachGesture
+        }
+        if (drag == null) {
+            state.endPreparation()
+            return@awaitEachGesture
+        }
         velocity.addPointerInputChange(drag)
         state.startDrag()
         state.dragBy(overSlop)

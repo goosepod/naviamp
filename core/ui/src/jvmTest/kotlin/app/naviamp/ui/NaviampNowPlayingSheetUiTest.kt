@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.background
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.MotionDurationScale
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -51,8 +52,15 @@ class NaviampNowPlayingSheetUiTest {
         reducedMotion: Boolean = false,
         solidLayers: Boolean = false,
         sheetColor: Color = Color.Red,
+        animationDurationScale: Float = 1f,
         block: ComposeUiTest.(Harness) -> Unit,
-    ) = runDesktopComposeUiTest(400, 800) {
+    ) = runDesktopComposeUiTest(
+        400,
+        800,
+        effectContext = object : MotionDurationScale {
+            override val scaleFactor = animationDurationScale
+        },
+    ) {
         val harness = Harness().apply { open.value = initiallyOpen }
         setContent {
             CompositionLocalProvider(LocalNaviampReducedMotion provides reducedMotion) {
@@ -266,6 +274,29 @@ class NaviampNowPlayingSheetUiTest {
         finishTransition()
         assertEquals(Color.Red, pixel(200, 400))
         onNodeWithTag("browse").assertDoesNotExist()
+    }
+
+    /**
+     * Android "Remove animations" both reports reduced motion and sets the animation duration scale
+     * to 0. The owner chose an instant cut there, so no translated or blended frame may appear.
+     */
+    @Test
+    fun removeAnimationsCutsWithoutAnIntermediateFrame() = sheetTest(
+        reducedMotion = true,
+        solidLayers = true,
+        animationDurationScale = 0f,
+    ) { harness ->
+        mainClock.autoAdvance = false
+        harness.open.value = false
+        mainClock.advanceTimeByFrame()
+        mainClock.advanceTimeByFrame()
+        assertEquals(Color.Blue, pixel(200, 400))
+        harness.open.value = true
+        mainClock.advanceTimeByFrame()
+        mainClock.advanceTimeByFrame()
+        assertEquals(Color.Red, pixel(200, 400))
+        assertEquals(0f, sheet().top())
+        finishTransition()
     }
 
     @Test
