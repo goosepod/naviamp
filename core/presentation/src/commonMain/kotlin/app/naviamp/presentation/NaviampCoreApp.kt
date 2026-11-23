@@ -14,7 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import app.naviamp.ui.NaviampLocaleEnvironment
-import app.naviamp.ui.createNaviampLocaleEffect
 import app.naviamp.ui.NaviampApplicationUpdateChecker
 import app.naviamp.ui.NaviampApplicationSurface
 import app.naviamp.ui.LocalNaviampApplicationSurface
@@ -124,7 +123,7 @@ fun NaviampCoreApp(
             core.maintainProviderSession()
         }
     }
-    NaviampLocaleEnvironment(state.shell.general.interfaceSettings.language, remember { createNaviampLocaleEffect() }) {
+    NaviampLocaleEnvironment {
         NaviampScreenAwakeEnvironment(screenAwakeEffect, state.shell.general.interfaceSettings.keepScreenAwake) {
             CompositionLocalProvider(LocalNaviampApplicationSurface provides applicationSurface) {
               Box(Modifier.fillMaxSize()) {
