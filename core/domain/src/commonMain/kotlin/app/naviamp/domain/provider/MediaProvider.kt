@@ -315,11 +315,42 @@ data class ProviderCapabilities(
     val supportsArtistDiscography: Boolean = false,
     val supportsAudioStreamOffset: Boolean = false,
     val supportsPlaybackTimeline: Boolean = false,
+    /** Whether audio may be saved for offline listening through any authorized endpoint. */
     val supportsDownloads: Boolean = true,
     val supportsListenSubmission: Boolean = false,
     val supportsGenreTrackBrowsing: Boolean = false,
     val supportsSimilarityDiagnostics: Boolean = false,
+    /** Whether the account may use the provider's dedicated download operation. */
+    val supportsDownloadEndpoint: Boolean = true,
+    /** Whether the account may stream audio, which also authorizes saving that stream offline. */
+    val supportsStreaming: Boolean = true,
 )
+
+enum class OfflineSaveEndpoint { Download, Stream }
+
+/**
+ * Applies account media roles. A download role covers only the download operation, so an account
+ * that may stream can still save that stream; unknown roles add no restriction.
+ */
+fun ProviderCapabilities.withAccountMediaRoles(downloadRole: Boolean?, streamRole: Boolean?): ProviderCapabilities {
+    val download = downloadRole ?: true
+    val stream = streamRole ?: true
+    return copy(supportsDownloadEndpoint = download, supportsStreaming = stream, supportsDownloads = download || stream)
+}
+
+/**
+ * Chooses the endpoint before any request is sent. Original audio prefers the download operation;
+ * transcoded audio always needs a stream. Null means no authorized route, and callers must not
+ * retry an authorization failure through the other endpoint.
+ */
+fun ProviderCapabilities.offlineSaveEndpoint(
+    quality: StreamQuality,
+    originalUsesStream: Boolean = false,
+): OfflineSaveEndpoint? = when {
+    quality == StreamQuality.Original && supportsDownloadEndpoint && !originalUsesStream -> OfflineSaveEndpoint.Download
+    supportsStreaming -> OfflineSaveEndpoint.Stream
+    else -> null
+}
 
 fun ProviderCapabilities.effectiveStreamingQuality(requested: StreamQuality): StreamQuality =
     if (requested is StreamQuality.Transcoded && !supportsStreamingTranscode) {

@@ -245,13 +245,14 @@ class OpenSubsonicAuditTest {
         assertEquals(0, http.calls.count { it.first == "getSong.view" || it.first == "getLyricsBySongId.view" })
     }
 
-    @Test fun accountDownloadRoleIsRespected() = runTest {
+    @Test fun accountDownloadRoleGovernsOnlyTheDownloadEndpoint() = runTest {
         val http = Http().apply { responses["getUser.view"] = "\"user\":{\"downloadRole\":false}" }
         val p = provider(http)
         p.validateConnection()
-        assertFalse(p.capabilities.supportsDownloads)
-        assertFailsWith<NavidromeException> { p.downloadUrl(StreamRequest(TrackId("s"), StreamQuality.Original)) }
-        assertTrue(p.streamUrl(StreamRequest(TrackId("s"), StreamQuality.Original)).contains("format=raw"))
+        assertTrue(p.capabilities.supportsDownloads)
+        assertFalse(p.capabilities.supportsDownloadEndpoint)
+        val saveUrl = p.downloadUrl(StreamRequest(TrackId("s"), StreamQuality.Original))
+        assertTrue(saveUrl.contains("/stream.view?") && saveUrl.contains("format=raw"))
     }
 
     companion object {
