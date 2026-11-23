@@ -98,7 +98,8 @@ object NavidromeCanonicalId {
     private val CompositePrefixes = setOf("mf-", "al-", "ar-", "pl-", "ra-")
 }
 
-internal const val NavidromeCanonicalIdentityVersion = 2L
+// Version 3 repairs connection-scoped response caches left behind by earlier migrations.
+internal const val NavidromeCanonicalIdentityVersion = 3L
 
 /** Provider-common interpretation of Navidrome's canonical-ID rollout signal. */
 enum class NavidromeCanonicalIdMigrationSupport {

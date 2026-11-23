@@ -345,7 +345,7 @@ class NavidromeCoreProviderSessionPortTest {
             NaviampConnectionAttemptPlan(true, false, false, false),
         )
 
-        assertEquals(2L, repository.migratedIdentityVersion)
+        assertEquals(NavidromeCanonicalIdentityVersion, repository.migratedIdentityVersion)
         assertEquals(
             "3LyqmwQBm5IRqlVjNYASwb",
             repository.identityTransform?.invoke("zzzzzzzzzzzzzzzzzzzzzz"),
@@ -353,25 +353,33 @@ class NavidromeCoreProviderSessionPortTest {
     }
 
     @Test
-    fun restoredSessionAlsoActivatesAnOutstandingIdentityMigration() = runTest {
+    fun restoredSessionRepairsVersionTwoAndDoesNotRepeatTheCurrentMigration() = runTest {
         val source = savedSource().copy(nativeToken = null)
-        val repository = TestMediaSourceRepository(source)
+        val repository = TestMediaSourceRepository(source).apply { migratedIdentityVersion = 2L }
+        var validations = 0
         val port = NavidromeCoreProviderSessionPort(
             mediaSources = repository,
             sessionOpener = NavidromeProviderSessionOpener { _, _ -> error("not used") },
             initialSource = source,
-            validateProvider = { ConnectionValidation(serverVersion = "custom-build", apiVersion = "1.16.1") },
+            validateProvider = {
+                validations++
+                ConnectionValidation(serverVersion = "custom-build", apiVersion = "1.16.1")
+            },
             canonicalIdMigrationSupport = { NavidromeCanonicalIdMigrationSupport.Confirmed },
         )
 
         assertFalse(port.refreshActiveSession())
 
-        assertEquals(2L, repository.migratedIdentityVersion)
+        assertEquals(NavidromeCanonicalIdentityVersion, repository.migratedIdentityVersion)
+        assertFalse(port.refreshActiveSession())
+        assertEquals(1, validations)
     }
 
     @Test
     fun settingsMigrationRunsWhenSqlIdentityVersionIsAlreadyCurrent() = runTest {
-        val repository = TestMediaSourceRepository(savedSource()).apply { migratedIdentityVersion = 2L }
+        val repository = TestMediaSourceRepository(savedSource()).apply {
+            migratedIdentityVersion = NavidromeCanonicalIdentityVersion
+        }
         val settings = TestIdentitySettingsMigrationRepository()
         val port = NavidromeCoreProviderSessionPort(
             mediaSources = repository,
@@ -387,7 +395,7 @@ class NavidromeCoreProviderSessionPortTest {
             NaviampConnectionAttemptPlan(true, false, false, false),
         )
 
-        assertEquals(2L, settings.version)
+        assertEquals(NavidromeCanonicalIdentityVersion, settings.version)
         assertEquals("3LyqmwQBm5IRqlVjNYASwb", settings.transform?.invoke("zzzzzzzzzzzzzzzzzzzzzz"))
     }
 
@@ -410,12 +418,12 @@ class NavidromeCoreProviderSessionPortTest {
         port.connect(NaviampCoreConnectionRequest.Saved("source-1"), NaviampConnectionAttemptPlan(true, false, false, false))
         port.connect(NaviampCoreConnectionRequest.Saved("source-1"), NaviampConnectionAttemptPlan(true, false, false, false))
         assertEquals(1, supportChecks)
-        assertEquals(ProviderIdentityProbeState(2L, serverVersion), repository.probeState)
+        assertEquals(ProviderIdentityProbeState(NavidromeCanonicalIdentityVersion, serverVersion), repository.probeState)
 
         serverVersion = "0.63.3 (new-build)"
         port.connect(NaviampCoreConnectionRequest.Saved("source-1"), NaviampConnectionAttemptPlan(true, false, false, false))
         assertEquals(2, supportChecks)
-        assertEquals(ProviderIdentityProbeState(2L, serverVersion), repository.probeState)
+        assertEquals(ProviderIdentityProbeState(NavidromeCanonicalIdentityVersion, serverVersion), repository.probeState)
     }
 
     @Test

@@ -38,7 +38,7 @@ class StorageProviderIdentityMigrationStoreTest {
         try {
             val source = catalog.mediaSources.upsertProviderMediaSource(
                 ProviderMediaSourceConnection("Server", "https://example.test", "user", "token", "salt", "native"),
-                cacheNamespace = "navidrome:test",
+                cacheNamespace = "navidrome:https://example.test:user:folders=1",
                 providerId = "navidrome",
             )
             val oldTrack = "old-track"
@@ -112,15 +112,27 @@ class StorageProviderIdentityMigrationStoreTest {
                 "flac", null, "audio/flac", null, null, null, null, 1L, null, null, null, oldDiscCover,
             )
             queries.insertPendingProviderAction(source.id, "favorite-track", oldTrack, 1L, null, 1L)
-            queries.upsertResponse("key", "navidrome", "track", oldTrack, "{}", 1L, 1L)
+            val namespace = source.cacheNamespace
+            queries.upsertResponse("$namespace:playlists-v2:50", namespace, "playlists-v2", "50", "[{\"id\":\"$oldPlaylist\"}]", 1L, 1L)
+            queries.upsertResponse("$namespace:playlistTracks:$oldPlaylist", namespace, "playlistTracks", oldPlaylist, "[]", 1L, 1L)
+            queries.upsertResponse("legacy", "navidrome", "track", oldTrack, "{}", 1L, 1L)
+            val otherNamespaces = listOf(
+                "navidrome:https://example.test:other-user:folders=1",
+                "navidrome:https://example.test:user:folders=2",
+                "navidrome:https://other.test:user:folders=1",
+                "jellyfin:https://example.test:user",
+            )
+            otherNamespaces.forEach { other ->
+                queries.upsertResponse("$other:playlists-v2:50", other, "playlists-v2", "50", "[]", 1L, 1L)
+            }
             queries.upsertImage("https://example.test/art/$oldCover", byteArrayOf(1), 1L, 1L, 1L)
 
             val probeState = ProviderIdentityProbeState(1L, "0.63.2 (old-build)")
             catalog.mediaSources.recordProviderIdentityProbeState(source.id, probeState)
             assertEquals(probeState, catalog.mediaSources.providerIdentityProbeState(source.id))
-            queries.markProviderIdentityVersion(1L, source.id)
+            queries.markProviderIdentityVersion(2L, source.id)
 
-            val result = catalog.mediaSources.migrateProviderIdentities(source.id, "navidrome", 2L, transform)
+            val result = catalog.mediaSources.migrateProviderIdentities(source.id, "navidrome", 3L, transform)
 
             assertTrue(result.migrated)
             assertTrue(result.transformedReferences > 0)
@@ -148,12 +160,21 @@ class StorageProviderIdentityMigrationStoreTest {
             assertEquals("new-track", queries.selectPlaybackHistory(source.id, 1L).executeAsOne().remote_track_id)
             assertEquals("new-disc-cover", queries.selectPlaybackHistory(source.id, 1L).executeAsOne().disc_cover_art_id)
             assertEquals("new-track", queries.selectPendingProviderActions(source.id, 1L).executeAsOne().entity_id)
-            assertEquals(0L, queries.responseCacheCount().executeAsOne())
+            assertNull(queries.selectResponse("$namespace:playlists-v2:50").executeAsOneOrNull())
+            assertNull(queries.selectResponse("$namespace:playlistTracks:$oldPlaylist").executeAsOneOrNull())
+            assertNull(queries.selectResponse("legacy").executeAsOneOrNull())
+            otherNamespaces.forEach { other ->
+                assertEquals("[]", queries.selectResponse("$other:playlists-v2:50").executeAsOne().payload)
+            }
+            assertEquals(otherNamespaces.size.toLong(), queries.responseCacheCount().executeAsOne())
+            assertEquals(3L, catalog.mediaSources.providerIdentityVersion(source.id))
             assertEquals(0L, queries.imageCacheCount().executeAsOne())
             assertNull(catalog.mediaSources.mediaSource(source.id)?.lastLibraryScanSignature)
             assertNull(catalog.mediaSources.providerIdentityProbeState(source.id))
 
-            assertFalse(catalog.mediaSources.migrateProviderIdentities(source.id, "navidrome", 2L, transform).migrated)
+            queries.upsertResponse("$namespace:playlists-v2:50", namespace, "playlists-v2", "50", "[]", 2L, 2L)
+            assertFalse(catalog.mediaSources.migrateProviderIdentities(source.id, "navidrome", 3L, transform).migrated)
+            assertEquals("[]", queries.selectResponse("$namespace:playlists-v2:50").executeAsOne().payload)
         } finally {
             driver.close()
         }
