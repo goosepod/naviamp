@@ -532,4 +532,8 @@
     <string name="storage_location_app">Uygulama depolama alanı</string>
     <string name="storage_location_custom">Özel</string>
     <string name="connect_recovery_secure_storage">Naviamp bu cihazın güvenli kimlik bilgisi deposunu açamadı. Sistem anahtarlığının kilidini açın ve yeniden deneyin.</string>
+    <string name="settings_sleep_timer_fade_title">Uyku zamanlayıcısında sesi kısma</string>
+    <string name="settings_sleep_timer_fade_subtitle">Uyku zamanlayıcısı oynatmayı duraklatmadan önce sesi yavaş yavaş azaltır.</string>
+    <string name="settings_sleep_timer_fade_off_subtitle">Zamanlayıcı bittiğinde oynatmayı durdur.</string>
+    <string name="settings_minutes_short">%1$d dk</string>
 </resources>

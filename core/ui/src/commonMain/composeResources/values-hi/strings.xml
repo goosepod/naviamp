@@ -532,4 +532,8 @@
     <string name="storage_location_app">ऐप स्टोरेज</string>
     <string name="storage_location_custom">कस्टम</string>
     <string name="connect_recovery_secure_storage">Naviamp इस डिवाइस का सुरक्षित क्रेडेंशियल संग्रह नहीं खोल सका। सिस्टम कीरिंग अनलॉक करें, फिर दोबारा प्रयास करें।</string>
+    <string name="settings_sleep_timer_fade_title">स्लीप टाइमर फ़ेड-आउट</string>
+    <string name="settings_sleep_timer_fade_subtitle">स्लीप टाइमर द्वारा प्लेबैक रोकने से पहले आवाज़ धीरे-धीरे कम करता है।</string>
+    <string name="settings_sleep_timer_fade_off_subtitle">टाइमर समाप्त होने पर प्लेबैक रोकें।</string>
+    <string name="settings_minutes_short">%1$d मिनट</string>
 </resources>

@@ -18,7 +18,11 @@ import app.naviamp.domain.playback.resolveAgainst
 import app.naviamp.domain.playback.PlaybackQueueFinishedCommand
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.SleepTimerRequest
+import app.naviamp.domain.playback.SleepTimerState
+import app.naviamp.domain.playback.sleepTimerFadeProgress
 import app.naviamp.domain.playback.sleepTimerSelection
+import app.naviamp.domain.playback.withPlaybackActive
+import app.naviamp.domain.playback.withoutFade
 import app.naviamp.domain.playback.PlaybackQueueSelectionUpdate
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackProgress
@@ -97,6 +101,14 @@ class NaviampCorePlaybackController(
     private var persistedSeekGeneration = 0L
     private var sourceTransitionTargetId: String? = null
     private var connectHandoffAwaitingStart = false
+    private val sleepTimerClock = NaviampCoreSleepTimerClock(
+        scope = scope,
+        nowEpochMillis = nowEpochMillis,
+        applyFadeFactor = effects::setOutputFadeFactor,
+        onDeadline = ::sleepTimerDeadlineReached,
+    )
+    private var sleepTimerFadeAwaitingResume = false
+    private var sleepTimerFadeSawPause = false
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.NowPlaying.Playback,
@@ -354,6 +366,7 @@ class NaviampCorePlaybackController(
     fun attachNativePlayback() {
         effects.setVisualizerFramesEnabled(display.visualizerVisible)
         playback.observe { live ->
+            sleepTimerPlaybackChanged(live.playbackState)
             if (live.currentTrack?.id != observedPlaybackTrackId) {
                 observedPlaybackTrackId = live.currentTrack?.id
                 lastHistoryTrack = null
@@ -451,6 +464,7 @@ class NaviampCorePlaybackController(
         persistedQueue = PlaybackQueue()
         persistedStationId = null
         display = NaviampCoreNowPlayingDisplayState()
+        replaceSleepTimer(null)
         presenter.publish(display)
     }
 
@@ -473,6 +487,7 @@ class NaviampCorePlaybackController(
         persistedQueue = PlaybackQueue()
         persistedStationId = null
         display = NaviampCoreNowPlayingDisplayState()
+        replaceSleepTimer(null)
         presenter.publish(display)
     }
 
@@ -730,6 +745,13 @@ class NaviampCorePlaybackController(
                 } else {
                     val softwareVolumeEnabled = effects.capabilities.supportsSoftwareVolume &&
                         stateStore.state.value.shell.capabilities.softwareVolumeControl
+                    display.sleepTimer
+                        ?.takeIf { sleepTimerFadeProgress(it, nowEpochMillis()) > 0f }
+                        ?.let { replaceSleepTimer(it.withoutFade(nowEpochMillis())) }
+                    if (sleepTimerFadeAwaitingResume) {
+                        sleepTimerFadeAwaitingResume = false
+                        sleepTimerClock.restore()
+                    }
                     val command = commands.changeVolume(requested, softwareVolumeEnabled)
                     val updated = playbackSettings.copy(volumePercent = command.volumePercent)
                     settings.apply(updated, redownload = false)
@@ -788,11 +810,13 @@ class NaviampCorePlaybackController(
                     return
                 }
                 display = display.withSleepTimer(selectionRequest)
+                replaceSleepTimer(display.sleepTimer)
                 publishStatus(display.sleepTimer?.let { app.naviamp.domain.playback.sleepTimerDisplayLabel(it, display.sleepTimerNowEpochMillis) }
                     ?: "Sleep timer")
             }
             NowPlayingSleepTimerAction.Cancel -> {
-                display = display.copy(sleepTimer = null, sleepTimerNowEpochMillis = nowEpochMillis())
+                display = display.copy(sleepTimerNowEpochMillis = nowEpochMillis())
+                replaceSleepTimer(null)
                 publishStatus("Sleep timer canceled.")
             }
         }
@@ -801,9 +825,49 @@ class NaviampCorePlaybackController(
     fun expireSleepTimer() {
         commands.stop()
         playback.updatePlaybackState(PlaybackState.Stopped)
-        display = display.copy(sleepTimer = null, sleepTimerNowEpochMillis = nowEpochMillis())
+        display = display.copy(sleepTimerNowEpochMillis = nowEpochMillis())
+        replaceSleepTimer(null)
         publishStatus("Sleep timer stopped playback.")
         presenter.publish(display)
+    }
+
+    private fun sleepTimerDeadlineReached(timer: SleepTimerState) {
+        if (display.sleepTimer != timer) return
+        if (!timer.pauseAtEnd) {
+            expireSleepTimer()
+            return
+        }
+        // A track that is still loading cannot pause, and must not start audibly after the timer.
+        if (!commands.pause()) {
+            commands.stop()
+            playback.updatePlaybackState(PlaybackState.Stopped)
+        }
+        // The clock has already silenced the output; keep it silent until the listener resumes.
+        display = display.copy(sleepTimer = null, sleepTimerNowEpochMillis = nowEpochMillis())
+        sleepTimerFadeAwaitingResume = true
+        sleepTimerFadeSawPause = false
+        publishStatus("Sleep timer stopped playback.")
+        presenter.publish(display)
+    }
+
+    private fun replaceSleepTimer(timer: SleepTimerState?) {
+        display = display.copy(sleepTimer = timer)
+        sleepTimerFadeAwaitingResume = false
+        sleepTimerClock.schedule(timer)
+    }
+
+    private fun sleepTimerPlaybackChanged(state: PlaybackState) {
+        val playing = state == PlaybackState.Playing
+        if (sleepTimerFadeAwaitingResume) {
+            if (!playing) sleepTimerFadeSawPause = true
+            else if (sleepTimerFadeSawPause) {
+                sleepTimerFadeAwaitingResume = false
+                sleepTimerClock.restore()
+            }
+        }
+        val timer = display.sleepTimer?.takeIf { it.fadeMillis > 0L } ?: return
+        val updated = timer.withPlaybackActive(playing, nowEpochMillis())
+        if (updated != timer) replaceSleepTimer(updated)
     }
 
     fun tickSleepTimer(nowMillis: Long) {
@@ -822,6 +886,7 @@ class NaviampCorePlaybackController(
             playbackQueue = live.queue,
             playbackProgress = live.progress,
             playbackState = live.playbackState,
+            fadeMinutes = stateStore.state.value.shell.playback.settings.sleepTimerFadeMinutes,
         )
         return copy(sleepTimer = selection.timer, sleepTimerNowEpochMillis = selection.nowEpochMillis)
     }

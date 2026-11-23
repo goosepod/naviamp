@@ -532,4 +532,8 @@
     <string name="storage_location_app">Spazio dell’app</string>
     <string name="storage_location_custom">Personalizzato</string>
     <string name="connect_recovery_secure_storage">Naviamp non è riuscito ad aprire l&apos;archivio sicuro delle credenziali di questo dispositivo. Sblocca il portachiavi di sistema, quindi riprova.</string>
+    <string name="settings_sleep_timer_fade_title">Dissolvenza del timer di spegnimento</string>
+    <string name="settings_sleep_timer_fade_subtitle">Abbassa gradualmente il volume prima che il timer di spegnimento metta in pausa la riproduzione.</string>
+    <string name="settings_sleep_timer_fade_off_subtitle">Interrompi la riproduzione allo scadere del timer.</string>
+    <string name="settings_minutes_short">%1$d min</string>
 </resources>

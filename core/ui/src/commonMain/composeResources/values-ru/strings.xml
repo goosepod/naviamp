@@ -532,4 +532,8 @@
     <string name="storage_location_app">Хранилище приложения</string>
     <string name="storage_location_custom">Пользовательское</string>
     <string name="connect_recovery_secure_storage">Naviamp не удалось открыть защищённое хранилище учётных данных этого устройства. Разблокируйте системную связку ключей и повторите попытку.</string>
+    <string name="settings_sleep_timer_fade_title">Затухание таймера сна</string>
+    <string name="settings_sleep_timer_fade_subtitle">Плавно уменьшает громкость, прежде чем таймер сна поставит воспроизведение на паузу.</string>
+    <string name="settings_sleep_timer_fade_off_subtitle">Остановить воспроизведение по окончании таймера.</string>
+    <string name="settings_minutes_short">%1$d мин</string>
 </resources>

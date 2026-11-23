@@ -30,6 +30,7 @@ internal interface NaviampCoreCastPlaybackRoute {
 internal class NaviampCoreOutputPlaybackEffects(
     private val local: NaviampCorePlaybackEffectPort,
     private val outputs: NaviampPlaybackOutputSelectionController,
+    private val localOutputFade: (Float) -> Unit = local::setOutputFadeFactor,
 ) : NaviampCorePlaybackEffectPort {
     var cast: NaviampCoreCastPlaybackRoute? = null
     var beforeStart: () -> Unit = {}
@@ -148,6 +149,10 @@ internal class NaviampCoreOutputPlaybackEffects(
     override fun setVolume(percent: Int) {
         if (castSelected) cast?.setVolume(percent) else local.setVolume(percent)
     }
+
+    // A Cast receiver's volume is the listener's device volume, and stepping it over the network
+    // could strand it low if the session drops, so Cast is not faded and only pauses at the end.
+    override fun setOutputFadeFactor(factor: Float) = localOutputFade(if (castSelected) 1f else factor)
 
     override fun stop() {
         beforeStart()

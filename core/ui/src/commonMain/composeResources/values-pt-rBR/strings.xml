@@ -1287,4 +1287,8 @@
     <string name="tv_search_system_keyboard">Teclado do sistema</string>
     <string name="storage_location_app">Armazenamento do app</string>
     <string name="storage_location_custom">Personalizado</string>
+    <string name="settings_sleep_timer_fade_title">Esmaecimento do timer de desligamento</string>
+    <string name="settings_sleep_timer_fade_subtitle">Diminui o volume gradualmente antes que o timer de desligamento pause a reprodução.</string>
+    <string name="settings_sleep_timer_fade_off_subtitle">Parar a reprodução quando o timer terminar.</string>
+    <string name="settings_minutes_short">%1$d min</string>
 </resources>

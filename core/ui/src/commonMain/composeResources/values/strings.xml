@@ -1310,4 +1310,8 @@
     <string name="tv_search_system_keyboard">System keyboard</string>
     <string name="storage_location_app">App storage</string>
     <string name="storage_location_custom">Custom</string>
+    <string name="settings_sleep_timer_fade_title">Sleep timer fade-out</string>
+    <string name="settings_sleep_timer_fade_subtitle">Lower the volume gradually before a timed sleep timer pauses playback.</string>
+    <string name="settings_sleep_timer_fade_off_subtitle">Stop playback when the timer ends.</string>
+    <string name="settings_minutes_short">%1$d min</string>
 </resources>
