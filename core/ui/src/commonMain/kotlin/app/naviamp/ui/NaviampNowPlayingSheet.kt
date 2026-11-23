@@ -25,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
@@ -115,6 +116,10 @@ internal class NaviampNowPlayingSheetState internal constructor(
     private var animation: Job? = null
     private var preparation: Job? = null
     internal var backDispatcher: NaviampSystemBackDispatcher? = null
+
+    /** The open flag of the shared app state, as last composed. */
+    internal var appOpen = initiallyOpen
+    private var reconciliation: Job? = null
     private val backKey = Any()
     private var pendingOpen: Boolean? = null
     private var pendingCommand: (() -> Unit)? = null
@@ -131,6 +136,7 @@ internal class NaviampNowPlayingSheetState internal constructor(
         // The shared state moved on its own (for example a route change), so a deferred
         // command from an earlier release no longer applies.
         clearPending()
+        appOpen = value
         open = value
         if (!dragging) settleTo(value)
     }
@@ -195,6 +201,25 @@ internal class NaviampNowPlayingSheetState internal constructor(
         clearPending()
         open = target
         command?.invoke()
+        reconcileSoon()
+    }
+
+    /**
+     * Brings the sheet back to the shared state if they disagree once commands have had time to
+     * arrive. A command and an opposite one (an open sent on touch-down and a Collapse on the
+     * same tap) can cancel out before the shared state is observed, which would otherwise leave
+     * the sheet open over a closed state.
+     */
+    private fun reconcileSoon() {
+        reconciliation?.cancel()
+        reconciliation = scope.launch {
+            repeat(3) { withFrameNanos { } }
+            if (pendingOpen != null || dragging) return@launch
+            if (open != appOpen) {
+                open = appOpen
+                settleTo(appOpen)
+            }
+        }
     }
 
     internal fun clearPending() {
@@ -214,7 +239,7 @@ internal class NaviampNowPlayingSheetState internal constructor(
     private fun finishSettle(onSettled: (() -> Unit)?) {
         lastVelocity = 0f
         preparing = false
-        onSettled?.invoke()
+        if (onSettled != null) onSettled() else if (open != appOpen) reconcileSoon()
     }
 
     private fun settleTo(open: Boolean, onSettled: (() -> Unit)? = null) {
@@ -285,6 +310,7 @@ internal fun rememberNaviampNowPlayingSheetState(open: Boolean): NaviampNowPlayi
     SideEffect {
         state.reducedMotion = reducedMotion
         state.backDispatcher = backDispatcher
+        state.appOpen = open
     }
     DisposableEffect(state) { onDispose { state.clearPending() } }
     LaunchedEffect(state, open) { state.onOpenChanged(open) }
@@ -363,6 +389,7 @@ internal fun NaviampNowPlayingSheetLayers(
 
 private class NaviampSheetGesture {
     var touch = false
+    var pointerDown = false
     var contentScrolled = false
     val velocity = VelocityTracker()
 }
@@ -375,6 +402,7 @@ private fun NaviampNowPlayingDismissSurface(
 ) {
     val currentOnClose by rememberUpdatedState(onClose)
     val gesture = remember { NaviampSheetGesture() }
+    val watchdogScope = rememberCoroutineScope()
     val connection = remember(state) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource) =
@@ -420,10 +448,23 @@ private fun NaviampNowPlayingDismissSurface(
                     gesture.contentScrolled = false
                     gesture.velocity.resetTracking()
                     gesture.velocity.addPointerInputChange(down)
-                    do {
-                        val event = awaitPointerEvent(PointerEventPass.Initial)
-                        event.changes.firstOrNull { it.id == down.id }?.let { gesture.velocity.addPointerInputChange(it) }
-                    } while (event.changes.any { it.pressed })
+                    gesture.pointerDown = true
+                    try {
+                        do {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            event.changes.firstOrNull { it.id == down.id }?.let { gesture.velocity.addPointerInputChange(it) }
+                        } while (event.changes.any { it.pressed })
+                    } finally {
+                        gesture.pointerDown = false
+                        // A scrollable removed mid-drag never delivers its fling, so a dismiss
+                        // drag it started would otherwise stay open-ended.
+                        if (state.dragging) {
+                            watchdogScope.launch {
+                                repeat(2) { withFrameNanos { } }
+                                if (state.dragging && !gesture.pointerDown) state.release(0f, onOpen = {}, onClose = currentOnClose)
+                            }
+                        }
+                    }
                 }
             }
             .nestedScroll(connection)
@@ -440,12 +481,16 @@ private fun NaviampNowPlayingDismissSurface(
                     } ?: return@awaitEachGesture
                     state.startDrag()
                     state.dragBy(overSlop)
-                    val completed = verticalDrag(drag.id) { change ->
-                        state.dragBy(change.positionChange().y)
-                        change.consume()
+                    var velocity = 0f
+                    try {
+                        val completed = verticalDrag(drag.id) { change ->
+                            state.dragBy(change.positionChange().y)
+                            change.consume()
+                        }
+                        if (completed) velocity = gesture.velocity.calculateVelocity().y
+                    } finally {
+                        state.release(velocity, onOpen = {}, onClose = currentOnClose)
                     }
-                    val velocity = if (completed) gesture.velocity.calculateVelocity().y else 0f
-                    state.release(velocity, onOpen = {}, onClose = currentOnClose)
                 }
             },
     ) {
@@ -470,26 +515,32 @@ internal fun Modifier.naviampNowPlayingOpenGesture(
         val down = awaitFirstDown(requireUnconsumed = false)
         if (!down.isTouch() || state.open) return@awaitEachGesture
         state.prepare()
-        val velocity = VelocityTracker().apply { addPointerInputChange(down) }
-        var overSlop = 0f
-        val drag = awaitVerticalTouchSlopOrCancellation(down.id) { change, over ->
-            if (over < 0f) {
-                change.consume()
-                overSlop = over
+        try {
+            val velocity = VelocityTracker().apply { addPointerInputChange(down) }
+            var overSlop = 0f
+            val drag = awaitVerticalTouchSlopOrCancellation(down.id) { change, over ->
+                if (over < 0f) {
+                    change.consume()
+                    overSlop = over
+                }
             }
-        }
-        if (drag == null) {
+            if (drag == null) return@awaitEachGesture
+            velocity.addPointerInputChange(drag)
+            state.startDrag()
+            state.dragBy(overSlop)
+            var completed = false
+            try {
+                completed = verticalDrag(drag.id) { change ->
+                    velocity.addPointerInputChange(change)
+                    state.dragBy(change.positionChange().y)
+                    change.consume()
+                }
+            } finally {
+                if (!completed) state.release(0f, onOpen = onOpen, onClose = {})
+            }
+            state.release(if (completed) velocity.calculateVelocity().y else 0f, onOpen = onOpen, onClose = {})
+        } finally {
             state.endPreparation()
-            return@awaitEachGesture
         }
-        velocity.addPointerInputChange(drag)
-        state.startDrag()
-        state.dragBy(overSlop)
-        val completed = verticalDrag(drag.id) { change ->
-            velocity.addPointerInputChange(change)
-            state.dragBy(change.positionChange().y)
-            change.consume()
-        }
-        state.release(if (completed) velocity.calculateVelocity().y else 0f, onOpen = onOpen, onClose = {})
     }
 }

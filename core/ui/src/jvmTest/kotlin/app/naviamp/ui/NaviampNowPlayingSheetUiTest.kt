@@ -13,6 +13,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -47,6 +49,8 @@ class NaviampNowPlayingSheetUiTest {
         var opens = 0
         val displayActions = mutableListOf<NowPlayingDisplayAction>()
         val backDispatcher = NaviampSystemBackDispatcher()
+        val composed = mutableStateOf(true)
+        val plainSheet = mutableStateOf(false)
         var routeBacks = 0
 
         /** Delivers one system Back press the way the hosts do: to the deepest shared handler. */
@@ -75,7 +79,7 @@ class NaviampNowPlayingSheetUiTest {
             ) {
                 // Stands in for the browse route's own Back handling underneath the player.
                 NaviampSystemBackHandler(enabled = true) { harness.routeBacks++ }
-                SheetHarness(harness, solidLayers, sheetColor)
+                if (harness.composed.value) SheetHarness(harness, solidLayers, sheetColor)
             }
         }
         waitForIdle()
@@ -113,7 +117,7 @@ class NaviampNowPlayingSheetUiTest {
                 }
             },
             sheet = {
-                if (solidLayers) {
+                if (solidLayers || harness.plainSheet.value) {
                     Box(Modifier.fillMaxSize().background(sheetColor))
                 } else {
                     NaviampNowPlayingPanel(nowPlaying = nowPlaying, colors = NaviampColors(), actions = actions)
@@ -290,20 +294,185 @@ class NaviampNowPlayingSheetUiTest {
         assertEquals(1, harness.routeBacks)
     }
 
-    @Test
-    fun tapInsideThePlayerRightAfterASwipeOpenUsesTheOpenState() = sheetTest(initiallyOpen = false) { harness ->
+    /**
+     * Taps Collapse while the player is still rising after a swipe-open, holding the finger for a
+     * few frames as a person does, and expects that first tap to close the player.
+     */
+    private fun collapseDuringSwipeOpenSettle(arrivalTop: Float, holdFrames: Int = 5) = sheetTest(initiallyOpen = false) { harness ->
         mainClock.autoAdvance = false
-        onNodeWithTag("mini").performTouchInput { swipe(Offset(centerX, centerY), Offset(centerX, centerY - 500f), 300) }
+        onNodeWithTag("mini").performTouchInput { swipe(Offset(centerX, centerY), Offset(centerX, centerY - 500f), 250) }
+        val collapse = onNodeWithContentDescription("Collapse player")
         var frames = 0
-        // The visible end of the spring: the player has arrived but has not settled to 0 yet.
-        while (sheet().top() > 3f && frames++ < 120) mainClock.advanceTimeByFrame()
+        while ((sheet().top() > arrivalTop || collapse.getBoundsInRoot().bottom.value > 798f) && frames++ < 120) {
+            mainClock.advanceTimeByFrame()
+        }
         assertTrue(sheet().top() > 0f, "expected the player to still be settling")
-        assertEquals(0, harness.opens)
-        onNodeWithContentDescription("Collapse player").performTouchInput { click() }
+        if (holdFrames == 0) {
+            // Down and up inside one frame, as an injected tap delivers them.
+            collapse.performTouchInput { down(center); up() }
+        } else {
+            collapse.performTouchInput { down(center) }
+            repeat(holdFrames) { mainClock.advanceTimeByFrame() }
+            collapse.performTouchInput { up() }
+        }
         finishTransition()
         assertEquals(1, harness.opens)
         assertEquals(listOf(NowPlayingDisplayAction.Collapse), harness.displayActions)
         assertEquals(false, harness.open.value)
+        sheet().assertDoesNotExist()
+    }
+
+    @Test
+    fun collapseEarlyInASwipeOpenSettleActsOnTheFirstTap() = collapseDuringSwipeOpenSettle(arrivalTop = 40f)
+
+    @Test
+    fun collapseMidwayThroughASwipeOpenSettleActsOnTheFirstTap() = collapseDuringSwipeOpenSettle(arrivalTop = 15f)
+
+    @Test
+    fun collapseAtTheEndOfASwipeOpenSettleActsOnTheFirstTap() = collapseDuringSwipeOpenSettle(arrivalTop = 3f)
+
+    @Test
+    fun quickCollapseTapEarlyInASwipeOpenSettleActsOnTheFirstTap() =
+        collapseDuringSwipeOpenSettle(arrivalTop = 40f, holdFrames = 0)
+
+    @Test
+    fun quickCollapseTapAtTheEndOfASwipeOpenSettleActsOnTheFirstTap() =
+        collapseDuringSwipeOpenSettle(arrivalTop = 3f, holdFrames = 0)
+
+    private fun ComposeUiTest.rootTouch(block: androidx.compose.ui.test.TouchInjectionScope.() -> Unit) =
+        onRoot().performTouchInput(block)
+
+    /**
+     * Mixes commands, swipes, Back presses and Collapse taps at random points of each other's
+     * animations, then checks that the sheet agrees with the app state and Collapse still works.
+     */
+    private fun randomSequence(seed: Int) = sheetTest(initiallyOpen = seed % 2 == 0) { harness ->
+        val random = kotlin.random.Random(seed)
+        val collapse = onNodeWithContentDescription("Collapse player")
+        mainClock.autoAdvance = false
+        repeat(40) {
+            val sheetTop = if (onAllNodesWithTag(NaviampNowPlayingSheetTestTag).fetchSemanticsNodes().isNotEmpty()) sheet().top() else null
+            when (random.nextInt(9)) {
+                0 -> runOnUiThread { harness.open.value = true }
+                1 -> runOnUiThread { harness.open.value = false }
+                2 -> if (sheetTop != null && sheetTop < 600f) {
+                    rootTouch { swipe(Offset(200f, sheetTop + 100f), Offset(200f, sheetTop + 100f + random.nextInt(60, 500)), random.nextLong(60, 600)) }
+                }
+                3 -> if (onAllNodesWithTag("mini").fetchSemanticsNodes().isNotEmpty()) {
+                    rootTouch { swipe(Offset(200f, 780f), Offset(200f, 780f - random.nextInt(40, 600)), random.nextLong(60, 600)) }
+                }
+                4 -> runOnUiThread { harness.pressBack() }
+                5 -> if (onAllNodesWithContentDescription("Collapse player").fetchSemanticsNodes().isNotEmpty() && collapse.getBoundsInRoot().bottom.value < 798f) {
+                    val center = collapse.getBoundsInRoot().let { Offset((it.left.value + it.right.value) / 2, (it.top.value + it.bottom.value) / 2) }
+                    rootTouch { down(center); up() }
+                }
+                6 -> if (onAllNodesWithTag("mini").fetchSemanticsNodes().isNotEmpty()) {
+                    rootTouch { down(Offset(120f, 780f)); up() }
+                }
+                7 -> if (onAllNodesWithTag("mini").fetchSemanticsNodes().isNotEmpty()) {
+                    // A swipe-open followed by a quick tap on Collapse while the player settles.
+                    rootTouch { swipe(Offset(200f, 780f), Offset(200f, 280f), 250) }
+                    repeat(random.nextInt(4, 30)) { mainClock.advanceTimeByFrame() }
+                    val bounds = if (onAllNodesWithContentDescription("Collapse player").fetchSemanticsNodes().isNotEmpty()) {
+                        collapse.getBoundsInRoot()
+                    } else null
+                    if (bounds != null && bounds.bottom.value < 798f) {
+                        rootTouch { down(Offset((bounds.left.value + bounds.right.value) / 2, (bounds.top.value + bounds.bottom.value) / 2)); up() }
+                    }
+                    repeat(90) { mainClock.advanceTimeByFrame() }
+                    val shown = onAllNodesWithTag(NaviampNowPlayingSheetTestTag).fetchSemanticsNodes().isNotEmpty()
+                    assertEquals(harness.open.value, shown, "seed $seed: the sheet must follow the app state once settled")
+                }
+                else -> Unit
+            }
+            repeat(random.nextInt(0, 14)) { mainClock.advanceTimeByFrame() }
+        }
+        finishTransition()
+        mainClock.advanceTimeBy(1_000)
+        waitForIdle()
+        if (harness.open.value) {
+            assertEquals(0f, sheet().top(), "seed $seed: open app state must show the settled player")
+            val before = harness.displayActions.size
+            collapse.performTouchInput { click() }
+            waitForIdle()
+            assertEquals(before + 1, harness.displayActions.size)
+            assertEquals(false, harness.open.value, "seed $seed: Collapse must close an open player")
+        }
+        sheet().assertDoesNotExist()
+        onNodeWithTag("browse").assertIsDisplayed()
+    }
+
+    @Test
+    fun randomGestureAndCommandSequencesStayConsistent() {
+        (1..8).forEach { randomSequence(it) }
+    }
+
+    private fun ComposeUiTest.swipeOpenFromTheMiniPlayer() {
+        mainClock.autoAdvance = false
+        onNodeWithTag("mini").performTouchInput { swipe(Offset(centerX, centerY), Offset(centerX, centerY - 500f), 250) }
+        repeat(3) { mainClock.advanceTimeByFrame() }
+    }
+
+    @Test
+    fun disposingTheSheetDuringASettleReleasesItsBackHandler() = sheetTest(initiallyOpen = false) { harness ->
+        swipeOpenFromTheMiniPlayer()
+        runOnUiThread { harness.composed.value = false }
+        finishTransition()
+        harness.pressBack()
+        assertEquals(1, harness.routeBacks)
+    }
+
+    @Test
+    fun anOutsideCloseDuringASettleWinsAndReleasesBack() = sheetTest(initiallyOpen = false) { harness ->
+        swipeOpenFromTheMiniPlayer()
+        runOnUiThread { harness.open.value = true }
+        repeat(2) { mainClock.advanceTimeByFrame() }
+        runOnUiThread { harness.open.value = false }
+        finishTransition()
+        mainClock.advanceTimeBy(1_000)
+        waitForIdle()
+        assertEquals(0, harness.opens)
+        sheet().assertDoesNotExist()
+        harness.pressBack()
+        assertEquals(1, harness.routeBacks)
+    }
+
+    @Test
+    fun aNewDragDuringASettleStartsFromTheSentCommand() = sheetTest(initiallyOpen = false) { harness ->
+        swipeOpenFromTheMiniPlayer()
+        sheet().performTouchInput { swipe(Offset(centerX, 150f), Offset(centerX, 650f), 400) }
+        finishTransition()
+        mainClock.advanceTimeBy(1_000)
+        waitForIdle()
+        assertEquals(1, harness.opens)
+        assertEquals(1, harness.closes)
+        assertEquals(false, harness.open.value)
+        sheet().assertDoesNotExist()
+        harness.pressBack()
+        assertEquals(1, harness.routeBacks)
+    }
+
+    @Test
+    fun aDismissDragWhoseScrollableDisappearsStillSettles() = sheetTest { harness ->
+        mainClock.autoAdvance = false
+        sheet().performTouchInput {
+            down(Offset(centerX, 150f))
+            moveBy(Offset(0f, 60f), delayMillis = 250)
+            moveBy(Offset(0f, 60f), delayMillis = 250)
+        }
+        mainClock.advanceTimeByFrame()
+        assertTrue(sheet().top() > 0f, "expected a dismiss drag through nested scroll")
+        // The scrolling panel leaves composition mid-drag, so it never sends its fling.
+        runOnUiThread { harness.plainSheet.value = true }
+        repeat(2) { mainClock.advanceTimeByFrame() }
+        sheet().performTouchInput { up() }
+        finishTransition()
+        mainClock.advanceTimeBy(1_000)
+        waitForIdle()
+        assertEquals(0, harness.closes)
+        assertEquals(0f, sheet().top())
+        harness.open.value = false
+        waitForIdle()
         sheet().assertDoesNotExist()
     }
 

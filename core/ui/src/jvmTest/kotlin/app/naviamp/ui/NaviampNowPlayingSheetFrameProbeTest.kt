@@ -196,6 +196,26 @@ class NaviampNowPlayingSheetFrameProbeTest {
         assertEquals(true, probe.open.value)
     }
 
+    /**
+     * An injected or very fast swipe crosses touch slop before the first frame after touch-down,
+     * so building the player and its first movement share that frame. The build still happens
+     * once and later frames stay idle.
+     */
+    @Test
+    fun miniPlayerSwipeCrossingSlopBeforeTheFirstFrame() = probeTest(initiallyOpen = false) { probe ->
+        val mini = onNodeWithTag("probe-mini")
+        val frames = report("mini player down and slop in one frame", frames(probe, 4) {
+            mini.performTouchInput { down(center); moveBy(Offset(0f, -40f)) }
+        })
+        assertEquals(listOf(20, 20, 20, 20), frames.first().second)
+        frames.drop(1).forEach { (browse, player) ->
+            assertEquals(idle, browse)
+            assertEquals(idle, player)
+        }
+        mini.performTouchInput { up() }
+        waitForIdle()
+    }
+
     @Test
     fun miniPlayerTouchWithoutDragDoesNotKeepThePlayer() = probeTest(initiallyOpen = false) { probe ->
         onNodeWithTag("probe-mini").performTouchInput { down(center); up() }

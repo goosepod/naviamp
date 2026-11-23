@@ -145,7 +145,7 @@ private fun NaviampSharedAppShellContent(
     val playlistDetail = uiState.playlistDetail
     val remoteNowPlaying = uiState.connect.remoteNowPlaying.takeUnless { castOutput.selected }
     var radioDjCreationOpen by remember { mutableStateOf(false) }
-    val nowPlaying = (remoteNowPlaying ?: uiState.nowPlaying)?.withSelectedRemoteOutput(uiState.connect)
+    val nowPlaying = rememberEqualInstance((remoteNowPlaying ?: uiState.nowPlaying)?.withSelectedRemoteOutput(uiState.connect)
         ?.withCastOutput(
             castOutput,
             stringResource(Res.string.connect_remote_unavailable).takeIf { castOutput.unavailable },
@@ -155,15 +155,20 @@ private fun NaviampSharedAppShellContent(
                 general.interfaceSettings.nowPlaying,
                 general.interfaceSettings.albumArtworkPreference(connectionSettings.currentSourceId, playing.albumId),
             )
-        }
-    val nowPlayingActions = (if (remoteNowPlaying != null) {
+        })
+    val nowPlayingActions = rememberEqualInstance((if (remoteNowPlaying != null) {
         connectActions?.remoteNowPlayingActions?.withLocalDisplayActions(actions.nowPlayingActions)
             ?: actions.nowPlayingActions
     } else {
         actions.nowPlayingActions
     }).withSelectedRemoteOutputAction(uiState.connect, connectActions)
         .withCastOutputActions(castOutput, onCastPicker, onCastSelectLocal)
-        .copy(onCreateRadioDj = { radioDjCreationOpen = true })
+        .copy(onCreateRadioDj = { radioDjCreationOpen = true }))
+    // Opening and closing Now Playing must not recompose the browse screen, which does not
+    // read the open flag; it learns about the player layout through showFullNowPlaying.
+    val browseUiState = rememberEqualInstance(
+        uiState.copy(shellChrome = uiState.shellChrome.copy(nowPlayingOpen = false, playerDocked = false)),
+    )
     PreloadNaviampNowPlayingArtwork(nowPlaying)
     val supportsDownloads = shellChrome.supportsDownloads
     val supportsApplicationUpdates = shellChrome.supportsApplicationUpdates
@@ -267,15 +272,19 @@ private fun NaviampSharedAppShellContent(
         colors = colors,
     )
     val nowPlayingPlayerColors = animatedNaviampPlayerColors(appBackground.targetPlayerColors)
-    MaterialTheme(
-        colorScheme = darkColorScheme(
+    // A new ColorScheme instance would recompose every Material component on each shell update.
+    val colorScheme = remember(colors) {
+        darkColorScheme(
             background = colors.background,
             surface = colors.controlSurface,
             primary = colors.accent,
             onPrimary = colors.onAccent,
             onBackground = colors.primaryText,
             onSurface = colors.primaryText,
-        ),
+        )
+    }
+    MaterialTheme(
+        colorScheme = colorScheme,
         typography = rememberNaviampTypography(interfaceSettings),
     ) {
         uiState.playlistMembership?.let { membership ->
@@ -380,7 +389,7 @@ private fun NaviampSharedAppShellContent(
                             } else {
                                 ConnectedContent(
                                     colors = colors,
-                                    uiState = uiState,
+                                    uiState = browseUiState,
                                     showFullNowPlaying = showFullNowPlaying,
                                     playbackProgress = playbackProgress,
                                     visualizerBandsProvider = visualizerBandsProvider,
@@ -506,6 +515,16 @@ internal fun NaviampConnectSourceMismatchDialog(
 internal const val NaviampConnectSourceMismatchDialogTestTag = "connect-source-mismatch"
 internal const val NaviampConnectSourceMismatchProvisionTestTag = "connect-source-mismatch-provision"
 internal const val NaviampConnectSourceMismatchSettingsTestTag = "connect-source-mismatch-settings"
+
+private class EqualInstanceHolder<T>(var value: T)
+
+/** Keeps the previous instance while [value] equals it, so equal state does not recompose its readers. */
+@Composable
+internal fun <T> rememberEqualInstance(value: T): T {
+    val holder = remember { EqualInstanceHolder(value) }
+    if (holder.value != value) holder.value = value
+    return holder.value
+}
 
 internal fun sharedRouteCanUseOwnScroll(
     editingConnection: Boolean,
