@@ -198,6 +198,10 @@
     <string name="smart_playlist_field_category_identifiers">पहचानकर्ता</string>
     <string name="smart_playlist_field_category_other">अन्य</string>
     <string name="smart_playlist_field_no_matches">कोई मेल खाने वाला फ़ील्ड नहीं</string>
+    <string name="playlists_duplicate_smart">स्मार्ट प्लेलिस्ट की प्रतिलिपि बनाएँ</string>
+    <string name="smart_playlist_duplicate_name">%1$s प्रतिलिपि</string>
+    <string name="smart_playlist_duplicate_name_numbered">%1$s प्रतिलिपि %2$d</string>
+    <string name="smart_playlist_duplicate_password">इस स्मार्ट प्लेलिस्ट की प्रतिलिपि बनाने के लिए अपना Navidrome पासवर्ड दर्ज करें।</string>
     <string name="smart_playlist_inspection_read_only">इस प्लेलिस्ट के नियम या सेटिंग को यह संपादक सुरक्षित रूप से नहीं बदल सकता। मूल परिभाषा केवल देखने के लिए दिखाई गई है।</string>
     <string name="smart_playlist_inspection_missing">सर्वर ने इस प्लेलिस्ट के नियम नहीं दिए।</string>
     <string name="smart_playlist_inspection_permission">आपको इस प्लेलिस्ट के नियम देखने की अनुमति नहीं है।</string>

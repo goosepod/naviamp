@@ -501,6 +501,18 @@ object NaviampIcons {
         moveTo(13.8f, 7f)
         lineTo(17f, 10.2f)
     }
+    val Duplicate = icon("Duplicate") {
+        moveTo(9f, 9f)
+        lineTo(19f, 9f)
+        lineTo(19f, 19f)
+        lineTo(9f, 19f)
+        close()
+        moveTo(15f, 9f)
+        lineTo(15f, 5f)
+        lineTo(5f, 5f)
+        lineTo(5f, 15f)
+        lineTo(9f, 15f)
+    }
     val Alphabetical = icon("Alphabetical") {
         moveTo(5f, 18f)
         lineTo(8f, 6f)
