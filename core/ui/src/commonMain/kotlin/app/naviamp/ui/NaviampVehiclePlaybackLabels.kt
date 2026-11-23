@@ -1,7 +1,6 @@
 package app.naviamp.ui
 
 import app.naviamp.ui.generated.resources.*
-import org.jetbrains.compose.resources.getString
 
 /** Translated playback vocabulary shared by constrained vehicle surfaces. */
 data class NaviampVehiclePlaybackLabels(
@@ -11,8 +10,8 @@ data class NaviampVehiclePlaybackLabels(
 )
 
 suspend fun loadNaviampVehiclePlaybackLabels() = NaviampVehiclePlaybackLabels(
-    getString(Res.string.tv_start_radio), getString(Res.string.tv_favorite),
-    getString(Res.string.playlist_item_unfavorite), getString(Res.string.transport_shuffle),
-    getString(Res.string.tv_repeat_off), getString(Res.string.tv_repeat_all), getString(Res.string.tv_repeat_one),
-    getString(Res.string.discovery_acquisition_failed), getString(Res.string.library_sources_cancel),
+    naviampString(Res.string.tv_start_radio), naviampString(Res.string.tv_favorite),
+    naviampString(Res.string.playlist_item_unfavorite), naviampString(Res.string.transport_shuffle),
+    naviampString(Res.string.tv_repeat_off), naviampString(Res.string.tv_repeat_all), naviampString(Res.string.tv_repeat_one),
+    naviampString(Res.string.discovery_acquisition_failed), naviampString(Res.string.library_sources_cancel),
 )
