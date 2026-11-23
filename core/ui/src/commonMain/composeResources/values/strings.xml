@@ -1373,4 +1373,5 @@
     <string name="something_new_no_play_counts">This server doesn't report play counts, so Naviamp can't tell which tracks are new.</string>
     <string name="something_new_failed">Couldn't load tracks to choose from.</string>
     <string name="something_new_from_downloads">Offline: playing a downloaded track you haven't played.</string>
+    <string name="radio_offline">You're offline. More tracks need a connection to your server.</string>
 </resources>

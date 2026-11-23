@@ -670,6 +670,7 @@ class NaviampCore private constructor(
                 pendingListens = services.providerActions::pendingListenTrackIds,
                 currentTrack = { livePlayback.state.value.currentTrack ?: livePlayback.state.value.queue.current },
                 radio = mediaTransactions,
+                playTrack = { track -> mediaTransactions.play(listOf(track)) },
                 issueResolvedCommand = { command -> checkNotNull(resolvedCommandHandler).execute(command) },
             )
             val providerSessionLifecycle = NaviampCoreProviderSessionLifecycle(

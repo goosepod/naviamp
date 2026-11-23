@@ -597,4 +597,5 @@
     <string name="something_new_no_play_counts">Questo server non indica il numero di ascolti, quindi Naviamp non può sapere quali brani sono nuovi.</string>
     <string name="something_new_failed">Impossibile caricare brani tra cui scegliere.</string>
     <string name="something_new_from_downloads">Offline: riproduzione di un brano scaricato che non hai ancora ascoltato.</string>
+    <string name="radio_offline">Sei offline. Per altri brani serve una connessione al tuo server.</string>
 </resources>

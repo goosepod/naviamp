@@ -218,8 +218,11 @@ sealed interface NaviampCoreCommand {
         /** Picks a never-played track from the current source, then issues [StartSomethingNewRadio]. */
         data object PlaySomethingNew : Home
 
-        /** Issued through the full handler, like [StartAlbumMix], so Connect targets receive seed-track radio. */
-        data class StartSomethingNewRadio(val seed: app.naviamp.domain.Track) : Home
+        /**
+         * Issued through the full handler, like [StartAlbumMix], so Connect targets receive seed-track radio.
+         * An offline pick plays alone because no shared Radio method builds from downloads.
+         */
+        data class StartSomethingNewRadio(val seed: app.naviamp.domain.Track, val startRadio: Boolean = true) : Home
         data object DismissSomethingNewNotice : Home
         data class SonicTrackAction(val request: SharedHomeDiscoveryTrackActionRequest) : Home
         data class RecentTrackAction(val request: SharedTrackRowActionRequest) : Home

@@ -597,4 +597,5 @@
     <string name="something_new_no_play_counts">Deze server meldt geen afspeelaantallen, dus Naviamp kan niet zien welke nummers nieuw zijn.</string>
     <string name="something_new_failed">Kan geen nummers laden om uit te kiezen.</string>
     <string name="something_new_from_downloads">Offline: een gedownload nummer dat je nog niet hebt afgespeeld wordt afgespeeld.</string>
+    <string name="radio_offline">Je bent offline. Voor meer nummers is een verbinding met je server nodig.</string>
 </resources>

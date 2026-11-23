@@ -1348,4 +1348,5 @@
     <string name="something_new_no_play_counts">Este servidor no informa de las reproducciones, así que Naviamp no puede saber qué pistas son nuevas.</string>
     <string name="something_new_failed">No se pudieron cargar pistas para elegir.</string>
     <string name="something_new_from_downloads">Sin conexión: reproduciendo una pista descargada que no has escuchado.</string>
+    <string name="radio_offline">Estás sin conexión. Para añadir más pistas se necesita conexión con tu servidor.</string>
 </resources>

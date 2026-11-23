@@ -597,4 +597,5 @@
     <string name="something_new_no_play_counts">此服务器不提供播放次数，因此 Naviamp 无法判断哪些曲目是新的。</string>
     <string name="something_new_failed">无法加载可供选择的曲目。</string>
     <string name="something_new_from_downloads">离线：正在播放你尚未播放过的已下载曲目。</string>
+    <string name="radio_offline">你处于离线状态。需要连接到服务器才能添加更多曲目。</string>
 </resources>

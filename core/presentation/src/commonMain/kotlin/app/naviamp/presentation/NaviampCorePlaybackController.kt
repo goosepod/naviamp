@@ -1,6 +1,7 @@
 package app.naviamp.presentation
 import app.naviamp.domain.provider.isDiscoveryPreview
 import app.naviamp.domain.radio.radioDiagnostics
+import app.naviamp.domain.radio.whileOffline
 
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampPlaybackCommandController
@@ -631,10 +632,13 @@ class NaviampCorePlaybackController(
                     providerSource.isCurrent(expectedProvider)
             if (!requestIsCurrent) return@launch
 
-            stateStore.update { state -> state.copy(
-                shell = state.shell.copy(playback = state.shell.playback.copy(radioDiagnostics = diagnostics)),
-                overlays = state.overlays.copy(radioNotice = diagnostics),
-            ) }
+            stateStore.update { state ->
+                val notice = diagnostics?.whileOffline(state.shell.connectionSettings.connection.offline)
+                state.copy(
+                    shell = state.shell.copy(playback = state.shell.playback.copy(radioDiagnostics = notice)),
+                    overlays = state.overlays.copy(radioNotice = notice),
+                )
+            }
             val update = queue.appendSonicContinuationTracks(tracks)
             if (!update.tracksChanged) return@launch
             effects.applyQueue(update.queue, clearPreparedNext = true)

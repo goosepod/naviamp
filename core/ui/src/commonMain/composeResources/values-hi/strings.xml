@@ -597,4 +597,5 @@
     <string name="something_new_no_play_counts">यह सर्वर प्ले काउंट नहीं बताता, इसलिए Naviamp यह नहीं जान सकता कि कौन से ट्रैक नए हैं।</string>
     <string name="something_new_failed">चुनने के लिए ट्रैक लोड नहीं हो सके।</string>
     <string name="something_new_from_downloads">ऑफ़लाइन: ऐसा डाउनलोड किया गया ट्रैक चल रहा है जो आपने नहीं सुना।</string>
+    <string name="radio_offline">आप ऑफ़लाइन हैं। और ट्रैक के लिए आपके सर्वर से कनेक्शन ज़रूरी है।</string>
 </resources>

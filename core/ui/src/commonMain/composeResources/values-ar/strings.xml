@@ -597,4 +597,5 @@
     <string name="something_new_no_play_counts">لا يُبلغ هذا الخادم عن عدد مرات التشغيل، لذا لا يستطيع Naviamp معرفة المقاطع الجديدة.</string>
     <string name="something_new_failed">تعذّر تحميل مقاطع للاختيار منها.</string>
     <string name="something_new_from_downloads">غير متصل: يتم تشغيل مقطع منزَّل لم تستمع إليه.</string>
+    <string name="radio_offline">أنت غير متصل. تتطلب المقاطع الإضافية اتصالًا بالخادم.</string>
 </resources>

@@ -189,7 +189,7 @@ internal fun NaviampCoreCommand.connectMediaSelectionOrNull(): NaviampCoreConnec
     is NaviampCoreCommand.Home.StartAlbumMix ->
         NaviampCoreConnectMediaSelection(NaviampConnectMediaType.Track, seed.id.value, startRadio = true)
     is NaviampCoreCommand.Home.StartSomethingNewRadio ->
-        NaviampCoreConnectMediaSelection(NaviampConnectMediaType.Track, seed.id.value, startRadio = true)
+        NaviampCoreConnectMediaSelection(NaviampConnectMediaType.Track, seed.id.value, startRadio = startRadio)
     else -> null
 }
 

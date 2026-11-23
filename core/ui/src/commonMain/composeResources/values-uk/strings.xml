@@ -597,4 +597,5 @@
     <string name="something_new_no_play_counts">Цей сервер не повідомляє кількість прослуховувань, тому Naviamp не може визначити нові треки.</string>
     <string name="something_new_failed">Не вдалося завантажити треки для вибору.</string>
     <string name="something_new_from_downloads">Офлайн: відтворюється завантажений трек, який ви ще не слухали.</string>
+    <string name="radio_offline">Ви офлайн. Для нових треків потрібне підключення до сервера.</string>
 </resources>

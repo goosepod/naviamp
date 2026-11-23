@@ -597,4 +597,5 @@
     <string name="something_new_no_play_counts">このサーバーは再生回数を報告しないため、Naviamp はどの曲が新しいか判断できません。</string>
     <string name="something_new_failed">選択する曲を読み込めませんでした。</string>
     <string name="something_new_from_downloads">オフライン: まだ再生していないダウンロード済みの曲を再生しています。</string>
+    <string name="radio_offline">オフラインです。曲を追加するにはサーバーへの接続が必要です。</string>
 </resources>

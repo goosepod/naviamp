@@ -1350,4 +1350,5 @@
     <string name="something_new_no_play_counts">Este servidor não informa contagens de reprodução, então o Naviamp não consegue saber quais faixas são novas.</string>
     <string name="something_new_failed">Não foi possível carregar faixas para escolher.</string>
     <string name="something_new_from_downloads">Offline: tocando uma faixa baixada que você ainda não ouviu.</string>
+    <string name="radio_offline">Você está offline. Para adicionar mais faixas é preciso conexão com o seu servidor.</string>
 </resources>

@@ -644,6 +644,33 @@ class NaviampCoreTest {
         assertEquals("downloaded-new", fixture.effects.selections.first().tracks.single().id.value)
         assertEquals(app.naviamp.ui.NaviampSomethingNewNotice.PlayingFromDownloads,
             fixture.core.state.value.overlays.somethingNewNotice)
+        // Offline the pick plays alone: no server Radio request, so no server-failure notice.
+        assertEquals(emptyList(), fixture.similarRequests)
+        assertEquals(null, fixture.core.state.value.overlays.radioNotice)
+        assertEquals(listOf("downloaded-new"), fixture.effects.selections.flatMap { it.tracks }.map { it.id.value })
+    }
+
+    @Test
+    fun radioThatCannotReachTheServerWhileOfflineSaysOfflineInsteadOfBlamingTheServer() = runTest {
+        val offline = somethingNewFixture(batches = listOf(emptyList()), offline = true)
+
+        offline.core.execute(NaviampCoreCommand.Home.StartSomethingNewRadio(coreTrack("seed")))
+        advanceUntilIdle()
+
+        assertEquals("seed", offline.effects.selections.first().tracks.single().id.value)
+        assertEquals(app.naviamp.domain.radio.RadioBuildOutcome.Offline,
+            offline.core.state.value.overlays.radioNotice?.outcome)
+    }
+
+    @Test
+    fun radioFailureWhileOnlineKeepsTheServerFailureNotice() = runTest {
+        val online = somethingNewFixture(batches = listOf(emptyList()), serverUnreachable = true)
+
+        online.core.execute(NaviampCoreCommand.Home.StartSomethingNewRadio(coreTrack("seed")))
+        advanceUntilIdle()
+
+        assertEquals(app.naviamp.domain.radio.RadioBuildOutcome.Failed,
+            online.core.state.value.overlays.radioNotice?.outcome)
     }
 
     @Test
@@ -677,6 +704,7 @@ class NaviampCoreTest {
         offline: Boolean = false,
         selectedFolders: List<String> = emptyList(),
         randomGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null,
+        serverUnreachable: Boolean = offline,
     ): SomethingNewFixture {
         val original = FakeCoreMediaProvider(supportsPlayReporting = true)
         var randomCalls = 0
@@ -692,6 +720,7 @@ class NaviampCoreTest {
             }
             override suspend fun instantMixTracks(trackId: app.naviamp.domain.TrackId, count: Int): List<Track> {
                 similarRequests += trackId
+                if (serverUnreachable) throw IllegalStateException("Request failed")
                 return listOf(coreTrack("similar-1"), coreTrack("similar-2"))
             }
         }

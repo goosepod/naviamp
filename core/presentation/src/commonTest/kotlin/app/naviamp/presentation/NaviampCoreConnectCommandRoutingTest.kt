@@ -91,6 +91,8 @@ class NaviampCoreConnectCommandRoutingTest {
         assertEquals(NaviampConnectMediaType.Track, selection?.type)
         assertEquals("fresh", selection?.id)
         assertEquals(true, selection?.startRadio)
+        assertEquals(false, NaviampCoreCommand.Home.StartSomethingNewRadio(seed, startRadio = false)
+            .connectMediaSelectionOrNull()?.startRadio)
     }
 
     @Test

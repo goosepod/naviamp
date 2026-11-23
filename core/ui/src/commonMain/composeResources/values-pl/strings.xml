@@ -694,4 +694,5 @@
     <string name="something_new_no_play_counts">Ten serwer nie podaje liczby odtworzeń, więc Naviamp nie może ustalić, które utwory są nowe.</string>
     <string name="something_new_failed">Nie udało się wczytać utworów do wyboru.</string>
     <string name="something_new_from_downloads">Offline: odtwarzanie pobranego utworu, którego jeszcze nie odtwarzano.</string>
+    <string name="radio_offline">Jesteś offline. Kolejne utwory wymagają połączenia z serwerem.</string>
 </resources>

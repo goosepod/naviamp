@@ -597,4 +597,5 @@
     <string name="something_new_no_play_counts">Bu sunucu çalma sayılarını bildirmiyor, bu nedenle Naviamp hangi parçaların yeni olduğunu bilemez.</string>
     <string name="something_new_failed">Seçilecek parçalar yüklenemedi.</string>
     <string name="something_new_from_downloads">Çevrimdışı: henüz dinlemediğiniz indirilmiş bir parça çalınıyor.</string>
+    <string name="radio_offline">Çevrimdışısınız. Daha fazla parça için sunucunuza bağlantı gerekiyor.</string>
 </resources>

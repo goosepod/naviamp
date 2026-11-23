@@ -1344,4 +1344,5 @@
     <string name="something_new_no_play_counts">Dieser Server meldet keine Wiedergabezähler, daher kann Naviamp nicht erkennen, welche Titel neu sind.</string>
     <string name="something_new_failed">Titel zur Auswahl konnten nicht geladen werden.</string>
     <string name="something_new_from_downloads">Offline: Ein heruntergeladener Titel, den du noch nicht gehört hast, wird abgespielt.</string>
+    <string name="radio_offline">Du bist offline. Für weitere Titel ist eine Verbindung zu deinem Server nötig.</string>
 </resources>

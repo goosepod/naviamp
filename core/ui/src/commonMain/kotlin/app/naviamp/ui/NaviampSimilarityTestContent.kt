@@ -162,6 +162,7 @@ private fun radioNoticeText(result: RadioBuildDiagnostics): String {
         RadioBuildOutcome.Unsupported -> Res.string.settings_related_requires_support
         RadioBuildOutcome.Empty -> Res.string.similarity_radio_empty
         RadioBuildOutcome.Failed -> Res.string.similarity_failed
+        RadioBuildOutcome.Offline -> Res.string.radio_offline
     })
     val label = stringResource(if (result.autoplay) Res.string.settings_related_sonic_autoplay
         else Res.string.settings_experience_related_tracks_title)

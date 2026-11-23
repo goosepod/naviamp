@@ -597,4 +597,5 @@
     <string name="something_new_no_play_counts">Server ini tidak melaporkan jumlah pemutaran, jadi Naviamp tidak dapat mengetahui lagu mana yang baru.</string>
     <string name="something_new_failed">Tidak dapat memuat lagu untuk dipilih.</string>
     <string name="something_new_from_downloads">Offline: memutar lagu unduhan yang belum pernah Anda putar.</string>
+    <string name="radio_offline">Anda sedang offline. Lagu lainnya memerlukan koneksi ke server Anda.</string>
 </resources>

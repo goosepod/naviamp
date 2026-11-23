@@ -15,6 +15,7 @@ class NaviampCoreSomethingNewController(
     private val pendingListens: (sourceId: String) -> Set<TrackId>,
     private val currentTrack: () -> Track?,
     private val radio: NaviampCoreTrackRadioTransactions,
+    private val playTrack: (Track) -> Unit,
     /** Issues a resolved command through the full (Connect-aware) handler; local when absent. */
     private val issueResolvedCommand: (suspend (NaviampCoreCommand) -> Unit)? = null,
 ) : NaviampCoreCommandController {
@@ -37,7 +38,8 @@ class NaviampCoreSomethingNewController(
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? {
         when (command) {
             NaviampCoreCommand.Home.PlaySomethingNew, is NaviampCoreCommand.Home.SelectStation -> playSomethingNew()
-            is NaviampCoreCommand.Home.StartSomethingNewRadio -> radio.startTrackRadio(command.seed)
+            is NaviampCoreCommand.Home.StartSomethingNewRadio ->
+                if (command.startRadio) radio.startTrackRadio(command.seed) else playTrack(command.seed)
             else -> return null
         }
         return NaviampCoreCommandResult.Completed
@@ -71,7 +73,7 @@ class NaviampCoreSomethingNewController(
         if (pick == SomethingNewPick.Superseded || !isCurrent()) return
         when (pick) {
             is SomethingNewPick.Found -> {
-                val start = NaviampCoreCommand.Home.StartSomethingNewRadio(pick.track)
+                val start = NaviampCoreCommand.Home.StartSomethingNewRadio(pick.track, startRadio = !pick.fromDownloads)
                 val issue = issueResolvedCommand
                 if (issue != null) issue(start) else execute(start)
                 if (pick.fromDownloads) publish(NaviampSomethingNewNotice.PlayingFromDownloads)
