@@ -60,15 +60,11 @@
     <string name="library_sources_connection_required">ライブラリを選択するには音楽サーバーに接続してください。</string>
     <string name="library_sources_load_failed">ライブラリを読み込めませんでした。</string>
     <string name="library_sources_save_failed">選択したライブラリを更新できませんでした。</string>
-    <string name="settings_font_size_title">文字サイズ</string>
-    <string name="settings_font_size_subtitle">全般と再生中の文字サイズを個別に設定します</string>
-    <string name="settings_font_size_summary">全般: %1$s · 再生中: %2$s</string>
     <string name="settings_font_size_general_title">全般インターフェース</string>
     <string name="settings_font_size_now_playing_title">再生中、ミニプレーヤー、キュー、歌詞</string>
-    <string name="settings_font_size_standard">標準</string>
-    <string name="settings_font_size_standard_subtitle">Naviamp の標準文字サイズを使用します。</string>
     <string name="settings_font_title">フォント</string>
-    <string name="settings_font_subtitle">Naviamp 全体で使うフォントを選択します</string>
+    <string name="settings_font_subtitle">アプリ全体の書体と文字サイズ</string>
+    <string name="settings_font_size_default_percent">%1$d%（標準）</string>
     <string name="settings_font_nunito_sans_subtitle">Naviamp の標準の丸みのあるフォントです。</string>
     <string name="settings_font_inter_subtitle">丸みを抑えたニュートラルなフォントで、数字の幅が揃います。</string>
     <string name="settings_font_system">システム</string>
@@ -80,7 +76,6 @@
     <string name="settings_font_unavailable">%1$s はこのデバイスで使用できないため、Nunito Sans を使用しています。</string>
     <string name="settings_font_preview_title">プレビュー</string>
     <string name="settings_font_preview_sample">すべてのアルバム、すべてのアーティスト、すべての曲。</string>
-    <string name="settings_font_size_reset">リセット</string>
     <string name="description_less">閉じる</string>
     <string name="description_more">もっと見る…</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Wi-Fiでキャッシュ音声の音質を向上</string>

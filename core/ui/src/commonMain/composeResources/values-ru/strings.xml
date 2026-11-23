@@ -60,15 +60,11 @@
     <string name="library_sources_connection_required">Подключитесь к музыкальному серверу, чтобы выбрать библиотеки.</string>
     <string name="library_sources_load_failed">Не удалось загрузить библиотеки.</string>
     <string name="library_sources_save_failed">Не удалось обновить выбранные библиотеки.</string>
-    <string name="settings_font_size_title">Размер текста</string>
-    <string name="settings_font_size_subtitle">Настройте отдельно текст интерфейса и экрана воспроизведения</string>
-    <string name="settings_font_size_summary">Общий: %1$s · Сейчас играет: %2$s</string>
     <string name="settings_font_size_general_title">Общий интерфейс</string>
     <string name="settings_font_size_now_playing_title">Сейчас играет, мини-плеер, очередь и тексты песен</string>
-    <string name="settings_font_size_standard">Стандартный</string>
-    <string name="settings_font_size_standard_subtitle">Использует стандартный размер текста Naviamp.</string>
     <string name="settings_font_title">Шрифт</string>
-    <string name="settings_font_subtitle">Выберите шрифт для всего интерфейса Naviamp</string>
+    <string name="settings_font_subtitle">Шрифт и размер текста во всём приложении</string>
+    <string name="settings_font_size_default_percent">%1$d% (по умолчанию)</string>
     <string name="settings_font_nunito_sans_subtitle">Округлый шрифт Naviamp по умолчанию.</string>
     <string name="settings_font_inter_subtitle">Нейтральный, менее округлый шрифт с цифрами одинаковой ширины.</string>
     <string name="settings_font_system">Системный</string>
@@ -80,7 +76,6 @@
     <string name="settings_font_unavailable">Шрифт %1$s недоступен на этом устройстве, поэтому Naviamp использует Nunito Sans.</string>
     <string name="settings_font_preview_title">Предпросмотр</string>
     <string name="settings_font_preview_sample">Каждый альбом, каждый исполнитель, каждый трек.</string>
-    <string name="settings_font_size_reset">Сбросить</string>
     <string name="description_less">Свернуть</string>
     <string name="description_more">Ещё…</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Улучшать качество аудиокэша через Wi-Fi</string>

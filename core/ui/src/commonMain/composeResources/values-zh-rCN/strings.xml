@@ -60,15 +60,11 @@
     <string name="library_sources_connection_required">连接到音乐服务器以选择媒体库。</string>
     <string name="library_sources_load_failed">无法加载媒体库。</string>
     <string name="library_sources_save_failed">无法更新所选媒体库。</string>
-    <string name="settings_font_size_title">文字大小</string>
-    <string name="settings_font_size_subtitle">分别设置常规界面和正在播放的文字</string>
-    <string name="settings_font_size_summary">常规：%1$s · 正在播放：%2$s</string>
     <string name="settings_font_size_general_title">常规界面</string>
     <string name="settings_font_size_now_playing_title">正在播放、迷你播放器、队列和歌词</string>
-    <string name="settings_font_size_standard">标准</string>
-    <string name="settings_font_size_standard_subtitle">使用 Naviamp 的默认文字大小。</string>
     <string name="settings_font_title">字体</string>
-    <string name="settings_font_subtitle">选择整个 Naviamp 使用的字体</string>
+    <string name="settings_font_subtitle">整个应用的字体和文字大小</string>
+    <string name="settings_font_size_default_percent">%1$d%（默认）</string>
     <string name="settings_font_nunito_sans_subtitle">Naviamp 默认的圆润字体。</string>
     <string name="settings_font_inter_subtitle">中性、较少圆润的字体，数字宽度固定。</string>
     <string name="settings_font_system">系统</string>
@@ -80,7 +76,6 @@
     <string name="settings_font_unavailable">此设备上没有 %1$s，因此 Naviamp 使用 Nunito Sans。</string>
     <string name="settings_font_preview_title">预览</string>
     <string name="settings_font_preview_sample">每一张专辑，每一位艺人，每一首曲目。</string>
-    <string name="settings_font_size_reset">重置</string>
     <string name="description_less">收起</string>
     <string name="description_more">更多…</string>
     <string name="settings_quality_upgrade_cache_wifi_title">通过 Wi-Fi 提升缓存音频质量</string>

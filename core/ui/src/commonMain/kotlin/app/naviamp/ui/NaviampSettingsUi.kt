@@ -813,12 +813,7 @@ fun NaviampExperienceSettingsSection(
                 interfaceSettings = interfaceSettings,
                 onInterfaceSettingsChanged = onInterfaceSettingsChanged,
             )
-            ExperienceSettingsPage.Font -> FontFamilySettings(
-                colors = colors,
-                interfaceSettings = interfaceSettings,
-                onInterfaceSettingsChanged = onInterfaceSettingsChanged,
-            )
-            ExperienceSettingsPage.TextSize -> FontSizeSettings(
+            ExperienceSettingsPage.Font -> FontSettings(
                 colors = colors,
                 interfaceSettings = interfaceSettings,
                 onInterfaceSettingsChanged = onInterfaceSettingsChanged,
@@ -884,16 +879,6 @@ fun NaviampExperienceSettingsSection(
             value = interfaceSettings.fontSummary(),
         ) {
             selectedSection = ExperienceSettingsPage.Font
-        }
-        SettingsRow(
-            title = ExperienceSettingsPage.TextSize.title(),
-            subtitle = ExperienceSettingsPage.TextSize.subtitle(),
-            colors = colors,
-            value = stringResource(Res.string.settings_font_size_summary,
-                interfaceSettings.generalFontSize.label(),
-                interfaceSettings.nowPlayingFontSize.label()),
-        ) {
-            selectedSection = ExperienceSettingsPage.TextSize
         }
         SettingsRow(
             title = ExperienceSettingsPage.Albums.title(),
@@ -1078,7 +1063,6 @@ private enum class ExperienceSettingsPage {
     Radio,
     Lyrics,
     Font,
-    TextSize,
     AppBackground,
     Albums,
     ArtistDetails,
@@ -1095,7 +1079,6 @@ private fun ExperienceSettingsPage.title(): String =
         ExperienceSettingsPage.Radio -> stringResource(Res.string.settings_experience_related_tracks_title)
         ExperienceSettingsPage.Lyrics -> stringResource(Res.string.settings_lyrics_title)
         ExperienceSettingsPage.Font -> stringResource(Res.string.settings_font_title)
-        ExperienceSettingsPage.TextSize -> stringResource(Res.string.settings_font_size_title)
         ExperienceSettingsPage.AppBackground -> "App Background"
         ExperienceSettingsPage.Albums -> "Albums"
         ExperienceSettingsPage.ArtistDetails -> stringResource(Res.string.settings_experience_artist_details_title)
@@ -1112,7 +1095,6 @@ private fun ExperienceSettingsPage.subtitle(): String =
         ExperienceSettingsPage.Radio -> stringResource(Res.string.settings_experience_related_tracks_subtitle)
         ExperienceSettingsPage.Lyrics -> stringResource(Res.string.settings_lyrics_subtitle)
         ExperienceSettingsPage.Font -> stringResource(Res.string.settings_font_subtitle)
-        ExperienceSettingsPage.TextSize -> stringResource(Res.string.settings_font_size_subtitle)
         ExperienceSettingsPage.AppBackground -> "Choose the canvas behind Naviamp"
         ExperienceSettingsPage.Albums -> "Choose how album collections are presented"
         ExperienceSettingsPage.ArtistDetails -> stringResource(Res.string.settings_experience_artist_details_subtitle)
@@ -3141,7 +3123,7 @@ private fun SharedCacheSettingsSection(
 }
 
 @Composable
-internal fun DetentIntSettingsSlider(
+private fun DetentIntSettingsSlider(
     colors: NaviampColors,
     title: String,
     value: Int,

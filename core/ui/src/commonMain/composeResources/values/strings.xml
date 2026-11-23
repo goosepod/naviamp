@@ -877,15 +877,11 @@
     <string name="diagnostics_failure_timeline">Timeline</string>
     <string name="diagnostics_failure_legacy_presence">Legacy presence</string>
     <string name="diagnostics_failure_listen_submission">Listen submission</string>
-    <string name="settings_font_size_title">Text size</string>
-    <string name="settings_font_size_subtitle">Set general and Now Playing text independently</string>
-    <string name="settings_font_size_summary">General: %1$s · Now Playing: %2$s</string>
     <string name="settings_font_size_general_title">General interface</string>
     <string name="settings_font_size_now_playing_title">Now Playing, mini player, queue, and lyrics</string>
-    <string name="settings_font_size_standard">Standard</string>
-    <string name="settings_font_size_standard_subtitle">Uses Naviamp’s default text size.</string>
     <string name="settings_font_title">Font</string>
-    <string name="settings_font_subtitle">Choose the typeface used throughout Naviamp</string>
+    <string name="settings_font_subtitle">Typeface and text sizes for the whole app</string>
+    <string name="settings_font_size_default_percent">%1$d% (default)</string>
     <string name="settings_font_nunito_sans_subtitle">Naviamp’s default rounded typeface.</string>
     <string name="settings_font_inter_subtitle">A neutral, less rounded typeface with fixed-width numbers.</string>
     <string name="settings_font_system">System</string>
@@ -897,7 +893,6 @@
     <string name="settings_font_unavailable">%1$s is not available on this device, so Naviamp is using Nunito Sans.</string>
     <string name="settings_font_preview_title">Preview</string>
     <string name="settings_font_preview_sample">Every album, every artist, every track.</string>
-    <string name="settings_font_size_reset">Reset</string>
     <string name="description_less">Less</string>
     <string name="description_more">More…</string>
     <string name="connection_password_required">Enter your password to reconnect this server.</string>

@@ -18,6 +18,9 @@ import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.isPopup
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
@@ -76,7 +79,7 @@ class NaviampFontChoiceUiTest {
                             NaviampMiniNowPlaying(nowPlaying, colors, {}, actions)
                             NaviampProviderDescription("An artist biography.", "artist", colors)
                             NaviampCompactSearchField("Query", "Search", colors, {}, {})
-                            FontSizeSettings(colors, settings.value) {}
+                            SelectableSettingsRow(colors, "Selectable setting", "A setting subtitle", selected = true) {}
                         }
                         Box(Modifier.width(700.dp).fillMaxHeight()) {
                             NaviampNowPlayingPanel(nowPlaying, colors = colors, actions = actions, panelLayout = NaviampPlayerPanelLayout.Full)
@@ -129,7 +132,7 @@ class NaviampFontChoiceUiTest {
                 app = MaterialTheme.typography.bodyLarge.fontFamily
                 Column(Modifier.verticalScroll(rememberScrollState())) {
                     Text("Outside the font page")
-                    FontFamilySettings(colors, settings.value) { settings.value = it }
+                    FontSettings(colors, settings.value) { settings.value = it }
                 }
             }
         }
@@ -155,7 +158,7 @@ class NaviampFontChoiceUiTest {
             MaterialTheme(typography = rememberNaviampTypography(settings.value)) {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
                     Text("Outside the font page")
-                    FontFamilySettings(colors, settings.value) { settings.value = it }
+                    FontSettings(colors, settings.value) { settings.value = it }
                 }
             }
         }
@@ -185,7 +188,7 @@ class NaviampFontChoiceUiTest {
             MaterialTheme(typography = rememberNaviampTypography(settings.value)) {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
                     Text("Outside the font page")
-                    FontFamilySettings(colors, settings.value) { settings.value = it }
+                    FontSettings(colors, settings.value) { settings.value = it }
                 }
             }
         }
@@ -259,8 +262,7 @@ class NaviampFontChoiceUiTest {
                     MaterialTheme(typography = rememberNaviampTypography(settings)) {
                         NaviampFontSizeScope(settings.generalFontSize, includeStandardScale = true) {
                             Column(Modifier.verticalScroll(rememberScrollState())) {
-                                FontFamilySettings(colors, settings) {}
-                                FontSizeSettings(colors, settings) {}
+                                FontSettings(colors, settings) {}
                                 SelectableSettingsRow(colors, "Selectable setting", "A setting subtitle", selected = true) {}
                                 SettingsRow("A settings row", "A settings row subtitle", colors, value = "150%") {}
                             }
@@ -308,6 +310,89 @@ class NaviampFontChoiceUiTest {
     private fun FontFamily?.describe(): Any? =
         (this as? FontListFontFamily)?.fonts?.map { (it as? SystemFont)?.identity ?: it } ?: this
 
+    @Test
+    fun mergedFontPageFitsAndKeepsItsControlsInPlaceAtPhoneWidth() = runDesktopComposeUiTest(412, 1400) {
+        val settings = mutableStateOf(largest(InterfaceFontFamily.Inter))
+        setContent {
+            MaterialTheme(typography = rememberNaviampTypography(settings.value)) {
+                NaviampFontSizeScope(settings.value.generalFontSize, includeStandardScale = true) {
+                    Column(Modifier.verticalScroll(rememberScrollState())) {
+                        FontSettings(colors, settings.value) { settings.value = it }
+                    }
+                }
+            }
+        }
+        val controls = listOf("general-font-size-value", "now-playing-font-size-value")
+        fun positions() = controls.associateWith { onNodeWithTag(it).fetchSemanticsNode().boundsInRoot } +
+            InterfaceFontFamily.entries.associate { it.label() to onNodeWithText(it.label()).fetchSemanticsNode().boundsInRoot }
+        fun assertReadable(context: String) {
+            assertNoTextOverflow(context)
+            for (tag in controls) {
+                val value = onNode(hasAnyAncestor(hasTestTag(tag)) and SemanticsMatcher.keyIsDefined(SemanticsActions.GetTextLayoutResult), useUnmergedTree = true)
+                    .fetchSemanticsNode().let { node ->
+                        mutableListOf<TextLayoutResult>().also { node.config[SemanticsActions.GetTextLayoutResult].action?.invoke(it) }.single()
+                    }
+                assertEquals(1, value.lineCount, "$context: ${value.layoutInput.text} must stay on one line")
+            }
+        }
+        assertReadable("150% Inter")
+        val before = positions()
+        for ((tag, option, expected) in listOf(
+            Triple("general-font-size-value", "80%", InterfaceSettings::generalFontSize),
+            Triple("now-playing-font-size-value", "80%", InterfaceSettings::nowPlayingFontSize),
+            Triple("general-font-size-value", "150%", InterfaceSettings::generalFontSize),
+            Triple("now-playing-font-size-value", "100% (default)", InterfaceSettings::nowPlayingFontSize),
+        )) {
+            onNodeWithTag(tag).performScrollTo().performClick()
+            onNode(hasText(option) and hasClickAction() and hasAnyAncestor(isPopup())).performClick()
+            waitForIdle()
+            runOnIdle { assertEquals(option.substringBefore('%').toInt(), expected(settings.value).percent) }
+            assertReadable("after $option")
+            positions().forEach { (name, bounds) ->
+                assertEquals(before.getValue(name).top, bounds.top, 0.5f, "$name moved when choosing $option")
+            }
+        }
+        onNodeWithText("Nunito Sans").performScrollTo().performClick()
+        waitForIdle()
+        positions().forEach { (name, bounds) ->
+            assertEquals(before.getValue(name).top, bounds.top, 0.5f, "$name moved when choosing a typeface")
+        }
+    }
+
+    @Test
+    fun televisionFontPageFitsAndKeepsItsChoicesInPlaceAtTheLargestSize() {
+        for (family in InterfaceFontFamily.entries) runDesktopComposeUiTest(960, 540) {
+            val settings = mutableStateOf(largest(family))
+            val actions = NoSettingsValueActions.copy(onInterfaceSettingsChanged = { settings.value = it })
+            setContent {
+                MaterialTheme(typography = rememberNaviampTypography(settings.value)) {
+                    NaviampFontSizeScope(settings.value.generalFontSize) {
+                        TelevisionFontSettings(
+                            NaviampAppShellUiState(general = NaviampGeneralSettingsUi(interfaceSettings = settings.value)),
+                            NaviampTelevisionColors, actions, FocusRequester(),
+                        )
+                    }
+                }
+            }
+            onNodeWithTag("font-preview").assertExists()
+            assertNoTextOverflow("$family television font page")
+            val rows = InterfaceFontFamily.entries.map { it.label() }
+            // The list scrolls to reach a size, so rows are compared against the preview above them.
+            fun offsets(): Map<String, Float> {
+                val preview = onNodeWithTag("font-preview").fetchSemanticsNode().boundsInRoot.top
+                return rows.associateWith { onNodeWithText(it).fetchSemanticsNode().boundsInRoot.top - preview }
+            }
+            val before = offsets()
+            onAllNodes(hasText("80%") and hasClickAction()).onFirst().performScrollTo().performClick()
+            runOnIdle { assertEquals(80, settings.value.generalFontSize.percent) }
+            onNodeWithTag("font-preview").performScrollTo()
+            waitForIdle()
+            val after = offsets()
+            rows.forEach { assertEquals(before.getValue(it), after.getValue(it), 0.5f, "$it moved on $family") }
+            assertNoTextOverflow("$family television font page at 80%")
+        }
+    }
+
     private fun largest(family: InterfaceFontFamily) = InterfaceSettings(
         fontFamily = family,
         generalFontSize = InterfaceFontSize(InterfaceFontSize.MaxPercent),
@@ -341,14 +426,14 @@ class NaviampFontChoiceUiTest {
             .flatMap { node ->
                 val results = mutableListOf<TextLayoutResult>()
                 node.config[SemanticsActions.GetTextLayoutResult].action?.invoke(results)
-                results
+                results.map { it to node.boundsInRoot }
             }
-            .filter { layout ->
+            .filter { (layout, _) ->
                 layout.didOverflowHeight || (0 until layout.lineCount).any { line ->
                     layout.isLineEllipsized(line) || layout.getLineRight(line) - layout.getLineLeft(line) > layout.size.width + 1f
                 }
             }
-            .map { it.layoutInput.text.text }
+            .map { (layout, bounds) -> "${layout.layoutInput.text.text} at $bounds" }
         assertTrue(clipped.isEmpty(), "$context clips $clipped")
     }
 }

@@ -13,10 +13,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasAnyAncestor
-import androidx.compose.ui.test.SemanticsMatcher
-import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.isPopup
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
@@ -89,25 +89,26 @@ class NaviampFontSizeRenderingTest {
             CompositionLocalProvider(LocalDensity provides Density(density.density, 2f)) {
                 NaviampFontSizeScope(settings.value.generalFontSize, includeStandardScale = true) {
                     Column(Modifier.width(280.dp).verticalScroll(rememberScrollState())) {
-                        FontSizeSettings(NaviampColors(), settings.value, { settings.value = it })
+                        FontSettings(NaviampColors(), settings.value, { settings.value = it })
                     }
                 }
             }
         }
-        fun slider(tag: String) = onNode(SemanticsMatcher.keyIsDefined(SemanticsActions.SetProgress) and hasAnyAncestor(hasTestTag(tag)))
-        fun stepIndex(percent: Int) = ((percent - InterfaceFontSize.MinPercent) / InterfaceFontSize.StepPercent).toFloat()
-        slider("general-font-size").performScrollTo().performSemanticsAction(SemanticsActions.SetProgress) { it(stepIndex(150)) }
-        slider("now-playing-font-size").performScrollTo().performSemanticsAction(SemanticsActions.SetProgress) { it(stepIndex(80)) }
+        fun choose(tag: String, option: String) {
+            onNodeWithTag("$tag-value").performScrollTo().performClick()
+            onNode(hasText(option) and hasClickAction() and hasAnyAncestor(isPopup())).performClick()
+        }
+        choose("general-font-size", "150%")
+        choose("now-playing-font-size", "80%")
         runOnIdle {
             assertEquals(InterfaceFontSize(150), settings.value.generalFontSize)
             assertEquals(InterfaceFontSize(80), settings.value.nowPlayingFontSize)
         }
         onNodeWithText("150%").assertExists()
         onNodeWithText("80%").assertExists()
-        onNodeWithTag("general-font-size-reset").performScrollTo().performClick()
+        choose("general-font-size", "100% (default)")
         runOnIdle { assertEquals(InterfaceFontSize(80), settings.value.nowPlayingFontSize) }
-        onNodeWithTag("general-font-size-reset").assertIsNotEnabled()
-        onNodeWithTag("now-playing-font-size-reset").performScrollTo().performClick()
+        choose("now-playing-font-size", "100% (default)")
         runOnIdle { assertEquals(InterfaceSettings(), settings.value) }
     }
 

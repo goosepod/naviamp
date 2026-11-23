@@ -852,15 +852,11 @@
     <string name="library_sources_connection_required">Conéctate a un servidor de música para elegir bibliotecas.</string>
     <string name="library_sources_load_failed">No se pudieron cargar las bibliotecas.</string>
     <string name="library_sources_save_failed">No se pudieron actualizar las bibliotecas seleccionadas.</string>
-    <string name="settings_font_size_title">Tamaño del texto</string>
-    <string name="settings_font_size_subtitle">Ajusta por separado el texto general y el de En reproducción</string>
-    <string name="settings_font_size_summary">General: %1$s · En reproducción: %2$s</string>
     <string name="settings_font_size_general_title">Interfaz general</string>
     <string name="settings_font_size_now_playing_title">En reproducción, minirreproductor, cola y letras</string>
-    <string name="settings_font_size_standard">Estándar</string>
-    <string name="settings_font_size_standard_subtitle">Usa el tamaño de texto predeterminado de Naviamp.</string>
     <string name="settings_font_title">Fuente</string>
-    <string name="settings_font_subtitle">Elige la tipografía de toda la interfaz de Naviamp</string>
+    <string name="settings_font_subtitle">Tipografía y tamaños de texto de toda la app</string>
+    <string name="settings_font_size_default_percent">%1$d% (predeterminado)</string>
     <string name="settings_font_nunito_sans_subtitle">La tipografía redondeada predeterminada de Naviamp.</string>
     <string name="settings_font_inter_subtitle">Una tipografía neutra y menos redondeada, con números de ancho fijo.</string>
     <string name="settings_font_system">Sistema</string>
@@ -872,7 +868,6 @@
     <string name="settings_font_unavailable">%1$s no está disponible en este dispositivo, así que Naviamp usa Nunito Sans.</string>
     <string name="settings_font_preview_title">Vista previa</string>
     <string name="settings_font_preview_sample">Cada álbum, cada artista, cada pista.</string>
-    <string name="settings_font_size_reset">Restablecer</string>
     <string name="description_less">Menos</string>
     <string name="description_more">Más…</string>
     <string name="connection_password_required">Introduce tu contraseña para volver a conectarte a este servidor.</string>
