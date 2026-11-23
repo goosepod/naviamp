@@ -450,7 +450,7 @@ fun SmartPlaylistBuilderDialog(
                                 label = "Paste .nsp or Navidrome smart playlist JSON",
                                 minLines = 4,
                                 maxLines = 8,
-                                textStyle = TextStyle(fontSize = 12.sp),
+                                textStyle = TextStyle(fontSize = 12.sp).withNaviampFont(),
                                 modifier = Modifier.fillMaxWidth().naviampTextInputFocus(),
                             )
                             TextButton(
@@ -486,7 +486,7 @@ fun SmartPlaylistBuilderDialog(
                             readOnly = true,
                             minLines = 6,
                             maxLines = 10,
-                            textStyle = TextStyle(fontSize = 12.sp),
+                            textStyle = TextStyle(fontSize = 12.sp).withNaviampFont(),
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -580,7 +580,7 @@ fun SmartPlaylistBuilderDialog(
                         label = "Password",
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
-                        textStyle = TextStyle(fontSize = 13.sp),
+                        textStyle = TextStyle(fontSize = 13.sp).withNaviampFont(),
                     )
                     passwordError?.let { message ->
                         Text(message, color = colors.secondaryText, fontSize = 12.sp)
@@ -715,7 +715,7 @@ internal fun SmartPlaylistLoadPasswordDialog(
                     label = "Password",
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
-                    textStyle = TextStyle(fontSize = 13.sp),
+                    textStyle = TextStyle(fontSize = 13.sp).withNaviampFont(),
                 )
                 errorMessage?.let { message ->
                     Text(message, color = colors.secondaryText, fontSize = 12.sp)
@@ -1434,7 +1434,7 @@ private fun SmartPlaylistGenreTypeahead(
             },
             label = label,
             singleLine = true,
-            textStyle = TextStyle(fontSize = 13.sp),
+            textStyle = TextStyle(fontSize = 13.sp).withNaviampFont(),
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag(SmartPlaylistGenreValueTestTag)
@@ -1500,7 +1500,7 @@ private fun SmartPlaylistTextField(
         label = label,
         singleLine = true,
         keyboardOptions = keyboardOptions,
-        textStyle = TextStyle(fontSize = 13.sp),
+        textStyle = TextStyle(fontSize = 13.sp).withNaviampFont(),
         modifier = Modifier.fillMaxWidth().naviampTextInputFocus(),
     )
 }
@@ -1549,7 +1549,7 @@ internal fun <T> SmartPlaylistDropdown(
             label = label,
             readOnly = !searchable,
             singleLine = true,
-            textStyle = TextStyle(fontSize = 13.sp),
+            textStyle = TextStyle(fontSize = 13.sp).withNaviampFont(),
             modifier = Modifier
                 .fillMaxWidth()
                 .then(anchor)

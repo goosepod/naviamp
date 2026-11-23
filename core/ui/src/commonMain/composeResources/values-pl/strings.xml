@@ -170,12 +170,8 @@
     <string name="settings_font_size_summary">Ogólny: %1$s · Teraz odtwarzane: %2$s</string>
     <string name="settings_font_size_general_title">Interfejs ogólny</string>
     <string name="settings_font_size_now_playing_title">Teraz odtwarzane, miniodtwarzacz, kolejka i teksty</string>
-    <string name="settings_font_size_small">Mały</string>
-    <string name="settings_font_size_small_subtitle">Wyświetla więcej treści na ekranie.</string>
     <string name="settings_font_size_standard">Standardowy</string>
     <string name="settings_font_size_standard_subtitle">Używa domyślnego rozmiaru tekstu Naviamp.</string>
-    <string name="settings_font_size_large">Duży</string>
-    <string name="settings_font_size_large_subtitle">Poprawia czytelność dzięki większemu tekstowi.</string>
     <string name="description_less">Mniej</string>
     <string name="description_more">Więcej…</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Poprawiaj jakość bufora audio przez Wi-Fi</string>

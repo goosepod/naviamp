@@ -13,6 +13,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
@@ -89,15 +94,20 @@ class NaviampFontSizeRenderingTest {
                 }
             }
         }
-        onAllNodesWithText("Large")[0].performScrollTo().performClick()
-        onAllNodesWithText("Small")[1].performScrollTo().performClick()
+        fun slider(tag: String) = onNode(SemanticsMatcher.keyIsDefined(SemanticsActions.SetProgress) and hasAnyAncestor(hasTestTag(tag)))
+        fun stepIndex(percent: Int) = ((percent - InterfaceFontSize.MinPercent) / InterfaceFontSize.StepPercent).toFloat()
+        slider("general-font-size").performScrollTo().performSemanticsAction(SemanticsActions.SetProgress) { it(stepIndex(150)) }
+        slider("now-playing-font-size").performScrollTo().performSemanticsAction(SemanticsActions.SetProgress) { it(stepIndex(80)) }
         runOnIdle {
-            assertEquals(InterfaceFontSize.Large, settings.value.generalFontSize)
-            assertEquals(InterfaceFontSize.Small, settings.value.nowPlayingFontSize)
+            assertEquals(InterfaceFontSize(150), settings.value.generalFontSize)
+            assertEquals(InterfaceFontSize(80), settings.value.nowPlayingFontSize)
         }
-        onAllNodesWithText("Standard")[0].performScrollTo().performClick()
-        runOnIdle { assertEquals(InterfaceFontSize.Small, settings.value.nowPlayingFontSize) }
-        onAllNodesWithText("Standard")[1].performScrollTo().performClick()
+        onNodeWithText("150%").assertExists()
+        onNodeWithText("80%").assertExists()
+        onNodeWithTag("general-font-size-reset").performScrollTo().performClick()
+        runOnIdle { assertEquals(InterfaceFontSize(80), settings.value.nowPlayingFontSize) }
+        onNodeWithTag("general-font-size-reset").assertIsNotEnabled()
+        onNodeWithTag("now-playing-font-size-reset").performScrollTo().performClick()
         runOnIdle { assertEquals(InterfaceSettings(), settings.value) }
     }
 
@@ -125,8 +135,8 @@ class NaviampFontSizeRenderingTest {
             }
         }
         for (system in listOf(1f, 2f)) {
-            for (generalSize in InterfaceFontSize.entries) {
-                for (playerSize in InterfaceFontSize.entries) {
+            for (generalSize in RepresentativeSizes) {
+                for (playerSize in RepresentativeSizes) {
                     runOnIdle {
                         accessibility.value = system
                         general.value = generalSize
@@ -186,3 +196,8 @@ class NaviampFontSizeRenderingTest {
         onNodeWithText("More…").assertDoesNotExist()
     }
 }
+
+private val RepresentativeSizes = listOf(
+    InterfaceFontSize(InterfaceFontSize.MinPercent), InterfaceFontSize.Small, InterfaceFontSize.Standard,
+    InterfaceFontSize.Large, InterfaceFontSize(InterfaceFontSize.MaxPercent),
+)

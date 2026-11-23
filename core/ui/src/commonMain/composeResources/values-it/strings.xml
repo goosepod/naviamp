@@ -65,12 +65,8 @@
     <string name="settings_font_size_summary">Generale: %1$s · In riproduzione: %2$s</string>
     <string name="settings_font_size_general_title">Interfaccia generale</string>
     <string name="settings_font_size_now_playing_title">In riproduzione, mini player, coda e testi</string>
-    <string name="settings_font_size_small">Piccolo</string>
-    <string name="settings_font_size_small_subtitle">Mostra più contenuti sullo schermo.</string>
     <string name="settings_font_size_standard">Standard</string>
     <string name="settings_font_size_standard_subtitle">Usa la dimensione testo predefinita di Naviamp.</string>
-    <string name="settings_font_size_large">Grande</string>
-    <string name="settings_font_size_large_subtitle">Migliora la leggibilità con testo più grande.</string>
     <string name="description_less">Meno</string>
     <string name="description_more">Altro…</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Migliora la cache audio tramite Wi-Fi</string>

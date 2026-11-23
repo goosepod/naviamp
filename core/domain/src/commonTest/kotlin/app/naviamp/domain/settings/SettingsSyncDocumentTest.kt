@@ -2,6 +2,9 @@ package app.naviamp.domain.settings
 
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.radio.RadioDjPreset
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -76,8 +79,8 @@ class SettingsSyncDocumentTest {
     }
 
     @Test
-    fun everyFontSizeCombinationSurvivesExportNormalizationAndIndependentReset() {
-        for (general in InterfaceFontSize.entries) for (player in InterfaceFontSize.entries) {
+    fun everyFontSizeStepSurvivesExportNormalizationAndIndependentReset() {
+        for (general in InterfaceFontSize.Steps) for (player in listOf(InterfaceFontSize(80), InterfaceFontSize(150), general)) {
             val settings = InterfaceSettings(generalFontSize = general, nowPlayingFontSize = player)
             val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(interfaceSettings = settings), 1L, "test")
             val imported = SettingsSyncJson.decode(SettingsSyncJson.encode(document)).preferences.interfaceSettings.normalized()
@@ -85,31 +88,99 @@ class SettingsSyncDocumentTest {
             assertEquals(player, imported.copy(generalFontSize = InterfaceFontSize.Standard).normalized().nowPlayingFontSize)
             assertEquals(general, imported.copy(nowPlayingFontSize = InterfaceFontSize.Standard).normalized().generalFontSize)
         }
-        for (field in listOf("generalFontSize", "nowPlayingFontSize")) {
-            kotlin.test.assertFailsWith<kotlinx.serialization.SerializationException> {
-                SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"$field":"Unknown"}}}""")
-            }
-        }
+        assertEquals((80..150 step 5).toList(), InterfaceFontSize.Steps.map { it.percent })
     }
 
     @Test
     fun independentFontSizesRoundTripAndOlderExportsUseStandard() {
         val settings = InterfaceSettings(
-            generalFontSize = InterfaceFontSize.Large,
-            nowPlayingFontSize = InterfaceFontSize.Small,
+            generalFontSize = InterfaceFontSize(125),
+            nowPlayingFontSize = InterfaceFontSize(85),
         )
         val decoded = SettingsSyncJson.decode(SettingsSyncJson.encode(
             SettingsSyncDocument(preferences = SettingsSyncPreferences(interfaceSettings = settings)),
         )).preferences.interfaceSettings
 
-        assertEquals(InterfaceFontSize.Large, decoded.generalFontSize)
-        assertEquals(InterfaceFontSize.Small, decoded.nowPlayingFontSize)
+        assertEquals(InterfaceFontSize(125), decoded.generalFontSize)
+        assertEquals(InterfaceFontSize(85), decoded.nowPlayingFontSize)
 
         val older = SettingsSyncJson.decode(
             """{"preferences":{"interfaceSettings":{}}}""",
         ).preferences.interfaceSettings
         assertEquals(InterfaceFontSize.Standard, older.generalFontSize)
         assertEquals(InterfaceFontSize.Standard, older.nowPlayingFontSize)
+        assertEquals(InterfaceFontFamily.NunitoSans, older.fontFamily)
+        assertNull(older.installedFontFamily)
+    }
+
+    @Test
+    fun olderFontSizePresetsMapExactlyAndImportedPercentagesAreNormalized() {
+        for ((name, percent) in listOf("Small" to 90, "Standard" to 100, "Large" to 115)) {
+            val imported = SettingsSyncJson.decode(
+                """{"preferences":{"interfaceSettings":{"generalFontSize":"$name","nowPlayingFontSize":"$name"}}}""",
+            ).preferences.interfaceSettings
+            assertEquals(InterfaceFontSize(percent), imported.generalFontSize)
+            assertEquals(InterfaceFontSize(percent), imported.nowPlayingFontSize)
+        }
+        for ((raw, expected) in listOf(Int.MIN_VALUE to 80, 0 to 80, 82 to 80, 83 to 85, 112 to 110, 148 to 150, 400 to 150)) {
+            val imported = SettingsSyncJson.decode(
+                """{"preferences":{"interfaceSettings":{"generalFontSize":"Large","generalFontSizePercent":$raw,"nowPlayingFontSize":$raw}}}""",
+            ).preferences.interfaceSettings
+            assertEquals(InterfaceFontSize(expected), imported.nowPlayingFontSize, "raw $raw")
+            if (expected > 105) assertEquals(InterfaceFontSize(expected), imported.generalFontSize, "raw $raw")
+        }
+        for (field in listOf("generalFontSize", "nowPlayingFontSize")) {
+            val imported = SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"$field":"Unknown"}}}""")
+                .preferences.interfaceSettings
+            assertEquals(InterfaceSettings(), imported)
+        }
+    }
+
+    @Test
+    fun fontSizesStayReadableByOlderVersionsThatOnlyKnowThePresets() {
+        val encoded = SettingsSyncJson.encode(SettingsSyncDocument(preferences = SettingsSyncPreferences(
+            interfaceSettings = InterfaceSettings(generalFontSize = InterfaceFontSize(125), nowPlayingFontSize = InterfaceFontSize(95)),
+        )))
+        val section = SettingsSyncJson.format.parseToJsonElement(encoded).jsonObject["preferences"]!!
+            .jsonObject["interfaceSettings"]!!.jsonObject
+        assertEquals("Large", section["generalFontSize"]!!.jsonPrimitive.content)
+        assertEquals(125, section["generalFontSizePercent"]!!.jsonPrimitive.int)
+        assertEquals("Standard", section["nowPlayingFontSize"]!!.jsonPrimitive.content)
+        assertEquals(95, section["nowPlayingFontSizePercent"]!!.jsonPrimitive.int)
+
+        // An older device changed the preset and wrote back only the legacy keys.
+        val rewrittenByOlder = encoded.replace("\"generalFontSize\": \"Large\"", "\"generalFontSize\": \"Small\"")
+        assertTrue(rewrittenByOlder != encoded)
+        val restored = SettingsSyncJson.decode(rewrittenByOlder).preferences.interfaceSettings
+        assertEquals(InterfaceFontSize.Small, restored.generalFontSize)
+        assertEquals(InterfaceFontSize(95), restored.nowPlayingFontSize)
+    }
+
+    @Test
+    fun portableFontFamilyRoundTripsWhileTheInstalledFamilyStaysOnTheDevice() {
+        for (family in InterfaceFontFamily.entries) {
+            val local = InterfaceSettings(fontFamily = family, installedFontFamily = "Fira Sans")
+            val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(interfaceSettings = local), 1L, "test")
+            val encoded = SettingsSyncJson.encode(document)
+            assertFalse("Fira Sans" in encoded)
+            val decoded = SettingsSyncJson.decode(encoded)
+            assertEquals(family, decoded.preferences.interfaceSettings.fontFamily)
+            assertNull(decoded.preferences.interfaceSettings.installedFontFamily)
+            val applied = applySettingsSyncDocument(
+                decoded, NoopProviderMediaSources, NoopRadioDjPresets,
+                localInterface = InterfaceSettings(installedFontFamily = "Local Font"),
+            )
+            assertEquals(family, applied.interfaceSettings.fontFamily)
+            assertEquals("Local Font", applied.interfaceSettings.installedFontFamily)
+        }
+        val handEdited = SettingsSyncJson.decode(
+            """{"preferences":{"interfaceSettings":{"fontFamily":"Inter","installedFontFamily":"Other Device Font"}}}""",
+        )
+        assertNull(handEdited.preferences.interfaceSettings.installedFontFamily)
+        assertEquals(InterfaceFontFamily.Inter, handEdited.preferences.interfaceSettings.fontFamily)
+        kotlin.test.assertFailsWith<kotlinx.serialization.SerializationException> {
+            SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"fontFamily":"Comic Sans"}}}""")
+        }
     }
 
     @Test fun keepTelevisionControlsVisibleRoundTripsAndOlderExportsDefaultOff() {
@@ -563,5 +634,21 @@ class SettingsSyncDocumentTest {
         assertNull(secretHeader.value)
         assertTrue(secretHeader.valueIsSecret)
         assertFalse(SettingsSyncJson.encode(document).contains("Bearer secret"))
+    }
+
+    private object NoopProviderMediaSources : app.naviamp.domain.cache.ProviderMediaSourceRepository {
+        override fun upsertProviderMediaSource(
+            connection: app.naviamp.domain.cache.ProviderMediaSourceConnection,
+            cacheNamespace: String,
+            providerId: String,
+            preferredSourceId: String?,
+        ) = app.naviamp.domain.source.MediaSourceIdentity("source", cacheNamespace, connection.displayName)
+    }
+
+    private object NoopRadioDjPresets : app.naviamp.domain.radio.RadioDjPresetRepository {
+        override fun radioDjPresets(): List<RadioDjPreset> = emptyList()
+        override fun replaceRadioDjPresets(presets: List<RadioDjPreset>) = Unit
+        override fun upsertRadioDjPreset(preset: RadioDjPreset) = Unit
+        override fun deleteRadioDjPreset(id: String) = Unit
     }
 }

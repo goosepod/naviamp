@@ -44,7 +44,7 @@ internal fun SmartPlaylistOperandField(
             colors = colors,
             value = value, onValueChange = onValueChange,
             label = label,
-            singleLine = true, textStyle = TextStyle(fontSize = 13.sp),
+            singleLine = true, textStyle = TextStyle(fontSize = 13.sp).withNaviampFont(),
             suffix = number?.unit?.let { smartPlaylistUnitLabel(it) },
             keyboardOptions = when {
                 number?.decimal == true -> KeyboardOptions(keyboardType = KeyboardType.Decimal)

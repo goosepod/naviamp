@@ -65,12 +65,8 @@
     <string name="settings_font_size_summary">सामान्य: %1$s · अभी चल रहा है: %2$s</string>
     <string name="settings_font_size_general_title">सामान्य इंटरफ़ेस</string>
     <string name="settings_font_size_now_playing_title">अभी चल रहा है, मिनी प्लेयर, कतार और गीत</string>
-    <string name="settings_font_size_small">छोटा</string>
-    <string name="settings_font_size_small_subtitle">स्क्रीन पर अधिक सामग्री दिखाता है।</string>
     <string name="settings_font_size_standard">मानक</string>
     <string name="settings_font_size_standard_subtitle">Naviamp के डिफ़ॉल्ट टेक्स्ट आकार का उपयोग करता है।</string>
-    <string name="settings_font_size_large">बड़ा</string>
-    <string name="settings_font_size_large_subtitle">बड़े टेक्स्ट से पढ़ना आसान बनाता है।</string>
     <string name="description_less">कम</string>
     <string name="description_more">और…</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Wi-Fi पर कैश किए गए ऑडियो की गुणवत्ता बढ़ाएँ</string>

@@ -14,6 +14,7 @@ import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.normalized
+import app.naviamp.domain.settings.withoutDeviceLocalSettings
 
 internal sealed interface NaviampCoreConnectProvisioningExport {
     data class Ready(val profile: NaviampConnectProvisioningProfile) : NaviampCoreConnectProvisioningExport
@@ -89,7 +90,7 @@ internal fun NaviampConnectProvisioningProfile.toConnectionFormState() = Connect
 )
 
 internal fun NaviampCoreState.toConnectPortableSettings() = NaviampConnectPortableSettings(
-    interfaceSettings = shell.general.interfaceSettings,
+    interfaceSettings = shell.general.interfaceSettings.withoutDeviceLocalSettings(),
     playbackSettings = shell.playback.settings,
 )
 
@@ -102,6 +103,7 @@ internal fun InterfaceSettings.withConnectPortableValues(offered: InterfaceSetti
         showDesktopTooltips = showDesktopTooltips,
         globalKeyboardShortcuts = globalKeyboardShortcuts,
         trackSwipes = trackSwipes,
+        installedFontFamily = installedFontFamily,
     ).normalized()
 
 internal fun PlaybackSettings.withConnectPortableValues(offered: PlaybackSettings): PlaybackSettings =

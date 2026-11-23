@@ -25,6 +25,8 @@ import app.naviamp.domain.provider.providerDescriptor
 import app.naviamp.domain.source.ConnectionHeaderDefinition
 import app.naviamp.domain.source.ConnectionSecondaryUrl
 import app.naviamp.domain.source.normalizedMusicFolderIds
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.KeepGeneratedSerializer
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -161,14 +163,9 @@ enum class ApplicationUpdateChannel {
     Beta,
 }
 
-@Serializable
-enum class InterfaceFontSize(val scale: Float) {
-    Small(0.9f),
-    Standard(1f),
-    Large(1.15f),
-}
-
-@Serializable
+@OptIn(ExperimentalSerializationApi::class)
+@KeepGeneratedSerializer
+@Serializable(with = InterfaceSettingsSerializer::class)
 data class InterfaceSettings(
     val favoriteArtistSort: FavoriteArtistSort = FavoriteArtistSort.Name,
     val language: InterfaceLanguage = InterfaceLanguage.System,
@@ -197,6 +194,9 @@ data class InterfaceSettings(
     val groupAlbumsByReleaseType: Boolean = true,
     val generalFontSize: InterfaceFontSize = InterfaceFontSize.Standard,
     val nowPlayingFontSize: InterfaceFontSize = InterfaceFontSize.Standard,
+    val fontFamily: InterfaceFontFamily = InterfaceFontFamily.NunitoSans,
+    /** Device-local: an installed family name is never exported, synced, or offered over Connect. */
+    val installedFontFamily: String? = null,
     val homeSectionPresentations: Map<String, HomeSectionPresentationSettings> = emptyMap(),
     val homeSectionOrder: List<String> = emptyList(),
     val globalKeyboardShortcuts: GlobalKeyboardShortcutSettings = GlobalKeyboardShortcutSettings(),
@@ -219,6 +219,9 @@ data class InterfaceSettings(
             .toMap(),
         homeSectionOrder = homeSectionOrder.map(String::trim).filter(String::isNotBlank).distinct(),
         globalKeyboardShortcuts = globalKeyboardShortcuts.normalized(),
+        generalFontSize = generalFontSize.normalized(),
+        nowPlayingFontSize = nowPlayingFontSize.normalized(),
+        installedFontFamily = normalizedInstalledFontFamily(installedFontFamily),
     )
 }
 

@@ -158,25 +158,28 @@ fun NaviampCoreApp(
                         )
                     }
                 }
-                state.overlays.busyMessage?.let { message ->
-                    NaviampBusyDialog(message)
-                }
-                state.overlays.radioNotice?.let { notice ->
-                    app.naviamp.ui.NaviampRadioNotice(
-                        app.naviamp.ui.NaviampColors.Dark, notice,
-                        onDismiss = { core.dispatch(NaviampCoreCommand.Settings.DismissRadioNotice) },
-                        modifier = Modifier.align(Alignment.BottomCenter),
-                    )
-                }
-                core.castPickerState?.let { pickerState ->
-                    val picker by pickerState.collectAsState()
-                    if (picker.visible) app.naviamp.ui.NaviampCastPickerDialog(
-                        picker, core::selectCastTarget, core::selectLocalPlayback,
-                        core::retryCastDiscovery, core::dismissCastPicker,
-                    )
-                }
-                if (state.overlays.statsForNerdsVisible) {
-                    NaviampCoreDiagnosticsPresentation(core, statsForNerdsPresenter)
+                app.naviamp.ui.NaviampTypographyScope(state.shell.general.interfaceSettings) {
+                    state.overlays.busyMessage?.let { message ->
+                        NaviampBusyDialog(message)
+                    }
+                    state.overlays.radioNotice?.let { notice ->
+                        app.naviamp.ui.NaviampRadioNotice(
+                            app.naviamp.ui.NaviampColors.Dark, notice,
+                            onDismiss = { core.dispatch(NaviampCoreCommand.Settings.DismissRadioNotice) },
+                            modifier = Modifier.align(Alignment.BottomCenter),
+                        )
+                    }
+                    core.castPickerState?.let { pickerState ->
+                        val picker by pickerState.collectAsState()
+                        if (picker.visible) app.naviamp.ui.NaviampCastPickerDialog(
+                            picker, core::selectCastTarget, core::selectLocalPlayback,
+                            core::retryCastDiscovery, core::dismissCastPicker,
+                            interfaceSettings = state.shell.general.interfaceSettings,
+                        )
+                    }
+                    if (state.overlays.statsForNerdsVisible) {
+                        NaviampCoreDiagnosticsPresentation(core, statsForNerdsPresenter)
+                    }
                 }
               }
             }

@@ -129,4 +129,20 @@ class NaviampCoreConnectProvisioningTest {
         assertEquals(77, mergedPlayback.volumePercent)
         assertEquals(false, mergedPlayback.allowMobileDownloads)
     }
+
+    @Test
+    fun connectOffersPortableFontsButKeepsEachDevicesInstalledFamily() {
+        val offered = InterfaceSettings(
+            fontFamily = app.naviamp.domain.settings.InterfaceFontFamily.Inter,
+            generalFontSize = app.naviamp.domain.settings.InterfaceFontSize(130),
+            nowPlayingFontSize = app.naviamp.domain.settings.InterfaceFontSize(85),
+            installedFontFamily = "Sender Font",
+        )
+        val merged = InterfaceSettings(installedFontFamily = "Receiver Font").withConnectPortableValues(offered)
+        assertEquals(app.naviamp.domain.settings.InterfaceFontFamily.Inter, merged.fontFamily)
+        assertEquals(app.naviamp.domain.settings.InterfaceFontSize(130), merged.generalFontSize)
+        assertEquals(app.naviamp.domain.settings.InterfaceFontSize(85), merged.nowPlayingFontSize)
+        assertEquals("Receiver Font", merged.installedFontFamily)
+        assertEquals(null, InterfaceSettings().withConnectPortableValues(offered).installedFontFamily)
+    }
 }

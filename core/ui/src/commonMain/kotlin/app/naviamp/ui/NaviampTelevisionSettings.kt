@@ -6,7 +6,9 @@ import app.naviamp.ui.generated.resources.settings_keep_screen_awake_failed
 
 import app.naviamp.ui.generated.resources.connect_setup_code_consent
 import app.naviamp.domain.settings.InterfaceLanguage
+import app.naviamp.domain.settings.InterfaceFontFamily
 import app.naviamp.domain.settings.InterfaceFontSize
+import app.naviamp.domain.settings.withBundledFontFamily
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import app.naviamp.ui.generated.resources.*
@@ -106,6 +108,7 @@ internal fun televisionSettingsCategories(controllersAvailable: Boolean): List<T
 
 internal enum class TelevisionSettingsChoicePage {
     Language,
+    Font,
     GeneralFontSize,
     NowPlayingFontSize,
     Background,
@@ -1009,7 +1012,7 @@ private fun TelevisionLyricsSettings(
 }
 
 @Composable
-private fun TelevisionDisplaySettings(
+internal fun TelevisionDisplaySettings(
     uiState: NaviampAppShellUiState,
     colors: NaviampColors,
     actions: NaviampSettingsValueActions,
@@ -1034,6 +1037,21 @@ private fun TelevisionDisplaySettings(
                 modifier = Modifier.focusRequester(
                     if (returnChoice == TelevisionSettingsChoicePage.Language) returnFocusRequester else firstFocusRequester,
                 ),
+            )
+        }
+        item(key = "font") {
+            TelevisionSettingsRow(
+                stringResource(Res.string.settings_font_title),
+                stringResource(Res.string.settings_font_subtitle),
+                settings.fontSummary(),
+                NaviampIcons.Experience,
+                disclosure = true,
+                colors = colors,
+                onClick = { onChoiceSelected(TelevisionSettingsChoicePage.Font) },
+                subtitleMaxLines = Int.MAX_VALUE,
+                modifier = if (returnChoice == TelevisionSettingsChoicePage.Font) {
+                    Modifier.focusRequester(returnFocusRequester)
+                } else Modifier,
             )
         }
         item(key = "general-font-size") {
@@ -1717,22 +1735,31 @@ private fun televisionSettingsChoices(
                 actions.valueActions.onInterfaceSettingsChanged(interfaceSettings.copy(language = value).normalized())
             }
         }
-        TelevisionSettingsChoicePage.GeneralFontSize -> InterfaceFontSize.entries.map { value ->
+        TelevisionSettingsChoicePage.Font -> InterfaceFontFamily.entries.map { value ->
+            TelevisionChoiceUi(
+                value.title(),
+                value.subtitle(),
+                interfaceSettings.installedFontFamily == null && value == interfaceSettings.fontFamily,
+            ) {
+                actions.valueActions.onInterfaceSettingsChanged(interfaceSettings.withBundledFontFamily(value))
+            }
+        }
+        TelevisionSettingsChoicePage.GeneralFontSize -> InterfaceFontSize.Steps.map { value ->
             TelevisionChoiceUi(
                 value.label(),
-                value.subtitle(),
-                value == interfaceSettings.generalFontSize,
+                value.televisionSubtitle(),
+                value == interfaceSettings.generalFontSize.normalized(),
             ) {
                 actions.valueActions.onInterfaceSettingsChanged(
                     interfaceSettings.copy(generalFontSize = value).normalized(),
                 )
             }
         }
-        TelevisionSettingsChoicePage.NowPlayingFontSize -> InterfaceFontSize.entries.map { value ->
+        TelevisionSettingsChoicePage.NowPlayingFontSize -> InterfaceFontSize.Steps.map { value ->
             TelevisionChoiceUi(
                 value.label(),
-                value.subtitle(),
-                value == interfaceSettings.nowPlayingFontSize,
+                value.televisionSubtitle(),
+                value == interfaceSettings.nowPlayingFontSize.normalized(),
             ) {
                 actions.valueActions.onInterfaceSettingsChanged(
                     interfaceSettings.copy(nowPlayingFontSize = value).normalized(),
@@ -1965,6 +1992,7 @@ private fun televisionSettingsPageTitle(page: TelevisionSettingsPage): String = 
     is TelevisionSettingsPage.Category -> stringResource(page.category.label)
     is TelevisionSettingsPage.Choice -> when (page.choice) {
         TelevisionSettingsChoicePage.Language -> stringResource(Res.string.settings_language_title)
+        TelevisionSettingsChoicePage.Font -> stringResource(Res.string.settings_font_title)
         TelevisionSettingsChoicePage.GeneralFontSize -> stringResource(Res.string.settings_font_size_general_title)
         TelevisionSettingsChoicePage.NowPlayingFontSize -> stringResource(Res.string.settings_font_size_now_playing_title)
         TelevisionSettingsChoicePage.Background -> stringResource(Res.string.tv_background)
@@ -1986,6 +2014,7 @@ private fun televisionSettingsPageTitle(page: TelevisionSettingsPage): String = 
 
 private fun televisionSettingsCategoryFor(page: TelevisionSettingsChoicePage): TelevisionSettingsCategory = when (page) {
     TelevisionSettingsChoicePage.Language,
+    TelevisionSettingsChoicePage.Font,
     TelevisionSettingsChoicePage.GeneralFontSize,
     TelevisionSettingsChoicePage.NowPlayingFontSize,
     TelevisionSettingsChoicePage.Background,
@@ -2073,3 +2102,7 @@ internal fun televisionLyricsDisplayLabel(value: LyricsDisplayPreference): Strin
 private val TelevisionSettingsFocusOverflow = 12.dp
 private val TelevisionSettingsFocusedBorderWidth = 3.dp
 private val TelevisionSettingsFocusedBorderColor = Color(0xFFBDEBFF)
+
+@Composable
+private fun InterfaceFontSize.televisionSubtitle(): String =
+    if (this == InterfaceFontSize.Standard) stringResource(Res.string.settings_font_size_standard_subtitle) else ""

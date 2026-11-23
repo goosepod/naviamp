@@ -65,12 +65,8 @@
     <string name="settings_font_size_summary">Genel: %1$s · Şimdi Çalıyor: %2$s</string>
     <string name="settings_font_size_general_title">Genel arayüz</string>
     <string name="settings_font_size_now_playing_title">Şimdi Çalıyor, mini oynatıcı, sıra ve şarkı sözleri</string>
-    <string name="settings_font_size_small">Küçük</string>
-    <string name="settings_font_size_small_subtitle">Ekranda daha fazla içerik gösterir.</string>
     <string name="settings_font_size_standard">Standart</string>
     <string name="settings_font_size_standard_subtitle">Naviamp’ın varsayılan metin boyutunu kullanır.</string>
-    <string name="settings_font_size_large">Büyük</string>
-    <string name="settings_font_size_large_subtitle">Daha büyük metinle okunabilirliği artırır.</string>
     <string name="description_less">Daha az</string>
     <string name="description_more">Daha fazla…</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Wi-Fi üzerinden önbellekteki sesi iyileştir</string>

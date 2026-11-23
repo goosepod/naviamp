@@ -37,6 +37,7 @@ fun applySettingsSyncDocument(
     mediaSourceRepository: ProviderMediaSourceRepository,
     radioDjPresetRepository: RadioDjPresetRepository,
     localPlayback: PlaybackSettings = PlaybackSettings(),
+    localInterface: InterfaceSettings = InterfaceSettings(),
 ): AppliedSettingsSyncDocument {
     val preferences = document.preferences
     // A receiving device's capabilities must never erase portable preferences, and a document
@@ -44,7 +45,7 @@ fun applySettingsSyncDocument(
     val importedPlayback = preferences.playback.normalized().withDeviceLocalSettingsFrom(localPlayback)
     radioDjPresetRepository.replaceRadioDjPresets(importedPlayback.radioDjs)
     return AppliedSettingsSyncDocument(
-        interfaceSettings = preferences.interfaceSettings.normalized(),
+        interfaceSettings = preferences.interfaceSettings.withDeviceLocalSettingsFrom(localInterface).normalized(),
         playbackSettings = importedPlayback.copy(radioDjs = radioDjPresetRepository.radioDjPresets()),
         visualizer = preferences.visualizer,
         recentRadioStreams = preferences.recentRadioStreams,
@@ -66,7 +67,7 @@ fun buildSettingsSyncDocument(
         lastWriterDeviceId = deviceId,
         serverProfiles = snapshot.serverProfiles.map { it.toSettingsSyncServerProfile() },
         preferences = SettingsSyncPreferences(
-            interfaceSettings = snapshot.interfaceSettings,
+            interfaceSettings = snapshot.interfaceSettings.withoutDeviceLocalSettings(),
             playback = snapshot.playback.withoutDeviceLocalSettings(),
             visualizer = snapshot.visualizer,
             recentRadioStreams = snapshot.recentRadioStreams,

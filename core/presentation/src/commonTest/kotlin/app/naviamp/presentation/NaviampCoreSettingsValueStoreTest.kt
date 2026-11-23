@@ -57,6 +57,24 @@ class NaviampCoreSettingsValueStoreTest {
         assertEquals(app.naviamp.domain.settings.AlbumCollectionLayout.List, older.artistPlaylistLayout)
         assertEquals(app.naviamp.domain.settings.AlbumCollectionLayout.List, older.artistAppearanceAlbumLayout)
     }
+    @Test fun fontChoiceAndExactSizesPersistLocallyAndOlderPresetsMigrate() {
+        val values = MemorySettingsValues()
+        val catalog = naviampCoreSettingsValueCatalog(values)
+        val settings = InterfaceSettings(
+            fontFamily = app.naviamp.domain.settings.InterfaceFontFamily.System,
+            installedFontFamily = "Local Font",
+            generalFontSize = app.naviamp.domain.settings.InterfaceFontSize(135),
+            nowPlayingFontSize = app.naviamp.domain.settings.InterfaceFontSize(80),
+        )
+        catalog.storedSettings.saveInterface(settings)
+        assertEquals(settings, naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface())
+        values.entries[KeyInterface] = """{"generalFontSize":"Large","nowPlayingFontSize":"Small","showArtistPlaylists":false}"""
+        val older = catalog.storedSettings.loadInterface()
+        assertEquals(app.naviamp.domain.settings.InterfaceFontSize(115), older.generalFontSize)
+        assertEquals(app.naviamp.domain.settings.InterfaceFontSize(90), older.nowPlayingFontSize)
+        assertEquals(app.naviamp.domain.settings.InterfaceFontFamily.NunitoSans, older.fontFamily)
+        assertFalse(older.showArtistPlaylists)
+    }
     @Test fun artistPlaylistVisibilityPersistsAndOlderSettingsDefaultOn() {
         val values = MemorySettingsValues()
         val catalog = naviampCoreSettingsValueCatalog(values)
