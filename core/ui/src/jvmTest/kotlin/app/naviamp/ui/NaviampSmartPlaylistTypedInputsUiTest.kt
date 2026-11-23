@@ -4,6 +4,15 @@ import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertIsSelectable
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -40,7 +49,7 @@ class NaviampSmartPlaylistTypedInputsUiTest {
     fun explicitStatusUsesDescriptiveChoicesIncludingNotSpecified() = runComposeUiTest {
         val saved = showRule(SmartPlaylistFields.ExplicitStatus)
 
-        onNode(hasText("Not specified") and hasSetTextAction()).assertExists()
+        onNode(selector("Not specified")).assertExists()
         assertEquals("""{"is":{"explicitstatus":""}}""", save(saved))
         choose("Not specified", "Clean")
         assertEquals("""{"is":{"explicitstatus":"c"}}""", save(saved))
@@ -79,13 +88,14 @@ class NaviampSmartPlaylistTypedInputsUiTest {
     }
 
     @Test
-    fun anInvalidChoiceValueStaysEditableAsTextUntilCorrected() = runComposeUiTest {
+    fun anInvalidChoiceValueStaysVisibleWithItsErrorUntilAChoiceReplacesIt() = runComposeUiTest {
         val condition = SmartPlaylistConditionDraft(field(SmartPlaylistFields.Rating), SmartPlaylistOperator.Is, "four")
         val saved = showRule(condition)
 
         onNodeWithTag("smart-playlist-rule-error-${condition.id}").assertExists()
-        onNode(hasText("four") and hasSetTextAction()).performTextReplacement("5")
-        onNode(hasText("5 stars") and hasSetTextAction()).assertExists()
+        onNode(selector("four")).assertExists()
+        choose("four", "5 stars")
+        onNode(selector("5 stars")).assertExists()
         assertEquals("""{"is":{"rating":5}}""", save(saved))
     }
 
@@ -120,7 +130,7 @@ class NaviampSmartPlaylistTypedInputsUiTest {
     fun changingTheFieldDropsAnOperandTypedForTheOldField() = runComposeUiTest {
         val saved = showRule(SmartPlaylistConditionDraft(field(SmartPlaylistFields.Rating), SmartPlaylistOperator.Is, "4"))
 
-        onNode(hasText("4 stars") and hasSetTextAction()).assertExists()
+        onNode(selector("4 stars")).assertExists()
         onNode(hasText("Rating") and hasSetTextAction()).performScrollTo().performMouseInput { click() }
         onNode(hasText("Rating") and hasSetTextAction()).performTextReplacement("yea")
         onNodeWithText("Year").performClick()
@@ -129,6 +139,22 @@ class NaviampSmartPlaylistTypedInputsUiTest {
         onNodeWithContentDescription("Value").performTextReplacement("1999")
         assertEquals("""{"is":{"year":1999}}""", save(saved))
     }
+
+    @Test
+    fun fixedChoicesAreReadOnlySelectorsThatOpenFromTheKeyboard() = runComposeUiTest {
+        val saved = showRule(SmartPlaylistFields.Rating)
+
+        onNode(selector("is")).assertExists()
+        onNode(hasText("Rating") and hasSetTextAction()).assertExists()
+        onNode(selector("Choose")).performScrollTo().performSemanticsAction(SemanticsActions.RequestFocus)
+        onNode(selector("Choose")).performKeyInput { pressKey(Key.Enter) }
+        onNodeWithText("3 stars").assertIsSelectable().performClick()
+        onNode(selector("3 stars")).assertExists()
+        assertEquals("""{"is":{"rating":3}}""", save(saved))
+    }
+
+    private fun selector(text: String) =
+        hasText(text) and SemanticsMatcher.expectValue(SemanticsProperties.IsEditable, false) and hasClickAction()
 
     private fun field(key: String) = SmartPlaylistFieldCatalog.fields.first { it.field == key }
 
@@ -149,7 +175,7 @@ class NaviampSmartPlaylistTypedInputsUiTest {
     }
 
     private fun ComposeUiTest.choose(current: String, option: String) {
-        onNode(hasText(current) and hasSetTextAction()).performScrollTo().performMouseInput { click() }
+        onNode(selector(current)).performScrollTo().performMouseInput { click() }
         onNodeWithText(option).performClick()
     }
 
