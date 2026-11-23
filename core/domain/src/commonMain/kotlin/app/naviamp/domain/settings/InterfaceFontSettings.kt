@@ -1,7 +1,14 @@
 package app.naviamp.domain.settings
 
 import kotlin.jvm.JvmInline
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -9,7 +16,7 @@ import kotlinx.serialization.json.JsonTransformingSerializer
 import kotlinx.serialization.json.intOrNull
 
 /** A text-size preference as a percentage of Naviamp's standard size, in 5% steps. */
-@Serializable
+@Serializable(with = InterfaceFontSizeSerializer::class)
 @JvmInline
 value class InterfaceFontSize(val percent: Int) {
     val scale: Float get() = normalizedInterfaceFontSizePercent(percent) / 100f
@@ -76,6 +83,24 @@ internal fun normalizedInstalledFontFamily(name: String?): String? =
     name?.trim()?.takeIf { it.isNotEmpty() }?.take(MaxInstalledFontFamilyLength)
 
 private const val MaxInstalledFontFamilyLength = 256
+
+/**
+ * Encodes the percentage as a number but also accepts a stored preset name, so a decoder that
+ * bypasses [InterfaceSettingsSerializer] still keeps the size instead of rejecting the section.
+ */
+internal object InterfaceFontSizeSerializer : KSerializer<InterfaceFontSize> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("app.naviamp.domain.settings.InterfaceFontSize", PrimitiveKind.INT)
+
+    override fun serialize(encoder: Encoder, value: InterfaceFontSize) = encoder.encodeInt(value.percent)
+
+    override fun deserialize(decoder: Decoder): InterfaceFontSize {
+        val json = decoder as? JsonDecoder ?: return InterfaceFontSize(decoder.decodeInt())
+        val value = json.decodeJsonElement() as? JsonPrimitive ?: return InterfaceFontSize.Standard
+        val percent = if (value.isString) LegacyPresetPercents[value.content] ?: value.content.toIntOrNull() else value.intOrNull
+        return InterfaceFontSize(percent ?: InterfaceFontSize.Standard.percent)
+    }
+}
 
 /**
  * Older Naviamp versions decode each font size as a `Small`/`Standard`/`Large` enum and reject

@@ -66,4 +66,16 @@ class InterfaceFontSettingsTest {
         assertEquals(1.15f, InterfaceFontSize.Large.scale)
         assertEquals(1.5f, InterfaceFontSize(999).scale)
     }
+
+    @Test
+    fun aFontSizeFieldDecodesPresetsAndPercentagesEvenWithoutTheSectionTransform() {
+        // Any decoder that bypasses the InterfaceSettings transform must not reject a stored preset
+        // and discard the whole interface section.
+        val generated = InterfaceSettings.generatedSerializer()
+        for ((raw, expected) in listOf("\"Small\"" to 90, "\"Standard\"" to 100, "\"Large\"" to 115, "125" to 125, "\"Unknown\"" to 100)) {
+            val decoded = SettingsSyncJson.format.decodeFromString(generated, """{"generalFontSize":$raw,"showArtistPlaylists":false}""")
+            assertEquals(expected, decoded.generalFontSize.percent, raw)
+            assertEquals(false, decoded.showArtistPlaylists)
+        }
+    }
 }

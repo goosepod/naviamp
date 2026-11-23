@@ -57,12 +57,6 @@ internal fun FontSettings(
 ) = NaviampFontPageScope(interfaceSettings) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         val selection = rememberNaviampFontSelection(interfaceSettings)
-        NaviampFontPreview(
-            colors,
-            selection,
-            interfaceSettings,
-            Modifier.padding(horizontal = SettingsRowHorizontalPadding, vertical = 6.dp),
-        )
         selection.unavailableInstalledFamily?.let { name ->
             Text(
                 stringResource(Res.string.settings_font_unavailable, name),
@@ -97,6 +91,13 @@ internal fun FontSettings(
             tag = "now-playing-font-size",
             onValueChanged = { onInterfaceSettingsChanged(interfaceSettings.copy(nowPlayingFontSize = it).normalized()) },
         )
+        // Below every control, so its height following the sizes never moves what is being chosen.
+        NaviampFontPreview(
+            colors,
+            selection,
+            interfaceSettings,
+            Modifier.padding(horizontal = SettingsRowHorizontalPadding, vertical = 6.dp),
+        )
         // Last, so its search and changing length never move the controls above.
         if (naviampInstalledFonts() != null) {
             InstalledFontFamilyPicker(colors, selection, interfaceSettings, onInterfaceSettingsChanged)
@@ -116,8 +117,9 @@ internal fun NaviampFontPageScope(interfaceSettings: InterfaceSettings, content:
 }
 
 /**
- * Sized for the largest text in every bundled font, so changing a choice never moves what is
- * below it. A taller installed font is clipped rather than pushing the controls down.
+ * Sized for the tallest bundled font, so switching typefaces keeps its height and what is below in
+ * place; a taller installed font is clipped rather than growing. Below the controls it follows the
+ * chosen sizes. [reserveLargestSizes] is for a preview above controls, which must not grow either.
  */
 @Composable
 internal fun NaviampFontPreview(
@@ -125,15 +127,18 @@ internal fun NaviampFontPreview(
     selection: InterfaceFontSelection,
     interfaceSettings: InterfaceSettings,
     modifier: Modifier = Modifier,
+    reserveLargestSizes: Boolean = false,
 ) {
     val largest = InterfaceFontSize(InterfaceFontSize.MaxPercent)
+    val reservedGeneral = if (reserveLargestSizes) largest else interfaceSettings.generalFontSize
+    val reservedNowPlaying = if (reserveLargestSizes) largest else interfaceSettings.nowPlayingFontSize
     Layout(
         contents = listOf(
             {
                 Box(Modifier.clearAndSetSemantics {}) {
                     InterfaceFontFamily.entries.forEach { family ->
                         MaterialTheme(typography = rememberNaviampTypography(InterfaceFontSelection(family))) {
-                            NaviampFontPreviewCard(colors, largest, largest)
+                            NaviampFontPreviewCard(colors, reservedGeneral, reservedNowPlaying)
                         }
                     }
                 }

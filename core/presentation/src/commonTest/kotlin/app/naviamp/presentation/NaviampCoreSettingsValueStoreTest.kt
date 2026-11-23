@@ -15,6 +15,7 @@ import app.naviamp.domain.settings.SavedTrack
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class NaviampCoreSettingsValueStoreTest {
     @Test fun oldDuplicateStationsAreReconciledDurablyAndOptionsSurviveReopening() {
@@ -75,6 +76,44 @@ class NaviampCoreSettingsValueStoreTest {
         assertEquals(app.naviamp.domain.settings.InterfaceFontFamily.NunitoSans, older.fontFamily)
         assertFalse(older.showArtistPlaylists)
     }
+    @Test fun storedFontSizesSurviveUpgradeRestartAndExportImport() {
+        // Local values as written by v2.12.0 (presets only) and by the percentage builds of #625.
+        val stored = mapOf(
+            """{"generalFontSize":"Small","nowPlayingFontSize":"Small","showArtistPlaylists":true}""" to (90 to 90),
+            """{"generalFontSize":"Large","nowPlayingFontSize":"Standard"}""" to (115 to 100),
+            """{"generalFontSize":"Small","nowPlayingFontSize":"Small","fontFamily":"Inter","installedFontFamily":null,""" +
+                """"generalFontSizePercent":90,"nowPlayingFontSizePercent":90}""" to (90 to 90),
+            """{"generalFontSize":"Large","nowPlayingFontSize":"Large","generalFontSizePercent":150,"nowPlayingFontSizePercent":150}""" to (150 to 150),
+            """{"generalFontSize":"Large","nowPlayingFontSize":"Small","generalFontSizePercent":125,"nowPlayingFontSizePercent":85}""" to (125 to 85),
+            // A value written without the compatibility transform keeps its sizes too.
+            """{"generalFontSize":90,"nowPlayingFontSize":150}""" to (90 to 150),
+        )
+        for ((json, sizes) in stored) {
+            fun assertSizes(settings: InterfaceSettings, stage: String) {
+                assertEquals(sizes, settings.generalFontSize.percent to settings.nowPlayingFontSize.percent, "$stage: $json")
+            }
+            val values = MemorySettingsValues()
+            values.entries[KeyInterface] = json
+            val loaded = naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface()
+            assertSizes(loaded, "load")
+            naviampCoreSettingsValueCatalog(values).storedSettings.saveInterface(loaded.copy(showArtistPlaylists = false))
+            val restarted = naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface()
+            assertSizes(restarted, "restart")
+            assertFalse(restarted.showArtistPlaylists)
+            val written = values.entries.getValue(KeyInterface)
+            assertTrue("\"generalFontSizePercent\":${sizes.first}" in written, "Older versions need the preset key: $written")
+            assertTrue(Regex("\"generalFontSize\":\"(Small|Standard|Large)\"").containsMatchIn(written), written)
+            val document = app.naviamp.domain.settings.SettingsSyncJson.decode(app.naviamp.domain.settings.SettingsSyncJson.encode(
+                app.naviamp.domain.settings.buildSettingsSyncDocument(
+                    app.naviamp.domain.settings.SettingsSyncLocalSnapshot(interfaceSettings = restarted), 1L, "phone",
+                ),
+            ))
+            val imported = MemorySettingsValues()
+            naviampCoreSettingsValueCatalog(imported).storedSettings.saveInterface(document.preferences.interfaceSettings)
+            assertSizes(naviampCoreSettingsValueCatalog(imported).storedSettings.loadInterface(), "export/import")
+        }
+    }
+
     @Test fun artistPlaylistVisibilityPersistsAndOlderSettingsDefaultOn() {
         val values = MemorySettingsValues()
         val catalog = naviampCoreSettingsValueCatalog(values)

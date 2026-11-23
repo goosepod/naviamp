@@ -360,6 +360,33 @@ class NaviampFontChoiceUiTest {
     }
 
     @Test
+    fun phonePreviewFollowsTheChosenSizesWithoutAnEmptyReservedBlock() = runDesktopComposeUiTest(412, 1400) {
+        val settings = mutableStateOf(InterfaceSettings())
+        setContent {
+            MaterialTheme(typography = rememberNaviampTypography(settings.value)) {
+                NaviampFontSizeScope(settings.value.generalFontSize, includeStandardScale = true) {
+                    Column(Modifier.verticalScroll(rememberScrollState())) {
+                        FontSettings(colors, settings.value) { settings.value = it }
+                    }
+                }
+            }
+        }
+        fun preview() = onNodeWithTag("font-preview").fetchSemanticsNode().boundsInRoot
+        fun lastText() = onAllNodes(hasAnyAncestor(hasTestTag("font-preview")) and SemanticsMatcher.keyIsDefined(SemanticsActions.GetTextLayoutResult), useUnmergedTree = true)
+            .fetchSemanticsNodes().maxOf { it.boundsInRoot.bottom }
+        val standard = preview()
+        // The card ends just below its text: only its own 12 dp padding, no space held for 150%.
+        assertTrue(standard.bottom - lastText() < 24f * density.density, "Preview leaves an empty block: $standard vs ${lastText()}")
+        val sizeControl = onNodeWithTag("now-playing-font-size-value").fetchSemanticsNode().boundsInRoot
+        assertTrue(standard.top > sizeControl.bottom, "The preview sits below the size controls")
+        runOnIdle { settings.value = largest(InterfaceFontFamily.NunitoSans) }
+        waitForIdle()
+        assertTrue(preview().height > standard.height * 1.3f, "The preview grows with the sizes: ${preview()} vs $standard")
+        assertEquals(sizeControl.top, onNodeWithTag("now-playing-font-size-value").fetchSemanticsNode().boundsInRoot.top, 0.5f)
+        assertNoTextOverflow("largest preview")
+    }
+
+    @Test
     fun televisionFontPageFitsAndKeepsItsChoicesInPlaceAtTheLargestSize() {
         for (family in InterfaceFontFamily.entries) runDesktopComposeUiTest(960, 540) {
             val settings = mutableStateOf(largest(family))

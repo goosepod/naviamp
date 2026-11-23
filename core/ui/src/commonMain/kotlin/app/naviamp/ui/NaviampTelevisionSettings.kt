@@ -2054,7 +2054,8 @@ internal fun TelevisionFontSettings(
     NaviampFontPageScope(settings) {
         val selection = rememberNaviampFontSelection(settings)
         TelevisionSettingsList {
-            item(key = "font-preview") { NaviampFontPreview(colors, selection, settings) }
+            // On top, where remote focus starts, so it reserves room for the largest sizes.
+            item(key = "font-preview") { NaviampFontPreview(colors, selection, settings, reserveLargestSizes = true) }
             itemsIndexed(InterfaceFontFamily.entries, key = { _, family -> "font-family:${family.name}" }) { index, family ->
                 val chosen = selection.installedFamily == null && selection.family == family
                 TelevisionSettingsRow(
