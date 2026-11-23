@@ -67,6 +67,7 @@ class StorageDiscoveryAcquisitionStoreTest {
         val source = source(db)
         driver.execute(null, "DROP TABLE discovery_acquisition", 0)
         driver.execute(null, "ALTER TABLE media_source DROP COLUMN aurral_companion", 0)
+        driver.execute(null, "DROP TABLE pending_audio_file", 0)
         NaviampStorageDatabase.Schema.migrate(driver, 29L, NaviampStorageDatabase.Schema.version)
         val preserved = assertNotNull(db.naviampStorageQueries.selectMediaSourceById(source).executeAsOneOrNull())
         assertNull(preserved.aurral_companion)

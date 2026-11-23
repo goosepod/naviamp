@@ -1,7 +1,12 @@
 package app.naviamp.android
 
+import app.naviamp.domain.cache.AudioByteWriter
 import java.nio.file.Files
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -29,6 +34,30 @@ class AndroidAudioByteStoreSafetyTest {
         assertTrue(unrelatedConverted.exists())
         assertTrue(databasePathThatIsNotAFile.isDirectory)
         assertTrue(nested.exists())
+        root.deleteRecursively()
+    }
+
+    @Test
+    fun writesRenameTheValidatedTemporaryFileAndFailuresLeaveNothing(): Unit = runBlocking {
+        val root = Files.createTempDirectory("naviamp-android-audio-write").toFile()
+        val store = AndroidAudioByteStore(root)
+        val name = "0123456789abcdef0123456789abcdef.flac"
+
+        val stored = store.writeAudioBytes("0123456789abcdef0123456789abcdef.part", "failed") { writer: AudioByteWriter ->
+            writer.write(byteArrayOf(1, 2, 3), 3)
+            name
+        }
+        assertEquals(store.audioFilePath(name), stored.filePath)
+        assertContentEquals(byteArrayOf(1, 2, 3), root.resolve(name).readBytes())
+        assertFalse(root.resolve("0123456789abcdef0123456789abcdef.part").exists())
+
+        assertFailsWith<IllegalStateException> {
+            store.writeAudioBytes("fedcba9876543210fedcba9876543210.part", "failed") { writer ->
+                writer.write(byteArrayOf(4), 1)
+                throw IllegalStateException("validation failed")
+            }
+        }
+        assertEquals(listOf(name), root.list()!!.toList())
         root.deleteRecursively()
     }
 }

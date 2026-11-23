@@ -182,17 +182,27 @@ interface SidecarStatusRepository {
 data class StoredAudioBytes(
     val filePath: String,
     val sizeBytes: Long,
+    /** Type observed in the saved bytes, or the unverified expectation when the probe cannot tell. */
+    val contentType: String? = null,
 )
 
 fun interface AudioByteWriter {
     suspend fun write(bytes: ByteArray, count: Int)
 }
 
+/** Native filesystem effect for one audio directory. Core chooses names, validates, and records ownership. */
 interface AudioByteStore {
+    /** Absolute path that [fileName] has in the store's current directory; touches no file. */
+    fun audioFilePath(fileName: String): String
+
+    /**
+     * Streams into [temporaryFileName], durably flushes it, then renames it within the directory to the
+     * name [writeBytes] returns after validation. The temporary file is removed if any step fails.
+     */
     suspend fun writeAudioBytes(
-        fileName: String,
+        temporaryFileName: String,
         errorMessage: String,
-        writeBytes: suspend (AudioByteWriter) -> Boolean,
+        writeBytes: suspend (AudioByteWriter) -> String,
     ): StoredAudioBytes
 
     fun deleteAudioBytes(filePath: String)

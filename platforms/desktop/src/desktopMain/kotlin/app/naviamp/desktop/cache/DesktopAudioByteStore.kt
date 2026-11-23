@@ -4,27 +4,43 @@ import app.naviamp.domain.cache.AudioByteStore
 import app.naviamp.domain.cache.AudioByteWriter
 import app.naviamp.domain.cache.StoredAudioBytes
 import app.naviamp.domain.cache.isNaviampOwnedAudioFileName
+import java.nio.channels.Channels
+import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
 
 /** Atomic Desktop filesystem implementation of Core's audio-byte effect. */
 class DesktopAudioByteStore(
     private val directory: Path,
 ) : AudioByteStore {
+    override fun audioFilePath(fileName: String): String =
+        directory.resolve(fileName).toAbsolutePath().toString()
+
     override suspend fun writeAudioBytes(
-        fileName: String,
+        temporaryFileName: String,
         errorMessage: String,
-        writeBytes: suspend (AudioByteWriter) -> Boolean,
+        writeBytes: suspend (AudioByteWriter) -> String,
     ): StoredAudioBytes {
         Files.createDirectories(directory)
-        val target = directory.resolve(fileName)
-        val temporary = directory.resolve("${target.fileName}.tmp")
+        val temporary = directory.resolve(temporaryFileName)
         return try {
-            Files.newOutputStream(temporary).use { output ->
+            val fileName = FileChannel.open(
+                temporary,
+                StandardOpenOption.CREATE,
+                StandardOpenOption.TRUNCATE_EXISTING,
+                StandardOpenOption.WRITE,
+            ).use { channel ->
+                val output = Channels.newOutputStream(channel)
                 val writer = AudioByteWriter { bytes, count -> output.write(bytes, 0, count) }
-                if (!writeBytes(writer)) throw IllegalStateException(errorMessage)
+                writeBytes(writer).also {
+                    output.flush()
+                    channel.force(true)
+                }
             }
+            val target = directory.resolve(fileName)
+            require(target.parent == temporary.parent) { errorMessage }
             moveAtomicallyWhenSupported(temporary, target)
             StoredAudioBytes(
                 filePath = target.toAbsolutePath().toString(),
@@ -58,11 +74,13 @@ class DesktopMutableAudioByteStore(
         store = DesktopAudioByteStore(directory)
     }
 
+    override fun audioFilePath(fileName: String): String = store.audioFilePath(fileName)
+
     override suspend fun writeAudioBytes(
-        fileName: String,
+        temporaryFileName: String,
         errorMessage: String,
-        writeBytes: suspend (AudioByteWriter) -> Boolean,
-    ): StoredAudioBytes = store.writeAudioBytes(fileName, errorMessage, writeBytes)
+        writeBytes: suspend (AudioByteWriter) -> String,
+    ): StoredAudioBytes = store.writeAudioBytes(temporaryFileName, errorMessage, writeBytes)
 
     override fun deleteAudioBytes(filePath: String) {
         store.deleteAudioBytes(filePath)

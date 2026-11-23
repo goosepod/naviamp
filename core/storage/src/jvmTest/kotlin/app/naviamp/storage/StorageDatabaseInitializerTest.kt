@@ -147,6 +147,34 @@ class StorageDatabaseInitializerTest {
     }
 
     @Test
+    fun mainBaselineAddsThePendingAudioJournalWithoutChangingDownloads() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            driver.createMainBaselineSchema()
+            driver.execute(null, "PRAGMA user_version = 31", 0)
+            driver.execute(null, """
+                INSERT INTO media_source(id, provider_id, cache_namespace, display_name, base_url,
+                    username, token, salt, created_at_epoch_millis, authentication_mode)
+                VALUES ('source', 'navidrome', 'cache', 'Server', 'https://example.test',
+                    'user', 'token', 'salt', 1, 'token')
+            """.trimIndent(), 0)
+            driver.execute(null, """
+                INSERT INTO downloaded_audio(source_id, remote_track_id, quality_key, file_path, size_bytes,
+                    content_type, title, artist_name, downloaded_at_epoch_millis)
+                VALUES ('source', 'track', 'original', '/downloads/old.flac', 10, 'audio/flac', 'Track', 'Artist', 1)
+            """.trimIndent(), 0)
+
+            val database = initializeNaviampStorageDatabase(driver)
+
+            assertEquals(NaviampStorageSchema.version, driver.userVersion())
+            assertEquals("/downloads/old.flac", database.naviampStorageQueries.selectAllDownloadedAudio().executeAsOne().file_path)
+            assertEquals(0L, driver.queryLong("SELECT COUNT(*) FROM pending_audio_file"))
+        } finally {
+            driver.close()
+        }
+    }
+
+    @Test
     fun createsAndVersionsAFreshDatabase() {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
@@ -385,7 +413,13 @@ private fun JdbcSqliteDriver.removeDiscMetadataColumns() {
 }
 /** Rewind the branch-only table before assigning a historical user_version to a fixture. */
 private fun JdbcSqliteDriver.createSchemaWithoutAcquisitions() {
-    NaviampStorageDatabase.Schema.create(this)
+    createMainBaselineSchema()
     execute(null, "DROP TABLE discovery_acquisition", 0)
     execute(null, "ALTER TABLE media_source DROP COLUMN aurral_companion", 0)
+}
+
+/** The schema of main's latest migration, before the unreleased pending audio journal. */
+private fun JdbcSqliteDriver.createMainBaselineSchema() {
+    NaviampStorageDatabase.Schema.create(this)
+    execute(null, "DROP TABLE pending_audio_file", 0)
 }
