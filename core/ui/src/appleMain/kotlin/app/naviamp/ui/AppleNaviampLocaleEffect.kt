@@ -1,5 +1,6 @@
 package app.naviamp.ui
 
+import androidx.compose.runtime.Composable
 import platform.Foundation.NSArgumentDomain
 import platform.Foundation.NSUserDefaults
 
@@ -15,5 +16,8 @@ actual fun createNaviampLocaleEffect(): NaviampLocaleEffect {
                 NSArgumentDomain,
             )
         }
+
+        @Composable
+        override fun nativeLocaleRevision(): Any? = null
     }
 }
