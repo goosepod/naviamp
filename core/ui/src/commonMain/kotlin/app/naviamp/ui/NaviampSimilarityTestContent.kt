@@ -3,6 +3,8 @@ package app.naviamp.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.background
@@ -165,8 +167,18 @@ private fun radioNoticeText(result: RadioBuildDiagnostics): String {
 }
 
 @Composable
-fun NaviampRadioNotice(colors: NaviampColors, result: RadioBuildDiagnostics, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
-    Row(modifier.background(colors.background).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+fun NaviampRadioNotice(
+    colors: NaviampColors,
+    result: RadioBuildDiagnostics,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    systemInsets: WindowInsets = WindowInsets.safeDrawing,
+) {
+    // Shown above the inset-aware shell, so the notice keeps its own content clear of the system bars.
+    Row(
+        modifier.background(colors.background).naviampContentInsets(systemInsets).padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         Text(radioNoticeText(result), color = colors.primaryText, modifier = Modifier.weight(1f))
         TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_close)) }
     }
