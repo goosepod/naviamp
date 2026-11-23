@@ -154,6 +154,8 @@ internal class NaviampCoreOutputPlaybackEffects(
     // could strand it low if the session drops, so Cast is not faded and only pauses at the end.
     override fun setOutputFadeFactor(factor: Float) = localOutputFade(if (castSelected) 1f else factor)
 
+    override fun setStopAfterCurrent(enabled: Boolean) = local.setStopAfterCurrent(enabled)
+
     override fun stop() {
         beforeStart()
         if (castSelected) cast?.stop() else local.stop()

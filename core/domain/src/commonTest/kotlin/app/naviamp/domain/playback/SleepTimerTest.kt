@@ -1,5 +1,10 @@
 package app.naviamp.domain.playback
 
+import app.naviamp.domain.AlbumId
+import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
+import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
 import kotlin.math.pow
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -22,56 +27,48 @@ class SleepTimerTest {
     }
 
     @Test
-    fun trackEndTimerExpiresWhenTheCurrentTrackIsEnding() {
-        val timer = sleepTimerState(
-            request = SleepTimerRequest.TrackEnd,
-            nowEpochMillis = 1_000L,
-            snapshot = snapshot(trackId = "one"),
-            queueLastTrackId = "two",
-        )
+    fun trackEndTimerEndsAfterWhicheverTrackIsCurrent() {
+        val timer = sleepTimerState(SleepTimerRequest.TrackEnd, 0L, snapshot(trackId = "a1"), "b1")
+        val queue = queue("a1" to "a", "a2" to "a", "b1" to "b")
 
-        assertFalse(shouldExpireSleepTimer(timer, 2_000L, snapshot(trackId = "one", position = 20.0, duration = 180.0)))
-        assertTrue(shouldExpireSleepTimer(timer, 2_000L, snapshot(trackId = "one", position = 179.6, duration = 180.0)))
-        assertTrue(shouldExpireSleepTimer(timer, 2_000L, snapshot(trackId = "two", position = 0.0, duration = 180.0)))
+        assertTrue(sleepTimerEndsAfterCurrentTrack(timer, queue))
+        assertTrue(sleepTimerEndsAfterCurrentTrack(timer, queue.copy(currentIndex = 1)))
+        assertTrue(sleepTimerEndsAfterCurrentTrack(timer, queue, RepeatMode.Track))
     }
 
     @Test
-    fun albumEndTimerWaitsForTheLastTrackFromThatAlbum() {
-        val timer = sleepTimerState(
-            request = SleepTimerRequest.AlbumEnd,
-            nowEpochMillis = 1_000L,
-            snapshot = snapshot(trackId = "one", albumId = "album"),
-            queueLastTrackId = "three",
-        )
+    fun albumEndTimerEndsOnlyAfterTheLastQueuedTrackOfTheCurrentAlbum() {
+        val timer = sleepTimerState(SleepTimerRequest.AlbumEnd, 0L, snapshot(trackId = "a1"), "b1")
+        val queue = queue("a1" to "a", "a2" to "a", "b1" to "b", "single" to null)
 
-        assertFalse(
-            shouldExpireSleepTimer(
-                timer,
-                2_000L,
-                snapshot(trackId = "one", albumId = "album", nextAlbumId = "album", position = 179.6, duration = 180.0),
-            ),
-        )
-        assertTrue(
-            shouldExpireSleepTimer(
-                timer,
-                2_000L,
-                snapshot(trackId = "two", albumId = "album", nextAlbumId = "other", position = 179.6, duration = 180.0),
-            ),
-        )
+        assertFalse(sleepTimerEndsAfterCurrentTrack(timer, queue))
+        assertTrue(sleepTimerEndsAfterCurrentTrack(timer, queue.copy(currentIndex = 1)))
+        assertTrue(sleepTimerEndsAfterCurrentTrack(timer, queue.copy(currentIndex = 2)))
+        assertTrue(sleepTimerEndsAfterCurrentTrack(timer, queue.copy(currentIndex = 3)))
     }
 
     @Test
-    fun queueEndTimerTargetsTheLastQueuedTrack() {
-        val timer = sleepTimerState(
-            request = SleepTimerRequest.QueueEnd,
-            nowEpochMillis = 1_000L,
-            snapshot = snapshot(trackId = "one"),
-            queueLastTrackId = "three",
-        )
+    fun queueEndTimerEndsAfterTheLastQueuedTrackEvenWhenTheQueueRepeats() {
+        val timer = sleepTimerState(SleepTimerRequest.QueueEnd, 0L, snapshot(trackId = "a1"), "b1")
+        val queue = queue("a1" to "a", "a2" to "a", "b1" to "b")
 
-        assertFalse(shouldExpireSleepTimer(timer, 2_000L, snapshot(trackId = "one", position = 179.6, duration = 180.0)))
-        assertFalse(shouldExpireSleepTimer(timer, 2_000L, snapshot(trackId = "two", position = 179.6, duration = 180.0)))
-        assertTrue(shouldExpireSleepTimer(timer, 2_000L, snapshot(trackId = "three", position = 179.6, duration = 180.0)))
+        assertFalse(sleepTimerEndsAfterCurrentTrack(timer, queue))
+        assertFalse(sleepTimerEndsAfterCurrentTrack(timer, queue.copy(currentIndex = 1)))
+        assertTrue(sleepTimerEndsAfterCurrentTrack(timer, queue.copy(currentIndex = 2)))
+        assertTrue(sleepTimerEndsAfterCurrentTrack(timer, queue.copy(currentIndex = 2), RepeatMode.Queue))
+    }
+
+    @Test
+    fun durationAndMissingTimersNeverHoldTheQueue() {
+        val queue = queue("a1" to "a")
+        assertFalse(sleepTimerEndsAfterCurrentTrack(null, queue))
+        assertFalse(sleepTimerEndsAfterCurrentTrack(
+            sleepTimerState(SleepTimerRequest.DurationMinutes(5), 0L, snapshot(trackId = "a1"), "a1"), queue))
+        assertFalse(shouldExpireSleepTimer(
+            sleepTimerState(SleepTimerRequest.TrackEnd, 0L, snapshot(trackId = "a1"), "a1"),
+            0L,
+            snapshot(trackId = "a1", position = 179.9, duration = 180.0).copy(playbackEnded = true),
+        ))
     }
 
     @Test
@@ -148,6 +145,24 @@ class SleepTimerTest {
         val loudness = sleepTimerFadeVolumeFactor(0.5f).toDouble().pow(0.6)
         assertTrue(loudness in 0.45..0.55, "loudness $loudness")
     }
+
+    private fun queue(vararg tracks: Pair<String, String?>): PlaybackQueue =
+        PlaybackQueue(
+            tracks = tracks.map { (id, album) ->
+                Track(
+                    id = TrackId(id),
+                    title = id,
+                    artistName = "Artist",
+                    albumId = album?.let(::AlbumId),
+                    albumTitle = album,
+                    durationSeconds = 180,
+                    coverArtId = null,
+                    audioInfo = null,
+                    replayGain = null,
+                )
+            },
+            currentIndex = 0,
+        )
 
     private fun snapshot(
         trackId: String?,

@@ -163,6 +163,7 @@ class NaviampCorePlaybackEngineAdapter(
     private var visualizerFramesEnabled = false
     private var visualizerSamplingJob: Job? = null
     private val externalStreamUrls = mutableMapOf<TrackId, String>()
+    private var stopAfterCurrent = false
     private var authenticatedStreams: NaviampPlaybackStreamRelay? = null
 
     override fun attach(observer: NaviampCorePlaybackObserver) {
@@ -750,7 +751,14 @@ class NaviampCorePlaybackEngineAdapter(
         completedSidecarPrefetch.clear()
     }
 
+    override fun setStopAfterCurrent(enabled: Boolean) {
+        if (stopAfterCurrent == enabled) return
+        stopAfterCurrent = enabled
+        if (enabled) schedulePreparedNextInvalidation()
+    }
+
     private fun shouldPrepareNext(progress: app.naviamp.domain.playback.PlaybackProgress, settings: PlaybackSettings): Boolean {
+        if (stopAfterCurrent) return false
         val nextIndex = queue.nextIndex(repeatMode, repeatTrack = true)
         return planPrepareNextPlayback(
             progress = progress,

@@ -2,6 +2,7 @@ package app.naviamp.domain.playback
 
 import app.naviamp.domain.Track
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
 import kotlin.math.pow
 
 enum class SleepTimerTarget(
@@ -247,27 +248,27 @@ fun shouldExpireSleepTimer(
     timer: SleepTimerState?,
     nowEpochMillis: Long,
     snapshot: SleepTimerPlaybackSnapshot,
+): Boolean = timer?.isDuration == true && sleepTimerRemainingMillis(timer, nowEpochMillis) == 0L
+
+/**
+ * Whether the current queue item is the last one an end-of-track, album or queue timer plays.
+ * Ending at the queue boundary, rather than near the track's reported duration, stops at the
+ * track's real end and ignores the Finished state between non-gapless tracks of one album.
+ */
+fun sleepTimerEndsAfterCurrentTrack(
+    timer: SleepTimerState?,
+    queue: PlaybackQueue,
+    repeatMode: RepeatMode = RepeatMode.Off,
 ): Boolean {
-    timer ?: return false
-    if (snapshot.playbackEnded) return true
-    return when (timer.target) {
-        SleepTimerTarget.Duration -> sleepTimerRemainingMillis(timer, nowEpochMillis) == 0L
-        SleepTimerTarget.TrackEnd -> timer.trackId != null &&
-            (
-                snapshot.currentTrackId != timer.trackId ||
-                    snapshot.isCurrentTrackEnding(timer.trackId)
-            )
-        SleepTimerTarget.AlbumEnd -> timer.albumId != null &&
-            (
-                snapshot.currentAlbumId != timer.albumId ||
-                    (
-                        snapshot.currentAlbumId == timer.albumId &&
-                            snapshot.nextTrackAlbumId != timer.albumId &&
-                            snapshot.isCurrentTrackEnding(targetTrackId = null)
-                    )
-            )
-        SleepTimerTarget.QueueEnd -> timer.trackId != null &&
-            snapshot.isCurrentTrackEnding(timer.trackId)
+    val current = queue.current ?: return false
+    return when (timer?.target) {
+        null, SleepTimerTarget.Duration -> false
+        SleepTimerTarget.TrackEnd -> true
+        SleepTimerTarget.AlbumEnd -> {
+            val next = queue.tracks.getOrNull(queue.currentIndex + 1)
+            current.albumId == null || next?.albumId != current.albumId
+        }
+        SleepTimerTarget.QueueEnd -> queue.currentIndex >= queue.tracks.lastIndex
     }
 }
 
@@ -319,12 +320,4 @@ class SleepTimerController(
         setSleepTimer(null)
         setStatus("Sleep timer stopped playback.")
     }
-}
-
-private fun SleepTimerPlaybackSnapshot.isCurrentTrackEnding(targetTrackId: String?): Boolean {
-    if (targetTrackId != null && currentTrackId != targetTrackId) return false
-    val position = positionSeconds ?: return false
-    val duration = durationSeconds ?: return false
-    if (duration <= 0.0) return false
-    return position >= duration - 0.5
 }

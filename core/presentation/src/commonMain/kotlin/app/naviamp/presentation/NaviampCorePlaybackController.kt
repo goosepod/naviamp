@@ -19,6 +19,7 @@ import app.naviamp.domain.playback.PlaybackQueueFinishedCommand
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.playback.SleepTimerState
+import app.naviamp.domain.playback.sleepTimerEndsAfterCurrentTrack
 import app.naviamp.domain.playback.sleepTimerFadeProgress
 import app.naviamp.domain.playback.sleepTimerSelection
 import app.naviamp.domain.playback.withPlaybackActive
@@ -109,6 +110,12 @@ class NaviampCorePlaybackController(
     )
     private var sleepTimerFadeAwaitingResume = false
     private var sleepTimerFadeSawPause = false
+    private var stopAfterCurrentApplied = false
+
+    init {
+        queue.endAfterCurrentTrack = ::sleepTimerHoldsAtTrackEnd
+        queue.onEndedAfterCurrentTrack = ::sleepTimerReachedTrackBoundary
+    }
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.NowPlaying.Playback,
@@ -401,7 +408,7 @@ class NaviampCorePlaybackController(
                 if (state == PlaybackState.Playing) loadCurrentTrackSidecars()
                 if (state == PlaybackState.Finished && !repeatedFinished) {
                     val finished = queue.finishCurrentTrack()
-                    when (finished.command) {
+                    if (!finished.endedBySleepTimer) when (finished.command) {
                         PlaybackQueueFinishedCommand.ReplayCurrent -> effects.replayCurrent(0.0)
                         PlaybackQueueFinishedCommand.PlayNext -> {
                             playback.updateCurrentTrack(finished.queue.current)
@@ -854,9 +861,30 @@ class NaviampCorePlaybackController(
         display = display.copy(sleepTimer = timer)
         sleepTimerFadeAwaitingResume = false
         sleepTimerClock.schedule(timer)
+        refreshSleepTimerBoundary()
+    }
+
+    private fun sleepTimerHoldsAtTrackEnd(): Boolean = playback.state.value.let { live ->
+        sleepTimerEndsAfterCurrentTrack(display.sleepTimer, live.queue, live.repeatMode)
+    }
+
+    private fun refreshSleepTimerBoundary() {
+        val stop = sleepTimerHoldsAtTrackEnd()
+        if (stop == stopAfterCurrentApplied) return
+        stopAfterCurrentApplied = stop
+        effects.setStopAfterCurrent(stop)
+    }
+
+    /** The finished track stays current, so Play starts it again rather than the next item. */
+    private fun sleepTimerReachedTrackBoundary() {
+        display = display.copy(sleepTimerNowEpochMillis = nowEpochMillis())
+        replaceSleepTimer(null)
+        publishStatus("Sleep timer stopped playback.")
+        presenter.publish(display)
     }
 
     private fun sleepTimerPlaybackChanged(state: PlaybackState) {
+        refreshSleepTimerBoundary()
         val playing = state == PlaybackState.Playing
         if (sleepTimerFadeAwaitingResume) {
             if (!playing) sleepTimerFadeSawPause = true
