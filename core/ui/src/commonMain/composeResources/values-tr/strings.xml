@@ -189,6 +189,15 @@
     <string name="settings_related_radio_minimum">Radyo parça sayısı</string>
     <string name="settings_related_radio_minimum_subtitle">Radyo başlatılırken istenen ilgili parçalar. Daha az parça dönebilir.</string>
     <string name="smart_playlist_inspection_title">Akıllı çalma listesi kuralları</string>
+    <string name="smart_playlist_field_category_common">Sık kullanılanlar</string>
+    <string name="smart_playlist_field_category_track">Parça</string>
+    <string name="smart_playlist_field_category_album_artist">Albüm ve sanatçı</string>
+    <string name="smart_playlist_field_category_activity">Favoriler, puanlar ve çalmalar</string>
+    <string name="smart_playlist_field_category_dates">Tarihler</string>
+    <string name="smart_playlist_field_category_audio_file">Ses ve dosya</string>
+    <string name="smart_playlist_field_category_identifiers">Tanımlayıcılar</string>
+    <string name="smart_playlist_field_category_other">Diğer</string>
+    <string name="smart_playlist_field_no_matches">Eşleşen alan yok</string>
     <string name="smart_playlist_inspection_read_only">Bu liste, bu düzenleyicinin güvenle değiştiremeyeceği kurallar veya ayarlar kullanıyor. Özgün tanım yalnızca inceleme için gösterilir.</string>
     <string name="smart_playlist_inspection_missing">Sunucu bu listenin kurallarını sağlamadı.</string>
     <string name="smart_playlist_inspection_permission">Bu listenin kurallarını görüntüleme izniniz yok.</string>

@@ -189,6 +189,15 @@
     <string name="settings_related_radio_minimum">Tamanho do lote do Rádio</string>
     <string name="settings_related_radio_minimum_subtitle">Faixas relacionadas solicitadas ao iniciar o Rádio. Menos faixas podem ser retornadas.</string>
     <string name="smart_playlist_inspection_title">Regras da playlist inteligente</string>
+    <string name="smart_playlist_field_category_common">Comuns</string>
+    <string name="smart_playlist_field_category_track">Faixa</string>
+    <string name="smart_playlist_field_category_album_artist">Álbum e artista</string>
+    <string name="smart_playlist_field_category_activity">Favoritos, avaliações e reproduções</string>
+    <string name="smart_playlist_field_category_dates">Datas</string>
+    <string name="smart_playlist_field_category_audio_file">Áudio e arquivo</string>
+    <string name="smart_playlist_field_category_identifiers">Identificadores</string>
+    <string name="smart_playlist_field_category_other">Outros</string>
+    <string name="smart_playlist_field_no_matches">Nenhum campo correspondente</string>
     <string name="smart_playlist_inspection_read_only">Esta playlist usa regras ou configurações que este editor não pode alterar com segurança. A definição original é exibida apenas para consulta.</string>
     <string name="smart_playlist_inspection_missing">O servidor não forneceu as regras desta playlist.</string>
     <string name="smart_playlist_inspection_permission">Você não tem permissão para ver as regras desta playlist.</string>

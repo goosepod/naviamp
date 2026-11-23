@@ -189,6 +189,15 @@
     <string name="settings_related_radio_minimum">Размер подборки Радио</string>
     <string name="settings_related_radio_minimum_subtitle">Похожие треки, запрашиваемые при запуске Радио. Сервер может вернуть меньше треков.</string>
     <string name="smart_playlist_inspection_title">Правила умного плейлиста</string>
+    <string name="smart_playlist_field_category_common">Частые</string>
+    <string name="smart_playlist_field_category_track">Трек</string>
+    <string name="smart_playlist_field_category_album_artist">Альбом и исполнитель</string>
+    <string name="smart_playlist_field_category_activity">Избранное, оценки и прослушивания</string>
+    <string name="smart_playlist_field_category_dates">Даты</string>
+    <string name="smart_playlist_field_category_audio_file">Аудио и файл</string>
+    <string name="smart_playlist_field_category_identifiers">Идентификаторы</string>
+    <string name="smart_playlist_field_category_other">Другое</string>
+    <string name="smart_playlist_field_no_matches">Нет подходящих полей</string>
     <string name="smart_playlist_inspection_read_only">Этот плейлист использует правила или настройки, которые редактор не может безопасно изменить. Исходное определение показано только для просмотра.</string>
     <string name="smart_playlist_inspection_missing">Сервер не предоставил правила этого плейлиста.</string>
     <string name="smart_playlist_inspection_permission">У вас нет разрешения на просмотр правил этого плейлиста.</string>

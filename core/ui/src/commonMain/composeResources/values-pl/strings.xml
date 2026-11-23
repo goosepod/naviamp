@@ -294,6 +294,15 @@
     <string name="settings_related_radio_minimum">Liczba utworów na żądanie Radia</string>
     <string name="settings_related_radio_minimum_subtitle">Podobne utwory żądane przy uruchamianiu Radia. Serwer może zwrócić ich mniej.</string>
     <string name="smart_playlist_inspection_title">Reguły inteligentnej playlisty</string>
+    <string name="smart_playlist_field_category_common">Częste</string>
+    <string name="smart_playlist_field_category_track">Utwór</string>
+    <string name="smart_playlist_field_category_album_artist">Album i wykonawca</string>
+    <string name="smart_playlist_field_category_activity">Ulubione, oceny i odtworzenia</string>
+    <string name="smart_playlist_field_category_dates">Daty</string>
+    <string name="smart_playlist_field_category_audio_file">Dźwięk i plik</string>
+    <string name="smart_playlist_field_category_identifiers">Identyfikatory</string>
+    <string name="smart_playlist_field_category_other">Inne</string>
+    <string name="smart_playlist_field_no_matches">Brak pasujących pól</string>
     <string name="smart_playlist_inspection_read_only">Ta playlista używa reguł lub ustawień, których ten edytor nie może bezpiecznie zmienić. Oryginalna definicja jest wyświetlana tylko do wglądu.</string>
     <string name="smart_playlist_inspection_missing">Serwer nie udostępnił reguł tej playlisty.</string>
     <string name="smart_playlist_inspection_permission">Nie masz uprawnień do przeglądania reguł tej playlisty.</string>
