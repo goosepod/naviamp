@@ -349,7 +349,7 @@
     <string name="settings_quality_wifi_subtitle">Qualität in vertrauenswürdigen Netzwerken.</string>
     <string name="settings_quality_mobile_title">Mobile Daten</string>
     <string name="settings_quality_mobile_subtitle">Qualität bei der Nutzung von Mobilfunkdaten.</string>
-    <string name="settings_replay_gain_title">Wiederholungsgewinn</string>
+    <string name="settings_replay_gain_title">Replay Gain</string>
     <string name="settings_replay_gain_preamp_title">Vorverstärker</string>
     <string name="settings_replay_gain_preamp_subtitle">Replay Gain-Ausgangstrimmung</string>
     <string name="settings_replay_gain_preamp_row_subtitle">Betrag, der vom Referenz-ReplayGain-Level verstärkt werden soll.</string>
@@ -568,7 +568,7 @@
     <string name="action_play_after_current_group">Nach der aktuellen Gruppe abspielen</string>
     <string name="action_play_immediately_next">Sofort als Nächstes spielen</string>
     <string name="playlist_membership_load_failed">Playlists konnten nicht geladen werden. Versuchen Sie es erneut.</string>
-    <string name="playlist_membership_retry">Wiederholen</string>
+    <string name="playlist_membership_retry">Erneut versuchen</string>
     <string name="library_jump_loading">%1$s wird geladen…</string>
     <string name="library_jump_failed">Dieser Brief konnte nicht geladen werden. Versuchen Sie es erneut.</string>
     <string name="favorite_artists_sort_title">Sortierung</string>
@@ -744,9 +744,9 @@
     <string name="tv_nothing_else_is_queued">Nichts anderes steht in der Warteschlange.</string>
     <string name="tv_play_next">Als nächstes spielen</string>
     <string name="tv_queue_actions">Warteschlangenaktionen</string>
-    <string name="tv_repeat_off">Wiederholen Sie den Vorgang</string>
-    <string name="tv_repeat_all">Alles wiederholen</string>
-    <string name="tv_repeat_one">Wiederholen Sie eins</string>
+    <string name="tv_repeat_off">Wiederholen aus</string>
+    <string name="tv_repeat_all">Alle wiederholen</string>
+    <string name="tv_repeat_one">Titel wiederholen</string>
     <string name="tv_internet_radio">INTERNETRADIO</string>
     <string name="tv_queue">WARTESCHLANGE</string>
     <string name="tv_now_playing">JETZT SPIELEN</string>
