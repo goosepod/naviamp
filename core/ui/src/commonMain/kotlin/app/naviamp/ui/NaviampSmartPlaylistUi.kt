@@ -72,11 +72,13 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistPreview
 import app.naviamp.domain.smartplaylist.SmartPlaylistRefreshDelay
 import app.naviamp.domain.smartplaylist.SmartPlaylistSortDraft
 import app.naviamp.domain.smartplaylist.SmartPlaylistTemplates
-import app.naviamp.domain.smartplaylist.SmartPlaylistValueType
+import app.naviamp.domain.smartplaylist.SmartPlaylistChoiceLabel
+import app.naviamp.domain.smartplaylist.SmartPlaylistOperandInput
+import app.naviamp.domain.smartplaylist.SmartPlaylistValueChoice
+import app.naviamp.domain.smartplaylist.operandInput
 import app.naviamp.domain.smartplaylist.displayLabel
 import app.naviamp.domain.smartplaylist.smartPlaylistGenreSuggestions
 import app.naviamp.domain.smartplaylist.updated
-import app.naviamp.domain.smartplaylist.usesCalendarDate
 import app.naviamp.domain.smartplaylist.valueLabel
 import app.naviamp.domain.smartplaylist.validate
 import app.naviamp.domain.smartplaylist.SmartPlaylistValidationIssue
@@ -1054,8 +1056,8 @@ private fun SmartPlaylistRuleControls(
             onConditionChange = onConditionChange,
         )
         if (condition.operator == SmartPlaylistOperator.InTheRange) {
-            SmartPlaylistOperandField(
-                calendarDate = condition.usesCalendarDate(),
+            SmartPlaylistTypedOperand(
+                input = condition.operandInput(),
                 value = condition.secondValue,
                 onValueChange = { value -> onConditionChange(condition.copy(secondValue = value)) },
                 label = stringResource(Res.string.smart_playlist_end_value),
@@ -1216,31 +1218,19 @@ private fun SmartPlaylistConditionValueControls(
     onReferencesRetry: () -> Unit,
     onConditionChange: (SmartPlaylistConditionDraft) -> Unit,
 ) {
-    if (condition.field.valueType == SmartPlaylistValueType.PlaylistId) {
+    val input = condition.operandInput()
+    if (input == SmartPlaylistOperandInput.PlaylistReference) {
         SmartPlaylistReferencePicker(condition.value, references, referencesLoading, referencesFailed,
             currentPlaylistId, onReferencesRetry, colors) { id -> onConditionChange(condition.copy(value = id)) }
         return
     }
-    if (condition.field.valueType == SmartPlaylistValueType.Boolean ||
-        condition.operator == SmartPlaylistOperator.IsMissing ||
-        condition.operator == SmartPlaylistOperator.IsPresent
-    ) {
-        SmartPlaylistDropdown(
-            label = condition.valueLabel(),
-            value = when (condition.value.trim().lowercase()) {
-                "true" -> "True"
-                "false" -> "False"
-                else -> "Choose"
-            },
-            colors = colors,
-            options = listOf("True" to "true", "False" to "false"),
-            onSelected = { value -> onConditionChange(condition.copy(value = value)) },
-        )
+    if (input == SmartPlaylistOperandInput.None) {
+        Text(stringResource(Res.string.smart_playlist_presence_no_value), color = colors.secondaryText, fontSize = 11.sp)
         return
     }
 
     val libraries = LocalSmartPlaylistLibraries.current
-    if (condition.field.field == SmartPlaylistFields.LibraryId && libraries.isNotEmpty()) {
+    if (input == SmartPlaylistOperandInput.Library && libraries.isNotEmpty()) {
         SmartPlaylistDropdown(label = condition.valueLabel(),
             value = smartPlaylistLibraryName(condition.value, libraries), colors = colors,
             options = libraries.map { it.name to it.id },
@@ -1248,7 +1238,7 @@ private fun SmartPlaylistConditionValueControls(
         return
     }
 
-    if (condition.field.field == SmartPlaylistFields.Genre) {
+    if (input == SmartPlaylistOperandInput.Genre) {
         SmartPlaylistGenreTypeahead(
             value = condition.value,
             onValueChange = { value ->
@@ -1282,16 +1272,59 @@ private fun SmartPlaylistConditionValueControls(
             )
         }
     } else {
-        SmartPlaylistOperandField(
-            calendarDate = condition.usesCalendarDate(),
+        SmartPlaylistTypedOperand(
+            input = if (input == SmartPlaylistOperandInput.Library) SmartPlaylistOperandInput.Number(decimal = false) else input,
             value = condition.value,
             onValueChange = { value -> onConditionChange(condition.copy(value = value)) },
             label = condition.valueLabel(),
             colors = colors,
-            relativeDays = condition.operator == SmartPlaylistOperator.InTheLast ||
-                condition.operator == SmartPlaylistOperator.NotInTheLast,
         )
     }
+}
+
+/** Renders one operand from the shared operand policy; raw text always stays editable. */
+@Composable
+internal fun SmartPlaylistTypedOperand(
+    input: SmartPlaylistOperandInput,
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    colors: NaviampColors,
+) {
+    when (input) {
+        // An imported or typed value outside the choices stays as raw text until it is corrected.
+        is SmartPlaylistOperandInput.Choice -> if (value.isNotBlank() && input.selected(value) == null) {
+            SmartPlaylistOperandField(calendarDate = false, value = value, onValueChange = onValueChange, label = label, colors = colors)
+        } else SmartPlaylistDropdown(
+            label = label,
+            value = input.selected(value)?.let { smartPlaylistChoiceLabel(it) } ?: value.ifBlank { "Choose" },
+            colors = colors,
+            options = input.choices.map { smartPlaylistChoiceLabel(it) to it.value },
+            onSelected = onValueChange,
+        )
+        SmartPlaylistOperandInput.CalendarDate ->
+            SmartPlaylistOperandField(calendarDate = true, value = value, onValueChange = onValueChange, label = label, colors = colors)
+        is SmartPlaylistOperandInput.RelativeDays -> SmartPlaylistOperandField(
+            calendarDate = false, value = value, onValueChange = onValueChange, label = label, colors = colors,
+            relativeDays = true, dayPresets = input.presets,
+        )
+        is SmartPlaylistOperandInput.Number -> SmartPlaylistOperandField(
+            calendarDate = false, value = value, onValueChange = onValueChange, label = label, colors = colors, number = input,
+        )
+        else -> SmartPlaylistOperandField(calendarDate = false, value = value, onValueChange = onValueChange, label = label, colors = colors)
+    }
+}
+
+@Composable
+private fun smartPlaylistChoiceLabel(choice: SmartPlaylistValueChoice): String = when (choice.label) {
+    SmartPlaylistChoiceLabel.True -> stringResource(Res.string.smart_playlist_value_true)
+    SmartPlaylistChoiceLabel.False -> stringResource(Res.string.smart_playlist_value_false)
+    SmartPlaylistChoiceLabel.Unrated -> stringResource(Res.string.smart_playlist_rating_unrated)
+    SmartPlaylistChoiceLabel.Stars -> if (choice.count == 1) stringResource(Res.string.smart_playlist_rating_one)
+        else stringResource(Res.string.smart_playlist_rating_many, choice.count)
+    SmartPlaylistChoiceLabel.Explicit -> stringResource(Res.string.smart_playlist_explicit_explicit)
+    SmartPlaylistChoiceLabel.Clean -> stringResource(Res.string.smart_playlist_explicit_clean)
+    SmartPlaylistChoiceLabel.NotSpecified -> stringResource(Res.string.smart_playlist_explicit_not_specified)
 }
 
 @Composable
