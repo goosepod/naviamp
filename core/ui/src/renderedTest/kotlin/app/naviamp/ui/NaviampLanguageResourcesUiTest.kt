@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import app.naviamp.domain.settings.InterfaceLanguage
 import app.naviamp.ui.generated.resources.Res
 import app.naviamp.ui.generated.resources.settings_language_use_subtitle
+import java.util.Locale
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import org.jetbrains.compose.resources.stringResource
@@ -65,5 +66,42 @@ class NaviampLanguageResourcesUiTest {
                 assertEquals(if (next == InterfaceLanguage.Arabic) LayoutDirection.Rtl else LayoutDirection.Ltr, direction)
             }
         }
+    }
+
+    @Test fun explicitLanguageSurvivesTheHostRestoringTheSystemLocale() {
+        val system = Locale.getDefault()
+        Locale.setDefault(Locale.GERMAN)
+        try {
+            runComposeUiTest {
+                var hostConfiguration by mutableStateOf(0)
+                var dialogOpen by mutableStateOf(false)
+                val native = createNaviampLocaleEffect()
+                val effect = object : NaviampLocaleEffect {
+                    override fun applyLanguage(languageTag: String?) = native.applyLanguage(languageTag)
+                    @Composable override fun nativeLocaleRevision(): Any? = hostConfiguration
+                }
+                setContent {
+                    NaviampLocaleEnvironment(InterfaceLanguage.English, effect) {
+                        Column {
+                            // Resource lookups also observe the host configuration, as Android's dark theme query does.
+                            hostConfiguration
+                            Text(stringResource(Res.string.settings_language_use_subtitle), Modifier.testTag("screen"))
+                            if (dialogOpen) {
+                                Text(stringResource(Res.string.settings_language_use_subtitle), Modifier.testTag("dialog"))
+                            }
+                        }
+                    }
+                }
+                onNodeWithTag("screen").assertTextEquals(expected.getValue("en"))
+                runOnIdle {
+                    // Android restores the system LocaleList on every process configuration change.
+                    Locale.setDefault(Locale.GERMAN)
+                    hostConfiguration++
+                    dialogOpen = true
+                }
+                onNodeWithTag("screen").assertTextEquals(expected.getValue("en"))
+                onNodeWithTag("dialog").assertTextEquals(expected.getValue("en"))
+            }
+        } finally { Locale.setDefault(system) }
     }
 }
