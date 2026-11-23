@@ -3,6 +3,7 @@ package app.naviamp.ui
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -55,6 +57,7 @@ internal const val NaviampNowPlayingSheetDistanceFraction = 0.25f
 internal const val NaviampNowPlayingSheetFlingDpPerSecond = 1000f
 internal const val NaviampNowPlayingSheetTestTag = "now-playing-sheet"
 private const val NaviampNowPlayingSheetScrimAlpha = 0.32f
+internal const val NaviampNowPlayingSheetFadeMillis = 200
 
 internal fun naviampNowPlayingSheetFlingThresholdPx(density: Float): Float =
     NaviampNowPlayingSheetFlingDpPerSecond * density
@@ -77,7 +80,11 @@ internal fun naviampNowPlayingSheetSettlesOpen(
 
 private fun PointerInputChange.isTouch(): Boolean = type == PointerType.Touch || type == PointerType.Stylus
 
-/** Shared phone presentation state for Now Playing sliding over the browse screen. */
+/**
+ * Shared phone presentation state for Now Playing sliding over the browse screen. With reduced
+ * motion every transition is a short crossfade and drags never move the player, while distance
+ * and fling still decide whether a released drag opens or closes it.
+ */
 @Stable
 internal class NaviampNowPlayingSheetState internal constructor(
     initiallyOpen: Boolean,
@@ -88,17 +95,22 @@ internal class NaviampNowPlayingSheetState internal constructor(
         private set
     var dragging by mutableStateOf(false)
         private set
+    /** Opacity of the player; below 1 only while a reduced-motion crossfade runs. */
+    var sheetAlpha by mutableFloatStateOf(1f)
+        private set
     internal var open by mutableStateOf(initiallyOpen)
         private set
+    internal var reducedMotion = false
     internal var heightPx = 0f
     private var dragStartedOpen = initiallyOpen
+    private var dragFraction = closedFraction
     private var lastVelocity = 0f
     private var animation: Job? = null
 
     val presented by derivedStateOf { open || dragging || closedFraction < 1f }
 
     /** The settled player hides the browse layer completely, so that layer must not draw. */
-    val coversBase by derivedStateOf { open && !dragging && closedFraction <= 0f }
+    val coversBase by derivedStateOf { open && !dragging && closedFraction <= 0f && sheetAlpha >= 1f }
 
     internal fun onOpenChanged(value: Boolean) {
         open = value
@@ -108,30 +120,37 @@ internal class NaviampNowPlayingSheetState internal constructor(
     internal fun startDrag() {
         animation?.cancel()
         dragStartedOpen = open
+        dragFraction = closedFraction
         dragging = true
     }
 
     /** Moves the sheet by [deltaPx] (positive toward closed) and returns the pixels it used. */
     internal fun dragBy(deltaPx: Float): Float {
         if (heightPx <= 0f) return 0f
-        val next = (closedFraction + deltaPx / heightPx).coerceIn(0f, 1f)
-        val used = (next - closedFraction) * heightPx
-        closedFraction = next
+        val next = (dragFraction + deltaPx / heightPx).coerceIn(0f, 1f)
+        val used = (next - dragFraction) * heightPx
+        dragFraction = next
+        if (!reducedMotion) closedFraction = next
         return used
     }
 
     internal fun release(velocityPx: Float, onOpen: () -> Unit, onClose: () -> Unit) {
         if (!dragging) return
         dragging = false
-        val settleOpen = naviampNowPlayingSheetSettlesOpen(dragStartedOpen, closedFraction, velocityPx, flingThresholdPx)
+        val settleOpen = naviampNowPlayingSheetSettlesOpen(dragStartedOpen, dragFraction, velocityPx, flingThresholdPx)
         lastVelocity = if (heightPx > 0f) velocityPx / heightPx else 0f
         settleTo(settleOpen)
         if (settleOpen != open) if (settleOpen) onOpen() else onClose()
     }
 
     private fun settleTo(open: Boolean) {
-        val target = if (open) 0f else 1f
         animation?.cancel()
+        if (reducedMotion) {
+            fadeTo(open)
+            return
+        }
+        sheetAlpha = 1f
+        val target = if (open) 0f else 1f
         if (closedFraction == target) {
             lastVelocity = 0f
             return
@@ -153,6 +172,29 @@ internal class NaviampNowPlayingSheetState internal constructor(
             lastVelocity = 0f
         }
     }
+
+    private fun fadeTo(open: Boolean) {
+        lastVelocity = 0f
+        if (open && closedFraction > 0f) {
+            sheetAlpha = 0f
+            closedFraction = 0f
+        }
+        val target = if (open) 1f else 0f
+        if (closedFraction >= 1f || sheetAlpha == target) {
+            if (!open) closedFraction = 1f
+            sheetAlpha = 1f
+            return
+        }
+        animation = scope.launch {
+            animate(
+                initialValue = sheetAlpha,
+                targetValue = target,
+                animationSpec = tween(NaviampNowPlayingSheetFadeMillis),
+            ) { value, _ -> sheetAlpha = value }
+            if (!open) closedFraction = 1f
+            sheetAlpha = 1f
+        }
+    }
 }
 
 @Composable
@@ -162,6 +204,8 @@ internal fun rememberNaviampNowPlayingSheetState(open: Boolean): NaviampNowPlayi
     val state = remember(scope, density) {
         NaviampNowPlayingSheetState(open, scope, naviampNowPlayingSheetFlingThresholdPx(density))
     }
+    val reducedMotion = naviampReducedMotion()
+    SideEffect { state.reducedMotion = reducedMotion }
     LaunchedEffect(state, open) { state.onOpenChanged(open) }
     return state
 }
@@ -195,8 +239,10 @@ internal fun NaviampNowPlayingSheetLayers(
                 }
                 .graphicsLayer {
                     val fraction = state.closedFraction
-                    clip = fraction < 1f
-                    shape = if (fraction < 1f) TopFractionShape(fraction) else RectangleShape
+                    val fading = state.sheetAlpha < 1f
+                    clip = !fading && fraction < 1f
+                    shape = if (clip) TopFractionShape(fraction) else RectangleShape
+                    alpha = if (fading) 1f - state.sheetAlpha else 1f
                 },
         ) {
             base()
@@ -305,7 +351,10 @@ private fun NaviampNowPlayingDismissSurface(
         Box(
             Modifier
                 .fillMaxSize()
-                .graphicsLayer { translationY = state.closedFraction * size.height }
+                .graphicsLayer {
+                    translationY = state.closedFraction * size.height
+                    alpha = state.sheetAlpha
+                }
                 .testTag(NaviampNowPlayingSheetTestTag),
         ) { sheet() }
     }

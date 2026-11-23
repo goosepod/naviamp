@@ -4,7 +4,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.background
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.onRoot
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -42,16 +49,22 @@ class NaviampNowPlayingSheetUiTest {
 
     private fun sheetTest(
         initiallyOpen: Boolean = true,
+        reducedMotion: Boolean = false,
+        solidLayers: Boolean = false,
         block: ComposeUiTest.(Harness) -> Unit,
     ) = runDesktopComposeUiTest(400, 800) {
         val harness = Harness().apply { open.value = initiallyOpen }
-        setContent { SheetHarness(harness) }
+        setContent {
+            CompositionLocalProvider(LocalNaviampReducedMotion provides reducedMotion) {
+                SheetHarness(harness, solidLayers)
+            }
+        }
         waitForIdle()
         block(harness)
     }
 
     @Composable
-    private fun SheetHarness(harness: Harness) {
+    private fun SheetHarness(harness: Harness, solidLayers: Boolean) {
         val nowPlaying = NowPlayingUi(id = "song", title = "Song", subtitle = "Artist", stateLabel = "Paused")
         val actions = NaviampNowPlayingActions(
             {}, { harness.displayActions += it.action }, {}, {}, {}, {}, {},
@@ -62,7 +75,7 @@ class NaviampNowPlayingSheetUiTest {
             onClose = { harness.closes++; harness.open.value = false },
             base = {
                 Column(Modifier.fillMaxSize()) {
-                    Box(Modifier.weight(1f).fillMaxWidth().testTag("browse"))
+                    Box(Modifier.weight(1f).fillMaxWidth().background(if (solidLayers) Color.Blue else Color.Transparent).testTag("browse"))
                     NaviampMiniNowPlaying(
                         nowPlaying = nowPlaying,
                         colors = NaviampColors(),
@@ -75,7 +88,11 @@ class NaviampNowPlayingSheetUiTest {
                 }
             },
             sheet = {
-                NaviampNowPlayingPanel(nowPlaying = nowPlaying, colors = NaviampColors(), actions = actions)
+                if (solidLayers) {
+                    Box(Modifier.fillMaxSize().background(Color.Red))
+                } else {
+                    NaviampNowPlayingPanel(nowPlaying = nowPlaying, colors = NaviampColors(), actions = actions)
+                }
             },
         )
     }
@@ -188,6 +205,78 @@ class NaviampNowPlayingSheetUiTest {
         waitForIdle()
         assertEquals(true, harness.open.value)
         assertEquals(0f, sheet().top())
+    }
+
+    private fun ComposeUiTest.pixel(x: Int, y: Int): Color = Color(onRoot().captureToImage().toPixelMap()[x, y].toArgb())
+
+    /** Advances part way into an open or close transition so its intermediate frame can be inspected. */
+    private fun ComposeUiTest.midTransition(change: () -> Unit) {
+        mainClock.autoAdvance = false
+        change()
+        mainClock.advanceTimeByFrame()
+        mainClock.advanceTimeBy(80)
+    }
+
+    private fun ComposeUiTest.finishTransition() {
+        mainClock.autoAdvance = true
+        waitForIdle()
+    }
+
+    @Test
+    fun withMotionTheCloseCommandSlides() = sheetTest(solidLayers = true) { harness ->
+        midTransition { harness.open.value = false }
+        assertTrue(sheet().top() > 0f)
+        val revealedBrowse = pixel(200, 5)
+        assertTrue(revealedBrowse.blue > 0.3f && revealedBrowse.red < 0.05f, "expected the browse layer, got $revealedBrowse")
+        assertEquals(Color.Red, pixel(200, 795))
+        finishTransition()
+        sheet().assertDoesNotExist()
+    }
+
+    @Test
+    fun reducedMotionCloseCrossfadesWithoutTranslation() = sheetTest(reducedMotion = true, solidLayers = true) { harness ->
+        midTransition { harness.open.value = false }
+        assertEquals(0f, sheet().top())
+        listOf(pixel(200, 5), pixel(200, 600)).forEach { blended ->
+            assertTrue(blended.red > 0.05f && blended.blue > 0.05f, "expected a crossfade, got $blended")
+        }
+        finishTransition()
+        sheet().assertDoesNotExist()
+        onNodeWithTag("browse").assertIsDisplayed()
+    }
+
+    @Test
+    fun reducedMotionOpenCrossfadesWithoutTranslation() = sheetTest(initiallyOpen = false, reducedMotion = true, solidLayers = true) { harness ->
+        midTransition { harness.open.value = true }
+        assertEquals(0f, sheet().top())
+        val blended = pixel(200, 400)
+        assertTrue(blended.red > 0.05f && blended.blue > 0.05f, "expected a crossfade, got $blended")
+        finishTransition()
+        assertEquals(Color.Red, pixel(200, 400))
+        onNodeWithTag("browse").assertIsNotDisplayed()
+    }
+
+    @Test
+    fun reducedMotionDragDoesNotMoveThePlayerButStillCloses() = sheetTest(reducedMotion = true) { harness ->
+        sheet().performTouchInput {
+            down(Offset(centerX, 150f))
+            moveTo(Offset(centerX, 400f), delayMillis = 300)
+            moveTo(Offset(centerX, 600f), delayMillis = 300)
+        }
+        assertEquals(0f, sheet().top())
+        sheet().performTouchInput { up() }
+        waitForIdle()
+        assertEquals(1, harness.closes)
+        sheet().assertDoesNotExist()
+    }
+
+    @Test
+    fun reducedMotionMiniPlayerSwipeOpensWithoutSliding() = sheetTest(initiallyOpen = false, reducedMotion = true) { harness ->
+        onNodeWithTag("mini").performTouchInput { swipe(Offset(centerX, centerY), Offset(centerX, centerY - 500f), 800) }
+        waitForIdle()
+        assertEquals(1, harness.opens)
+        assertEquals(0f, sheet().top())
+        onNodeWithTag("browse").assertIsNotDisplayed()
     }
 
     private fun ComposeUiTest.onNodeWithText(text: String) =
