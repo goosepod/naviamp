@@ -1,6 +1,7 @@
 package app.naviamp.presentation
 
 import app.naviamp.domain.network.NetworkMetering
+import app.naviamp.domain.network.NetworkMeteringSource
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.DownloadFallbackAwarePlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
@@ -884,7 +885,7 @@ class NaviampCorePlaybackEngineAdapterTest {
             engine = engine,
             providerSource = NaviampCoreMediaProviderSource { provider },
             settings = { PlaybackSettings() },
-            networkMetering = { network },
+            networkMetering = NetworkMeteringSource { network },
             activeSourceId = { "source" },
             cacheSettings = { CacheSettings(unmeteredAudioPrefetchDepth = 2, meteredAudioPrefetchDepth = 0) },
             cacheAudio = { _, _, track, _ ->
@@ -915,6 +916,36 @@ class NaviampCorePlaybackEngineAdapterTest {
     }
 
     @Test
+    fun hostWithoutMeteringUsesTheWifiDepthAndObservedUnknownUsesTheMobileDepth() = runTest {
+        suspend fun cachedWith(source: NetworkMeteringSource?): List<String> {
+            val provider = FakeCoreMediaProvider()
+            val cached = mutableListOf<String>()
+            val adapter = NaviampCorePlaybackEngineAdapter(
+                scope = this,
+                engine = RecordingPlaybackEngine(),
+                providerSource = NaviampCoreMediaProviderSource { provider },
+                settings = { PlaybackSettings() },
+                networkMetering = source,
+                activeSourceId = { "source" },
+                cacheSettings = { CacheSettings(unmeteredAudioPrefetchDepth = 2, meteredAudioPrefetchDepth = 1) },
+                cacheAudio = { _, _, track, _ ->
+                    cached += track.id.value
+                    PlaybackLocalAudio("/cache/${track.id.value}", "file:///cache/${track.id.value}")
+                },
+            )
+            adapter.playQueueSelection(
+                PlaybackQueue(listOf(provider.track) + (1..3).map { provider.track.copy(id = TrackId("next-$it")) }, 0),
+                0,
+            )
+            advanceUntilIdle()
+            return cached
+        }
+
+        assertEquals(listOf("next-1", "next-2"), cachedWith(null))
+        assertEquals(listOf("next-1"), cachedWith(NetworkMeteringSource { NetworkMetering.Unknown }))
+    }
+
+    @Test
     fun leavingWifiDuringPrefetchKeepsTheInFlightTrackAndStopsWorkBeyondTheMobileDepth() = runTest {
         val provider = FakeCoreMediaProvider()
         val engine = RecordingPlaybackEngine()
@@ -925,7 +956,7 @@ class NaviampCorePlaybackEngineAdapterTest {
             engine = engine,
             providerSource = NaviampCoreMediaProviderSource { provider },
             settings = { PlaybackSettings() },
-            networkMetering = { network },
+            networkMetering = NetworkMeteringSource { network },
             activeSourceId = { "source" },
             cacheSettings = { CacheSettings(unmeteredAudioPrefetchDepth = 10, meteredAudioPrefetchDepth = 1) },
             cacheAudio = { _, _, track, _ ->

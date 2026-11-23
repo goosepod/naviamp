@@ -1,18 +1,26 @@
 package app.naviamp.domain.settings
 
 import app.naviamp.domain.network.NetworkMetering
+import app.naviamp.domain.network.NetworkMeteringSource
 import app.naviamp.domain.playback.MaxAudioPrefetchDepth
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonTransformingSerializer
 
-/** An unknown network might be billed, so it uses the conservative mobile-data depth. */
 fun CacheSettings.audioPrefetchDepthFor(metering: NetworkMetering): Int =
     when (metering) {
         NetworkMetering.Unmetered -> unmeteredAudioPrefetchDepth
         NetworkMetering.Metered, NetworkMetering.Unknown -> meteredAudioPrefetchDepth
     }.coerceIn(0, MaxAudioPrefetchDepth)
+
+/**
+ * A host that cannot observe metering at all (Desktop) is on Wi-Fi or Ethernet in practice, so it
+ * uses that depth. A host that observes metering but cannot classify the current network might be
+ * on a billed connection, so its Unknown keeps the conservative mobile-data depth.
+ */
+fun CacheSettings.audioPrefetchDepthFor(meteringSource: NetworkMeteringSource?): Int =
+    audioPrefetchDepthFor(meteringSource?.current() ?: NetworkMetering.Unmetered)
 
 /** The portable part of [CacheSettings]; storage locations and budgets stay device-local. */
 @Serializable

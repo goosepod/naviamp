@@ -6,6 +6,7 @@ import android.net.NetworkCapabilities
 import android.util.Log
 import app.naviamp.android.playback.AndroidAudioWaveformAnalyzer
 import app.naviamp.domain.network.NetworkMetering
+import app.naviamp.domain.network.NetworkMeteringSource
 import app.naviamp.android.playback.AndroidBassAudioBackend
 import app.naviamp.android.playback.AndroidBassJni
 import app.naviamp.android.playback.AndroidFocusedBassPlaybackEngine
@@ -39,7 +40,7 @@ class AndroidNaviampApplicationRuntime private constructor(context: Context) {
         directoryPicker = AndroidCoreUriPickerRegistry.pickers.directory,
         documentPicker = AndroidCoreUriPickerRegistry.pickers.document,
         isMobileData = ::isMobileData,
-        networkMetering = ::networkMetering,
+        networkMetering = NetworkMeteringSource(::networkMetering),
         prepareWaveformAnalysis = { bass.init().getOrThrow() },
         waveformWorkContext = Dispatchers.IO,
     )

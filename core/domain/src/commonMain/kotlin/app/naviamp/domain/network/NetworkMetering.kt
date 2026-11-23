@@ -9,3 +9,8 @@ enum class NetworkMetering {
     Metered,
     Unknown,
 }
+
+/** Host effect for the OS metering state of the active network; absent when a host cannot observe it. */
+fun interface NetworkMeteringSource {
+    fun current(): NetworkMetering
+}

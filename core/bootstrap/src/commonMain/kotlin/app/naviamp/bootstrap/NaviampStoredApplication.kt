@@ -44,6 +44,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import app.naviamp.domain.audio.AudioTagReader
 import app.naviamp.domain.bass.BassAudioBackend
+import app.naviamp.domain.network.NetworkMeteringSource
 import app.naviamp.domain.network.SharedHttpClient
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.storage.StorageAudioDirectory
@@ -86,6 +87,7 @@ class NaviampStoredApplication(
     selectedAudioCacheLocationId: String?,
     private val httpClient: SharedHttpClient = KtorSharedHttpClient(),
     recoveryState: StorageRecoveryState? = null,
+    networkMetering: NetworkMeteringSource? = null,
     onAsyncFailure: ((app.naviamp.presentation.NaviampCoreCommand, Throwable) -> Unit)? = null,
 ) {
     init {
@@ -177,6 +179,7 @@ class NaviampStoredApplication(
         initialPlaybackSettings = settings.storedSettings.loadPlayback(),
         persistPlaybackSettings = settings.savePlayback,
         cacheSettings = { cacheSettings },
+        networkMetering = networkMetering,
         activeSourceId = { repositories.mediaSources.latestMediaSource()?.id },
         audioAssets = StoragePlaybackAudioAssets(
             downloads = audioStore,

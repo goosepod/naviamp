@@ -3,6 +3,7 @@ package app.naviamp.domain.settings
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.network.NetworkMetering
+import app.naviamp.domain.network.NetworkMeteringSource
 import app.naviamp.domain.radio.RadioDjPreset
 import app.naviamp.domain.radio.RadioDjPresetRepository
 import app.naviamp.domain.source.MediaSourceIdentity
@@ -25,6 +26,16 @@ class AudioPrefetchDepthSettingsTest {
         assertEquals(10, wifiOnly.audioPrefetchDepthFor(NetworkMetering.Unmetered))
         val mobileOnly = CacheSettings(unmeteredAudioPrefetchDepth = 0, meteredAudioPrefetchDepth = 5)
         assertEquals(0, mobileOnly.audioPrefetchDepthFor(NetworkMetering.Unmetered))
+    }
+
+    @Test
+    fun hostsWithoutMeteringUseTheWifiDepthWhileObservingHostsKeepMobileDepthForUnknown() {
+        val settings = CacheSettings(unmeteredAudioPrefetchDepth = 15, meteredAudioPrefetchDepth = 3)
+
+        assertEquals(15, settings.audioPrefetchDepthFor(meteringSource = null))
+        assertEquals(3, settings.audioPrefetchDepthFor(NetworkMeteringSource { NetworkMetering.Unknown }))
+        assertEquals(3, settings.audioPrefetchDepthFor(NetworkMeteringSource { NetworkMetering.Metered }))
+        assertEquals(15, settings.audioPrefetchDepthFor(NetworkMeteringSource { NetworkMetering.Unmetered }))
     }
 
     @Test

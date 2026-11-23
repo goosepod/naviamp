@@ -22,7 +22,7 @@ import app.naviamp.presentation.NaviampCorePlaybackTargetConnectCapabilities
 import app.naviamp.presentation.NaviampCoreDownloadedTrack
 import app.naviamp.presentation.NaviampCoreDownloadStorageSnapshot
 import app.naviamp.presentation.NaviampCoreHomeDateSource
-import app.naviamp.domain.network.NetworkMetering
+import app.naviamp.domain.network.NetworkMeteringSource
 import app.naviamp.presentation.NaviampCoreMobileNetworkPort
 import app.naviamp.presentation.NaviampCoreStoredRepositories
 import app.naviamp.presentation.naviampCoreSettingsValueCatalog
@@ -67,7 +67,7 @@ class AndroidNaviampCoreCatalog private constructor(
             directoryPicker: AndroidCoreUriPicker,
             documentPicker: AndroidCoreUriPicker,
             isMobileData: () -> Boolean = { false },
-            networkMetering: () -> NetworkMetering = { NetworkMetering.Unknown },
+            networkMetering: NetworkMeteringSource? = null,
             prepareWaveformAnalysis: suspend () -> Unit = {},
             waveformWorkContext: CoroutineContext = EmptyCoroutineContext,
         ): AndroidNaviampCoreCatalog {

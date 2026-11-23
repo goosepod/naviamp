@@ -78,7 +78,7 @@ import app.naviamp.ui.radioArtworkNeedsTrackLookup
 import app.naviamp.ui.radioTrackArtworkKey
 import app.naviamp.ui.radioTrackArtworkMatch
 import app.naviamp.ui.radioTrackArtworkQuery
-import app.naviamp.domain.network.NetworkMetering
+import app.naviamp.domain.network.NetworkMeteringSource
 import app.naviamp.domain.settings.audioPrefetchDepthFor
 import kotlinx.coroutines.CancellationException
 import app.naviamp.app.NaviampPlaybackStreamRelay
@@ -104,7 +104,7 @@ class NaviampCorePlaybackEngineAdapter(
     private val providerSource: NaviampCoreMediaProviderSource,
     private val settings: () -> PlaybackSettings,
     private val isMobileData: () -> Boolean = { false },
-    private val networkMetering: () -> NetworkMetering = { NetworkMetering.Unknown },
+    private val networkMetering: NetworkMeteringSource? = null,
     private val activeSourceId: () -> String? = { null },
     private val verifyProviderNetworkCertificates: () -> Boolean = { true },
     private val cacheSettings: () -> CacheSettings = {
@@ -695,7 +695,7 @@ class NaviampCorePlaybackEngineAdapter(
             quality = quality,
             queue = queue,
             enabled = configured.audioCachingEnabled,
-            configuredDepth = configured.audioPrefetchDepthFor(networkMetering()),
+            configuredDepth = configured.audioPrefetchDepthFor(networkMetering),
             completedAudio = completedAudioPrefetch,
             completedSidecars = completedSidecarPrefetch,
         ) ?: return
@@ -706,7 +706,7 @@ class NaviampCorePlaybackEngineAdapter(
                 isActive = {
                     requestGeneration == generation && activePrefetchGeneration == prefetchGeneration
                 },
-                currentDepth = { cacheSettings().audioPrefetchDepthFor(networkMetering()) },
+                currentDepth = { cacheSettings().audioPrefetchDepthFor(networkMetering) },
                 cacheAudio = { track ->
                     val plan = resolvePlaybackAudioSource(
                         sourceId = work.sourceId,
