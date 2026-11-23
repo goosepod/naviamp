@@ -15,6 +15,8 @@ data class SettingsSyncLocalSnapshot(
     val visualizer: VisualizerSettings = VisualizerSettings(),
     val recentRadioStreams: List<RecentRadioStream> = emptyList(),
     val recentInternetRadioStations: List<SavedInternetRadioStation> = emptyList(),
+    /** Null when the host has no stored cache settings, so nothing portable is exported for them. */
+    val cache: CacheSettings? = null,
 )
 
 data class ImportedSettingsSyncServerProfiles(
@@ -29,6 +31,7 @@ data class AppliedSettingsSyncDocument(
     val recentRadioStreams: List<RecentRadioStream>,
     val recentInternetRadioStations: List<SavedInternetRadioStation>,
     val importedServerProfiles: ImportedSettingsSyncServerProfiles,
+    val cacheSettings: CacheSettings = CacheSettings(),
 )
 
 /** Applies the platform-neutral repository mutations and normalization for a synced document. */
@@ -37,6 +40,7 @@ fun applySettingsSyncDocument(
     mediaSourceRepository: ProviderMediaSourceRepository,
     radioDjPresetRepository: RadioDjPresetRepository,
     localPlayback: PlaybackSettings = PlaybackSettings(),
+    localCache: CacheSettings = CacheSettings(),
 ): AppliedSettingsSyncDocument {
     val preferences = document.preferences
     // A receiving device's capabilities must never erase portable preferences, and a document
@@ -53,6 +57,7 @@ fun applySettingsSyncDocument(
             serverProfiles = document.serverProfiles,
             repository = mediaSourceRepository,
         ),
+        cacheSettings = localCache.withSyncedAudioPrefetch(preferences.audioPrefetch),
     )
 }
 
@@ -71,6 +76,7 @@ fun buildSettingsSyncDocument(
             visualizer = snapshot.visualizer,
             recentRadioStreams = snapshot.recentRadioStreams,
             recentInternetRadioStations = snapshot.recentInternetRadioStations,
+            audioPrefetch = snapshot.cache?.toSettingsSyncAudioPrefetch(),
         ),
     ).normalized()
 

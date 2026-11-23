@@ -177,8 +177,10 @@
     <string name="settings_audio_cache_title">Caché de audio</string>
     <string name="settings_audio_cache_enable">Activar precarga de audio</string>
     <string name="settings_audio_cache_enable_subtitle">Guardar audio próximo en caché para una reproducción más fluida.</string>
-    <string name="settings_audio_cache_prefetch_depth_title">Profundidad de precarga</string>
-    <string name="settings_audio_cache_prefetch_depth_subtitle">Pistas para guardar por adelantado en la cola de reproducción.</string>
+    <string name="settings_audio_cache_prefetch_unmetered_title">Precarga con Wi-Fi/Ethernet</string>
+    <string name="settings_audio_cache_prefetch_unmetered_subtitle">Pistas para guardar por adelantado en la cola de reproducción con Wi-Fi o Ethernet.</string>
+    <string name="settings_audio_cache_prefetch_metered_title">Precarga con datos móviles</string>
+    <string name="settings_audio_cache_prefetch_metered_subtitle">Pistas para guardar por adelantado con datos móviles y otras redes de uso medido, o cuando se desconoce el tipo de red.</string>
     <string name="settings_audio_cache_budget_title">Presupuesto de caché de audio</string>
     <string name="settings_audio_cache_budget_subtitle">Espacio máximo para audio precargado.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Mejorar el audio en caché con Wi-Fi</string>

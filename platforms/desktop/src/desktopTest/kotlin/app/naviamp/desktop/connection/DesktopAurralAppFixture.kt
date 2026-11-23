@@ -46,7 +46,7 @@ fun main(args: Array<String>) {
             NavidromeProvider(connection, noNetwork).cacheNamespace, ProviderIdAurral, null)
     }
     val settings = naviampCoreSettingsValueCatalog(DesktopCoreSettingsValueStore(directory.resolve("settings.json")))
-    settings.storedSettings.saveCache(CacheSettings(audioCachingEnabled = false, audioPrefetchDepth = 0, waveformsEnabled = false))
+    settings.storedSettings.saveCache(CacheSettings(audioCachingEnabled = false, unmeteredAudioPrefetchDepth = 0, meteredAudioPrefetchDepth = 0, waveformsEnabled = false))
     settings.savePlayback(PlaybackSettings(volumePercent = 0))
     println("Disposable Aurral profile ready; launch with isolated APPDATA and user.home.")
 }

@@ -124,7 +124,7 @@ suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = wit
             val adapter = NaviampCorePlaybackEngineAdapter(
                 scope = this, engine = engine, providerSource = NaviampCoreMediaProviderSource { media },
                 settings = { PlaybackSettings(volumePercent = 0) },
-                cacheSettings = { CacheSettings(audioCachingEnabled = false, audioPrefetchDepth = 0) },
+                cacheSettings = { CacheSettings(audioCachingEnabled = false, unmeteredAudioPrefetchDepth = 0, meteredAudioPrefetchDepth = 0) },
                 cacheAudio = { _, _, _, _ -> error("Uncached playback must not download a complete file") },
             )
             adapter.attach(object : NaviampCorePlaybackObserver {

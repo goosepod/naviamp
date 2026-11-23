@@ -3043,15 +3043,28 @@ private fun SharedCacheSettingsSection(
         )
         DetentIntSettingsSlider(
             colors = colors,
-            title = stringResource(Res.string.settings_audio_cache_prefetch_depth_title),
-            value = normalized.audioPrefetchDepth,
+            title = stringResource(Res.string.settings_audio_cache_prefetch_unmetered_title),
+            value = normalized.unmeteredAudioPrefetchDepth,
             detents = PrefetchDepthOptions,
             enabled = normalized.audioCachingEnabled,
-            valueLabel = { depth -> if (depth == 0) stringResource(Res.string.common_off) else stringResource(Res.string.settings_tracks_count, depth) },
+            valueLabel = { depth -> prefetchDepthLabel(depth) },
             onValueChanged = { depth ->
-                onCacheSettingsChanged(normalized.copy(audioPrefetchDepth = depth).normalized())
+                onCacheSettingsChanged(normalized.copy(unmeteredAudioPrefetchDepth = depth).normalized())
             },
         )
+        Text(stringResource(Res.string.settings_audio_cache_prefetch_unmetered_subtitle), color = colors.secondaryText, fontSize = 12.sp)
+        DetentIntSettingsSlider(
+            colors = colors,
+            title = stringResource(Res.string.settings_audio_cache_prefetch_metered_title),
+            value = normalized.meteredAudioPrefetchDepth,
+            detents = PrefetchDepthOptions,
+            enabled = normalized.audioCachingEnabled,
+            valueLabel = { depth -> prefetchDepthLabel(depth) },
+            onValueChanged = { depth ->
+                onCacheSettingsChanged(normalized.copy(meteredAudioPrefetchDepth = depth).normalized())
+            },
+        )
+        Text(stringResource(Res.string.settings_audio_cache_prefetch_metered_subtitle), color = colors.secondaryText, fontSize = 12.sp)
         DetentByteSettingsSlider(
             colors = colors,
             title = stringResource(Res.string.settings_audio_cache_budget_title),
@@ -3481,14 +3494,24 @@ fun NaviampAudioCacheSettingsSection(
     selectedPage?.let { page ->
         SettingsSubsectionHeader(page.title(), page.subtitle(), colors) { selectedPage = null }
         when (page) {
-            AudioCacheSettingsPage.PrefetchDepth -> PrefetchDepthOptions.forEach { depth ->
+            AudioCacheSettingsPage.UnmeteredPrefetchDepth -> PrefetchDepthOptions.forEach { depth ->
                 SelectableSettingsRow(
                     colors = colors,
-                    title = if (depth == 0) stringResource(Res.string.common_off) else stringResource(Res.string.settings_tracks_count, depth),
-                    selected = depth == normalized.audioPrefetchDepth,
+                    title = prefetchDepthLabel(depth),
+                    selected = depth == normalized.unmeteredAudioPrefetchDepth,
                     enabled = normalized.audioCachingEnabled,
                 ) {
-                    onCacheSettingsChanged(normalized.copy(audioPrefetchDepth = depth).normalized())
+                    onCacheSettingsChanged(normalized.copy(unmeteredAudioPrefetchDepth = depth).normalized())
+                }
+            }
+            AudioCacheSettingsPage.MeteredPrefetchDepth -> PrefetchDepthOptions.forEach { depth ->
+                SelectableSettingsRow(
+                    colors = colors,
+                    title = prefetchDepthLabel(depth),
+                    selected = depth == normalized.meteredAudioPrefetchDepth,
+                    enabled = normalized.audioCachingEnabled,
+                ) {
+                    onCacheSettingsChanged(normalized.copy(meteredAudioPrefetchDepth = depth).normalized())
                 }
             }
             AudioCacheSettingsPage.AudioCacheBudget -> AudioCacheBudgetOptions.forEach { bytes ->
@@ -3519,17 +3542,22 @@ fun NaviampAudioCacheSettingsSection(
         },
     )
     SettingsRow(
-        title = stringResource(Res.string.settings_audio_cache_prefetch_depth_title),
-        subtitle = stringResource(Res.string.settings_audio_cache_prefetch_depth_subtitle),
+        title = stringResource(Res.string.settings_audio_cache_prefetch_unmetered_title),
+        subtitle = stringResource(Res.string.settings_audio_cache_prefetch_unmetered_subtitle),
         colors = colors,
-        value = if (normalized.audioPrefetchDepth == 0) {
-            stringResource(Res.string.common_off)
-        } else {
-            stringResource(Res.string.settings_tracks_count, normalized.audioPrefetchDepth)
-        },
+        value = prefetchDepthLabel(normalized.unmeteredAudioPrefetchDepth),
         enabled = normalized.audioCachingEnabled,
     ) {
-        selectedPage = AudioCacheSettingsPage.PrefetchDepth
+        selectedPage = AudioCacheSettingsPage.UnmeteredPrefetchDepth
+    }
+    SettingsRow(
+        title = stringResource(Res.string.settings_audio_cache_prefetch_metered_title),
+        subtitle = stringResource(Res.string.settings_audio_cache_prefetch_metered_subtitle),
+        colors = colors,
+        value = prefetchDepthLabel(normalized.meteredAudioPrefetchDepth),
+        enabled = normalized.audioCachingEnabled,
+    ) {
+        selectedPage = AudioCacheSettingsPage.MeteredPrefetchDepth
     }
     SettingsRow(
         title = stringResource(Res.string.settings_audio_cache_budget_title),
@@ -3556,19 +3584,22 @@ fun NaviampAudioCacheSettingsSection(
     }
 }
 
-private enum class AudioCacheSettingsPage(
-    val title: String,
-    val subtitle: String,
-) {
-    PrefetchDepth("Prefetch Depth", "Tracks to cache ahead in the play queue"),
-    AudioCacheBudget("Audio Cache Budget", "Maximum space for prefetched audio"),
-    Location("Cache Location", "Internal, device, or removable storage"),
+private enum class AudioCacheSettingsPage {
+    UnmeteredPrefetchDepth,
+    MeteredPrefetchDepth,
+    AudioCacheBudget,
+    Location,
 }
+
+@Composable
+private fun prefetchDepthLabel(depth: Int): String =
+    if (depth == 0) stringResource(Res.string.common_off) else stringResource(Res.string.settings_tracks_count, depth)
 
 @Composable
 private fun AudioCacheSettingsPage.title(): String =
     when (this) {
-        AudioCacheSettingsPage.PrefetchDepth -> stringResource(Res.string.settings_audio_cache_prefetch_depth_title)
+        AudioCacheSettingsPage.UnmeteredPrefetchDepth -> stringResource(Res.string.settings_audio_cache_prefetch_unmetered_title)
+        AudioCacheSettingsPage.MeteredPrefetchDepth -> stringResource(Res.string.settings_audio_cache_prefetch_metered_title)
         AudioCacheSettingsPage.AudioCacheBudget -> stringResource(Res.string.settings_audio_cache_budget_title)
         AudioCacheSettingsPage.Location -> "Cache Location"
     }
@@ -3576,7 +3607,8 @@ private fun AudioCacheSettingsPage.title(): String =
 @Composable
 private fun AudioCacheSettingsPage.subtitle(): String =
     when (this) {
-        AudioCacheSettingsPage.PrefetchDepth -> stringResource(Res.string.settings_audio_cache_prefetch_depth_subtitle)
+        AudioCacheSettingsPage.UnmeteredPrefetchDepth -> stringResource(Res.string.settings_audio_cache_prefetch_unmetered_subtitle)
+        AudioCacheSettingsPage.MeteredPrefetchDepth -> stringResource(Res.string.settings_audio_cache_prefetch_metered_subtitle)
         AudioCacheSettingsPage.AudioCacheBudget -> stringResource(Res.string.settings_audio_cache_budget_subtitle)
         AudioCacheSettingsPage.Location -> "Internal, device, or removable storage"
     }
