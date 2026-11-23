@@ -1281,4 +1281,9 @@
     <string name="tv_search_system_keyboard">Systemtastatur</string>
     <string name="storage_location_app">App-Speicher</string>
     <string name="storage_location_custom">Benutzerdefiniert</string>
+    <string name="external_browse_playlists_subtitle">Gespeicherte Wiedergabelisten</string>
+    <string name="external_browse_recent_tracks_subtitle">Zuletzt gespielte Titel</string>
+    <string name="external_browse_recent_albums_subtitle">Zuletzt gespielte Alben</string>
+    <string name="external_browse_now_playing_subtitle">Aktuelle Wiedergabe</string>
+    <string name="notification_channel_playback_description">Wiedergabesteuerung</string>
 </resources>

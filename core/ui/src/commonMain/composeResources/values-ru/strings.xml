@@ -532,4 +532,21 @@
     <string name="storage_location_app">Хранилище приложения</string>
     <string name="storage_location_custom">Пользовательское</string>
     <string name="connect_recovery_secure_storage">Naviamp не удалось открыть защищённое хранилище учётных данных этого устройства. Разблокируйте системную связку ключей и повторите попытку.</string>
+    <string name="external_browse_playlists_subtitle">Сохранённые плейлисты</string>
+    <string name="external_browse_recent_tracks_subtitle">Недавние треки</string>
+    <string name="external_browse_recent_albums_subtitle">Недавно прослушанные альбомы</string>
+    <string name="external_browse_now_playing_subtitle">Текущее воспроизведение</string>
+    <string name="notification_channel_playback_description">Управление воспроизведением</string>
+    <string name="tv_home_recently_played">Недавно прослушанные</string>
+    <string name="home_recent_albums">Недавние альбомы</string>
+    <string name="tv_home_stations">Станции</string>
+    <string name="tv_now_playing_uppercase">Сейчас играет</string>
+    <string name="settings_category_playback_title">Воспроизведение</string>
+    <string name="transport_pause">Пауза</string>
+    <plurals name="tv_track_count">
+        <item quantity="one">%1$d трек</item>
+        <item quantity="few">%1$d трека</item>
+        <item quantity="many">%1$d треков</item>
+        <item quantity="other">%1$d трека</item>
+    </plurals>
 </resources>

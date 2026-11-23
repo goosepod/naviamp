@@ -532,4 +532,19 @@
     <string name="storage_location_app">App-opslag</string>
     <string name="storage_location_custom">Aangepast</string>
     <string name="connect_recovery_secure_storage">Naviamp kon de beveiligde opslag voor inloggegevens van dit apparaat niet openen. Ontgrendel de sleutelbos van het systeem en probeer het opnieuw.</string>
+    <string name="external_browse_playlists_subtitle">Opgeslagen afspeellijsten</string>
+    <string name="external_browse_recent_tracks_subtitle">Recente nummers</string>
+    <string name="external_browse_recent_albums_subtitle">Recent afgespeelde albums</string>
+    <string name="external_browse_now_playing_subtitle">Wat er nu speelt</string>
+    <string name="notification_channel_playback_description">Afspeelbediening</string>
+    <string name="tv_home_recently_played">Recent afgespeeld</string>
+    <string name="home_recent_albums">Recente albums</string>
+    <string name="tv_home_stations">Stations</string>
+    <string name="tv_now_playing_uppercase">Nu aan het afspelen</string>
+    <string name="settings_category_playback_title">Afspelen</string>
+    <string name="transport_pause">Pauzeren</string>
+    <plurals name="tv_track_count">
+        <item quantity="one">%1$d nummer</item>
+        <item quantity="other">%1$d nummers</item>
+    </plurals>
 </resources>

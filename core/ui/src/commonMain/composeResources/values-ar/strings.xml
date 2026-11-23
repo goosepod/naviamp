@@ -532,4 +532,23 @@
     <string name="storage_location_app">تخزين التطبيق</string>
     <string name="storage_location_custom">مخصص</string>
     <string name="connect_recovery_secure_storage">تعذّر على Naviamp فتح مخزن بيانات الاعتماد الآمن على هذا الجهاز. افتح قفل سلسلة مفاتيح النظام، ثم أعد المحاولة.</string>
+    <string name="external_browse_playlists_subtitle">قوائم التشغيل المحفوظة</string>
+    <string name="external_browse_recent_tracks_subtitle">المقاطع الأخيرة</string>
+    <string name="external_browse_recent_albums_subtitle">الألبومات التي تم تشغيلها مؤخرًا</string>
+    <string name="external_browse_now_playing_subtitle">التشغيل الحالي</string>
+    <string name="notification_channel_playback_description">عناصر التحكم في التشغيل</string>
+    <string name="tv_home_recently_played">تم تشغيلها مؤخرًا</string>
+    <string name="home_recent_albums">الألبومات الأخيرة</string>
+    <string name="tv_home_stations">المحطات</string>
+    <string name="tv_now_playing_uppercase">قيد التشغيل الآن</string>
+    <string name="settings_category_playback_title">التشغيل</string>
+    <string name="transport_pause">إيقاف مؤقت</string>
+    <plurals name="tv_track_count">
+        <item quantity="zero">%1$d مقطع</item>
+        <item quantity="one">%1$d مقطع</item>
+        <item quantity="two">%1$d مقطعان</item>
+        <item quantity="few">%1$d مقاطع</item>
+        <item quantity="many">%1$d مقطعًا</item>
+        <item quantity="other">%1$d مقطع</item>
+    </plurals>
 </resources>

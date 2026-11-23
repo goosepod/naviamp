@@ -62,7 +62,7 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
     override fun onCreate() {
         super.onCreate()
         AndroidNaviampApplicationRuntime.get(this)
-        createNotificationChannel()
+        ensureNotificationChannel()
         session = MediaSessionCompat(this, MediaSessionTag).apply {
             setCallback(mediaSessionCallback())
         }
@@ -71,6 +71,8 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
         scope.launch {
             naviampExternalPlaybackLabelUpdates().collect { next ->
                 labels = next
+                registerNotificationChannel(next.playback, next.notificationChannelDescription)
+                notifyChildrenChanged(NaviampExternalMediaRootId)
                 publishSessionContent(snapshot)
                 publishPlaybackState(snapshot)
                 presentation.publish(snapshot, notificationChanged = true)
@@ -117,7 +119,8 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
         parentId: String,
         result: Result<MutableList<MediaBrowserCompat.MediaItem>>,
     ) {
-        result.sendResult(children(parentId))
+        result.detach()
+        scope.launch { result.sendResult(children(parentId)) }
     }
 
     override fun onLoadChildren(
@@ -125,7 +128,8 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
         result: Result<MutableList<MediaBrowserCompat.MediaItem>>,
         options: Bundle,
     ) {
-        result.sendResult(children(parentId).paginated(options))
+        result.detach()
+        scope.launch { result.sendResult(children(parentId).paginated(options)) }
     }
 
     override fun onSearch(
@@ -283,8 +287,8 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
         }
     }
 
-    private fun children(parentId: String): MutableList<MediaBrowserCompat.MediaItem> =
-        bridge?.browseChildren(parentId).orEmpty().map { item ->
+    private suspend fun children(parentId: String): MutableList<MediaBrowserCompat.MediaItem> =
+        bridge?.browse(parentId).orEmpty().map { item ->
             if (item.playable) playableItem(item) else browsableItem(item.mediaId, item.title, item.subtitle)
         }.toMutableList()
 
@@ -367,14 +371,19 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
         presentation.release()
     }
 
-    private fun createNotificationChannel() {
+    // startForeground needs the channel before the shared labels finish loading, so a first
+    // install registers it under the app label and the translated labels rename it.
+    private fun ensureNotificationChannel() {
+        val manager = getSystemService(NotificationManager::class.java)
+        if (manager.getNotificationChannel(NotificationChannelId) == null) {
+            registerNotificationChannel(applicationInfo.loadLabel(packageManager), null)
+        }
+    }
+
+    private fun registerNotificationChannel(name: CharSequence, description: String?) {
         getSystemService(NotificationManager::class.java).createNotificationChannel(
-            NotificationChannel(
-                NotificationChannelId,
-                "Playback",
-                NotificationManager.IMPORTANCE_LOW,
-            ).apply {
-                description = "Playback controls"
+            NotificationChannel(NotificationChannelId, name, NotificationManager.IMPORTANCE_LOW).apply {
+                this.description = description
                 setShowBadge(false)
             },
         )

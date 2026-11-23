@@ -532,4 +532,20 @@
     <string name="storage_location_app">Stockage de l’app</string>
     <string name="storage_location_custom">Personnalisé</string>
     <string name="connect_recovery_secure_storage">Naviamp n&apos;a pas pu ouvrir le stockage sécurisé des identifiants de cet appareil. Déverrouillez le trousseau du système, puis réessayez.</string>
+    <string name="external_browse_playlists_subtitle">Listes de lecture enregistrées</string>
+    <string name="external_browse_recent_tracks_subtitle">Titres récents</string>
+    <string name="external_browse_recent_albums_subtitle">Albums écoutés récemment</string>
+    <string name="external_browse_now_playing_subtitle">Lecture actuelle</string>
+    <string name="notification_channel_playback_description">Commandes de lecture</string>
+    <string name="tv_home_recently_played">Écoutés récemment</string>
+    <string name="home_recent_albums">Albums récents</string>
+    <string name="tv_home_stations">Stations</string>
+    <string name="tv_now_playing_uppercase">En cours de lecture</string>
+    <string name="settings_category_playback_title">Lecture</string>
+    <string name="transport_pause">Pause</string>
+    <plurals name="tv_track_count">
+        <item quantity="one">%1$d titre</item>
+        <item quantity="many">%1$d de titres</item>
+        <item quantity="other">%1$d titres</item>
+    </plurals>
 </resources>

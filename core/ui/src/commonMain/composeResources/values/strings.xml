@@ -1310,4 +1310,9 @@
     <string name="tv_search_system_keyboard">System keyboard</string>
     <string name="storage_location_app">App storage</string>
     <string name="storage_location_custom">Custom</string>
+    <string name="external_browse_playlists_subtitle">Saved playlists</string>
+    <string name="external_browse_recent_tracks_subtitle">Recent tracks</string>
+    <string name="external_browse_recent_albums_subtitle">Recently played albums</string>
+    <string name="external_browse_now_playing_subtitle">Current playback</string>
+    <string name="notification_channel_playback_description">Playback controls</string>
 </resources>

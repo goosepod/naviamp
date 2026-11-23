@@ -629,4 +629,20 @@
     <string name="storage_location_app">Pamięć aplikacji</string>
     <string name="storage_location_custom">Niestandardowa</string>
     <string name="connect_recovery_secure_storage">Naviamp nie może otworzyć bezpiecznego magazynu danych logowania na tym urządzeniu. Odblokuj systemowy pęk kluczy, a następnie spróbuj ponownie.</string>
+    <string name="external_browse_playlists_subtitle">Zapisane playlisty</string>
+    <string name="external_browse_recent_tracks_subtitle">Ostatnie utwory</string>
+    <string name="external_browse_recent_albums_subtitle">Ostatnio odtwarzane albumy</string>
+    <string name="external_browse_now_playing_subtitle">Bieżące odtwarzanie</string>
+    <string name="notification_channel_playback_description">Sterowanie odtwarzaniem</string>
+    <string name="tv_home_recently_played">Ostatnio odtwarzane</string>
+    <string name="home_recent_albums">Ostatnie albumy</string>
+    <string name="tv_home_stations">Stacje</string>
+    <string name="tv_now_playing_uppercase">Teraz odtwarzane</string>
+    <string name="transport_pause">Pauza</string>
+    <plurals name="tv_track_count">
+        <item quantity="one">%1$d utwór</item>
+        <item quantity="few">%1$d utwory</item>
+        <item quantity="many">%1$d utworów</item>
+        <item quantity="other">%1$d utworu</item>
+    </plurals>
 </resources>

@@ -532,4 +532,19 @@
     <string name="storage_location_app">Uygulama depolama alanı</string>
     <string name="storage_location_custom">Özel</string>
     <string name="connect_recovery_secure_storage">Naviamp bu cihazın güvenli kimlik bilgisi deposunu açamadı. Sistem anahtarlığının kilidini açın ve yeniden deneyin.</string>
+    <string name="external_browse_playlists_subtitle">Kaydedilen çalma listeleri</string>
+    <string name="external_browse_recent_tracks_subtitle">Son parçalar</string>
+    <string name="external_browse_recent_albums_subtitle">Son çalınan albümler</string>
+    <string name="external_browse_now_playing_subtitle">Geçerli oynatma</string>
+    <string name="notification_channel_playback_description">Oynatma denetimleri</string>
+    <string name="tv_home_recently_played">Son çalınanlar</string>
+    <string name="home_recent_albums">Son albümler</string>
+    <string name="tv_home_stations">İstasyonlar</string>
+    <string name="tv_now_playing_uppercase">Şimdi çalıyor</string>
+    <string name="settings_category_playback_title">Oynatma</string>
+    <string name="transport_pause">Duraklat</string>
+    <plurals name="tv_track_count">
+        <item quantity="one">%1$d parça</item>
+        <item quantity="other">%1$d parça</item>
+    </plurals>
 </resources>

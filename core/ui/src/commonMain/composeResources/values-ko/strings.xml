@@ -532,4 +532,18 @@
     <string name="storage_location_app">앱 저장 공간</string>
     <string name="storage_location_custom">사용자 지정</string>
     <string name="connect_recovery_secure_storage">Naviamp가 이 기기의 보안 자격 증명 저장소를 열 수 없습니다. 시스템 키링의 잠금을 해제한 후 다시 시도하세요.</string>
+    <string name="external_browse_playlists_subtitle">저장된 재생목록</string>
+    <string name="external_browse_recent_tracks_subtitle">최근 트랙</string>
+    <string name="external_browse_recent_albums_subtitle">최근 재생한 앨범</string>
+    <string name="external_browse_now_playing_subtitle">현재 재생</string>
+    <string name="notification_channel_playback_description">재생 컨트롤</string>
+    <string name="tv_home_recently_played">최근 재생</string>
+    <string name="home_recent_albums">최근 앨범</string>
+    <string name="tv_home_stations">스테이션</string>
+    <string name="tv_now_playing_uppercase">지금 재생 중</string>
+    <string name="settings_category_playback_title">재생</string>
+    <string name="transport_pause">일시정지</string>
+    <plurals name="tv_track_count">
+        <item quantity="other">%1$d곡</item>
+    </plurals>
 </resources>

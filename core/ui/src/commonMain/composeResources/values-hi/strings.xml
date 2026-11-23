@@ -532,4 +532,19 @@
     <string name="storage_location_app">ऐप स्टोरेज</string>
     <string name="storage_location_custom">कस्टम</string>
     <string name="connect_recovery_secure_storage">Naviamp इस डिवाइस का सुरक्षित क्रेडेंशियल संग्रह नहीं खोल सका। सिस्टम कीरिंग अनलॉक करें, फिर दोबारा प्रयास करें।</string>
+    <string name="external_browse_playlists_subtitle">सहेजी गई प्लेलिस्ट</string>
+    <string name="external_browse_recent_tracks_subtitle">हाल के ट्रैक</string>
+    <string name="external_browse_recent_albums_subtitle">हाल ही में चलाए गए एल्बम</string>
+    <string name="external_browse_now_playing_subtitle">वर्तमान प्लेबैक</string>
+    <string name="notification_channel_playback_description">प्लेबैक नियंत्रण</string>
+    <string name="tv_home_recently_played">हाल ही में चलाए गए</string>
+    <string name="home_recent_albums">हाल के एल्बम</string>
+    <string name="tv_home_stations">स्टेशन</string>
+    <string name="tv_now_playing_uppercase">अभी चल रहा है</string>
+    <string name="settings_category_playback_title">प्लेबैक</string>
+    <string name="transport_pause">रोकें</string>
+    <plurals name="tv_track_count">
+        <item quantity="one">%1$d ट्रैक</item>
+        <item quantity="other">%1$d ट्रैक</item>
+    </plurals>
 </resources>

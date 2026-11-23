@@ -532,4 +532,21 @@
     <string name="storage_location_app">Сховище застосунку</string>
     <string name="storage_location_custom">Власне</string>
     <string name="connect_recovery_secure_storage">Naviamp не вдалося відкрити захищене сховище облікових даних цього пристрою. Розблокуйте системну в’язку ключів і спробуйте ще раз.</string>
+    <string name="external_browse_playlists_subtitle">Збережені списки відтворення</string>
+    <string name="external_browse_recent_tracks_subtitle">Нещодавні треки</string>
+    <string name="external_browse_recent_albums_subtitle">Нещодавно прослухані альбоми</string>
+    <string name="external_browse_now_playing_subtitle">Поточне відтворення</string>
+    <string name="notification_channel_playback_description">Керування відтворенням</string>
+    <string name="tv_home_recently_played">Нещодавно прослухані</string>
+    <string name="home_recent_albums">Нещодавні альбоми</string>
+    <string name="tv_home_stations">Станції</string>
+    <string name="tv_now_playing_uppercase">Зараз грає</string>
+    <string name="settings_category_playback_title">Відтворення</string>
+    <string name="transport_pause">Пауза</string>
+    <plurals name="tv_track_count">
+        <item quantity="one">%1$d трек</item>
+        <item quantity="few">%1$d треки</item>
+        <item quantity="many">%1$d треків</item>
+        <item quantity="other">%1$d треку</item>
+    </plurals>
 </resources>

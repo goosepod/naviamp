@@ -12,7 +12,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.PluralStringResource
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getPluralString
 import org.jetbrains.compose.resources.getString
 
 /**
@@ -75,4 +77,9 @@ suspend fun naviampString(resource: StringResource): String {
 suspend fun naviampString(resource: StringResource, vararg formatArgs: Any): String {
     NaviampResourceLanguage.reassert()
     return getString(resource, *formatArgs)
+}
+
+suspend fun naviampPluralString(resource: PluralStringResource, quantity: Int, vararg formatArgs: Any): String {
+    NaviampResourceLanguage.reassert()
+    return getPluralString(resource, quantity, *formatArgs)
 }

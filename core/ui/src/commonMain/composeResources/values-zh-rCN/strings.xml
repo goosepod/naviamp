@@ -532,4 +532,18 @@
     <string name="storage_location_app">应用存储</string>
     <string name="storage_location_custom">自定义</string>
     <string name="connect_recovery_secure_storage">Naviamp 无法打开此设备的安全凭据存储。请解锁系统密钥环，然后重试。</string>
+    <string name="external_browse_playlists_subtitle">已保存的播放列表</string>
+    <string name="external_browse_recent_tracks_subtitle">最近的曲目</string>
+    <string name="external_browse_recent_albums_subtitle">最近播放的专辑</string>
+    <string name="external_browse_now_playing_subtitle">当前播放</string>
+    <string name="notification_channel_playback_description">播放控制</string>
+    <string name="tv_home_recently_played">最近播放</string>
+    <string name="home_recent_albums">最近的专辑</string>
+    <string name="tv_home_stations">电台列表</string>
+    <string name="tv_now_playing_uppercase">正在播放</string>
+    <string name="settings_category_playback_title">播放</string>
+    <string name="transport_pause">暂停</string>
+    <plurals name="tv_track_count">
+        <item quantity="other">%1$d 首曲目</item>
+    </plurals>
 </resources>

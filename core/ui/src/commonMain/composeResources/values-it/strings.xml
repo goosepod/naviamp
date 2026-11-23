@@ -532,4 +532,20 @@
     <string name="storage_location_app">Spazio dell’app</string>
     <string name="storage_location_custom">Personalizzato</string>
     <string name="connect_recovery_secure_storage">Naviamp non è riuscito ad aprire l&apos;archivio sicuro delle credenziali di questo dispositivo. Sblocca il portachiavi di sistema, quindi riprova.</string>
+    <string name="external_browse_playlists_subtitle">Playlist salvate</string>
+    <string name="external_browse_recent_tracks_subtitle">Brani recenti</string>
+    <string name="external_browse_recent_albums_subtitle">Album ascoltati di recente</string>
+    <string name="external_browse_now_playing_subtitle">Riproduzione corrente</string>
+    <string name="notification_channel_playback_description">Controlli di riproduzione</string>
+    <string name="tv_home_recently_played">Ascoltati di recente</string>
+    <string name="home_recent_albums">Album recenti</string>
+    <string name="tv_home_stations">Stazioni</string>
+    <string name="tv_now_playing_uppercase">In riproduzione</string>
+    <string name="settings_category_playback_title">Riproduzione</string>
+    <string name="transport_pause">Pausa</string>
+    <plurals name="tv_track_count">
+        <item quantity="one">%1$d brano</item>
+        <item quantity="many">%1$d di brani</item>
+        <item quantity="other">%1$d brani</item>
+    </plurals>
 </resources>

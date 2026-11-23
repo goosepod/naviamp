@@ -1285,4 +1285,9 @@
     <string name="tv_search_system_keyboard">Teclado del sistema</string>
     <string name="storage_location_app">Almacenamiento de la app</string>
     <string name="storage_location_custom">Personalizado</string>
+    <string name="external_browse_playlists_subtitle">Listas guardadas</string>
+    <string name="external_browse_recent_tracks_subtitle">Pistas recientes</string>
+    <string name="external_browse_recent_albums_subtitle">Álbumes reproducidos recientemente</string>
+    <string name="external_browse_now_playing_subtitle">Reproducción actual</string>
+    <string name="notification_channel_playback_description">Controles de reproducción</string>
 </resources>

@@ -3,7 +3,10 @@ package app.naviamp.presentation
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampAppShellUiState
+import app.naviamp.ui.NaviampExternalBrowseLabels
+import app.naviamp.ui.NaviampExternalBrowseSection
 import app.naviamp.ui.NaviampExternalPlaybackAction
+import app.naviamp.ui.loadNaviampExternalBrowseLabels
 import app.naviamp.ui.NowPlayingCurrentTrackTarget
 import app.naviamp.ui.NaviampMediaItemActionRequest
 import app.naviamp.ui.NaviampMediaItemCommand
@@ -544,30 +547,34 @@ class NaviampCoreExternalPlaybackBridge internal constructor(
         }
     }
 
+    /** Native browser entry point: the root carries translated section text, categories do not. */
+    suspend fun browse(
+        parentId: String,
+        loadLabels: suspend (queueSize: Int) -> NaviampExternalBrowseLabels = ::loadNaviampExternalBrowseLabels,
+    ): List<NaviampExternalMediaItem> =
+        if (parentId == NaviampExternalMediaRootId) browseRoot(loadLabels) else browseChildren(parentId)
+
+    private suspend fun browseRoot(loadLabels: suspend (queueSize: Int) -> NaviampExternalBrowseLabels): List<NaviampExternalMediaItem> {
+        val playback = snapshot()
+        val catalog = playback.browseCatalog
+        val labels = loadLabels(playback.queue.size)
+        fun section(id: String, section: NaviampExternalBrowseSection, playable: Boolean = false) =
+            NaviampExternalMediaItem(id, labels.title(section), labels.subtitle(section), playable = playable)
+        return buildList {
+            if (catalog.playlists.isNotEmpty()) add(section(NaviampExternalPlaylistsId, NaviampExternalBrowseSection.Playlists))
+            if (catalog.recentTracks.isNotEmpty()) add(section(NaviampExternalRecentTracksId, NaviampExternalBrowseSection.RecentTracks))
+            if (catalog.internetRadio.isNotEmpty() || catalog.stations.isNotEmpty()) add(section(NaviampExternalRadioId, NaviampExternalBrowseSection.Radio))
+            if (catalog.recentAlbums.isNotEmpty()) add(section(NaviampExternalRecentAlbumsId, NaviampExternalBrowseSection.RecentAlbums))
+            if (playback.queue.isNotEmpty()) add(section(NaviampExternalQueueId, NaviampExternalBrowseSection.Queue))
+            if (playback.current != null) add(section(NaviampExternalNowPlayingId, NaviampExternalBrowseSection.NowPlaying, playable = true))
+        }
+    }
+
+    /** Contents of one browse category; the root needs translated text and goes through [browse]. */
     fun browseChildren(parentId: String): List<NaviampExternalMediaItem> {
         val playback = snapshot()
         val catalog = playback.browseCatalog
         return when (parentId) {
-            NaviampExternalMediaRootId -> buildList {
-                if (catalog.playlists.isNotEmpty()) {
-                    add(section(NaviampExternalPlaylistsId, "Playlists", "Saved playlists"))
-                }
-                if (catalog.recentTracks.isNotEmpty()) {
-                    add(section(NaviampExternalRecentTracksId, "Recently Played", "Recent tracks"))
-                }
-                if (catalog.internetRadio.isNotEmpty() || catalog.stations.isNotEmpty()) {
-                    add(section(NaviampExternalRadioId, "Radio", "Stations"))
-                }
-                if (catalog.recentAlbums.isNotEmpty()) {
-                    add(section(NaviampExternalRecentAlbumsId, "Recent Albums", "Recently played albums"))
-                }
-                if (playback.queue.isNotEmpty()) {
-                    add(section(NaviampExternalQueueId, "Queue", "${playback.queue.size} tracks"))
-                }
-                if (playback.current != null) {
-                    add(section(NaviampExternalNowPlayingId, "Now Playing", "Current playback", playable = true))
-                }
-            }
             NaviampExternalQueueId -> playback.automotiveQueue()
             NaviampExternalRecentTracksId -> catalog.recentTracks.map(::externalTrack)
             NaviampExternalRecentAlbumsId -> catalog.recentAlbums.map(::externalAlbum)
@@ -729,13 +736,6 @@ fun NaviampExternalPlaybackSnapshot.automotiveQueue(): List<NaviampExternalMedia
     if (currentQueueIndex !in queue.indices) return queue
     return queue.drop(currentQueueIndex) + queue.take(currentQueueIndex)
 }
-
-private fun section(
-    id: String,
-    title: String,
-    subtitle: String,
-    playable: Boolean = false,
-) = NaviampExternalMediaItem(id, title, subtitle, playable = playable)
 
 private fun externalTrack(track: SharedTrackRowUi) = NaviampExternalMediaItem(
     mediaId = "$RecentTrackMediaIdPrefix${track.id}",

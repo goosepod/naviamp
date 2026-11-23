@@ -1,7 +1,16 @@
 package app.naviamp.presentation
 
 import app.naviamp.domain.settings.InterfaceLanguage
+import app.naviamp.ui.NaviampAppShellUiState
 import app.naviamp.ui.NaviampExternalPlaybackAction
+import app.naviamp.ui.NaviampHomeScreenUi
+import app.naviamp.ui.NaviampNowPlayingItemUi
+import app.naviamp.ui.NaviampResourceLanguage
+import app.naviamp.ui.NowPlayingUi
+import app.naviamp.ui.SharedHomeStationUi
+import app.naviamp.ui.SharedHomeUi
+import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampExternalPlaybackLabels
 import app.naviamp.ui.NaviampExternalTransportLabel
 import app.naviamp.ui.loadNaviampExternalPlaybackLabels
@@ -12,6 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
@@ -91,5 +101,43 @@ private class RecordingSurface : NaviampExternalPlaybackSurface<Unit> {
     suspend fun awaitLabels(matches: (NaviampExternalPlaybackLabels) -> Boolean): NaviampExternalPlaybackLabels = withTimeout(10_000) {
         while (published.lastOrNull()?.let(matches) != true) delay(10)
         published.last()
+    }
+}
+
+class NaviampExternalBrowseRootLanguageTest {
+    @Test fun browseRootTitlesFollowTheSelectedLanguageInsteadOfTheSystemLocale() = withSystemLocale(Locale.GERMAN) {
+        runBlocking {
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+            NaviampResourceLanguage.follow(scope, MutableStateFlow(InterfaceLanguage.Spanish))
+            try {
+                val state = MutableStateFlow(NaviampCoreState(shell = NaviampAppShellUiState(
+                    nowPlaying = NowPlayingUi(
+                        id = "current", title = "Current", subtitle = "Artist", stateLabel = "Playing",
+                        upNext = listOf(NaviampNowPlayingItemUi("later", "Later", "Artist")),
+                    ),
+                    home = NaviampHomeScreenUi(SharedHomeUi(
+                        playlists = listOf(SharedMediaItemUi("saved", "Saved", "")),
+                        recentlyPlayedTracks = listOf(SharedTrackRowUi("recent", "Recent", "Artist")),
+                        recentAlbums = listOf(SharedMediaItemUi("album", "Album", "Artist")),
+                        stations = listOf(SharedHomeStationUi(app.naviamp.domain.home.HomeStationLibrary, "Library Radio", "")),
+                    )),
+                )))
+                val root = NaviampCoreExternalPlaybackBridge(state, dispatch = {}).browse(NaviampExternalMediaRootId)
+
+                assertEquals(
+                    listOf(
+                        "Listas" to "Listas guardadas",
+                        "Reproducido recientemente" to "Pistas recientes",
+                        "Radio" to "Emisoras",
+                        "Álbumes recientes" to "Álbumes reproducidos recientemente",
+                        "Cola" to "2 pistas",
+                        "Reproduciendo" to "Reproducción actual",
+                    ),
+                    root.map { it.title to it.subtitle },
+                )
+            } finally {
+                scope.cancel()
+            }
+        }
     }
 }

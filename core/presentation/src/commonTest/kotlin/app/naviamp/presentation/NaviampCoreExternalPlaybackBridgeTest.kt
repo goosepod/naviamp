@@ -13,6 +13,9 @@ import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedHomeStationUi
 import app.naviamp.ui.NaviampInternetRadioStationUi
 import app.naviamp.ui.NaviampInternetRadioScreenUi
+import app.naviamp.ui.NaviampExternalBrowseLabels
+import app.naviamp.ui.NaviampExternalBrowseSection
+import app.naviamp.ui.NaviampExternalBrowseSectionLabel
 import app.naviamp.ui.NaviampExternalPlaybackAction
 import app.naviamp.ui.NowPlayingCurrentTrackAction
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,7 +35,7 @@ import kotlin.test.assertTrue
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCoreExternalPlaybackBridgeTest {
     @Test
-    fun placeholderNowPlayingDoesNotInventAnExternalQueueOrHideTheBrowseCatalog() {
+    fun placeholderNowPlayingDoesNotInventAnExternalQueueOrHideTheBrowseCatalog() = runTest {
         val commands = mutableListOf<NaviampCoreCommand>()
         val state = MutableStateFlow(NaviampCoreState(shell = NaviampAppShellUiState(
             nowPlaying = NowPlayingUi(title = "Choose something to play", subtitle = "Nothing Playing", stateLabel = "Idle",
@@ -49,7 +52,7 @@ class NaviampCoreExternalPlaybackBridgeTest {
         assertTrue(snapshot.canChangeVolume)
         assertEquals(37, snapshot.volumePercent)
         assertFalse(snapshot.shouldRetainPlaybackService)
-        assertEquals(listOf(NaviampExternalPlaylistsId), bridge.browseChildren(NaviampExternalMediaRootId).map { it.mediaId })
+        assertEquals(listOf(NaviampExternalPlaylistsId), bridge.browse(NaviampExternalMediaRootId, ::testBrowseLabels).map { it.mediaId })
         assertFalse(bridge.playMediaId(QueueMediaIdPrefix))
         bridge.selectQueueItem(0)
         assertTrue(commands.isEmpty())
@@ -123,7 +126,7 @@ class NaviampCoreExternalPlaybackBridgeTest {
     }
 
     @Test
-    fun carBrowsePrioritizesPlaylistsAndUsesTheSavedStationCatalogBeforeAnyRadioWasPlayed() {
+    fun carBrowsePrioritizesPlaylistsAndUsesTheSavedStationCatalogBeforeAnyRadioWasPlayed() = runTest {
         val playlist = SharedMediaItemUi("favorites-smart", "My favorites", "Smart playlist")
         val saved = SharedMediaItemUi("rp", "Radio Paradise", "Station", coverArtUrl = "https://example.test/logo.jpg")
         val commands = mutableListOf<NaviampCoreCommand>()
@@ -149,7 +152,7 @@ class NaviampCoreExternalPlaybackBridgeTest {
 
         assertEquals(listOf(NaviampExternalPlaylistsId, NaviampExternalRecentTracksId,
             NaviampExternalRadioId, NaviampExternalRecentAlbumsId),
-            bridge.browseChildren(NaviampExternalMediaRootId).map { it.mediaId })
+            bridge.browse(NaviampExternalMediaRootId, ::testBrowseLabels).map { it.mediaId })
         val radio = bridge.browseChildren(NaviampExternalRadioId)
         assertEquals(listOf("Radio Paradise", "Library Radio"), radio.map { it.title })
         assertEquals(saved.coverArtUrl, radio.first().artworkUrl)
@@ -164,7 +167,7 @@ class NaviampCoreExternalPlaybackBridgeTest {
     }
 
     @Test
-    fun catalogChangesWhileIdleInvalidateBrowseWithoutRepublishingPlaybackSurfaces() {
+    fun catalogChangesWhileIdleInvalidateBrowseWithoutRepublishingPlaybackSurfaces() = runTest {
         val state = MutableStateFlow(NaviampCoreState())
         val bridge = NaviampCoreExternalPlaybackBridge(state, dispatch = {})
         val planner = NaviampExternalPlaybackPublicationPlanner()
@@ -179,10 +182,10 @@ class NaviampCoreExternalPlaybackBridgeTest {
         assertFalse(added.sessionContent)
         assertFalse(added.playbackState)
         assertFalse(added.notification)
-        assertEquals(listOf(NaviampExternalRadioId), bridge.browseChildren(NaviampExternalMediaRootId).map { it.mediaId })
+        assertEquals(listOf(NaviampExternalRadioId), bridge.browse(NaviampExternalMediaRootId, ::testBrowseLabels).map { it.mediaId })
         state.value = NaviampCoreState()
         assertTrue(planner.plan(bridge.snapshot()).browseCatalog)
-        assertTrue(bridge.browseChildren(NaviampExternalMediaRootId).isEmpty())
+        assertTrue(bridge.browse(NaviampExternalMediaRootId, ::testBrowseLabels).isEmpty())
     }
 
     @Test
@@ -431,7 +434,7 @@ class NaviampCoreExternalPlaybackBridgeTest {
     }
 
     @Test
-    fun automotiveCatalogAndSelectionAreOwnedByCore() {
+    fun automotiveCatalogAndSelectionAreOwnedByCore() = runTest {
         val commands = mutableListOf<NaviampCoreCommand>()
         val track = SharedTrackRowUi("recent", "Recent Track", "Artist")
         val state = MutableStateFlow(
@@ -446,7 +449,7 @@ class NaviampCoreExternalPlaybackBridgeTest {
         val bridge = NaviampCoreExternalPlaybackBridge(state, commands::add)
 
         assertTrue(
-            bridge.browseChildren(NaviampExternalMediaRootId)
+            bridge.browse(NaviampExternalMediaRootId, ::testBrowseLabels)
                 .any { it.mediaId == NaviampExternalRecentTracksId && !it.playable },
         )
         val playable = bridge.browseChildren(NaviampExternalRecentTracksId).single()
@@ -455,6 +458,16 @@ class NaviampCoreExternalPlaybackBridgeTest {
         val command = assertIs<NaviampCoreCommand.Home.RecentTrackAction>(commands.single())
         assertEquals("recent", command.request.track.id)
         assertEquals(app.naviamp.ui.SharedTrackRowAction.Select, command.request.action)
+    }
+
+    @Test
+    fun browseRootTakesItsTextFromTheSharedLabelsAndCountsTheQueue() = runTest {
+        val root = bridge().browse(NaviampExternalMediaRootId, ::testBrowseLabels)
+
+        assertEquals(listOf(NaviampExternalQueueId, NaviampExternalNowPlayingId), root.map { it.mediaId })
+        assertEquals(listOf("Queue", "NowPlaying"), root.map { it.title })
+        assertEquals("3", root.first().subtitle)
+        assertTrue(root.last().playable)
     }
 
     @Test
@@ -537,6 +550,10 @@ class NaviampCoreExternalPlaybackBridgeTest {
         assertFalse(paused.browseCatalog)
     }
 }
+
+private fun testBrowseLabels(queueSize: Int) = NaviampExternalBrowseLabels(
+    NaviampExternalBrowseSection.entries.associateWith { NaviampExternalBrowseSectionLabel(it.name, "$queueSize") },
+)
 
 private fun bridge(
     commands: MutableList<NaviampCoreCommand> = mutableListOf(),

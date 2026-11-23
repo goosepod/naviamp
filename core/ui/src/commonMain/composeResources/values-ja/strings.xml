@@ -532,4 +532,18 @@
     <string name="storage_location_app">アプリのストレージ</string>
     <string name="storage_location_custom">カスタム</string>
     <string name="connect_recovery_secure_storage">Naviamp はこのデバイスの安全な資格情報ストレージを開けませんでした。システムのキーリングのロックを解除してから、もう一度お試しください。</string>
+    <string name="external_browse_playlists_subtitle">保存したプレイリスト</string>
+    <string name="external_browse_recent_tracks_subtitle">最近のトラック</string>
+    <string name="external_browse_recent_albums_subtitle">最近再生したアルバム</string>
+    <string name="external_browse_now_playing_subtitle">現在の再生</string>
+    <string name="notification_channel_playback_description">再生コントロール</string>
+    <string name="tv_home_recently_played">最近再生した項目</string>
+    <string name="home_recent_albums">最近のアルバム</string>
+    <string name="tv_home_stations">ステーション</string>
+    <string name="tv_now_playing_uppercase">再生中</string>
+    <string name="settings_category_playback_title">再生</string>
+    <string name="transport_pause">一時停止</string>
+    <plurals name="tv_track_count">
+        <item quantity="other">%1$d曲</item>
+    </plurals>
 </resources>
