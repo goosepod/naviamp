@@ -1,8 +1,9 @@
 # Apple TV (tvOS)
 
-Apple TV support is tracked by [#590](https://github.com/goosepod/naviamp/issues/590). It is
-unreleased and opt-in: ordinary Android, Desktop and iOS builds do not include tvOS targets, and no
-public material may claim Apple TV availability until the release gates below close.
+Apple TV support is tracked by [#590](https://github.com/goosepod/naviamp/issues/590). Starting
+with v2.12.0 it is a beta available only by building from source: ordinary Android, Desktop and iOS
+builds do not include tvOS targets, and no Apple TV download is published. Public material must not
+claim an Apple TV download or App Store availability until the release gates below close.
 
 ## Architecture
 
