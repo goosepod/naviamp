@@ -676,4 +676,8 @@
     <string name="settings_sleep_timer_fade_subtitle">Stopniowo ścisza dźwięk, zanim wyłącznik czasowy wstrzyma odtwarzanie.</string>
     <string name="settings_sleep_timer_fade_off_subtitle">Zatrzymaj odtwarzanie po upływie czasu.</string>
     <string name="settings_minutes_short">%1$d min</string>
+    <string name="settings_audio_cache_prefetch_unmetered_title">Wstępne pobieranie przez Wi-Fi/Ethernet</string>
+    <string name="settings_audio_cache_prefetch_unmetered_subtitle">Liczba utworów z kolejki odtwarzania zapisywanych z wyprzedzeniem w pamięci podręcznej przez Wi-Fi lub Ethernet.</string>
+    <string name="settings_audio_cache_prefetch_metered_title">Wstępne pobieranie przez dane komórkowe</string>
+    <string name="settings_audio_cache_prefetch_metered_subtitle">Liczba utworów zapisywanych z wyprzedzeniem przez dane komórkowe i inne sieci taryfowe albo gdy typ sieci jest nieznany.</string>
 </resources>

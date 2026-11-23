@@ -579,4 +579,8 @@
     <string name="settings_sleep_timer_fade_subtitle">Uyku zamanlayıcısı oynatmayı duraklatmadan önce sesi yavaş yavaş azaltır.</string>
     <string name="settings_sleep_timer_fade_off_subtitle">Zamanlayıcı bittiğinde oynatmayı durdur.</string>
     <string name="settings_minutes_short">%1$d dk</string>
+    <string name="settings_audio_cache_prefetch_unmetered_title">Wi-Fi/Ethernet&apos;te önceden yükleme</string>
+    <string name="settings_audio_cache_prefetch_unmetered_subtitle">Wi-Fi veya Ethernet&apos;te çalma kuyruğundan önceden önbelleğe alınacak parça sayısı.</string>
+    <string name="settings_audio_cache_prefetch_metered_title">Mobil veride önceden yükleme</string>
+    <string name="settings_audio_cache_prefetch_metered_subtitle">Mobil veride ve diğer ölçülü ağlarda ya da ağ türü bilinmediğinde önceden önbelleğe alınacak parça sayısı.</string>
 </resources>
