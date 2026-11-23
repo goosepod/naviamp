@@ -34,7 +34,8 @@ fun interface NaviampCorePlaylistQueuePort {
 
 /** Common download-owner boundary; composition delegates this to Naviamp's shared coordinator. */
 fun interface NaviampCorePlaylistDownloadPort {
-    suspend fun download(playlist: Playlist, tracks: List<Track>, option: String?)
+    /** [onFinished] runs when the started download ends for any reason, or at once if none started. */
+    suspend fun download(playlist: Playlist, tracks: List<Track>, option: String?, onFinished: () -> Unit)
 }
 
 fun interface NaviampCorePlaylistHistoryPort {
@@ -176,9 +177,15 @@ class NaviampCorePlaylistTransactionController(
                 NaviampPlaylistDetailCommand.AddToQueue ->
                     queue.addToQueue(playlist, provider.playlistTracks(playlist.id))
                 is NaviampPlaylistDetailCommand.Download -> {
-                    publishListStatus("Starting download for ${playlist.name}...")
-                    publishStatus("Download started.")
-                    downloads.download(playlist, provider.playlistTracks(playlist.id), command.value)
+                    // Read first so an unreachable playlist never leaves a starting status behind.
+                    val tracks = provider.playlistTracks(playlist.id)
+                    val listStatus = "Starting download for ${playlist.name}..."
+                    val detailStatus = "Download started."
+                    publishListStatus(listStatus)
+                    publishStatus(detailStatus)
+                    downloads.download(playlist, tracks, command.value) {
+                        clearStatusesIfUnchanged(listStatus, detailStatus)
+                    }
                     return
                 }
                 is NaviampPlaylistDetailCommand.AddToPlaylist -> {
@@ -437,6 +444,17 @@ class NaviampCorePlaylistTransactionController(
     private fun publishStatus(status: String?) {
         stateStore.updateShell { shell ->
             shell.copy(playlistDetail = shell.playlistDetail.copy(status = status))
+        }
+    }
+
+    private fun clearStatusesIfUnchanged(listStatus: String, detailStatus: String) {
+        stateStore.updateShell { shell ->
+            shell.copy(
+                playlists = if (shell.playlists.status == listStatus) shell.playlists.copy(status = null) else shell.playlists,
+                playlistDetail = if (shell.playlistDetail.status == detailStatus) {
+                    shell.playlistDetail.copy(status = null)
+                } else shell.playlistDetail,
+            )
         }
     }
 

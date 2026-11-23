@@ -379,7 +379,8 @@ class NaviampCoreTest {
         advanceUntilIdle()
 
         assertEquals(listOf(provider.track.id.value), transferredTrackIds)
-        assertEquals("Starting download for Core Playlist...", core.state.value.shell.playlists.status)
+        // The transfer completed, so the starting status must not remain.
+        assertEquals(null, core.state.value.shell.playlists.status)
     }
 
     @Test

@@ -52,7 +52,8 @@ class NaviampCoreOfflinePlaylistActionsTest {
         override suspend fun addToQueue(playlist: Playlist, tracks: List<Track>) {
             queued += tracks.map { it.id.value }
         }
-        override suspend fun download(playlist: Playlist, tracks: List<Track>, option: String?) = error("Downloaded offline")
+        override suspend fun download(playlist: Playlist, tracks: List<Track>, option: String?, onFinished: () -> Unit) =
+            error("Downloaded offline")
     }
 
     private class Fixture(
