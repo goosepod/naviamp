@@ -589,4 +589,12 @@
     <string name="queue_undo_cleared">대기열을 비웠습니다.</string>
     <string name="queue_undo_replaced_upcoming">다음 트랙을 교체했습니다.</string>
     <string name="queue_undo_replaced_resumes">대기열을 교체했습니다. 실행 취소하면 %1$s(으)로 돌아갑니다.</string>
+    <string name="something_new_title">새로운 곡 재생</string>
+    <string name="something_new_subtitle">한 번도 재생하지 않은 곡</string>
+    <string name="something_new_nothing_unplayed">아직 재생하지 않은 곡을 찾지 못했습니다.</string>
+    <string name="something_new_nothing_unplayed_offline">오프라인: 아직 재생하지 않은 다운로드한 곡을 찾지 못했습니다.</string>
+    <string name="something_new_no_downloads">오프라인: 새로운 곡을 재생하려면 음악을 다운로드하세요.</string>
+    <string name="something_new_no_play_counts">이 서버는 재생 횟수를 제공하지 않으므로 Naviamp가 어떤 곡이 새로운지 알 수 없습니다.</string>
+    <string name="something_new_failed">선택할 곡을 불러오지 못했습니다.</string>
+    <string name="something_new_from_downloads">오프라인: 아직 재생하지 않은 다운로드한 곡을 재생합니다.</string>
 </resources>

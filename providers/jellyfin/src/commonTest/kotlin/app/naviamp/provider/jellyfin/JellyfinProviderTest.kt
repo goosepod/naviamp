@@ -172,6 +172,25 @@ class JellyfinProviderTest {
     }
 
     @Test
+    fun randomSongsSampleOnlyTheSelectedLibrariesAndKeepPlayCounts() = runTest {
+        val fixture = fixture(
+            responses = mapOf(
+                "parentId=library-1" to """{"Items":[{"Id":"one","Name":"One","UserData":{"PlayCount":2}}]}""",
+                "parentId=library-2" to """{"Items":[{"Id":"two","Name":"Two","UserData":{"PlayCount":0}}]}""",
+            ),
+            selectedMusicFolderIds = listOf("library-1", "library-2"),
+        )
+
+        val tracks = fixture.provider.randomSongs(limit = 50)
+
+        assertEquals(mapOf("one" to 2, "two" to 0), tracks.associate { it.id.value to it.playCount })
+        assertEquals(2, fixture.http.requestedUrls.size)
+        fixture.http.requestedUrls.forEach { url ->
+            assertTrue("sortBy=Random" in url && "parentId=library-" in url, url)
+        }
+    }
+
+    @Test
     fun requestFailuresAndMalformedPayloadsAreActionable() = runTest {
         val rejected = fixture(
             responses = mapOf("includeItemTypes=MusicAlbum" to "{}"),

@@ -110,7 +110,7 @@ class NavibeatHomeCardMapperTest {
             .single { it.id == "stations" }
             .items
 
-        assertEquals(listOf("library", "random-album"), stations.map { it.artworkKey })
+        assertEquals(listOf("something-new", "library", "random-album"), stations.map { it.artworkKey })
         stations.forEach { station ->
             assertEquals(SharedHomeCollectionArtwork.StationGenerated, station.artwork)
             assertEquals(SharedHomeCollectionItemAction.SelectStation, station.action)

@@ -1340,4 +1340,12 @@
     <string name="queue_undo_cleared">Se vació la cola.</string>
     <string name="queue_undo_replaced_upcoming">Se reemplazaron las próximas canciones.</string>
     <string name="queue_undo_replaced_resumes">Se reemplazó la cola. Deshacer vuelve a %1$s.</string>
+    <string name="something_new_title">Reproducir algo nuevo</string>
+    <string name="something_new_subtitle">Una pista que nunca has escuchado</string>
+    <string name="something_new_nothing_unplayed">No se encontró ninguna pista que no hayas escuchado.</string>
+    <string name="something_new_nothing_unplayed_offline">Sin conexión: no se encontró ninguna pista descargada que no hayas escuchado.</string>
+    <string name="something_new_no_downloads">Sin conexión: descarga música para reproducir algo nuevo.</string>
+    <string name="something_new_no_play_counts">Este servidor no informa de las reproducciones, así que Naviamp no puede saber qué pistas son nuevas.</string>
+    <string name="something_new_failed">No se pudieron cargar pistas para elegir.</string>
+    <string name="something_new_from_downloads">Sin conexión: reproduciendo una pista descargada que no has escuchado.</string>
 </resources>

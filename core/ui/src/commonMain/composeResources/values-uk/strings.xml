@@ -589,4 +589,12 @@
     <string name="queue_undo_cleared">Чергу очищено.</string>
     <string name="queue_undo_replaced_upcoming">Наступні треки замінено.</string>
     <string name="queue_undo_replaced_resumes">Чергу замінено. Скасування поверне до %1$s.</string>
+    <string name="something_new_title">Увімкнути щось нове</string>
+    <string name="something_new_subtitle">Трек, який ви ще не слухали</string>
+    <string name="something_new_nothing_unplayed">Не вдалося знайти трек, який ви ще не слухали.</string>
+    <string name="something_new_nothing_unplayed_offline">Офлайн: не вдалося знайти завантажений трек, який ви ще не слухали.</string>
+    <string name="something_new_no_downloads">Офлайн: завантажте музику, щоб увімкнути щось нове.</string>
+    <string name="something_new_no_play_counts">Цей сервер не повідомляє кількість прослуховувань, тому Naviamp не може визначити нові треки.</string>
+    <string name="something_new_failed">Не вдалося завантажити треки для вибору.</string>
+    <string name="something_new_from_downloads">Офлайн: відтворюється завантажений трек, який ви ще не слухали.</string>
 </resources>

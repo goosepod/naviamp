@@ -41,6 +41,12 @@ class NaviampProviderActionController(
         )
     }
 
+    /** Tracks whose listens are stored locally but have not reached the server yet. */
+    fun pendingListenTrackIds(sourceId: String): Set<TrackId> =
+        repository.pendingProviderActions(sourceId, Int.MAX_VALUE)
+            .filter { it.actionType == PendingActionSubmitListen }
+            .mapTo(mutableSetOf()) { TrackId(it.entityId) }
+
     fun offlineCapable(provider: MediaProvider, sourceId: String?): MediaProvider =
         object : MediaProvider by provider {
             override suspend fun alphabeticalLibraryOffset(

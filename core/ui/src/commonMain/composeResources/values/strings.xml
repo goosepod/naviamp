@@ -1365,4 +1365,12 @@
     <string name="queue_undo_cleared">Cleared the queue.</string>
     <string name="queue_undo_replaced_upcoming">Replaced the upcoming tracks.</string>
     <string name="queue_undo_replaced_resumes">Replaced the queue. Undo returns to %1$s.</string>
+    <string name="something_new_title">Play something new</string>
+    <string name="something_new_subtitle">A track you have never played</string>
+    <string name="something_new_nothing_unplayed">Couldn't find a track you haven't played.</string>
+    <string name="something_new_nothing_unplayed_offline">Offline: couldn't find a downloaded track you haven't played.</string>
+    <string name="something_new_no_downloads">Offline: download music to play something new.</string>
+    <string name="something_new_no_play_counts">This server doesn't report play counts, so Naviamp can't tell which tracks are new.</string>
+    <string name="something_new_failed">Couldn't load tracks to choose from.</string>
+    <string name="something_new_from_downloads">Offline: playing a downloaded track you haven't played.</string>
 </resources>

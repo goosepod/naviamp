@@ -188,6 +188,8 @@ internal fun NaviampCoreCommand.connectMediaSelectionOrNull(): NaviampCoreConnec
     // which has no album fallback, so a remote mix can never become the seed album.
     is NaviampCoreCommand.Home.StartAlbumMix ->
         NaviampCoreConnectMediaSelection(NaviampConnectMediaType.Track, seed.id.value, startRadio = true)
+    is NaviampCoreCommand.Home.StartSomethingNewRadio ->
+        NaviampCoreConnectMediaSelection(NaviampConnectMediaType.Track, seed.id.value, startRadio = true)
     else -> null
 }
 

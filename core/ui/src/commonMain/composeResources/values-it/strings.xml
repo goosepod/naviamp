@@ -589,4 +589,12 @@
     <string name="queue_undo_cleared">Coda svuotata.</string>
     <string name="queue_undo_replaced_upcoming">Brani successivi sostituiti.</string>
     <string name="queue_undo_replaced_resumes">Coda sostituita. Annulla torna a %1$s.</string>
+    <string name="something_new_title">Ascolta qualcosa di nuovo</string>
+    <string name="something_new_subtitle">Un brano che non hai mai ascoltato</string>
+    <string name="something_new_nothing_unplayed">Non è stato trovato un brano che non hai ancora ascoltato.</string>
+    <string name="something_new_nothing_unplayed_offline">Offline: non è stato trovato un brano scaricato che non hai ancora ascoltato.</string>
+    <string name="something_new_no_downloads">Offline: scarica musica per ascoltare qualcosa di nuovo.</string>
+    <string name="something_new_no_play_counts">Questo server non indica il numero di ascolti, quindi Naviamp non può sapere quali brani sono nuovi.</string>
+    <string name="something_new_failed">Impossibile caricare brani tra cui scegliere.</string>
+    <string name="something_new_from_downloads">Offline: riproduzione di un brano scaricato che non hai ancora ascoltato.</string>
 </resources>

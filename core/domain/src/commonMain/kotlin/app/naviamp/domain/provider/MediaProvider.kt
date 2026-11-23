@@ -39,6 +39,9 @@ interface MediaProvider {
         get() = id.value
     val selectedMusicFolderIds: List<String>
         get() = emptyList()
+    /** Drops tracks known to belong to a library the connection has not selected. */
+    fun tracksInSelectedLibraries(tracks: List<Track>): List<Track> =
+        tracks.filterForSelectedMusicFolders(selectedMusicFolderIds)
     fun recentApiCalls(limit: Int = 50): List<ProviderApiCallDiagnostic> = emptyList()
 
     suspend fun validateConnection(): ConnectionValidation

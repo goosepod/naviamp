@@ -175,6 +175,13 @@ fun NaviampCoreApp(
                         },
                         avoidAboveInRoot = noticeAnchor.controlsTop.takeIf { state.shell.shellChrome.nowPlayingOpen },
                     ) {
+                        // Offline discovery can report its source while the radio build reports its own outcome.
+                        state.overlays.somethingNewNotice?.let { notice ->
+                            app.naviamp.ui.NaviampSomethingNewNoticeBar(
+                                app.naviamp.ui.NaviampColors.Dark, notice,
+                                onDismiss = { core.dispatch(NaviampCoreCommand.Home.DismissSomethingNewNotice) },
+                            )
+                        }
                         state.overlays.radioNotice?.let { notice ->
                             app.naviamp.ui.NaviampRadioNotice(
                                 app.naviamp.ui.NaviampColors.Dark, notice,

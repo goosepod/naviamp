@@ -11,6 +11,7 @@ enum class NaviampAction(
     AddTrackRadioToQueue("Add track radio to queue", NaviampIcons.Queue),
     StartAlbumRadio("Start Radio", NaviampTransportIcons.Radio),
     StartArtistRadio("Start Radio", NaviampTransportIcons.Radio),
+    PlaySomethingNew("Play something new", NaviampIcons.Turntable),
     DownloadTrack("Download track", NaviampIcons.Downloads),
     DownloadAlbum("Download album", NaviampIcons.Downloads),
     DownloadPlaylist("Download playlist", NaviampIcons.Downloads),
@@ -217,9 +218,11 @@ fun nowPlayingTrackMenuActions(
     sleepTimerLabel: String,
     canStartRadio: Boolean = false,
     detailsLabel: String = NaviampAction.TrackDetails.label,
+    canPlaySomethingNew: Boolean = false,
 ): List<NaviampActionSpec> =
     listOfNotNull(
         NaviampAction.StartTrackRadio.takeIf { canStartRadio && !isLive }?.toSpec(),
+        NaviampAction.PlaySomethingNew.takeIf { canPlaySomethingNew }?.toSpec(),
         NaviampAction.ChangeVisualizer.toSpec(enabled = visualizerAvailable),
         NaviampAction.DownloadTrack.toSpec(enabled = !isLive),
         NaviampAction.TrackDetails.toSpec(label = detailsLabel, enabled = hasDetails),

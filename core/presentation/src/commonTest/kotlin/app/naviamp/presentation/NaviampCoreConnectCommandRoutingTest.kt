@@ -80,6 +80,20 @@ class NaviampCoreConnectCommandRoutingTest {
     }
 
     @Test
+    fun playSomethingNewPicksLocallyThenReachesConnectAsSeedTrackRadio() {
+        val seed = app.naviamp.domain.Track(
+            id = app.naviamp.domain.TrackId("fresh"), title = "Fresh", artistName = "Artist",
+            albumTitle = "Album", durationSeconds = 180, coverArtId = null, audioInfo = null, replayGain = null,
+        )
+
+        assertNull(NaviampCoreCommand.Home.PlaySomethingNew.connectMediaSelectionOrNull())
+        val selection = NaviampCoreCommand.Home.StartSomethingNewRadio(seed).connectMediaSelectionOrNull()
+        assertEquals(NaviampConnectMediaType.Track, selection?.type)
+        assertEquals("fresh", selection?.id)
+        assertEquals(true, selection?.startRadio)
+    }
+
+    @Test
     fun trackRadioIsRoutedButCatalogNavigationStaysLocal() {
         val radio = NaviampCoreCommand.Media.TrackAction(
             SharedTrackRowActionRequest(track, SharedTrackRowAction.StartRadio),

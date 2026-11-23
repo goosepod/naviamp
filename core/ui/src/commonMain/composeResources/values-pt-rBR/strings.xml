@@ -1342,4 +1342,12 @@
     <string name="queue_undo_cleared">Fila limpa.</string>
     <string name="queue_undo_replaced_upcoming">Próximas faixas substituídas.</string>
     <string name="queue_undo_replaced_resumes">Fila substituída. Desfazer volta para %1$s.</string>
+    <string name="something_new_title">Tocar algo novo</string>
+    <string name="something_new_subtitle">Uma faixa que você nunca ouviu</string>
+    <string name="something_new_nothing_unplayed">Não foi encontrada nenhuma faixa que você ainda não ouviu.</string>
+    <string name="something_new_nothing_unplayed_offline">Offline: não foi encontrada nenhuma faixa baixada que você ainda não ouviu.</string>
+    <string name="something_new_no_downloads">Offline: baixe músicas para tocar algo novo.</string>
+    <string name="something_new_no_play_counts">Este servidor não informa contagens de reprodução, então o Naviamp não consegue saber quais faixas são novas.</string>
+    <string name="something_new_failed">Não foi possível carregar faixas para escolher.</string>
+    <string name="something_new_from_downloads">Offline: tocando uma faixa baixada que você ainda não ouviu.</string>
 </resources>

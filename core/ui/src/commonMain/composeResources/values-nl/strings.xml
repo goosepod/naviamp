@@ -589,4 +589,12 @@
     <string name="queue_undo_cleared">Wachtrij gewist.</string>
     <string name="queue_undo_replaced_upcoming">Volgende nummers vervangen.</string>
     <string name="queue_undo_replaced_resumes">Wachtrij vervangen. Ongedaan maken keert terug naar %1$s.</string>
+    <string name="something_new_title">Iets nieuws afspelen</string>
+    <string name="something_new_subtitle">Een nummer dat je nog nooit hebt afgespeeld</string>
+    <string name="something_new_nothing_unplayed">Er is geen nummer gevonden dat je nog niet hebt afgespeeld.</string>
+    <string name="something_new_nothing_unplayed_offline">Offline: er is geen gedownload nummer gevonden dat je nog niet hebt afgespeeld.</string>
+    <string name="something_new_no_downloads">Offline: download muziek om iets nieuws af te spelen.</string>
+    <string name="something_new_no_play_counts">Deze server meldt geen afspeelaantallen, dus Naviamp kan niet zien welke nummers nieuw zijn.</string>
+    <string name="something_new_failed">Kan geen nummers laden om uit te kiezen.</string>
+    <string name="something_new_from_downloads">Offline: een gedownload nummer dat je nog niet hebt afgespeeld wordt afgespeeld.</string>
 </resources>

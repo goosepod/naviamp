@@ -660,6 +660,18 @@ class NaviampCore private constructor(
                 settings,
                 issueResolvedCommand = { command -> checkNotNull(resolvedCommandHandler).execute(command) },
             )
+            val somethingNew = NaviampCoreSomethingNewController(
+                stateStore = stateStore,
+                providerSource = providerSource,
+                downloadedTracks = { sourceId ->
+                    services.downloads.storage.availableDownloads(sourceId).orEmpty()
+                        .filter { it.sizeBytes > 0 }.map { it.track }
+                },
+                pendingListens = services.providerActions::pendingListenTrackIds,
+                currentTrack = { livePlayback.state.value.currentTrack ?: livePlayback.state.value.queue.current },
+                radio = mediaTransactions,
+                issueResolvedCommand = { command -> checkNotNull(resolvedCommandHandler).execute(command) },
+            )
             val providerSessionLifecycle = NaviampCoreProviderSessionLifecycle(
                 sessionPort = services.connection,
             )
@@ -724,7 +736,7 @@ class NaviampCore private constructor(
                         similarityTest = app.naviamp.ui.NaviampSimilarityTestUi(), radioDiagnostics = null,
                         similarityDiagnosticsAvailable = false,
                     )) }
-                    stateStore.update { it.copy(overlays = it.overlays.copy(radioNotice = null)) }
+                    stateStore.update { it.copy(overlays = it.overlays.copy(radioNotice = null, somethingNewNotice = null)) }
                     playback.resetForSourceChange(previousSourceId, newSourceId)
                     playlistMembership.reset()
                     downloads.resetForSourceChange()
@@ -821,6 +833,7 @@ class NaviampCore private constructor(
                     queueUndo,
                     trackActions,
                     collectionActions,
+                    somethingNew,
                 ),
                 onAsyncFailure = onAsyncFailure,
             )

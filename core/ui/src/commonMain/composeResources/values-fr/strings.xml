@@ -589,4 +589,12 @@
     <string name="queue_undo_cleared">File d’attente vidée.</string>
     <string name="queue_undo_replaced_upcoming">Titres à venir remplacés.</string>
     <string name="queue_undo_replaced_resumes">File d’attente remplacée. Annuler revient à %1$s.</string>
+    <string name="something_new_title">Écouter quelque chose de nouveau</string>
+    <string name="something_new_subtitle">Un titre que vous n’avez jamais écouté</string>
+    <string name="something_new_nothing_unplayed">Aucun titre que vous n’avez pas encore écouté n’a été trouvé.</string>
+    <string name="something_new_nothing_unplayed_offline">Hors ligne : aucun titre téléchargé que vous n’avez pas encore écouté n’a été trouvé.</string>
+    <string name="something_new_no_downloads">Hors ligne : téléchargez de la musique pour écouter quelque chose de nouveau.</string>
+    <string name="something_new_no_play_counts">Ce serveur ne communique pas le nombre d’écoutes, Naviamp ne peut donc pas savoir quels titres sont nouveaux.</string>
+    <string name="something_new_failed">Impossible de charger des titres parmi lesquels choisir.</string>
+    <string name="something_new_from_downloads">Hors ligne : lecture d’un titre téléchargé que vous n’avez pas encore écouté.</string>
 </resources>

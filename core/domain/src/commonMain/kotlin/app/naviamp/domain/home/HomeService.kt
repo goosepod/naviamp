@@ -286,6 +286,8 @@ data class HomeStation(
 
 fun homeStations(homeContent: HomeContent): List<HomeStation> =
     buildList {
+        // Rendered with translated copy by the shared Home UI.
+        add(HomeStation(HomeStationSomethingNew, "Play something new", "A track you have never played"))
         add(HomeStation(HomeStationLibrary, "Library Radio", "Random tracks from your full library"))
         add(HomeStation(HomeStationRandomAlbum, "Random Album Radio", "Start from a random album"))
         homeContent.genres.take(3).forEach { genre ->
@@ -376,6 +378,7 @@ private fun Int.floorMod(divisor: Int): Int =
 
 const val HomeStationLibrary = "library"
 const val HomeStationRandomAlbum = "random-album"
+const val HomeStationSomethingNew = "something-new"
 const val HomeDefaultArtistLimit = 50
 
 private const val HomeStationGenrePrefix = "genre:"

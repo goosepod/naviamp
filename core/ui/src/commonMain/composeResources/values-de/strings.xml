@@ -1336,4 +1336,12 @@
     <string name="queue_undo_cleared">Warteschlange geleert.</string>
     <string name="queue_undo_replaced_upcoming">Nächste Titel ersetzt.</string>
     <string name="queue_undo_replaced_resumes">Warteschlange ersetzt. Rückgängig kehrt zu %1$s zurück.</string>
+    <string name="something_new_title">Etwas Neues abspielen</string>
+    <string name="something_new_subtitle">Ein Titel, den du noch nie gehört hast</string>
+    <string name="something_new_nothing_unplayed">Es wurde kein Titel gefunden, den du noch nicht gehört hast.</string>
+    <string name="something_new_nothing_unplayed_offline">Offline: Es wurde kein heruntergeladener Titel gefunden, den du noch nicht gehört hast.</string>
+    <string name="something_new_no_downloads">Offline: Lade Musik herunter, um etwas Neues abzuspielen.</string>
+    <string name="something_new_no_play_counts">Dieser Server meldet keine Wiedergabezähler, daher kann Naviamp nicht erkennen, welche Titel neu sind.</string>
+    <string name="something_new_failed">Titel zur Auswahl konnten nicht geladen werden.</string>
+    <string name="something_new_from_downloads">Offline: Ein heruntergeladener Titel, den du noch nicht gehört hast, wird abgespielt.</string>
 </resources>
