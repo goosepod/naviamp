@@ -42,6 +42,7 @@ import app.naviamp.domain.Genre
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.effectiveSonicSimilarityEnabled
 import app.naviamp.ui.NaviampPlaylistChoiceUi
+import app.naviamp.ui.NaviampQueueUndoKind
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.withRecentRadioStreams
 import kotlinx.coroutines.CancellationException
@@ -61,6 +62,7 @@ class NaviampCoreQueuePlaybackController(
     private val openNowPlaying: () -> Unit,
     private val activeSourceId: () -> String? = { null },
     private val profiles: PlaybackProfileRepository = EmptyPlaybackProfileRepository,
+    private val undo: NaviampCoreQueueUndoController? = null,
 ) {
     fun play(
         tracks: List<Track>,
@@ -93,7 +95,9 @@ class NaviampCoreQueuePlaybackController(
             currentIndex = index.coerceIn(selected.indices),
             groups = listOfNotNull(group),
         )
+        val capture = undo?.capture()
         val update = queue.replaceQueue(requestedQueue)
+        undo?.record(capture, NaviampQueueUndoKind.ReplacedQueue, update.queue, capture?.state?.queue?.current?.title)
         if (downloadedOnly) {
             playback.updateCurrentTrack(update.queue.current)
             effects.playDownloadedQueueSelection(update.queue, update.queue.currentIndex)
@@ -169,6 +173,7 @@ class NaviampCoreMediaTransactions(
     private val favoriteArtistActivity: FavoriteArtistActivityRepository? = null,
     private val onFavoriteArtistActivityChanged: () -> Unit = {},
     private val onAlbumUpdated: (app.naviamp.domain.provider.MediaProvider, Album) -> Unit = { _, _ -> },
+    private val queueUndo: NaviampCoreQueueUndoController? = null,
 ) : NaviampCoreTrackRadioTransactions {
     private val trackRadioBuild = Mutex()
     fun play(tracks: List<Track>, index: Int = 0, shuffle: Boolean = false) {
@@ -555,7 +560,9 @@ class NaviampCoreMediaTransactions(
             currentPlayback.playbackState in setOf(PlaybackState.Playing, PlaybackState.Paused, PlaybackState.Loading) &&
             currentPlayback.currentTrack?.id == request.seedTrack.id &&
             currentPlayback.queue.current?.id == request.seedTrack.id
+        val priorUndoId = queueUndo?.pendingId()
         if (!retainCurrent) play(listOf(request.seedTrack))
+        val seedUndoId = queueUndo?.pendingId()?.takeIf { !retainCurrent && it != priorUndoId }
         publish("Playing ${request.label} while the queue builds.")
         var diagnostics: app.naviamp.domain.radio.RadioBuildDiagnostics? = null
         val radioSettings = stateStore.state.value.shell.playback.settings
@@ -585,11 +592,16 @@ class NaviampCoreMediaTransactions(
                     ))
                     return false
                 }
-                val update = queue.replaceGeneratedRadioUpcomingTracks(
-                    currentTrack = request.seedTrack,
-                    fetchedTracks = result.queue.filterNot { it.id == request.seedTrack.id },
-                    requestIsCurrent = true,
-                )
+                val upcomingCapture = if (retainCurrent) queueUndo?.capture() else null
+                val refill = {
+                    queue.replaceGeneratedRadioUpcomingTracks(
+                        currentTrack = request.seedTrack,
+                        fetchedTracks = result.queue.filterNot { it.id == request.seedTrack.id },
+                        requestIsCurrent = true,
+                    )
+                }
+                val update = queueUndo?.continueTransaction(seedUndoId, refill) ?: refill()
+                queueUndo?.record(upcomingCapture, NaviampQueueUndoKind.ReplacedUpcoming, update.queue)
                 if (update.changed || effects.downloadedOnlyQueue) {
                     effects.applyProviderQueue(update.queue, update.clearPreparedNext)
                     publishNowPlaying()

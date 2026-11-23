@@ -583,4 +583,10 @@
     <string name="settings_audio_cache_prefetch_unmetered_subtitle">Nummers in de afspeelwachtrij die vooraf in de cache worden gezet via wifi of ethernet.</string>
     <string name="settings_audio_cache_prefetch_metered_title">Vooraf laden via mobiele data</string>
     <string name="settings_audio_cache_prefetch_metered_subtitle">Nummers die vooraf in de cache worden gezet via mobiele data en andere netwerken met datalimiet, of als het netwerktype onbekend is.</string>
+    <string name="queue_undo_action">Ongedaan maken</string>
+    <string name="queue_undo_action_description">Ongedaan maken: %1$s</string>
+    <string name="queue_undo_removed_track">Verwijderd uit de wachtrij: %1$s.</string>
+    <string name="queue_undo_cleared">Wachtrij gewist.</string>
+    <string name="queue_undo_replaced_upcoming">Volgende nummers vervangen.</string>
+    <string name="queue_undo_replaced_resumes">Wachtrij vervangen. Ongedaan maken keert terug naar %1$s.</string>
 </resources>

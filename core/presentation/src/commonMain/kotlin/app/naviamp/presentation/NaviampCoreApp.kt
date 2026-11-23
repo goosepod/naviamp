@@ -161,12 +161,17 @@ fun NaviampCoreApp(
                     state.overlays.busyMessage?.let { message ->
                         NaviampBusyDialog(message)
                     }
-                    state.overlays.radioNotice?.let { notice ->
-                        app.naviamp.ui.NaviampRadioNotice(
-                            app.naviamp.ui.NaviampColors.Dark, notice,
-                            onDismiss = { core.dispatch(NaviampCoreCommand.Settings.DismissRadioNotice) },
-                            modifier = Modifier.align(Alignment.BottomCenter),
-                        )
+                    app.naviamp.ui.NaviampBottomNoticeStack(Modifier.align(Alignment.BottomCenter)) {
+                        state.overlays.radioNotice?.let { notice ->
+                            app.naviamp.ui.NaviampRadioNotice(
+                                app.naviamp.ui.NaviampColors.Dark, notice,
+                                onDismiss = { core.dispatch(NaviampCoreCommand.Settings.DismissRadioNotice) },
+                            )
+                        }
+                        state.overlays.queueUndo?.let { undo ->
+                            app.naviamp.ui.NaviampQueueUndoNotice(app.naviamp.ui.NaviampColors.Dark, undo,
+                                onAction = { core.dispatch(NaviampCoreCommand.NowPlaying.QueueUndo(it)) })
+                        }
                     }
                     core.castPickerState?.let { pickerState ->
                         val picker by pickerState.collectAsState()

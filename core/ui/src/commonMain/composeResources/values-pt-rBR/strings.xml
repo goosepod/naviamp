@@ -1336,4 +1336,10 @@
     <string name="settings_sleep_timer_fade_subtitle">Diminui o volume gradualmente antes que o timer de desligamento pause a reprodução.</string>
     <string name="settings_sleep_timer_fade_off_subtitle">Parar a reprodução quando o timer terminar.</string>
     <string name="settings_minutes_short">%1$d min</string>
+    <string name="queue_undo_action">Desfazer</string>
+    <string name="queue_undo_action_description">Desfazer: %1$s</string>
+    <string name="queue_undo_removed_track">Removido da fila: %1$s.</string>
+    <string name="queue_undo_cleared">Fila limpa.</string>
+    <string name="queue_undo_replaced_upcoming">Próximas faixas substituídas.</string>
+    <string name="queue_undo_replaced_resumes">Fila substituída. Desfazer volta para %1$s.</string>
 </resources>
