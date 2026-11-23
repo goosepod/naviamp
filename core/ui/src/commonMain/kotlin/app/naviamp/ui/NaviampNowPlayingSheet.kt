@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitVerticalTouchSlopOrCancellation
@@ -24,6 +25,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -42,10 +45,11 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Velocity
@@ -109,7 +113,7 @@ internal class NaviampNowPlayingSheetState internal constructor(
 
     val presented by derivedStateOf { open || dragging || closedFraction < 1f }
 
-    /** The settled player hides the browse layer completely, so that layer must not draw. */
+    /** The settled player hides the browse layer completely, so that layer must not be visible. */
     val coversBase by derivedStateOf { open && !dragging && closedFraction <= 0f && sheetAlpha >= 1f }
 
     internal fun onOpenChanged(value: Boolean) {
@@ -227,35 +231,54 @@ internal fun NaviampNowPlayingSheetLayers(
     base: @Composable () -> Unit,
     sheet: @Composable () -> Unit,
 ) {
+    val covered = state.coversBase
+    val focusManager = LocalFocusManager.current
+    var baseHasFocus by remember { mutableStateOf(false) }
+    LaunchedEffect(covered) { if (covered && baseHasFocus) focusManager.clearFocus() }
     Box(modifier.fillMaxSize().onSizeChanged { state.heightPx = it.height.toFloat() }) {
+        // The covered browse layer stays placed with its recorded drawing and only turns fully
+        // transparent, so uncovering it does not re-place and redraw the whole browse tree.
         Box(
             Modifier
                 .fillMaxSize()
-                .layout { measurable, constraints ->
-                    val placeable = measurable.measure(constraints)
-                    layout(placeable.width, placeable.height) {
-                        if (!state.coversBase) placeable.place(0, 0)
-                    }
-                }
+                .then(
+                    if (covered) {
+                        Modifier
+                            .clearAndSetSemantics {}
+                            .focusProperties { onEnter = { cancelFocusChange() } }
+                    } else {
+                        Modifier
+                    },
+                )
+                .onFocusChanged { baseHasFocus = it.hasFocus }
+                .focusGroup()
                 .graphicsLayer {
                     val fraction = state.closedFraction
                     val fading = state.sheetAlpha < 1f
                     clip = !fading && fraction < 1f
                     shape = if (clip) TopFractionShape(fraction) else RectangleShape
-                    alpha = if (fading) 1f - state.sheetAlpha else 1f
+                    alpha = when {
+                        state.coversBase -> 0f
+                        fading -> 1f - state.sheetAlpha
+                        else -> 1f
+                    }
                 },
-        ) {
-            base()
-            if (state.presented) {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .graphicsLayer { alpha = NaviampNowPlayingSheetScrimAlpha * (1f - state.closedFraction) }
-                        .background(Color.Black),
-                )
-            }
-        }
+        ) { base() }
         if (state.presented) {
+            // A sibling of the browse layer, so showing or hiding it never re-records that layer.
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val fraction = state.closedFraction
+                        val fading = state.sheetAlpha < 1f
+                        clip = !fading && fraction < 1f
+                        shape = if (clip) TopFractionShape(fraction) else RectangleShape
+                        alpha = NaviampNowPlayingSheetScrimAlpha * (1f - fraction) *
+                            (if (fading) 1f - state.sheetAlpha else 1f)
+                    }
+                    .background(Color.Black),
+            )
             NaviampNowPlayingDismissSurface(state, onClose, sheet)
         }
     }

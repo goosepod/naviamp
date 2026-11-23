@@ -20,7 +20,6 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasAnyAncestor
@@ -51,12 +50,13 @@ class NaviampNowPlayingSheetUiTest {
         initiallyOpen: Boolean = true,
         reducedMotion: Boolean = false,
         solidLayers: Boolean = false,
+        sheetColor: Color = Color.Red,
         block: ComposeUiTest.(Harness) -> Unit,
     ) = runDesktopComposeUiTest(400, 800) {
         val harness = Harness().apply { open.value = initiallyOpen }
         setContent {
             CompositionLocalProvider(LocalNaviampReducedMotion provides reducedMotion) {
-                SheetHarness(harness, solidLayers)
+                SheetHarness(harness, solidLayers, sheetColor)
             }
         }
         waitForIdle()
@@ -64,7 +64,7 @@ class NaviampNowPlayingSheetUiTest {
     }
 
     @Composable
-    private fun SheetHarness(harness: Harness, solidLayers: Boolean) {
+    private fun SheetHarness(harness: Harness, solidLayers: Boolean, sheetColor: Color) {
         val nowPlaying = NowPlayingUi(id = "song", title = "Song", subtitle = "Artist", stateLabel = "Paused")
         val actions = NaviampNowPlayingActions(
             {}, { harness.displayActions += it.action }, {}, {}, {}, {}, {},
@@ -89,7 +89,7 @@ class NaviampNowPlayingSheetUiTest {
             },
             sheet = {
                 if (solidLayers) {
-                    Box(Modifier.fillMaxSize().background(Color.Red))
+                    Box(Modifier.fillMaxSize().background(sheetColor))
                 } else {
                     NaviampNowPlayingPanel(nowPlaying = nowPlaying, colors = NaviampColors(), actions = actions)
                 }
@@ -108,7 +108,7 @@ class NaviampNowPlayingSheetUiTest {
 
     @Test
     fun dragPastThresholdClosesThroughTheCloseCommand() = sheetTest { harness ->
-        onNodeWithTag("browse").assertIsNotDisplayed()
+        onNodeWithTag("browse").assertDoesNotExist()
         dragSheet(fromY = 150f, toY = 600f, durationMillis = 900)
         assertEquals(1, harness.closes)
         sheet().assertDoesNotExist()
@@ -122,7 +122,7 @@ class NaviampNowPlayingSheetUiTest {
         assertEquals(0, harness.closes)
         sheet().assertIsDisplayed()
         assertEquals(0f, sheet().top())
-        onNodeWithTag("browse").assertIsNotDisplayed()
+        onNodeWithTag("browse").assertDoesNotExist()
     }
 
     @Test
@@ -187,7 +187,7 @@ class NaviampNowPlayingSheetUiTest {
         waitForIdle()
         assertEquals(1, harness.opens)
         assertEquals(0f, sheet().top())
-        onNodeWithTag("browse").assertIsNotDisplayed()
+        onNodeWithTag("browse").assertDoesNotExist()
     }
 
     @Test
@@ -223,6 +223,18 @@ class NaviampNowPlayingSheetUiTest {
     }
 
     @Test
+    fun coveredBrowseStaysHiddenAndOutOfTheSemanticsTree() = sheetTest(solidLayers = true, sheetColor = Color.Transparent) { harness ->
+        onNodeWithTag("browse").assertDoesNotExist()
+        onNodeWithTag("mini").assertDoesNotExist()
+        val covered = pixel(200, 400)
+        assertTrue(covered.blue < 0.05f, "expected the covered browse layer to be invisible, got $covered")
+        harness.open.value = false
+        waitForIdle()
+        onNodeWithTag("browse").assertIsDisplayed()
+        assertEquals(Color.Blue, pixel(200, 400))
+    }
+
+    @Test
     fun withMotionTheCloseCommandSlides() = sheetTest(solidLayers = true) { harness ->
         midTransition { harness.open.value = false }
         assertTrue(sheet().top() > 0f)
@@ -253,7 +265,7 @@ class NaviampNowPlayingSheetUiTest {
         assertTrue(blended.red > 0.05f && blended.blue > 0.05f, "expected a crossfade, got $blended")
         finishTransition()
         assertEquals(Color.Red, pixel(200, 400))
-        onNodeWithTag("browse").assertIsNotDisplayed()
+        onNodeWithTag("browse").assertDoesNotExist()
     }
 
     @Test
@@ -276,7 +288,7 @@ class NaviampNowPlayingSheetUiTest {
         waitForIdle()
         assertEquals(1, harness.opens)
         assertEquals(0f, sheet().top())
-        onNodeWithTag("browse").assertIsNotDisplayed()
+        onNodeWithTag("browse").assertDoesNotExist()
     }
 
     private fun ComposeUiTest.onNodeWithText(text: String) =

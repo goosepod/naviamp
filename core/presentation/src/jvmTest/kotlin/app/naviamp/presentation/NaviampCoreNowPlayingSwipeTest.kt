@@ -7,7 +7,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotDisplayed
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasTestTag
@@ -80,7 +80,7 @@ class NaviampCoreNowPlayingSwipeTest {
             waitForIdle()
             assertEquals(true, open.value)
             onNodeWithTag(sheetTag).assertIsDisplayed()
-            onAllNodesWithContentDescription("Home").onFirst().assertIsNotDisplayed()
+            onAllNodesWithContentDescription("Home").assertCountEquals(0)
 
             onNodeWithTag(sheetTag).performTouchInput { swipe(Offset(centerX, 80f), Offset(centerX, 480f), 800) }
             waitForIdle()
