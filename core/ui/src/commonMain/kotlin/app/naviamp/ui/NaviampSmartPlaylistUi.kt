@@ -46,6 +46,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -915,6 +917,7 @@ internal fun SmartPlaylistCustomControls(
             onValueChange = { onDraftChange(draft.copy(limit = it.toIntOrNull() ?: draft.limit)) },
             label = if (draft.limitMode == SmartPlaylistLimitMode.Percent) "Limit percent" else "Track limit",
             colors = colors,
+            keyboardOptions = SmartPlaylistLimitKeyboardOptions,
         )
 
     }
@@ -1405,12 +1408,16 @@ private fun SmartPlaylistGenreTypeahead(
     }
 }
 
+/** Track count and percent limits are whole numbers. */
+internal val SmartPlaylistLimitKeyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+
 @Composable
 private fun SmartPlaylistTextField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
     colors: NaviampColors,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
 ) {
     SmartPlaylistOutlinedTextField(
         colors = colors,
@@ -1418,6 +1425,7 @@ private fun SmartPlaylistTextField(
         onValueChange = onValueChange,
         label = label,
         singleLine = true,
+        keyboardOptions = keyboardOptions,
         textStyle = TextStyle(fontSize = 13.sp),
         modifier = Modifier.fillMaxWidth().naviampTextInputFocus(),
     )
