@@ -16,11 +16,6 @@ import app.naviamp.ui.NaviampPlaylistDetailActionRequest
 import app.naviamp.ui.NaviampPlaylistDetailCommand
 import app.naviamp.ui.NaviampPlaylistMediaCommand
 import app.naviamp.ui.SharedMediaItemUi
-import app.naviamp.ui.offlinePlaylistActionUnavailableMessage
-import app.naviamp.ui.offlinePlaylistNothingPlayableMessage
-import app.naviamp.ui.playlistDownloadFailedMessage
-import app.naviamp.ui.playlistDownloadMobileDataMessage
-import app.naviamp.ui.playlistDownloadStorageLimitMessage
 import app.naviamp.ui.playlistStaleDraftMessage
 import app.naviamp.ui.smartPlaylistSelfReferenceMessage
 import kotlinx.coroutines.CancellationException
@@ -97,15 +92,7 @@ class NaviampCorePlaylistTransactionController(
     private val staleDraftMessage: suspend () -> String = ::playlistStaleDraftMessage,
     private val selfReferenceMessage: suspend () -> String = ::smartPlaylistSelfReferenceMessage,
     private val syncLibrary: app.naviamp.ui.NaviampSmartPlaylistSync = { error("Library sync is unavailable") },
-    private val offlineActionUnavailableMessage: suspend () -> String = ::offlinePlaylistActionUnavailableMessage,
-    private val offlineNothingPlayableMessage: suspend () -> String = ::offlinePlaylistNothingPlayableMessage,
-    private val downloadFailedMessage: suspend (String, NaviampCoreDownloadFailure) -> String = { name, reason ->
-        when (reason) {
-            NaviampCoreDownloadFailure.StorageLimit -> playlistDownloadStorageLimitMessage(name)
-            NaviampCoreDownloadFailure.MobileDataDisabled -> playlistDownloadMobileDataMessage(name)
-            NaviampCoreDownloadFailure.Other -> playlistDownloadFailedMessage(name)
-        }
-    },
+    private val messages: NaviampCorePlaylistMessages = NaviampCorePlaylistMessages(),
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.Playlists.Detail,
@@ -201,7 +188,7 @@ class NaviampCorePlaylistTransactionController(
                     publishStatus(detailStatus)
                     downloads.download(playlist, tracks, command.value) { outcome ->
                         val result = (outcome as? NaviampCoreDownloadOutcome.Failed)
-                            ?.let { downloadFailedMessage(playlist.name, it.reason) }
+                            ?.let { messages.downloadFailed(playlist.name, it.reason) }
                         browseController.recordDownloadFailure(playlist.id, result)
                         replaceStatusesIfUnchanged(listStatus, detailStatus, result)
                     }
@@ -259,7 +246,7 @@ class NaviampCorePlaylistTransactionController(
             when (command) {
                 is NaviampPlaylistDetailCommand.Play -> {
                     val tracks = browseController.offlinePlayableTracks(playlist.id)
-                    if (tracks.isEmpty()) return publishStatus(offlineNothingPlayableMessage())
+                    if (tracks.isEmpty()) return publishStatus(messages.offlineNothingPlayable())
                     playback.play(playlist, tracks, command.shuffle)
                     publishStatus(null)
                     openNowPlaying()
@@ -267,7 +254,7 @@ class NaviampCorePlaylistTransactionController(
                 }
                 NaviampPlaylistDetailCommand.AddToQueue -> {
                     val tracks = browseController.offlinePlayableTracks(playlist.id)
-                    if (tracks.isEmpty()) return publishStatus(offlineNothingPlayableMessage())
+                    if (tracks.isEmpty()) return publishStatus(messages.offlineNothingPlayable())
                     queue.addToQueue(playlist, tracks)
                     publishStatus(null)
                 }
@@ -279,7 +266,7 @@ class NaviampCorePlaylistTransactionController(
                 is NaviampPlaylistDetailCommand.Copy,
                 is NaviampPlaylistDetailCommand.Rename,
                 NaviampPlaylistDetailCommand.Delete,
-                -> publishStatus(offlineActionUnavailableMessage())
+                -> publishStatus(messages.offlineActionUnavailable())
             }
         }.onFailure { cause ->
             if (cause is CancellationException) throw cause
@@ -289,7 +276,7 @@ class NaviampCorePlaylistTransactionController(
 
     private suspend fun updateTracks(item: SharedMediaItemUi, requestedTrackIds: List<TrackId>, expectedTrackIds: List<String>?) {
         if (browseController.isPresentedOffline(item.id)) {
-            val message = offlineActionUnavailableMessage()
+            val message = messages.offlineActionUnavailable()
             publishStatus(message)
             throw IllegalStateException(message)
         }

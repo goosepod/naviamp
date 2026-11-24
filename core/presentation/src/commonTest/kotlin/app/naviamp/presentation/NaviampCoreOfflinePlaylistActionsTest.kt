@@ -94,8 +94,10 @@ class NaviampCoreOfflinePlaylistActionsTest {
         }
         val transactions = NaviampCorePlaylistTransactionController(store, source, browse, effects, effects, effects,
             sessionPort = sessionPort,
-            offlineActionUnavailableMessage = { "test: reconnect" },
-            offlineNothingPlayableMessage = { "test: nothing playable" })
+            messages = NaviampCorePlaylistMessages(
+                offlineActionUnavailable = { "test: reconnect" },
+                offlineNothingPlayable = { "test: nothing playable" },
+            ))
         fixture = Fixture(store, browse, transactions, effects, local)
         return fixture
     }

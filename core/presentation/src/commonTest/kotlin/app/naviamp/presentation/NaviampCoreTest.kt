@@ -1073,6 +1073,7 @@ internal fun fakeCoreServices(
     ),
     playlists = NaviampCorePlaylistServices(
         history = NaviampCorePlaylistHistoryPort { current, _ -> current },
+        messages = englishPlaylistMessages,
     ),
     radio = NaviampCoreRadioServices(
         playback = NaviampCoreInternetRadioPlaybackPort {},
@@ -1255,4 +1256,19 @@ private fun coreTrack(id: String) = Track(
     coverArtId = id,
     audioInfo = null,
     replayGain = null,
+)
+
+/** English copies of the translated playlist notices; Android host tests cannot load Compose resources. */
+internal val englishPlaylistMessages = NaviampCorePlaylistMessages(
+    offlineActionUnavailable = { "Reconnect to your music server to use this action." },
+    offlineNothingPlayable = { "No tracks in this playlist are available offline." },
+    trackNotDownloaded = { "This track is not downloaded. Reconnect to play it." },
+    downloadFailed = { name, reason ->
+        when (reason) {
+            NaviampCoreDownloadFailure.StorageLimit -> "Could not download $name. The download storage limit was reached."
+            NaviampCoreDownloadFailure.MobileDataDisabled ->
+                "Could not download $name. Downloads over mobile data are turned off."
+            NaviampCoreDownloadFailure.Other -> "Could not download $name."
+        }
+    },
 )

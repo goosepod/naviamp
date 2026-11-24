@@ -533,6 +533,7 @@ class NaviampCore private constructor(
                 downloads::playlistTracksChanged,
                 playbackProfiles,
                 syncLibrary = catalog::syncSmartPlaylistPreview,
+                messages = services.playlists.messages,
             )
             val playback = NaviampCorePlaybackController(
                 scope,
@@ -655,6 +656,7 @@ class NaviampCore private constructor(
             playback.attachNativePlayback()
             val trackActions = NaviampCoreTrackActionController(mediaRegistry, mediaTransactions,
                 isUnavailableOfflinePlaylistTrack = playlistBrowse::isUnavailableOffline,
+                notDownloadedMessage = services.playlists.messages.trackNotDownloaded,
                 publishPlaylistNotice = playlistBrowse::publishDetailNotice,
                 openPlaylistMembership = playlistMembership::open)
             // Resolved mix commands re-enter the Connect-aware handler created below.

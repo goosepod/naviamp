@@ -189,14 +189,7 @@ class NaviampCoreOfflinePlaylistsTest {
 
         fixture.core.execute(NaviampCoreCommand.Detail.PlaylistTrack(
             app.naviamp.ui.SharedTrackRowActionRequest(unavailable, app.naviamp.ui.SharedTrackRowAction.Select)))
-        // The translated notice loads its resource off the test scheduler.
-        run {
-            repeat(300) {
-                advanceUntilIdle()
-                if (fixture.core.state.value.shell.playlistDetail.status != null) return@run
-                awaitRealTime()
-            }
-        }
+        advanceUntilIdle()
 
         // The playlist page renders and announces its status line; the overlay status is never shown.
         assertEquals("This track is not downloaded. Reconnect to play it.",
