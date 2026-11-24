@@ -29,7 +29,7 @@ class NaviampRadioNoticeInsetsTest {
                         RadioBuildDiagnostics(RadioBuildOutcome.Failed, autoplay = true),
                         onDismiss = { dismissed = true },
                         modifier = Modifier.align(Alignment.BottomCenter).testTag("notice"),
-                        systemInsets = WindowInsets(left = 16, right = 24, bottom = 48),
+                        systemInsets = WindowInsets(left = 16, top = 120, right = 24, bottom = 48),
                     )
                 }
             }
@@ -39,6 +39,7 @@ class NaviampRadioNoticeInsetsTest {
             assertEquals(window.bottom, notice.bottom, 0.5f)
             assertTrue(close.bottom <= window.bottom - 48f, "close button $close overlaps the navigation bar")
             assertTrue(close.right <= window.right - 24f, "close button $close overlaps the side inset")
+            assertTrue(close.top - notice.top < 120f, "notice $notice reserves the top status bar inset above its content")
             onNodeWithText("Close").performClick()
             runOnIdle { assertTrue(dismissed) }
         }

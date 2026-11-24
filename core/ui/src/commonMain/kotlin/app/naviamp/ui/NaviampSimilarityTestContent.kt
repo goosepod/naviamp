@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.heightIn
@@ -174,9 +176,11 @@ fun NaviampRadioNotice(
     modifier: Modifier = Modifier,
     systemInsets: WindowInsets = WindowInsets.safeDrawing,
 ) {
-    // Shown above the inset-aware shell, so the notice keeps its own content clear of the system bars.
+    // Shown above the inset-aware shell at the bottom edge, so only the bottom and side bars can overlap it.
     Row(
-        modifier.background(colors.background).naviampContentInsets(systemInsets).padding(12.dp),
+        modifier.background(colors.background)
+            .naviampContentInsets(systemInsets.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
+            .padding(12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(radioNoticeText(result), color = colors.primaryText, modifier = Modifier.weight(1f))
