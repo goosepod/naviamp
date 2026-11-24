@@ -1362,5 +1362,6 @@
     <string name="playlist_download_failed">Não foi possível baixar %1$s.</string>
     <string name="playlist_download_failed_storage_limit">Não foi possível baixar %1$s. O limite de armazenamento de downloads foi atingido.</string>
     <string name="playlist_download_failed_mobile_data">Não foi possível baixar %1$s. Os downloads por dados móveis estão desativados.</string>
+    <string name="playlist_download_already_saved">Todas as faixas de %1$s já foram baixadas.</string>
     <string name="offline_playlist_track_not_downloaded">Esta faixa não foi baixada. Reconecte-se para reproduzi-la.</string>
 </resources>

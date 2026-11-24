@@ -611,5 +611,6 @@
     <string name="playlist_download_failed">Не удалось загрузить %1$s.</string>
     <string name="playlist_download_failed_storage_limit">Не удалось загрузить %1$s. Достигнут лимит хранилища для загрузок.</string>
     <string name="playlist_download_failed_mobile_data">Не удалось загрузить %1$s. Загрузка по мобильной сети отключена.</string>
+    <string name="playlist_download_already_saved">Все треки из %1$s уже загружены.</string>
     <string name="offline_playlist_track_not_downloaded">Этот трек не загружен. Подключитесь снова, чтобы воспроизвести его.</string>
 </resources>

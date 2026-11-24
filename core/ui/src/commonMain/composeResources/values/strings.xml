@@ -1385,5 +1385,6 @@
     <string name="playlist_download_failed">Could not download %1$s.</string>
     <string name="playlist_download_failed_storage_limit">Could not download %1$s. The download storage limit was reached.</string>
     <string name="playlist_download_failed_mobile_data">Could not download %1$s. Downloads over mobile data are turned off.</string>
+    <string name="playlist_download_already_saved">All tracks in %1$s are already downloaded.</string>
     <string name="offline_playlist_track_not_downloaded">This track is not downloaded. Reconnect to play it.</string>
 </resources>

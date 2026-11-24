@@ -609,5 +609,6 @@
     <string name="playlist_download_failed">%1$s डाउनलोड नहीं हो सका।</string>
     <string name="playlist_download_failed_storage_limit">%1$s डाउनलोड नहीं हो सका। डाउनलोड स्टोरेज की सीमा पूरी हो गई है।</string>
     <string name="playlist_download_failed_mobile_data">%1$s डाउनलोड नहीं हो सका। मोबाइल डेटा पर डाउनलोड बंद हैं।</string>
+    <string name="playlist_download_already_saved">%1$s के सभी ट्रैक पहले से डाउनलोड हैं।</string>
     <string name="offline_playlist_track_not_downloaded">यह ट्रैक डाउनलोड नहीं है। इसे चलाने के लिए फिर से कनेक्ट करें।</string>
 </resources>

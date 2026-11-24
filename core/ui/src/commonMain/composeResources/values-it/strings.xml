@@ -609,5 +609,6 @@
     <string name="playlist_download_failed">Impossibile scaricare %1$s.</string>
     <string name="playlist_download_failed_storage_limit">Impossibile scaricare %1$s. È stato raggiunto il limite di spazio per i download.</string>
     <string name="playlist_download_failed_mobile_data">Impossibile scaricare %1$s. I download con dati mobili sono disattivati.</string>
+    <string name="playlist_download_already_saved">Tutti i brani di %1$s sono già scaricati.</string>
     <string name="offline_playlist_track_not_downloaded">Questo brano non è stato scaricato. Riconnettiti per riprodurlo.</string>
 </resources>

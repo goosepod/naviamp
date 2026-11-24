@@ -613,5 +613,6 @@
     <string name="playlist_download_failed">تعذّر تنزيل %1$s.</string>
     <string name="playlist_download_failed_storage_limit">تعذّر تنزيل %1$s. تم بلوغ حد مساحة التنزيلات.</string>
     <string name="playlist_download_failed_mobile_data">تعذّر تنزيل %1$s. التنزيل عبر بيانات الجوال متوقف.</string>
+    <string name="playlist_download_already_saved">جميع مقاطع %1$s منزّلة بالفعل.</string>
     <string name="offline_playlist_track_not_downloaded">هذا المقطع غير منزّل. أعد الاتصال لتشغيله.</string>
 </resources>

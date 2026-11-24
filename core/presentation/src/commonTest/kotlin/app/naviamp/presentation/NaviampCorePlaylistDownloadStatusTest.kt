@@ -38,9 +38,14 @@ class NaviampCorePlaylistDownloadStatusTest {
     private fun TestScope.core(
         provider: MediaProvider = FakeCoreMediaProvider(),
         mobileData: Boolean = false,
+        saved: List<Track> = emptyList(),
         transfer: NaviampCoreDownloadTransferPort,
     ): NaviampCore {
         val defaults = fakeCoreServices(provider)
+        val storage = object : NaviampCoreDownloadStoragePort by defaults.downloads.storage {
+            override suspend fun snapshot(sourceId: String) = NaviampCoreDownloadStorageSnapshot(
+                downloads = saved.map { NaviampCoreDownloadedTrack(it.id.value, it, sizeBytes = 1) })
+        }
         val initial = NaviampCoreInitialState().let { state ->
             state.copy(
                 connection = NaviampConnectionRuntimeState(phase = NaviampConnectionPhase.Connected, sourceId = "source"),
@@ -48,7 +53,7 @@ class NaviampCorePlaylistDownloadStatusTest {
                     connectionSettings = state.product.shell.connectionSettings.copy(currentSourceId = "source"))),
             )
         }
-        return NaviampCore.create(this, defaults.copy(downloads = defaults.downloads.copy(transfer = transfer,
+        return NaviampCore.create(this, defaults.copy(downloads = defaults.downloads.copy(storage = storage, transfer = transfer,
             network = NaviampCoreMobileNetworkPort { mobileData }, offlinePlaylists = snapshots)), initial,
             onAsyncFailure = { command, cause -> throw IllegalStateException("Core command failed: $command", cause) })
     }
@@ -138,6 +143,25 @@ class NaviampCorePlaylistDownloadStatusTest {
         core.download()
         advanceUntilIdle()
         assertEquals(setOf("core-playlist"), snapshots.saved.keys)
+        core.close()
+    }
+
+    @Test fun alreadyDownloadedPlaylistSaysSoInsteadOfClearingSilently() = runTest {
+        var transfers = 0
+        val core = core(saved = listOf(FakeCoreMediaProvider().track), mobileData = true,
+            transfer = NaviampCoreDownloadTransferPort { _, _, _ ->
+                transfers++
+                NaviampCoreDownloadTransferResult(refreshDownloads = false)
+            })
+        core.download()
+        advanceUntilIdle()
+
+        val expected = "All tracks in Core Playlist are already downloaded."
+        assertEquals(expected, core.state.value.shell.playlists.status)
+        assertEquals(expected, core.state.value.shell.playlistDetail.status)
+        assertEquals(0, transfers)
+        assertEquals(emptyList(), core.state.value.shell.downloads.jobs)
+        assertEquals(setOf("core-playlist"), snapshots.saved.keys, "The complete copy stays available offline")
         core.close()
     }
 

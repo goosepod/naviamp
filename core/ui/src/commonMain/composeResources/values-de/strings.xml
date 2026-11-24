@@ -1356,5 +1356,6 @@
     <string name="playlist_download_failed">%1$s konnte nicht heruntergeladen werden.</string>
     <string name="playlist_download_failed_storage_limit">%1$s konnte nicht heruntergeladen werden. Das Speicherlimit für Downloads ist erreicht.</string>
     <string name="playlist_download_failed_mobile_data">%1$s konnte nicht heruntergeladen werden. Downloads über mobile Daten sind deaktiviert.</string>
+    <string name="playlist_download_already_saved">Alle Titel in %1$s sind bereits heruntergeladen.</string>
     <string name="offline_playlist_track_not_downloaded">Dieser Titel ist nicht heruntergeladen. Verbinde dich erneut, um ihn abzuspielen.</string>
 </resources>

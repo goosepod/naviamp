@@ -403,10 +403,13 @@ class NaviampCoreDownloadsController(
     ) {
         val finished: (NaviampCoreDownloadOutcome) -> Unit = { outcome -> scope.launch { onFinished(outcome) } }
         if (option != KeepDownloadedActionValue) {
-            val notStarted = startDownload(playlist.name, tracks, replaceExisting = false, includeCompletedCount = true,
+            // Starting a job would finish at once and clear the status, leaving no feedback at all.
+            val notStarted = if (allAlreadyDownloaded(tracks)) NaviampCoreDownloadOutcome.AlreadyDownloaded
+            else startDownload(playlist.name, tracks, replaceExisting = false, includeCompletedCount = true,
                 manualRetention = true, qualityOverride = null, onFinished = finished)
             // A blocked start downloads nothing, so it must not create an offline copy.
-            if (notStarted == null || notStarted == NaviampCoreDownloadOutcome.Completed) {
+            if (notStarted == null || notStarted == NaviampCoreDownloadOutcome.Completed ||
+                notStarted == NaviampCoreDownloadOutcome.AlreadyDownloaded) {
                 currentSourceId()?.let { sourceId ->
                     val kept = keepDownloaded.policies(sourceId).any { it.isPlaylistPolicy() && it.collectionId == playlist.id }
                     saveOfflinePlaylist(sourceId, playlist, tracks,
@@ -427,6 +430,15 @@ class NaviampCoreDownloadsController(
             saveOfflinePlaylist(sourceId, playlist, tracks, OfflinePlaylistRetention.KeepDownloaded)
             reconcilePolicy(policy, tracks, finished)
         }
+    }
+
+    private suspend fun allAlreadyDownloaded(tracks: List<Track>): Boolean {
+        if (tracks.isEmpty()) return false
+        val sourceId = currentSourceId() ?: return false
+        val saved = runCatching { storage.availableDownloads(sourceId) ?: storage.snapshot(sourceId).downloads }
+            .getOrNull() ?: return false
+        val savedIds = saved.mapTo(mutableSetOf()) { it.track.id }
+        return tracks.all { it.id in savedIds }
     }
 
     private fun saveOfflinePlaylist(

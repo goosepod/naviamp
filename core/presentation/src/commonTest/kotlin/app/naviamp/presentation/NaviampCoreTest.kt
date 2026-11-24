@@ -1271,4 +1271,5 @@ internal val englishPlaylistMessages = NaviampCorePlaylistMessages(
             NaviampCoreDownloadFailure.Other -> "Could not download $name."
         }
     },
+    alreadyDownloaded = { name -> "All tracks in $name are already downloaded." },
 )

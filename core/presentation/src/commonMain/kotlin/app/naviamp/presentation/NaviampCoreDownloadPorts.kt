@@ -19,6 +19,8 @@ data class NaviampCoreDownloadedTrack(
 /** How a requested download ended; reasons are only those the product reports specifically. */
 sealed interface NaviampCoreDownloadOutcome {
     data object Completed : NaviampCoreDownloadOutcome
+    /** Every requested track was already saved, so nothing was transferred. */
+    data object AlreadyDownloaded : NaviampCoreDownloadOutcome
     data object Cancelled : NaviampCoreDownloadOutcome
     data class Failed(val reason: NaviampCoreDownloadFailure) : NaviampCoreDownloadOutcome
 }

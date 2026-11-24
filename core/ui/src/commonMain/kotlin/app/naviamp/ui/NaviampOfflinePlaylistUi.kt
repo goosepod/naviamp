@@ -37,6 +37,9 @@ suspend fun playlistDownloadStorageLimitMessage(name: String): String =
 suspend fun playlistDownloadMobileDataMessage(name: String): String =
     getString(Res.string.playlist_download_failed_mobile_data, name)
 
+suspend fun playlistAlreadyDownloadedMessage(name: String): String =
+    getString(Res.string.playlist_download_already_saved, name)
+
 @Composable
 internal fun offlineAvailabilityLabel(availability: NaviampOfflineAvailabilityUi): String =
     pluralStringResource(

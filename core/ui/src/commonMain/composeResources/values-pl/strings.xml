@@ -708,5 +708,6 @@
     <string name="playlist_download_failed">Nie udało się pobrać: %1$s.</string>
     <string name="playlist_download_failed_storage_limit">Nie udało się pobrać: %1$s. Osiągnięto limit miejsca na pobrane pliki.</string>
     <string name="playlist_download_failed_mobile_data">Nie udało się pobrać: %1$s. Pobieranie przez dane komórkowe jest wyłączone.</string>
+    <string name="playlist_download_already_saved">Wszystkie utwory z %1$s są już pobrane.</string>
     <string name="offline_playlist_track_not_downloaded">Ten utwór nie jest pobrany. Połącz się ponownie, aby go odtworzyć.</string>
 </resources>

@@ -19,6 +19,7 @@ import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.ui.offlinePlaylistActionUnavailableMessage
 import app.naviamp.ui.offlinePlaylistNothingPlayableMessage
 import app.naviamp.ui.offlinePlaylistTrackNotDownloadedMessage
+import app.naviamp.ui.playlistAlreadyDownloadedMessage
 import app.naviamp.ui.playlistDownloadFailedMessage
 import app.naviamp.ui.playlistDownloadMobileDataMessage
 import app.naviamp.ui.playlistDownloadStorageLimitMessage
@@ -73,6 +74,7 @@ data class NaviampCorePlaylistMessages(
             NaviampCoreDownloadFailure.Other -> playlistDownloadFailedMessage(name)
         }
     },
+    val alreadyDownloaded: suspend (String) -> String = ::playlistAlreadyDownloadedMessage,
 )
 
 /** Filesystem/network effects required by the Core-owned Downloads feature. */

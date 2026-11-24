@@ -611,5 +611,6 @@
     <string name="playlist_download_failed">Не вдалося завантажити %1$s.</string>
     <string name="playlist_download_failed_storage_limit">Не вдалося завантажити %1$s. Досягнуто ліміту сховища для завантажень.</string>
     <string name="playlist_download_failed_mobile_data">Не вдалося завантажити %1$s. Завантаження через мобільні дані вимкнено.</string>
+    <string name="playlist_download_already_saved">Усі треки з %1$s уже завантажено.</string>
     <string name="offline_playlist_track_not_downloaded">Цей трек не завантажено. Підключіться знову, щоб відтворити його.</string>
 </resources>

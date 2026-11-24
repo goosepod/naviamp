@@ -608,5 +608,6 @@
     <string name="playlist_download_failed">无法下载 %1$s。</string>
     <string name="playlist_download_failed_storage_limit">无法下载 %1$s。已达到下载存储上限。</string>
     <string name="playlist_download_failed_mobile_data">无法下载 %1$s。已关闭通过移动数据下载。</string>
+    <string name="playlist_download_already_saved">%1$s 中的所有曲目均已下载。</string>
     <string name="offline_playlist_track_not_downloaded">此曲目尚未下载。重新连接后即可播放。</string>
 </resources>

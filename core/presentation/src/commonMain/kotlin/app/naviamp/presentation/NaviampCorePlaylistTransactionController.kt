@@ -187,8 +187,11 @@ class NaviampCorePlaylistTransactionController(
                     publishListStatus(listStatus)
                     publishStatus(detailStatus)
                     downloads.download(playlist, tracks, command.value) { outcome ->
-                        val result = (outcome as? NaviampCoreDownloadOutcome.Failed)
-                            ?.let { messages.downloadFailed(playlist.name, it.reason) }
+                        val result = when (outcome) {
+                            is NaviampCoreDownloadOutcome.Failed -> messages.downloadFailed(playlist.name, outcome.reason)
+                            NaviampCoreDownloadOutcome.AlreadyDownloaded -> messages.alreadyDownloaded(playlist.name)
+                            NaviampCoreDownloadOutcome.Completed, NaviampCoreDownloadOutcome.Cancelled -> null
+                        }
                         browseController.recordDownloadFailure(playlist.id, result)
                         replaceStatusesIfUnchanged(listStatus, detailStatus, result)
                     }

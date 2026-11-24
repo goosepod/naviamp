@@ -609,5 +609,6 @@
     <string name="playlist_download_failed">Impossible de télécharger %1$s.</string>
     <string name="playlist_download_failed_storage_limit">Impossible de télécharger %1$s. La limite de stockage des téléchargements est atteinte.</string>
     <string name="playlist_download_failed_mobile_data">Impossible de télécharger %1$s. Les téléchargements via les données mobiles sont désactivés.</string>
+    <string name="playlist_download_already_saved">Tous les titres de %1$s sont déjà téléchargés.</string>
     <string name="offline_playlist_track_not_downloaded">Cette piste n’est pas téléchargée. Reconnectez-vous pour la lire.</string>
 </resources>
