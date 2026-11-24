@@ -992,7 +992,7 @@ private fun NowPlayingDetails(
         } else {
             Arrangement.spacedBy(if (compactLayout) 5.dp else 6.dp)
         },
-        modifier = modifier.padding(
+        modifier = modifier.naviampNowPlayingNoticeAnchor(showControls).padding(
             bottom = when {
                 pinBottomActions -> 8.dp
                 mobileLayout -> 4.dp

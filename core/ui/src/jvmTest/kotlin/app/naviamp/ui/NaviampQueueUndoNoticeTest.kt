@@ -1,12 +1,17 @@
 package app.naviamp.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.isEnabled
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -29,6 +34,9 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalTestApi::class)
 class NaviampQueueUndoNoticeTest {
     private val removed = NaviampQueueUndoUi(id = 7, kind = NaviampQueueUndoKind.RemovedTrack, subject = "Blue Monday")
+    // Wraps to two lines on a phone, as it does on device.
+    private val replacedWrapping = NaviampQueueUndoUi(id = 8, kind = NaviampQueueUndoKind.ReplacedQueue,
+        subject = "Halcyon (30 Something Years Later Mix)")
 
     @Test fun announcesTheEditAndExposesALabelledUndoButtonToScreenReaders() = runDesktopComposeUiTest {
         val actions = mutableListOf<NaviampQueueUndoActionRequest>()
@@ -90,27 +98,49 @@ class NaviampQueueUndoNoticeTest {
         assertTrue(notice.top >= window.top)
     }
 
-    @Test fun noticeNeverCoversTheNowPlayingBottomActionsOnPhoneOrDesktop() {
-        listOf(412 to 818, 1280 to 800).forEach { (width, height) ->
+    @Test fun noticeNeverCoversAnyNowPlayingControlOnPhoneOrDesktop() {
+        // Larger text makes the notice taller, as a wider device font does, so placement cannot rely on one line.
+        val layouts = listOf(412 to 818, 412 to 923, 1280 to 800).flatMap { size ->
+            listOf(false, true).flatMap { filled -> listOf(1f, 1.5f).map { Triple(size, filled, it) } }
+        }
+        layouts.forEach { (size, filledArtwork, fontScale) ->
+            val (width, height) = size
             runDesktopComposeUiTest(width, height) {
+                val anchor = NaviampNowPlayingNoticeAnchor()
                 setContent {
-                    Box(Modifier.fillMaxSize()) {
-                        NaviampNowPlayingPanel(
-                            NowPlayingUi(id = "track", title = "Track", subtitle = "Artist",
-                                stateLabel = "Paused", isPaused = true, canPlayPause = true),
-                            colors = NaviampColors.Dark,
-                            actions = NaviampNowPlayingActions({}, {}, {}, {}, {}, {}, {}),
-                            contentInsets = WindowInsets(top = 24, bottom = 32),
-                        )
-                        NaviampBottomNoticeStack(Modifier.align(Alignment.BottomCenter), WindowInsets(bottom = 32),
-                            bottomClearance = NaviampNowPlayingNoticeClearance) {
-                            NaviampQueueUndoNotice(NaviampColors.Dark, removed, {})
+                    val density = LocalDensity.current
+                    CompositionLocalProvider(
+                        LocalNaviampNowPlayingNoticeAnchor provides anchor,
+                        LocalDensity provides Density(density.density, fontScale),
+                    ) {
+                        Box(Modifier.fillMaxSize()) {
+                            NaviampNowPlayingPanel(
+                                NowPlayingUi(id = "track", title = "Track", subtitle = "Artist",
+                                    stateLabel = "Paused", isPaused = true, canPlayPause = true,
+                                    canSeek = true, durationSeconds = 200.0),
+                                colors = NaviampColors.Dark,
+                                actions = NaviampNowPlayingActions({}, {}, {}, {}, {}, {}, {}),
+                                displaySettings = app.naviamp.domain.settings.NowPlayingDisplaySettings(fillArtworkArea = filledArtwork),
+                                contentInsets = WindowInsets(top = 24, bottom = 32),
+                            )
+                            NaviampBottomNoticeStack(Modifier.align(Alignment.BottomCenter), WindowInsets(bottom = 32),
+                                bottomClearance = NaviampNowPlayingNoticeClearance,
+                                avoidAboveInRoot = anchor.controlsTop) {
+                                NaviampQueueUndoNotice(NaviampColors.Dark, replacedWrapping, {})
+                            }
                         }
                     }
                 }
-                val actions = onNodeWithTag("now-playing-bottom-actions").fetchSemanticsNode().boundsInRoot
+                waitForIdle()
                 val notice = onNodeWithTag("queue-undo-notice").fetchSemanticsNode().boundsInRoot
-                assertTrue(notice.bottom <= actions.top + 0.5f, "${width}x$height notice ${notice.bottom} actions ${actions.top}")
+                // Artwork may sit under the notice; only usable controls must stay uncovered.
+                val covered = onAllNodes(hasClickAction() and isEnabled()).fetchSemanticsNodes()
+                    .filterNot { notice.contains(it.boundsInRoot.center) && it.boundsInRoot.width <= notice.width &&
+                        it.boundsInRoot.top >= notice.top - 0.5f && it.boundsInRoot.bottom <= notice.bottom + 0.5f }
+                    .filter { it.boundsInRoot.overlaps(notice) }
+                    .map { node -> node.config.getOrElse(SemanticsProperties.ContentDescription) { emptyList() }
+                        .joinToString().ifEmpty { node.boundsInRoot.toString() } }
+                assertTrue(covered.isEmpty(), "${width}x$height filled=$filledArtwork font=$fontScale notice $notice covers $covered")
             }
         }
     }

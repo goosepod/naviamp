@@ -18,8 +18,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.Stable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalAccessibilityManager
 import androidx.compose.ui.platform.testTag
@@ -70,19 +78,50 @@ val NaviampNowPlayingBottomActionsHeight = 46.dp
 /** Lifts bottom notices above the Now Playing bottom actions while the player is open. */
 val NaviampNowPlayingNoticeClearance = NaviampNowPlayingBottomActionsHeight + 8.dp
 
+/** Where the open Now Playing panel's controls start, so bottom notices can sit above all of them. */
+@Stable
+class NaviampNowPlayingNoticeAnchor {
+    var controlsTop: Float? by mutableStateOf(null)
+        internal set
+}
+
+val LocalNaviampNowPlayingNoticeAnchor = staticCompositionLocalOf<NaviampNowPlayingNoticeAnchor?> { null }
+
 /** Transient bottom notices share the content inset policy so system bars and the keyboard never hide them. */
 @Composable
 fun NaviampBottomNoticeStack(
     modifier: Modifier = Modifier,
     systemInsets: WindowInsets = WindowInsets.safeDrawing,
     bottomClearance: Dp = 0.dp,
+    avoidAboveInRoot: Float? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    var stackBottom by remember { mutableStateOf<Float?>(null) }
+    val density = LocalDensity.current
+    val controlsClearance = with(density) {
+        val bottom = stackBottom
+        if (avoidAboveInRoot == null || bottom == null || bottom <= avoidAboveInRoot) 0.dp
+        else (bottom - avoidAboveInRoot).toDp() + NaviampNoticeControlsMargin
+    }
     Column(
-        modifier.fillMaxWidth().naviampContentInsets(systemInsets).padding(bottom = bottomClearance),
+        modifier.fillMaxWidth().naviampContentInsets(systemInsets)
+            // The stack grows upward from a fixed bottom edge, so lifting it never moves this measurement.
+            .onGloballyPositioned { stackBottom = it.boundsInRoot().bottom }
+            .padding(bottom = maxOf(bottomClearance, controlsClearance)),
         horizontalAlignment = Alignment.CenterHorizontally,
         content = content,
     )
+}
+
+private val NaviampNoticeControlsMargin = 8.dp
+
+/** Publishes the top of the Now Playing controls block so notices can sit above it. */
+@Composable
+internal fun Modifier.naviampNowPlayingNoticeAnchor(enabled: Boolean): Modifier {
+    val anchor = LocalNaviampNowPlayingNoticeAnchor.current ?: return this
+    if (!enabled) return this
+    DisposableEffect(anchor) { onDispose { anchor.controlsTop = null } }
+    return onGloballyPositioned { anchor.controlsTop = it.boundsInRoot().top }
 }
 
 @Composable

@@ -126,7 +126,11 @@ fun NaviampCoreApp(
     }
     NaviampLocaleEnvironment {
         NaviampScreenAwakeEnvironment(screenAwakeEffect, state.shell.general.interfaceSettings.keepScreenAwake) {
-            CompositionLocalProvider(LocalNaviampApplicationSurface provides applicationSurface) {
+            val noticeAnchor = remember { app.naviamp.ui.NaviampNowPlayingNoticeAnchor() }
+            CompositionLocalProvider(
+                LocalNaviampApplicationSurface provides applicationSurface,
+                app.naviamp.ui.LocalNaviampNowPlayingNoticeAnchor provides noticeAnchor,
+            ) {
               Box(Modifier.fillMaxSize()) {
                 app.naviamp.ui.NaviampWindowEnvironment(
                     controller = windowController,
@@ -169,6 +173,7 @@ fun NaviampCoreApp(
                         } else {
                             0.dp
                         },
+                        avoidAboveInRoot = noticeAnchor.controlsTop.takeIf { state.shell.shellChrome.nowPlayingOpen },
                     ) {
                         state.overlays.radioNotice?.let { notice ->
                             app.naviamp.ui.NaviampRadioNotice(

@@ -37,6 +37,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.launch
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -310,6 +311,9 @@ class NaviampCoreQueueUndoTest {
             core.execute(NaviampCoreCommand.Library.TrackAction(SharedTrackRowActionRequest(song, SharedTrackRowAction.Select)))
             scope.runCurrent()
             assertEquals("core-track", engine.plays.last().mediaId)
+            // The replacement plays for a while before Undo, as it does on a device.
+            engine.emitProgress(PlaybackProgress(7.0, 180.0))
+            scope.runCurrent()
         }
     }
 
@@ -445,18 +449,30 @@ private class UndoNativeEngine : app.naviamp.domain.playback.PlaybackEngine {
         onMetadataChanged: (app.naviamp.domain.playback.PlaybackStreamMetadata) -> Unit,
     ) {
         plays += request
+        playScope = scope
         state = onStateChanged
         progress = onProgressChanged
         onStateChanged(PlaybackState.Playing)
-        onProgressChanged(PlaybackProgress(request.startPositionSeconds ?: 0.0, 180.0))
+        emitProgress(PlaybackProgress(request.startPositionSeconds ?: 0.0, 180.0))
     }
 
-    override fun pause() { state?.invoke(PlaybackState.Paused) }
+    // Like the device engine, pausing later reports where the loaded stream stopped.
+    override fun pause() {
+        state?.invoke(PlaybackState.Paused)
+        val report = progress
+        val last = lastProgress ?: return
+        playScope?.launch { report?.invoke(last) }
+    }
     override fun resume() { state?.invoke(PlaybackState.Playing) }
     override fun seek(positionSeconds: Double) = Unit
     override fun setVolume(percent: Int) = Unit
     override fun stop() { stops += 1 }
-    fun emitProgress(value: PlaybackProgress) { progress?.invoke(value) }
+    private var lastProgress: PlaybackProgress? = null
+    private var playScope: kotlinx.coroutines.CoroutineScope? = null
+    fun emitProgress(value: PlaybackProgress) {
+        lastProgress = value
+        progress?.invoke(value)
+    }
 }
 
 private class UndoPlaybackEffects : NaviampCorePlaybackEffectPort {
