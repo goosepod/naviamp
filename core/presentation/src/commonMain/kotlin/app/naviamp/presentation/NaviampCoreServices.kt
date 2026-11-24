@@ -71,6 +71,8 @@ data class NaviampCorePlaybackServices(
     val sessions: NaviampPlaybackSessionController,
     val profiles: PlaybackProfileRepository = EmptyPlaybackProfileRepository,
     val samples: NaviampCoreSamplePlaybackPort = UnavailableNaviampSamplePlayback,
+    /** The native engine's sleep-timer fade, applied after user volume and ReplayGain. */
+    val outputFade: (Float) -> Unit = {},
 )
 
 /** Settings stores and maintenance mechanisms; Core owns their ordering and presentation. */

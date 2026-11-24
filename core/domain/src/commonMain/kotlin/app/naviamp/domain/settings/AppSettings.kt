@@ -529,10 +529,13 @@ data class PlaybackSettings(
     val downloadQuality: StreamQualityPreference = StreamQualityPreference(),
     val downloadedTrackPlayback: DownloadedTrackPlayback = DownloadedTrackPlayback.PreferDownloaded,
     val allowMobileDownloads: Boolean = false,
+    /** Minutes over which a duration sleep timer fades out; 0 stops without fading. */
+    val sleepTimerFadeMinutes: Int = 0,
 )
 
 fun PlaybackSettings.normalized(): PlaybackSettings =
     copy(
+        sleepTimerFadeMinutes = app.naviamp.domain.playback.normalizedSleepTimerFadeMinutes(sleepTimerFadeMinutes),
         replayGainPreampDb = replayGainPreampDb.coerceIn(MinReplayGainPreampDb, MaxReplayGainPreampDb),
         crossfadeDurationSeconds = crossfadeDurationSeconds.coerceIn(0, 12),
         volumePercent = volumePercent.coerceIn(0, 100),

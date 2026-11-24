@@ -1285,4 +1285,8 @@
     <string name="tv_search_system_keyboard">Teclado del sistema</string>
     <string name="storage_location_app">Almacenamiento de la app</string>
     <string name="storage_location_custom">Personalizado</string>
+    <string name="settings_sleep_timer_fade_title">Desvanecimiento del temporizador</string>
+    <string name="settings_sleep_timer_fade_subtitle">Baja el volumen gradualmente antes de que el temporizador de apagado pause la reproducción.</string>
+    <string name="settings_sleep_timer_fade_off_subtitle">Detener la reproducción cuando termine el temporizador.</string>
+    <string name="settings_minutes_short">%1$d min</string>
 </resources>

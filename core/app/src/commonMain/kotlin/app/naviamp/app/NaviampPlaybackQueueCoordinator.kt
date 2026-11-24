@@ -2,6 +2,7 @@ package app.naviamp.app
 
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackQueueManager
+import app.naviamp.domain.playback.PlaybackQueueFinishedCommand
 import app.naviamp.domain.playback.PlaybackQueueFinishedUpdate
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.PlaybackQueueMutationUpdate
@@ -243,12 +244,21 @@ class NaviampPlaybackQueueCoordinator(
             wrapQueue = wrapQueue,
         ).also(::commit)
 
-    fun finishCurrentTrack(removePlayedTracksFromQueue: Boolean = false): PlaybackQueueFinishedUpdate =
-        queueManager.finishCurrentTrack(
+    /** Checked by every output's track-completion path, so local and Cast end at the same boundary. */
+    var endAfterCurrentTrack: () -> Boolean = { false }
+    var onEndedAfterCurrentTrack: () -> Unit = {}
+
+    fun finishCurrentTrack(removePlayedTracksFromQueue: Boolean = false): PlaybackQueueFinishedUpdate {
+        if (endAfterCurrentTrack()) {
+            onEndedAfterCurrentTrack()
+            return PlaybackQueueFinishedUpdate(currentQueue, PlaybackQueueFinishedCommand.None, endedBySleepTimer = true)
+        }
+        return queueManager.finishCurrentTrack(
             queue = currentQueue,
             repeatMode = playback.state.value.repeatMode,
             removePlayedTracksFromQueue = removePlayedTracksFromQueue,
         ).also(::commit)
+    }
 
     fun selectIndex(
         index: Int,

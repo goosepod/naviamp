@@ -118,6 +118,7 @@ internal enum class TelevisionSettingsChoicePage {
     ReplayGain,
     SampleRateMatching,
     Crossfade,
+    SleepTimerFade,
     WaveformDensity,
     LyricsDownloadTiming,
     LyricsDisplayTiming,
@@ -890,6 +891,22 @@ internal fun TelevisionPlaybackSettings(
                     },
                 )
             }
+        }
+        item(key = "sleep-timer-fade") {
+            TelevisionSettingsRow(
+                stringResource(Res.string.settings_sleep_timer_fade_title),
+                stringResource(Res.string.settings_sleep_timer_fade_subtitle),
+                sleepTimerFadeLabel(settings.sleepTimerFadeMinutes),
+                NaviampIcons.Experience,
+                disclosure = true,
+                colors = colors,
+                onClick = { onChoiceSelected(TelevisionSettingsChoicePage.SleepTimerFade) },
+                modifier = if (returnChoice == TelevisionSettingsChoicePage.SleepTimerFade) {
+                    Modifier.focusRequester(returnFocusRequester)
+                } else {
+                    Modifier
+                },
+            )
         }
         item(key = "sample-rate") {
             TelevisionSettingsRow(
@@ -1777,6 +1794,11 @@ private fun televisionSettingsChoices(
                 )
             }
         }
+        TelevisionSettingsChoicePage.SleepTimerFade -> app.naviamp.domain.playback.SleepTimerFadeMinuteOptions.map { minutes ->
+            TelevisionChoiceUi(sleepTimerFadeLabel(minutes), selected = minutes == playback.sleepTimerFadeMinutes) {
+                actions.valueActions.onPlaybackSettingsChanged(playback.copy(sleepTimerFadeMinutes = minutes))
+            }
+        }
         TelevisionSettingsChoicePage.WaveformDensity -> TelevisionWaveformBucketCountOptions.map { count ->
             TelevisionChoiceUi(
                 televisionWaveformDensityLabel(count),
@@ -1955,6 +1977,7 @@ private fun televisionSettingsPageTitle(page: TelevisionSettingsPage): String = 
         TelevisionSettingsChoicePage.ReplayGain -> stringResource(Res.string.tv_replaygain)
         TelevisionSettingsChoicePage.SampleRateMatching -> stringResource(Res.string.tv_sample_rate_matching)
         TelevisionSettingsChoicePage.Crossfade -> stringResource(Res.string.settings_crossfade_title)
+        TelevisionSettingsChoicePage.SleepTimerFade -> stringResource(Res.string.settings_sleep_timer_fade_title)
         TelevisionSettingsChoicePage.WaveformDensity -> stringResource(Res.string.tv_waveform_density)
         TelevisionSettingsChoicePage.LyricsDownloadTiming -> stringResource(Res.string.tv_preferred_lyrics)
         TelevisionSettingsChoicePage.LyricsDisplayTiming -> stringResource(Res.string.tv_lyrics_display)
@@ -1977,6 +2000,7 @@ private fun televisionSettingsCategoryFor(page: TelevisionSettingsChoicePage): T
     TelevisionSettingsChoicePage.ReplayGain,
     TelevisionSettingsChoicePage.SampleRateMatching,
     TelevisionSettingsChoicePage.Crossfade,
+    TelevisionSettingsChoicePage.SleepTimerFade,
         -> TelevisionSettingsCategory.Playback
     TelevisionSettingsChoicePage.LyricsDownloadTiming,
     TelevisionSettingsChoicePage.LyricsDisplayTiming,

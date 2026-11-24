@@ -532,4 +532,8 @@
     <string name="storage_location_app">App-opslag</string>
     <string name="storage_location_custom">Aangepast</string>
     <string name="connect_recovery_secure_storage">Naviamp kon de beveiligde opslag voor inloggegevens van dit apparaat niet openen. Ontgrendel de sleutelbos van het systeem en probeer het opnieuw.</string>
+    <string name="settings_sleep_timer_fade_title">Uitfaden bij slaaptimer</string>
+    <string name="settings_sleep_timer_fade_subtitle">Verlaagt het volume geleidelijk voordat de slaaptimer het afspelen pauzeert.</string>
+    <string name="settings_sleep_timer_fade_off_subtitle">Stop het afspelen wanneer de timer afloopt.</string>
+    <string name="settings_minutes_short">%1$d min</string>
 </resources>

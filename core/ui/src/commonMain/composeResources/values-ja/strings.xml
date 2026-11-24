@@ -532,4 +532,8 @@
     <string name="storage_location_app">アプリのストレージ</string>
     <string name="storage_location_custom">カスタム</string>
     <string name="connect_recovery_secure_storage">Naviamp はこのデバイスの安全な資格情報ストレージを開けませんでした。システムのキーリングのロックを解除してから、もう一度お試しください。</string>
+    <string name="settings_sleep_timer_fade_title">スリープタイマーのフェードアウト</string>
+    <string name="settings_sleep_timer_fade_subtitle">スリープタイマーが再生を一時停止する前に、音量を徐々に下げます。</string>
+    <string name="settings_sleep_timer_fade_off_subtitle">タイマー終了時に再生を停止します。</string>
+    <string name="settings_minutes_short">%1$d分</string>
 </resources>

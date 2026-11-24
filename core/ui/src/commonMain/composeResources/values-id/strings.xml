@@ -532,4 +532,8 @@
     <string name="storage_location_app">Penyimpanan aplikasi</string>
     <string name="storage_location_custom">Kustom</string>
     <string name="connect_recovery_secure_storage">Naviamp tidak dapat membuka penyimpanan kredensial aman perangkat ini. Buka kunci keyring sistem, lalu coba lagi.</string>
+    <string name="settings_sleep_timer_fade_title">Peredupan pengatur waktu tidur</string>
+    <string name="settings_sleep_timer_fade_subtitle">Menurunkan volume secara bertahap sebelum pengatur waktu tidur menjeda pemutaran.</string>
+    <string name="settings_sleep_timer_fade_off_subtitle">Hentikan pemutaran saat pengatur waktu berakhir.</string>
+    <string name="settings_minutes_short">%1$d mnt</string>
 </resources>

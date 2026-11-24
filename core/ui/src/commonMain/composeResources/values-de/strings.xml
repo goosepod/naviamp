@@ -1281,4 +1281,8 @@
     <string name="tv_search_system_keyboard">Systemtastatur</string>
     <string name="storage_location_app">App-Speicher</string>
     <string name="storage_location_custom">Benutzerdefiniert</string>
+    <string name="settings_sleep_timer_fade_title">Ausblenden beim Sleep-Timer</string>
+    <string name="settings_sleep_timer_fade_subtitle">Senkt die Lautstärke allmählich, bevor ein zeitgesteuerter Sleep-Timer die Wiedergabe pausiert.</string>
+    <string name="settings_sleep_timer_fade_off_subtitle">Wiedergabe beim Ablauf des Timers beenden.</string>
+    <string name="settings_minutes_short">%1$d Min.</string>
 </resources>

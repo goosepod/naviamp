@@ -532,4 +532,8 @@
     <string name="storage_location_app">تخزين التطبيق</string>
     <string name="storage_location_custom">مخصص</string>
     <string name="connect_recovery_secure_storage">تعذّر على Naviamp فتح مخزن بيانات الاعتماد الآمن على هذا الجهاز. افتح قفل سلسلة مفاتيح النظام، ثم أعد المحاولة.</string>
+    <string name="settings_sleep_timer_fade_title">خفوت مؤقت النوم</string>
+    <string name="settings_sleep_timer_fade_subtitle">يخفض مستوى الصوت تدريجيًا قبل أن يوقف مؤقت النوم التشغيل مؤقتًا.</string>
+    <string name="settings_sleep_timer_fade_off_subtitle">إيقاف التشغيل عند انتهاء المؤقت.</string>
+    <string name="settings_minutes_short">%1$d د</string>
 </resources>

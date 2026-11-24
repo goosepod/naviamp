@@ -88,6 +88,25 @@ class NaviampCoreOutputPlaybackEffectsTest {
     }
 
     @Test
+    fun sleepTimerFadeReachesOnlyLocalAudioAndCastKeepsTheLocalEngineAtFullLevel() {
+        val outputs = NaviampPlaybackOutputSelectionController()
+        val fades = mutableListOf<Float>()
+        val cast = RecordingCastRoute()
+        val routed = NaviampCoreOutputPlaybackEffects(RecordingLocalEffects(), outputs, localOutputFade = { fades += it })
+        routed.cast = cast
+
+        routed.setOutputFadeFactor(0.5f)
+        val selection = outputs.select(NaviampRemoteOutputTarget(NaviampRemoteOutputKind.Cast, "tv", "TV"))
+        outputs.connected(selection)
+        routed.setOutputFadeFactor(0.25f)
+        outputs.selectLocal()
+        routed.setOutputFadeFactor(0.2f)
+
+        assertEquals(listOf(0.5f, 1f, 0.2f), fades)
+        assertEquals(emptyList<Int>(), cast.volumes)
+    }
+
+    @Test
     fun localEngineCallbacksCannotOverwriteReceiverAuthority() {
         val outputs = NaviampPlaybackOutputSelectionController()
         val local = RecordingLocalEffects()
@@ -117,7 +136,8 @@ class NaviampCoreOutputPlaybackEffectsTest {
         override fun resume() = Unit
         override fun seek(positionSeconds: Double) { seekPosition = positionSeconds }
         override fun stop() = Unit
-        override fun setVolume(percent: Int) = Unit
+        val volumes = mutableListOf<Int>()
+        override fun setVolume(percent: Int) { volumes += percent }
     }
 
     private class RecordingLocalEffects : NaviampCorePlaybackEffectPort {

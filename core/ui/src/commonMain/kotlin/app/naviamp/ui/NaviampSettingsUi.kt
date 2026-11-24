@@ -108,6 +108,7 @@ import app.naviamp.domain.playback.EqualizerPreset
 import app.naviamp.domain.playback.MaxEqualizerGainDb
 import app.naviamp.domain.playback.MinEqualizerGainDb
 import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.playback.SleepTimerFadeMinuteOptions
 import app.naviamp.domain.playback.AudioOutputDevice
 import app.naviamp.domain.radio.MaxArtistRunLength
 import app.naviamp.domain.radio.MinArtistRunLength
@@ -4451,7 +4452,26 @@ private fun GaplessCrossfadeSettings(
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
 ) {
     var crossfadeOpen by remember { mutableStateOf(false) }
+    var sleepTimerFadeOpen by remember { mutableStateOf(false) }
     var pendingCrossfadeDurationForStrict by remember { mutableStateOf<Int?>(null) }
+    if (sleepTimerFadeOpen) {
+        SettingsSubsectionHeader(
+            stringResource(Res.string.settings_sleep_timer_fade_title),
+            stringResource(Res.string.settings_sleep_timer_fade_subtitle),
+            colors,
+        ) { sleepTimerFadeOpen = false }
+        SleepTimerFadeMinuteOptions.forEach { minutes ->
+            SelectableSettingsRow(
+                colors = colors,
+                title = sleepTimerFadeLabel(minutes),
+                subtitle = if (minutes == 0) stringResource(Res.string.settings_sleep_timer_fade_off_subtitle) else null,
+                selected = playbackSettings.sleepTimerFadeMinutes == minutes,
+            ) {
+                onPlaybackSettingsChanged(playbackSettings.copy(sleepTimerFadeMinutes = minutes))
+            }
+        }
+        return
+    }
     if (crossfadeOpen) {
         SettingsSubsectionHeader(
             stringResource(Res.string.settings_crossfade_title),
@@ -4553,7 +4573,19 @@ private fun GaplessCrossfadeSettings(
     ) {
         crossfadeOpen = true
     }
+    SettingsRow(
+        title = stringResource(Res.string.settings_sleep_timer_fade_title),
+        subtitle = stringResource(Res.string.settings_sleep_timer_fade_subtitle),
+        colors = colors,
+        value = sleepTimerFadeLabel(playbackSettings.sleepTimerFadeMinutes),
+    ) {
+        sleepTimerFadeOpen = true
+    }
 }
+
+@Composable
+internal fun sleepTimerFadeLabel(minutes: Int): String =
+    if (minutes == 0) stringResource(Res.string.common_off) else stringResource(Res.string.settings_minutes_short, minutes)
 
 @Composable
 private fun PlayerExperienceSettings(

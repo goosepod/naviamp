@@ -1297,6 +1297,39 @@ class NaviampCorePlaybackEngineAdapterTest {
     }
 
     @Test
+    fun stopAfterCurrentPreventsGaplessAndCrossfadeIntoTheNextTrack() = runTest {
+        for (settings in listOf(
+            PlaybackSettings(gaplessEnabled = true),
+            PlaybackSettings(gaplessEnabled = false, crossfadeDurationSeconds = 8),
+        )) {
+            val provider = FakeCoreMediaProvider()
+            val engine = RecordingPlaybackEngine().apply { emittedProgress = PlaybackProgress(173.0, 180.0) }
+            val adapter = NaviampCorePlaybackEngineAdapter(
+                scope = this,
+                engine = engine,
+                providerSource = NaviampCoreMediaProviderSource { provider },
+                settings = { settings },
+            )
+            val next = provider.track.copy(id = TrackId("next"), title = "Next")
+            adapter.playQueueSelection(PlaybackQueue(listOf(provider.track, next), 0), 0)
+            advanceUntilIdle()
+            assertEquals("next", engine.preparedRequest?.mediaId)
+
+            adapter.setStopAfterCurrent(true)
+            advanceUntilIdle()
+            assertEquals(null, engine.preparedRequest)
+            engine.emitProgress(PlaybackProgress(176.0, 180.0))
+            advanceUntilIdle()
+            assertEquals(null, engine.preparedRequest)
+
+            adapter.setStopAfterCurrent(false)
+            engine.emitProgress(PlaybackProgress(177.0, 180.0))
+            advanceUntilIdle()
+            assertEquals("next", engine.preparedRequest?.mediaId)
+        }
+    }
+
+    @Test
     fun pausedNearEndSeekDoesNotReprepareNextUntilPlaybackResumes() = runTest {
         val provider = FakeCoreMediaProvider()
         val engine = RecordingPlaybackEngine().apply {
