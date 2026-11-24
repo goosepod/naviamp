@@ -72,7 +72,7 @@ class NaviampPopupSurfaceTest {
                 LocalNaviampOwnedDialogSurface provides surface) {
                 NaviampAlertDialog(onDismissRequest = { dismissed = true }, confirmButton = { Text("Confirm") },
                     text = { SmartPlaylistDropdown("Library", "Music", NaviampColors(),
-                        listOf("Music" to "1", "Classical" to "2"), {}) })
+                        listOf("Music" to "1", "Classical" to "2"), {}, searchable = true) })
             }
         }
         assertTrue(rendered)
