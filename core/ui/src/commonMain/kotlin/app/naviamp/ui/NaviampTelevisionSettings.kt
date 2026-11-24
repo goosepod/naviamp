@@ -6,7 +6,9 @@ import app.naviamp.ui.generated.resources.settings_keep_screen_awake_failed
 
 import app.naviamp.ui.generated.resources.connect_setup_code_consent
 import app.naviamp.domain.settings.InterfaceLanguage
+import app.naviamp.domain.settings.InterfaceFontFamily
 import app.naviamp.domain.settings.InterfaceFontSize
+import app.naviamp.domain.settings.withBundledFontFamily
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import app.naviamp.ui.generated.resources.*
@@ -106,8 +108,7 @@ internal fun televisionSettingsCategories(controllersAvailable: Boolean): List<T
 
 internal enum class TelevisionSettingsChoicePage {
     Language,
-    GeneralFontSize,
-    NowPlayingFontSize,
+    Font,
     Background,
     AlbumBlurAmount,
     SingleColor,
@@ -271,6 +272,12 @@ internal fun TelevisionSettingsSheet(
                             firstFocusRequester = firstFocusRequester,
                         )
                         TelevisionSettingsChoicePage.SingleColor -> TelevisionSingleColorSettings(
+                            uiState = uiState,
+                            colors = colors,
+                            actions = actions.valueActions,
+                            firstFocusRequester = firstFocusRequester,
+                        )
+                        TelevisionSettingsChoicePage.Font -> TelevisionFontSettings(
                             uiState = uiState,
                             colors = colors,
                             actions = actions.valueActions,
@@ -1009,7 +1016,7 @@ private fun TelevisionLyricsSettings(
 }
 
 @Composable
-private fun TelevisionDisplaySettings(
+internal fun TelevisionDisplaySettings(
     uiState: NaviampAppShellUiState,
     colors: NaviampColors,
     actions: NaviampSettingsValueActions,
@@ -1036,33 +1043,17 @@ private fun TelevisionDisplaySettings(
                 ),
             )
         }
-        item(key = "general-font-size") {
+        item(key = "font") {
             TelevisionSettingsRow(
-                stringResource(Res.string.settings_font_size_general_title),
-                stringResource(Res.string.settings_font_size_subtitle),
-                settings.generalFontSize.label(),
+                stringResource(Res.string.settings_font_title),
+                stringResource(Res.string.settings_font_subtitle),
+                settings.fontSummary(),
                 NaviampIcons.Experience,
                 disclosure = true,
                 colors = colors,
-                onClick = { onChoiceSelected(TelevisionSettingsChoicePage.GeneralFontSize) },
+                onClick = { onChoiceSelected(TelevisionSettingsChoicePage.Font) },
                 subtitleMaxLines = Int.MAX_VALUE,
-                modifier = if (returnChoice == TelevisionSettingsChoicePage.GeneralFontSize) {
-                    Modifier.focusRequester(returnFocusRequester)
-                } else Modifier,
-            )
-        }
-        item(key = "now-playing-font-size") {
-            TelevisionSettingsRow(
-                stringResource(Res.string.settings_font_size_now_playing_title),
-                stringResource(Res.string.settings_font_size_subtitle),
-                settings.nowPlayingFontSize.label(),
-                NaviampIcons.Player,
-                disclosure = true,
-                colors = colors,
-                onClick = { onChoiceSelected(TelevisionSettingsChoicePage.NowPlayingFontSize) },
-                titleMaxLines = Int.MAX_VALUE,
-                subtitleMaxLines = Int.MAX_VALUE,
-                modifier = if (returnChoice == TelevisionSettingsChoicePage.NowPlayingFontSize) {
+                modifier = if (returnChoice == TelevisionSettingsChoicePage.Font) {
                     Modifier.focusRequester(returnFocusRequester)
                 } else Modifier,
             )
@@ -1710,33 +1701,12 @@ private fun televisionSettingsChoices(
     return when (page) {
         TelevisionSettingsChoicePage.AlbumBlurAmount,
         TelevisionSettingsChoicePage.SingleColor,
+        TelevisionSettingsChoicePage.Font,
         -> emptyList()
         TelevisionSettingsChoicePage.Language -> InterfaceLanguage.entries.map { value ->
             val pack = naviampLanguagePack(interfaceSettings.language)
             TelevisionChoiceUi(pack.languageTitle(value), pack.languageSubtitle(value), value == interfaceSettings.language) {
                 actions.valueActions.onInterfaceSettingsChanged(interfaceSettings.copy(language = value).normalized())
-            }
-        }
-        TelevisionSettingsChoicePage.GeneralFontSize -> InterfaceFontSize.entries.map { value ->
-            TelevisionChoiceUi(
-                value.label(),
-                value.subtitle(),
-                value == interfaceSettings.generalFontSize,
-            ) {
-                actions.valueActions.onInterfaceSettingsChanged(
-                    interfaceSettings.copy(generalFontSize = value).normalized(),
-                )
-            }
-        }
-        TelevisionSettingsChoicePage.NowPlayingFontSize -> InterfaceFontSize.entries.map { value ->
-            TelevisionChoiceUi(
-                value.label(),
-                value.subtitle(),
-                value == interfaceSettings.nowPlayingFontSize,
-            ) {
-                actions.valueActions.onInterfaceSettingsChanged(
-                    interfaceSettings.copy(nowPlayingFontSize = value).normalized(),
-                )
             }
         }
         TelevisionSettingsChoicePage.Background -> AppBackgroundStyle.entries.map { value ->
@@ -1912,7 +1882,7 @@ private fun TelevisionSettingsRow(
             }
         }
         value?.takeIf(String::isNotBlank)?.let {
-            Text(it, color = if (selected) colors.primaryText else colors.secondaryText, fontSize = 14.sp, maxLines = 1)
+            Text(it, color = if (selected) colors.primaryText else colors.secondaryText, fontSize = 14.sp, maxLines = 1, softWrap = false)
         }
         if (disclosure) {
             Spacer(Modifier.size(9.dp))
@@ -1965,8 +1935,7 @@ private fun televisionSettingsPageTitle(page: TelevisionSettingsPage): String = 
     is TelevisionSettingsPage.Category -> stringResource(page.category.label)
     is TelevisionSettingsPage.Choice -> when (page.choice) {
         TelevisionSettingsChoicePage.Language -> stringResource(Res.string.settings_language_title)
-        TelevisionSettingsChoicePage.GeneralFontSize -> stringResource(Res.string.settings_font_size_general_title)
-        TelevisionSettingsChoicePage.NowPlayingFontSize -> stringResource(Res.string.settings_font_size_now_playing_title)
+        TelevisionSettingsChoicePage.Font -> stringResource(Res.string.settings_font_title)
         TelevisionSettingsChoicePage.Background -> stringResource(Res.string.tv_background)
         TelevisionSettingsChoicePage.AlbumBlurAmount -> stringResource(Res.string.tv_blur_amount)
         TelevisionSettingsChoicePage.SingleColor -> stringResource(Res.string.tv_single_color)
@@ -1986,8 +1955,7 @@ private fun televisionSettingsPageTitle(page: TelevisionSettingsPage): String = 
 
 private fun televisionSettingsCategoryFor(page: TelevisionSettingsChoicePage): TelevisionSettingsCategory = when (page) {
     TelevisionSettingsChoicePage.Language,
-    TelevisionSettingsChoicePage.GeneralFontSize,
-    TelevisionSettingsChoicePage.NowPlayingFontSize,
+    TelevisionSettingsChoicePage.Font,
     TelevisionSettingsChoicePage.Background,
     TelevisionSettingsChoicePage.AlbumBlurAmount,
     TelevisionSettingsChoicePage.SingleColor,
@@ -2073,3 +2041,73 @@ internal fun televisionLyricsDisplayLabel(value: LyricsDisplayPreference): Strin
 private val TelevisionSettingsFocusOverflow = 12.dp
 private val TelevisionSettingsFocusedBorderWidth = 3.dp
 private val TelevisionSettingsFocusedBorderColor = Color(0xFFBDEBFF)
+
+/** The same choices as the Font page elsewhere: typeface, then each text size, with one preview. */
+@Composable
+internal fun TelevisionFontSettings(
+    uiState: NaviampAppShellUiState,
+    colors: NaviampColors,
+    actions: NaviampSettingsValueActions,
+    firstFocusRequester: FocusRequester,
+) {
+    val settings = uiState.general.interfaceSettings
+    NaviampFontPageScope(settings) {
+        val selection = rememberNaviampFontSelection(settings)
+        TelevisionSettingsList {
+            // On top, where remote focus starts, so it reserves room for the largest sizes.
+            item(key = "font-preview") { NaviampFontPreview(colors, selection, settings, reserveLargestSizes = true) }
+            itemsIndexed(InterfaceFontFamily.entries, key = { _, family -> "font-family:${family.name}" }) { index, family ->
+                val chosen = selection.installedFamily == null && selection.family == family
+                TelevisionSettingsRow(
+                    title = family.title(),
+                    subtitle = family.subtitle(),
+                    value = if (chosen) "✓" else null,
+                    selected = chosen,
+                    colors = colors,
+                    onClick = { actions.onInterfaceSettingsChanged(settings.withBundledFontFamily(family)) },
+                    modifier = if (index == 0) Modifier.focusRequester(firstFocusRequester) else Modifier,
+                )
+            }
+            televisionFontSizeChoices(
+                key = "general-font-size",
+                title = { stringResource(Res.string.settings_font_size_general_title) },
+                value = settings.generalFontSize,
+                colors = colors,
+            ) { actions.onInterfaceSettingsChanged(settings.copy(generalFontSize = it).normalized()) }
+            televisionFontSizeChoices(
+                key = "now-playing-font-size",
+                title = { stringResource(Res.string.settings_font_size_now_playing_title) },
+                value = settings.nowPlayingFontSize,
+                colors = colors,
+            ) { actions.onInterfaceSettingsChanged(settings.copy(nowPlayingFontSize = it).normalized()) }
+        }
+    }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.televisionFontSizeChoices(
+    key: String,
+    title: @Composable () -> String,
+    value: InterfaceFontSize,
+    colors: NaviampColors,
+    onSelected: (InterfaceFontSize) -> Unit,
+) {
+    item(key = "$key-title") {
+        Text(
+            title(),
+            color = colors.primaryText,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(top = 14.dp, bottom = 2.dp),
+        )
+    }
+    items(InterfaceFontSize.Steps, key = { "$key:${it.percent}" }) { size ->
+        val chosen = size == value.normalized()
+        TelevisionSettingsRow(
+            title = size.optionLabel(),
+            value = if (chosen) "✓" else null,
+            selected = chosen,
+            colors = colors,
+            onClick = { onSelected(size) },
+        )
+    }
+}

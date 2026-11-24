@@ -98,9 +98,9 @@ fun TrackRow(
     showCoverArt: Boolean = true,
     coverArtSize: Dp = 44.dp,
     coverArtCornerRadius: Dp = 5.dp,
-    titleStyle: TextStyle = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-    subtitleStyle: TextStyle = TextStyle(fontSize = 11.sp),
-    metaStyle: TextStyle = TextStyle(fontSize = 13.sp, lineHeight = 16.sp),
+    titleStyle: TextStyle = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold).withNaviampFont(),
+    subtitleStyle: TextStyle = TextStyle(fontSize = 11.sp).withNaviampFont(),
+    metaStyle: TextStyle = TextStyle(fontSize = 13.sp, lineHeight = 16.sp).withNaviampFont(),
     titleSubtitleSpacing: Dp = 0.dp,
     showMenu: Boolean = false,
     trackNumber: Int? = null,
@@ -404,7 +404,7 @@ internal fun TrackNumberColumn(
     number: Int,
     width: Dp,
     color: Color,
-    style: TextStyle = TextStyle(fontSize = 11.sp),
+    style: TextStyle = TextStyle(fontSize = 11.sp).withNaviampFont(),
 ) {
     Text(
         text = trackNumberLabel(number),
