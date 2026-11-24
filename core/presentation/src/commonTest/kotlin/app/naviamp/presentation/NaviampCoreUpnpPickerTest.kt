@@ -20,7 +20,8 @@ class NaviampCoreUpnpPickerTest {
         val core = NaviampCore.create(backgroundScope, fakeCoreServices().copy(upnp = NaviampCoreUpnpServices(
             NaviampUpnpHttpTransport { error("No network request") }, server,
             NaviampCastSecureTokenSource { "capability-test-token-0000000000000000" }, discovery = discovery, multicastDiscoveryAvailable = false)))
-        try { runCurrent(); assertFalse(core.castAvailable); core.showCastPicker(); runCurrent(); assertNull(core.castPickerState) }
+        try { runCurrent(); assertFalse(core.castAvailable); core.showCastPicker(); runCurrent(); assertNull(core.castPickerState)
+            assertFalse(core.selectUpnpRenderer("http://192.0.2.2/device.xml", "uuid:fixture", "192.0.2.1")) }
         finally { core.shutdown() }
     }
 

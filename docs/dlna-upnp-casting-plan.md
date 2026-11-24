@@ -22,8 +22,11 @@ Android TV; the owner confirmed audible test tones. AirPin does **not** advertis
 `SetNextAVTransportURI`, so it cannot validate our gapless path. Foreground Pixel-to-AirPin discovery,
 shared picker, original FLAC relay, audible playback and forward seeking passed with the receiver
 awake, the television on and Tailscale temporarily disconnected; Tailscale was restored afterward.
-Android background/network lifecycle testing, iOS host adapters/signing/privacy integration,
-and real WiiM lossless/gapless acceptance remain open. The minimum Android version remains API 26.
+The November 16 local increment wires iOS effects behind the existing signing capability gate and
+replaces Android HTTP framing with the shared relay; see
+[its verification record](verification/607-ios-relay-2026-11-16.md). Android background/network
+lifecycle testing, signed physical iOS privacy/lifecycle acceptance, and real WiiM lossless/gapless
+acceptance remain open. The minimum Android version remains API 26.
 See [the AirPin verification record](verification/607-airpin-2026-11-15.md) for evidence and limits.
 The [Pixel/seek follow-up](verification/607-pixel-seek-2026-11-15.md) records the native main-thread
 discovery fix, common zero-duration/phone-seek regression, longer FLAC/MP3 timing probes and the
@@ -537,8 +540,10 @@ does not reconnect or automatically start local playback. Background-capable hos
 existing behavior. Common tests cover active playback, stale description completion, re-selection
 and a missing multicast build capability.
 
-Local JVM tests, Android debug compilation and architecture validation passed. Native iOS validation
-for that commit is pending in [run 43808186762](https://github.com/goosepod/naviamp/actions/runs/43808186762).
+Local JVM tests, Android debug compilation and architecture validation passed. The initial native validation run for that commit was cancelled and superseded by the complete
+passing Verify matrix at `cd0d5b009` in
+[run 43808578325](https://github.com/goosepod/naviamp/actions/runs/43808578325), including both Apple
+targets, simulator/native tests and the production iOS build.
 Windows common-metadata compilation is not evidence that Darwin socket code compiles or runs.
 Do not add native production wiring until the common implementation passes the Apple target gate.
 
@@ -586,3 +591,26 @@ and the entitlement contents. Native iOS UDP/interface effects, Darwin HTTP-engi
 scene/background-task forwarding remain the next implementation step. Real-device tests must cover
 local-network allow/deny, background/foreground, sleep, network loss and cleanup; simulator success
 does not close those checks. WiiM lossless/gapless hardware acceptance remains open as well.
+
+
+### Local iOS wiring and Android relay cleanup, November 16, 2026
+
+Core now provides shared UDP execution and secure-token encoding in addition to the shared TCP
+relay. Native iOS effects supply POSIX interface facts, SecRandomCopyBytes, a dedicated Darwin HTTP
+engine and the NSBundle signing/build fact. The iOS host delegates background/foreground behavior
+to Core while UIKit owns the short background execution lease. App closure waits for Core cleanup
+before releasing native resources. Failed receiver Stop responses are covered by common background
+and shutdown regressions; neither path resumes local audio. Capability denial also blocks the
+public Core selection API, not just the picker.
+
+Android now delegates Cast and UPnP HTTP framing and listener lifetime to the same shared server,
+retaining only native LAN address selection/validation. The native adapter shrinks from 188 to 40
+lines. All new production protocol/queue/lifecycle behavior remains in common code.
+
+This increment stays local under the owner's instruction. Verification uses loopback fixtures and
+a dedicated iOS simulator; do not infer live multicast, physical iOS privacy/background behavior,
+Onn playback or WiiM gapless support from those checks. Normal iOS builds remain multicast-disabled
+and Apple approval for the exact App ID remains unconfirmed. Native GENA callbacks/renewal,
+passive NOTIFY/network rebinding, broader controls/formats, host lifecycle qualification and the
+physical WiiM gate remain open. Detailed results and the platform-boundary audit are in
+[the local verification record](verification/607-ios-relay-2026-11-16.md).

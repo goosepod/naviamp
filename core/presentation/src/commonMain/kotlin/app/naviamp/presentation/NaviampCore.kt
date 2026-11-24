@@ -823,7 +823,7 @@ class NaviampCore private constructor(
             var upnpSelectionRevision = 0L
             var upnpForeground = true
             val selectUpnp: (suspend (String, String, String) -> Boolean)? =
-                if (upnp != null && upnpSession != null && upnpServices != null) {
+                if (upnp != null && upnpSession != null && upnpServices?.multicastDiscoveryAvailable == true) {
                     val select: suspend (String, String, String) -> Boolean = { location, udn, address ->
                         val revision = ++upnpSelectionRevision
                         if (!upnpForeground) false else try {

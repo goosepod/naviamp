@@ -343,6 +343,8 @@ internal class NaviampCoreRemotePlaybackController(
             loading?.join(); preparing?.join()
             operations.withLock {
                 try { withTimeoutOrNull(8_000) { session.disconnect(true) } }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { /* Loss of the receiver must not prevent foreground-only relay cleanup. */ }
                 finally { endpoint.stop() }
             }
         }
@@ -354,7 +356,10 @@ internal class NaviampCoreRemotePlaybackController(
         withContext(NonCancellable) {
             loadJob?.cancelAndJoin(); prepareJob?.cancelAndJoin(); outputJob?.cancelAndJoin(); statusJob?.cancelAndJoin(); queueJob?.cancelAndJoin()
             outputJob = null; statusJob = null; queueJob = null
-            try { session.shutdown() } finally { endpoint.stop(); active = null; prepared = null; previousLeases = emptyList() }
+            try { withTimeoutOrNull(8_000) { session.shutdown() } }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { /* Remote loss must not strand local resources during host shutdown. */ }
+            finally { endpoint.stop(); active = null; prepared = null; previousLeases = emptyList() }
         }
     }
     fun close() {

@@ -35,6 +35,35 @@ class NaviampCoreUpnpPlaybackTest {
         } finally { core.shutdown(); f.ownScope.cancel() }
     }
 
+    @Test fun backgroundStopFailureStillRevokesMediaAndLeavesLocalAudioPaused() = runTest {
+        val f = Fixture(this)
+        try {
+            f.connect(); advanceUntilIdle()
+            val url = f.wire.current
+            f.wire.failStop = true
+            f.controller.suspendForBackground(); advanceUntilIdle()
+            assertEquals(NaviampPlaybackOutputSelection.Local, f.outputs.state.value)
+            assertEquals(404, f.server.get(url).status)
+            assertEquals(PlaybackState.Paused, f.live.state.value.playbackState)
+            assertEquals(0, f.local.starts)
+            f.wire.failStop = false
+            f.connect(); advanceUntilIdle()
+            assertTrue(f.outputs.hasRemotePlaybackAuthority())
+        } finally { f.close() }
+    }
+
+    @Test fun shutdownStopFailureStillRevokesMediaWithoutStartingLocalAudio() = runTest {
+        val f = Fixture(this)
+        try {
+            f.connect(); advanceUntilIdle()
+            val url = f.wire.current
+            f.wire.failStop = true
+            f.controller.shutdown(); advanceUntilIdle()
+            assertEquals(404, f.server.get(url).status)
+            assertEquals(0, f.local.starts)
+        } finally { f.close() }
+    }
+
     @Test fun backgroundInvalidatesPendingDescriptionAndControllerCanBeSelectedAgain() = runTest {
         val f = Fixture(this); val gate = CompletableDeferred<Unit>(); var token = 0
         val core = NaviampCore.create(f.ownScope, fakeCoreServices(f.provider, f.local).copy(
@@ -415,6 +444,7 @@ class NaviampCoreUpnpPlaybackTest {
         var ignoreLoad = false
         var sink = "http-get:*:audio/flac:*"
         var failNext = false
+        var failStop = false
         var nextGate: CompletableDeferred<Unit>? = null
         var stopGate: CompletableDeferred<Unit>? = null
         var pendingNext: String? = null
@@ -441,7 +471,7 @@ class NaviampCoreUpnpPlaybackTest {
                 }
                 "Play" -> { state = "PLAYING"; plays++ }
                 "Pause" -> state = "PAUSED_PLAYBACK"
-                "Stop" -> { stopGate?.await(); state = "STOPPED"; position = 180_000; stops++ }
+                "Stop" -> { if (failStop) return NaviampUpnpHttpResponse(500, emptyMap(), fault()); stopGate?.await(); state = "STOPPED"; position = 180_000; stops++ }
                 "Seek" -> { seekTarget = field("Target"); position = 0 }
             }
             val fields = when (action) {

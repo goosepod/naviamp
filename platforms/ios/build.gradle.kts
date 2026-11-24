@@ -44,6 +44,7 @@ kotlin {
 
     sourceSets {
         iosMain.dependencies {
+            implementation(libs.ktor.client.darwin)
             api(project(":core:app"))
             api(project(":core:domain"))
             api(project(":core:presentation"))

@@ -3,6 +3,13 @@ package app.naviamp.ios
 import androidx.compose.runtime.remember
 import androidx.compose.ui.window.ComposeUIViewController
 import app.cash.sqldelight.db.SqlDriver
+import app.naviamp.app.NaviampKtorMediaHttpServerEffect
+import app.naviamp.app.NaviampKtorUpnpDiscoveryEffect
+import app.naviamp.ios.platform.IosNaviampUpnpHttpEffect
+import app.naviamp.ios.platform.IosNaviampSecureTokenSource
+import app.naviamp.ios.platform.iosUpnpLocalAddresses
+import app.naviamp.ios.platform.iosUpnpMulticastAvailable
+import app.naviamp.presentation.NaviampCoreUpnpServices
 import app.naviamp.ios.platform.IosCapabilityPresentation
 import app.naviamp.ios.platform.IosCoreExternalUriPort
 import app.naviamp.ios.platform.IosHomeDateSource
@@ -68,6 +75,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.launch
 import platform.UIKit.UIViewController
 
 /**
@@ -281,8 +290,18 @@ class NaviampIosApplication(
         clockEpochMillis = ::naviampNowEpochMillis,
         favoritedAtIso8601 = ::naviampNowIso8601,
     )
+    private val upnpHttp = IosNaviampUpnpHttpEffect()
     private val environment = NaviampCoreEnvironment(
-        services = storedCatalog.services,
+        services = storedCatalog.services.copy(upnp = NaviampCoreUpnpServices(
+            http = upnpHttp,
+            server = NaviampKtorMediaHttpServerEffect(),
+            tokens = IosNaviampSecureTokenSource(),
+            discovery = NaviampKtorUpnpDiscoveryEffect(::iosUpnpLocalAddresses),
+            discoveryEffectContext = Dispatchers.Default,
+            // UIKit may suspend a silent media relay; Core owns the foreground-only behavior.
+            backgroundExecutionAvailable = false,
+            multicastDiscoveryAvailable = iosUpnpMulticastAvailable(),
+        )),
         initialState = storedCatalog.initialState,
         actionAvailability = IosCapabilityPresentation.actionAvailability,
         onAsyncFailure = { command, cause ->
@@ -306,12 +325,29 @@ class NaviampIosApplication(
         }
     }.also { contentViewController = it }
 
+    private var closed = false
+
+    /** Swift forwards its scene fact and owns any UIKit background execution lease. */
+    fun hostForegroundChanged(foreground: Boolean, completion: () -> Unit) {
+        if (closed) { completion(); return }
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            try { core.onHostForegroundChanged(foreground) } finally { completion() }
+        }
+    }
+
     fun close() {
-        resetIosPlatformCoverArtByteLoader()
-        nativePlayback.close()
-        playbackEngine.release()
-        scope.cancel()
-        driver.close()
+        if (closed) return
+        closed = true
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            try { core.shutdown() } finally {
+                resetIosPlatformCoverArtByteLoader()
+                nativePlayback.close()
+                upnpHttp.close()
+                playbackEngine.release()
+                scope.cancel()
+                driver.close()
+            }
+        }
     }
 
     private suspend fun loadProviderArtwork(url: String): ByteArray? = runCatching {
