@@ -192,6 +192,10 @@
     <string name="smart_playlist_limit_tracks">曲数</string>
     <string name="smart_playlist_limit_percent">割合</string>
     <string name="smart_playlist_unsupported_import">このプレイリストには無効または未対応の設定が含まれています。このエディターでは安全に編集できません。</string>
+    <string name="smart_playlist_discard_title">変更を破棄しますか?</string>
+    <string name="smart_playlist_discard_message">このスマートプレイリストの未保存の変更は失われます。</string>
+    <string name="smart_playlist_keep_editing">編集を続ける</string>
+    <string name="smart_playlist_discard">破棄</string>
     <string name="smart_playlist_validation_required">不足している値を入力してください。</string>
     <string name="smart_playlist_validation_number">有限の数値を入力してください。</string>
     <string name="smart_playlist_validation_date">YYYY-MM-DD形式で有効な日付を入力してください。</string>

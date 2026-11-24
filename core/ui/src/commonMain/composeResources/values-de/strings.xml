@@ -978,6 +978,10 @@
     <string name="smart_playlist_limit_tracks">Titelanzahl</string>
     <string name="smart_playlist_limit_percent">Prozent</string>
     <string name="smart_playlist_unsupported_import">Diese Wiedergabeliste enthält ungültige oder nicht unterstützte Einstellungen. Sie kann in diesem Editor nicht sicher bearbeitet werden.</string>
+    <string name="smart_playlist_discard_title">Änderungen verwerfen?</string>
+    <string name="smart_playlist_discard_message">Deine nicht gespeicherten Änderungen an dieser intelligenten Wiedergabeliste gehen verloren.</string>
+    <string name="smart_playlist_keep_editing">Weiter bearbeiten</string>
+    <string name="smart_playlist_discard">Verwerfen</string>
     <string name="smart_playlist_validation_required">Geben Sie den fehlenden Wert ein.</string>
     <string name="smart_playlist_validation_number">Geben Sie eine endliche Zahl ein.</string>
     <string name="smart_playlist_validation_date">Geben Sie ein gültiges Datum im Format JJJJ-MM-TT ein.</string>

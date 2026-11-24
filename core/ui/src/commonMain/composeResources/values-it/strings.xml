@@ -192,6 +192,10 @@
     <string name="smart_playlist_limit_tracks">Numero di brani</string>
     <string name="smart_playlist_limit_percent">Percentuale</string>
     <string name="smart_playlist_unsupported_import">Questa playlist contiene impostazioni non valide o non supportate. Non può essere modificata in modo sicuro in questo editor.</string>
+    <string name="smart_playlist_discard_title">Annullare le modifiche?</string>
+    <string name="smart_playlist_discard_message">Le modifiche non salvate a questa playlist intelligente andranno perse.</string>
+    <string name="smart_playlist_keep_editing">Continua a modificare</string>
+    <string name="smart_playlist_discard">Annulla modifiche</string>
     <string name="smart_playlist_validation_required">Inserisci il valore mancante.</string>
     <string name="smart_playlist_validation_number">Inserisci un numero finito.</string>
     <string name="smart_playlist_validation_date">Inserisci una data valida nel formato AAAA-MM-GG.</string>

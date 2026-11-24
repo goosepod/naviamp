@@ -192,6 +192,10 @@
     <string name="smart_playlist_limit_tracks">Aantal nummers</string>
     <string name="smart_playlist_limit_percent">Percentage</string>
     <string name="smart_playlist_unsupported_import">Deze afspeellijst bevat ongeldige of niet-ondersteunde instellingen. Deze kan niet veilig in deze editor worden bewerkt.</string>
+    <string name="smart_playlist_discard_title">Wijzigingen verwerpen?</string>
+    <string name="smart_playlist_discard_message">Je niet-opgeslagen wijzigingen aan deze slimme afspeellijst gaan verloren.</string>
+    <string name="smart_playlist_keep_editing">Verder bewerken</string>
+    <string name="smart_playlist_discard">Verwerpen</string>
     <string name="smart_playlist_validation_required">Vul de ontbrekende waarde in.</string>
     <string name="smart_playlist_validation_number">Voer een eindig getal in.</string>
     <string name="smart_playlist_validation_date">Voer een geldige datum in als JJJJ-MM-DD.</string>

@@ -192,6 +192,10 @@
     <string name="smart_playlist_limit_tracks">Кількість композицій</string>
     <string name="smart_playlist_limit_percent">Відсоток</string>
     <string name="smart_playlist_unsupported_import">Цей список відтворення містить недійсні або непідтримувані налаштування. Його неможливо безпечно редагувати в цьому редакторі.</string>
+    <string name="smart_playlist_discard_title">Скасувати зміни?</string>
+    <string name="smart_playlist_discard_message">Незбережені зміни цього розумного списку відтворення буде втрачено.</string>
+    <string name="smart_playlist_keep_editing">Продовжити редагування</string>
+    <string name="smart_playlist_discard">Скасувати зміни</string>
     <string name="smart_playlist_validation_required">Введіть відсутнє значення.</string>
     <string name="smart_playlist_validation_number">Введіть скінченне число.</string>
     <string name="smart_playlist_validation_date">Введіть коректну дату у форматі РРРР-ММ-ДД.</string>

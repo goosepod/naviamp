@@ -192,6 +192,10 @@
     <string name="smart_playlist_limit_tracks">曲目数量</string>
     <string name="smart_playlist_limit_percent">百分比</string>
     <string name="smart_playlist_unsupported_import">此播放列表包含无效或不受支持的设置，无法在此编辑器中安全编辑。</string>
+    <string name="smart_playlist_discard_title">要放弃更改吗？</string>
+    <string name="smart_playlist_discard_message">此智能播放列表中未保存的更改将会丢失。</string>
+    <string name="smart_playlist_keep_editing">继续编辑</string>
+    <string name="smart_playlist_discard">放弃</string>
     <string name="smart_playlist_validation_required">请输入缺失的值。</string>
     <string name="smart_playlist_validation_number">请输入有限数值。</string>
     <string name="smart_playlist_validation_date">请输入 YYYY-MM-DD 格式的有效日期。</string>

@@ -192,6 +192,10 @@
     <string name="smart_playlist_limit_tracks">Количество треков</string>
     <string name="smart_playlist_limit_percent">Процент</string>
     <string name="smart_playlist_unsupported_import">Этот плейлист содержит недопустимые или неподдерживаемые настройки. Его нельзя безопасно изменить в этом редакторе.</string>
+    <string name="smart_playlist_discard_title">Отменить изменения?</string>
+    <string name="smart_playlist_discard_message">Несохранённые изменения этого умного плейлиста будут потеряны.</string>
+    <string name="smart_playlist_keep_editing">Продолжить редактирование</string>
+    <string name="smart_playlist_discard">Отменить изменения</string>
     <string name="smart_playlist_validation_required">Введите недостающее значение.</string>
     <string name="smart_playlist_validation_number">Введите конечное число.</string>
     <string name="smart_playlist_validation_date">Введите корректную дату в формате ГГГГ-ММ-ДД.</string>

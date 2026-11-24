@@ -192,6 +192,10 @@
     <string name="smart_playlist_limit_tracks">ट्रैक की संख्या</string>
     <string name="smart_playlist_limit_percent">प्रतिशत</string>
     <string name="smart_playlist_unsupported_import">इस प्लेलिस्ट में अमान्य या असमर्थित सेटिंग हैं। इसे इस संपादक में सुरक्षित रूप से संपादित नहीं किया जा सकता।</string>
+    <string name="smart_playlist_discard_title">बदलाव छोड़ें?</string>
+    <string name="smart_playlist_discard_message">इस स्मार्ट प्लेलिस्ट में बिना सहेजे गए बदलाव खो जाएँगे।</string>
+    <string name="smart_playlist_keep_editing">संपादन जारी रखें</string>
+    <string name="smart_playlist_discard">छोड़ें</string>
     <string name="smart_playlist_validation_required">अनुपस्थित मान दर्ज करें।</string>
     <string name="smart_playlist_validation_number">एक सीमित संख्या दर्ज करें।</string>
     <string name="smart_playlist_validation_date">YYYY-MM-DD प्रारूप में मान्य तारीख दर्ज करें।</string>

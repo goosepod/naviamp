@@ -11,6 +11,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.focus.FocusManager
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import app.naviamp.domain.smartplaylist.hasUnsavedChanges
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.safeDrawing
@@ -128,18 +136,21 @@ fun SmartPlaylistBuilderDialog(
     systemInsets: WindowInsets = WindowInsets.safeDrawing,
     keyboardInsets: WindowInsets = WindowInsets.ime,
 ) {
-    var draft by remember(initialDraft) {
-        mutableStateOf(
-            if (initialDraft.selectedLibraryIds == null && selectedConnectionLibraryIds.size > 1) {
-                initialDraft.copy(selectedLibraryIds = selectedConnectionLibraryIds)
-            } else {
-                initialDraft
-            },
-        )
+    val openingDraft = remember(initialDraft) {
+        if (initialDraft.selectedLibraryIds == null && selectedConnectionLibraryIds.size > 1) {
+            initialDraft.copy(selectedLibraryIds = selectedConnectionLibraryIds)
+        } else {
+            initialDraft
+        }
     }
+    var draft by remember(initialDraft) { mutableStateOf(openingDraft) }
+    // The draft as opened; applying the connection's default library scope is not a user edit.
+    var savedBaseline by remember(initialDraft) { mutableStateOf(openingDraft) }
     LaunchedEffect(selectedConnectionLibraryIds) {
         if (draft.selectedLibraryIds == null && selectedConnectionLibraryIds.size > 1) {
-            draft = draft.copy(selectedLibraryIds = selectedConnectionLibraryIds)
+            val scoped = draft.copy(selectedLibraryIds = selectedConnectionLibraryIds)
+            if (!draft.hasUnsavedChanges(savedBaseline)) savedBaseline = scoped
+            draft = scoped
         }
     }
     var inspection by remember { mutableStateOf<SmartPlaylistEditingResult?>(null) }
@@ -214,14 +225,36 @@ fun SmartPlaylistBuilderDialog(
         previewLoading = false
     }
 
+    var discardPromptOpen by remember { mutableStateOf(false) }
+    var dialogFocusManager by remember { mutableStateOf<FocusManager?>(null) }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val density = LocalDensity.current
+    val closeEditor = {
+        librarySyncJob?.cancel()
+        onDismissRequest()
+    }
+    // Every dismiss path: hide a showing keyboard first, then ask before dropping edits.
+    val requestClose: () -> Unit = {
+        when {
+            keyboardInsets.getBottom(density) > 0 -> {
+                keyboardController?.hide()
+                dialogFocusManager?.clearFocus()
+            }
+            draft.hasUnsavedChanges(savedBaseline) -> discardPromptOpen = true
+            else -> closeEditor()
+        }
+    }
+
     NaviampPopupPresence()
 
     NaviampAlertDialog(
-        onDismissRequest = { librarySyncJob?.cancel(); onDismissRequest() },
+        onDismissRequest = requestClose,
         // Keeps the title below the status bar and the actions above the keyboard on edge-to-edge hosts.
         modifier = Modifier.naviampContentInsets(systemInsets, keyboardInsets).testTag(SmartPlaylistEditorDialogTestTag),
         title = { Text(title) },
         text = {
+            val focusManager = LocalFocusManager.current
+            SideEffect { dialogFocusManager = focusManager }
             androidx.compose.runtime.CompositionLocalProvider(LocalSmartPlaylistLibraries provides availableLibraries) {
             Column(
                 modifier = Modifier
@@ -495,7 +528,7 @@ fun SmartPlaylistBuilderDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismissRequest) {
+            TextButton(onClick = requestClose) {
                 Text("Cancel")
             }
         },
@@ -503,6 +536,16 @@ fun SmartPlaylistBuilderDialog(
         titleContentColor = colors.primaryText,
         textContentColor = colors.secondaryText,
     )
+    if (discardPromptOpen) {
+        SmartPlaylistDiscardPrompt(
+            colors = colors,
+            onKeepEditing = { discardPromptOpen = false },
+            onDiscard = {
+                discardPromptOpen = false
+                closeEditor()
+            },
+        )
+    }
     inspection?.let { editing ->
         SmartPlaylistInspectionDialog(editing, colors) { inspection = null }
     }
@@ -601,6 +644,37 @@ internal const val SmartPlaylistLoadPasswordConfirmTestTag = "smart-playlist-loa
 internal const val SmartPlaylistGenreValueTestTag = "smart-playlist-genre-value"
 internal const val SmartPlaylistPreviewTestTag = "smart-playlist-preview"
 internal const val SmartPlaylistEditorDialogTestTag = "smart-playlist-editor-dialog"
+internal const val SmartPlaylistKeepEditingTestTag = "smart-playlist-keep-editing"
+internal const val SmartPlaylistDiscardTestTag = "smart-playlist-discard"
+
+@Composable
+private fun SmartPlaylistDiscardPrompt(colors: NaviampColors, onKeepEditing: () -> Unit, onDiscard: () -> Unit) {
+    val keepEditingFocus = remember { FocusRequester() }
+    NaviampPopupPresence()
+    NaviampAlertDialog(
+        onDismissRequest = onKeepEditing,
+        title = { Text(stringResource(Res.string.smart_playlist_discard_title)) },
+        text = { Text(stringResource(Res.string.smart_playlist_discard_message)) },
+        confirmButton = {
+            TextButton(onClick = onDiscard, modifier = Modifier.testTag(SmartPlaylistDiscardTestTag)) {
+                Text(stringResource(Res.string.smart_playlist_discard), color = colors.favorite)
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onKeepEditing,
+                modifier = Modifier.focusRequester(keepEditingFocus).testTag(SmartPlaylistKeepEditingTestTag),
+            ) {
+                Text(stringResource(Res.string.smart_playlist_keep_editing), color = colors.accent)
+            }
+        },
+        containerColor = colors.controlSurface,
+        titleContentColor = colors.primaryText,
+        textContentColor = colors.secondaryText,
+    )
+    // Start keyboard and D-pad users on the safe choice.
+    LaunchedEffect(Unit) { runCatching { keepEditingFocus.requestFocus() } }
+}
 private const val SmartPlaylistPreviewDebounceMillis = 350L
 
 @Composable
