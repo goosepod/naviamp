@@ -230,6 +230,10 @@ fun createNaviampCoreActions(
             onSaveSources = { send(NaviampCoreCommand.Library.SaveSources) },
             onCancelSources = { send(NaviampCoreCommand.Library.CancelSources) },
             onRetrySources = { send(NaviampCoreCommand.Library.RetrySources) },
+            onAddedItemsDismissed = { view, generation ->
+                send(NaviampCoreCommand.Library.AcknowledgeAddedItems(view, generation))
+            },
+            onAddedItemsSeen = { view, ids -> send(NaviampCoreCommand.Library.MarkAddedItemsSeen(view, ids)) },
         ),
         playlistsActions = NaviampPlaylistsActions(
             onRefresh = { send(NaviampCoreCommand.Playlists.Refresh) },

@@ -613,4 +613,19 @@
     <string name="playlist_download_failed_mobile_data">Не удалось загрузить %1$s. Загрузка по мобильной сети отключена.</string>
     <string name="playlist_download_already_saved">Все треки из %1$s уже загружены.</string>
     <string name="offline_playlist_track_not_downloaded">Этот трек не загружен. Подключитесь снова, чтобы воспроизвести его.</string>
+||||||| parent of 4a7840640 (Return Library to the top after refresh and show newly added items (#707))
+    <string name="library_new_items_show">Показать</string>
+    <string name="library_new_items_dismiss">Скрыть</string>
+    <plurals name="library_new_albums">
+        <item quantity="one">%1$d новый альбом</item>
+        <item quantity="few">%1$d новых альбома</item>
+        <item quantity="many">%1$d новых альбомов</item>
+        <item quantity="other">%1$d нового альбома</item>
+    </plurals>
+    <plurals name="library_new_artists">
+        <item quantity="one">%1$d новый исполнитель</item>
+        <item quantity="few">%1$d новых исполнителя</item>
+        <item quantity="many">%1$d новых исполнителей</item>
+        <item quantity="other">%1$d нового исполнителя</item>
+    </plurals>
 </resources>

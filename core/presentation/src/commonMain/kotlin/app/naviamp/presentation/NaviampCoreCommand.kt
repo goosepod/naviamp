@@ -123,6 +123,8 @@ sealed interface NaviampCoreCommand {
         data object SaveSources : Library
         data object CancelSources : Library
         data object RetrySources : Library
+        data class AcknowledgeAddedItems(val view: app.naviamp.ui.NaviampLibraryView, val generation: Long) : Library
+        data class MarkAddedItemsSeen(val view: app.naviamp.ui.NaviampLibraryView, val ids: Set<String>) : Library
     }
 
     sealed interface Downloads : NaviampCoreCommand {
