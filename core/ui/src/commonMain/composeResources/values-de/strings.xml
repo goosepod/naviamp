@@ -1330,4 +1330,10 @@
     <string name="settings_sleep_timer_fade_subtitle">Senkt die Lautstärke allmählich, bevor ein zeitgesteuerter Sleep-Timer die Wiedergabe pausiert.</string>
     <string name="settings_sleep_timer_fade_off_subtitle">Wiedergabe beim Ablauf des Timers beenden.</string>
     <string name="settings_minutes_short">%1$d Min.</string>
+    <string name="queue_undo_action">Rückgängig</string>
+    <string name="queue_undo_action_description">Rückgängig: %1$s</string>
+    <string name="queue_undo_removed_track">%1$s aus der Warteschlange entfernt.</string>
+    <string name="queue_undo_cleared">Warteschlange geleert.</string>
+    <string name="queue_undo_replaced_upcoming">Nächste Titel ersetzt.</string>
+    <string name="queue_undo_replaced_resumes">Warteschlange ersetzt. Rückgängig kehrt zu %1$s zurück.</string>
 </resources>

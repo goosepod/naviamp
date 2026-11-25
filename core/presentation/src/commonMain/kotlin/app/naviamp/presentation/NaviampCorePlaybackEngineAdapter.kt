@@ -634,7 +634,9 @@ class NaviampCorePlaybackEngineAdapter(
                     }
                 },
                 onProgressChanged = { progress ->
-                    if (requestGeneration == generation && !executionFinished.load() && playbackState !is PlaybackState.Error) {
+                    // A deferred start means the loaded stream is no longer the queue's current track.
+                    if (requestGeneration == generation && !deferredStart && !executionFinished.load() &&
+                        playbackState !is PlaybackState.Error) {
                         val timelineProgress = progress.withProviderStartOffset(
                             providerStartPositionSeconds = audioSource
                                 ?.target

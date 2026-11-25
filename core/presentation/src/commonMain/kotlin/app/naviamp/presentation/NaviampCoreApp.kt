@@ -11,6 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import app.naviamp.ui.NaviampLocaleEnvironment
@@ -125,7 +126,11 @@ fun NaviampCoreApp(
     }
     NaviampLocaleEnvironment {
         NaviampScreenAwakeEnvironment(screenAwakeEffect, state.shell.general.interfaceSettings.keepScreenAwake) {
-            CompositionLocalProvider(LocalNaviampApplicationSurface provides applicationSurface) {
+            val noticeAnchor = remember { app.naviamp.ui.NaviampNowPlayingNoticeAnchor() }
+            CompositionLocalProvider(
+                LocalNaviampApplicationSurface provides applicationSurface,
+                app.naviamp.ui.LocalNaviampNowPlayingNoticeAnchor provides noticeAnchor,
+            ) {
               Box(Modifier.fillMaxSize()) {
                 app.naviamp.ui.NaviampWindowEnvironment(
                     controller = windowController,
@@ -161,12 +166,25 @@ fun NaviampCoreApp(
                     state.overlays.busyMessage?.let { message ->
                         NaviampBusyDialog(message)
                     }
-                    state.overlays.radioNotice?.let { notice ->
-                        app.naviamp.ui.NaviampRadioNotice(
-                            app.naviamp.ui.NaviampColors.Dark, notice,
-                            onDismiss = { core.dispatch(NaviampCoreCommand.Settings.DismissRadioNotice) },
-                            modifier = Modifier.align(Alignment.BottomCenter),
-                        )
+                    app.naviamp.ui.NaviampBottomNoticeStack(
+                        Modifier.align(Alignment.BottomCenter),
+                        bottomClearance = if (state.shell.shellChrome.nowPlayingOpen) {
+                            app.naviamp.ui.NaviampNowPlayingNoticeClearance
+                        } else {
+                            0.dp
+                        },
+                        avoidAboveInRoot = noticeAnchor.controlsTop.takeIf { state.shell.shellChrome.nowPlayingOpen },
+                    ) {
+                        state.overlays.radioNotice?.let { notice ->
+                            app.naviamp.ui.NaviampRadioNotice(
+                                app.naviamp.ui.NaviampColors.Dark, notice,
+                                onDismiss = { core.dispatch(NaviampCoreCommand.Settings.DismissRadioNotice) },
+                            )
+                        }
+                        state.overlays.queueUndo?.let { undo ->
+                            app.naviamp.ui.NaviampQueueUndoNotice(app.naviamp.ui.NaviampColors.Dark, undo,
+                                onAction = { core.dispatch(NaviampCoreCommand.NowPlaying.QueueUndo(it)) })
+                        }
                     }
                     core.castPickerState?.let { pickerState ->
                         val picker by pickerState.collectAsState()
