@@ -91,13 +91,13 @@ class NaviampPlaybackStreamRelay(
             }
             val snapshot = state.value
             if (snapshot.epoch != before.epoch ||
-                (slot == Slot.PreparedNext && snapshot.preparedEpoch != before.preparedEpoch)) throw CancellationException()
+                (slot == Slot.PreparedNext && snapshot.preparedEpoch != before.preparedEpoch)) throw CancellationException("Stream relay slot was superseded")
             val lease = snapshot.slots.values.firstOrNull { it.provider === provider && it.request == request }
                 ?: Lease(provider, request, Uuid.random().toString() + Uuid.random().toString(), SupervisorJob(lifetime))
             val next = snapshot.copy(slots = snapshot.slots + (slot to lease))
             if (!state.compareAndSet(snapshot, next)) {
                 if (lease !in snapshot.slots.values) lease.job.cancel()
-                throw CancellationException()
+                throw CancellationException("Stream relay slot changed concurrently")
             }
             releaseUnused(snapshot, next)
             "http://127.0.0.1:${server.port}/playback/${lease.token}"
