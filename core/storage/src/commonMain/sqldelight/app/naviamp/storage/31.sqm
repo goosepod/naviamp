@@ -1,0 +1,6 @@
+-- #501; main baseline is migration 30. All unreleased #501 persistence changes belong in this migration.
+CREATE TABLE pending_audio_file (
+  file_path TEXT NOT NULL PRIMARY KEY,
+  store_kind TEXT NOT NULL,
+  created_at_epoch_millis INTEGER NOT NULL
+);

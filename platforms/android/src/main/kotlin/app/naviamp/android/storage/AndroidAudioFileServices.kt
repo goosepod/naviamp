@@ -60,19 +60,25 @@ internal class AndroidAudioFileServices(
 internal class AndroidAudioByteStore(
     private val directory: File,
 ) : AudioByteStore {
+    override fun audioFilePath(fileName: String): String = File(directory, fileName).absolutePath
+
     override suspend fun writeAudioBytes(
-        fileName: String,
+        temporaryFileName: String,
         errorMessage: String,
-        writeBytes: suspend (AudioByteWriter) -> Boolean,
+        writeBytes: suspend (AudioByteWriter) -> String,
     ): StoredAudioBytes {
         directory.mkdirs()
-        val target = File(directory, fileName)
-        val temp = File(directory, "${target.name}.tmp")
+        val temp = File(directory, temporaryFileName)
         return try {
-            temp.outputStream().use { output ->
+            val fileName = temp.outputStream().use { output ->
                 val writer = AudioByteWriter { bytes, count -> output.write(bytes, 0, count) }
-                if (!writeBytes(writer)) throw IllegalStateException(errorMessage)
+                writeBytes(writer).also {
+                    output.flush()
+                    output.fd.sync()
+                }
             }
+            val target = File(directory, fileName)
+            require(target.parentFile == temp.parentFile) { errorMessage }
             moveAudioFile(temp, target)
             StoredAudioBytes(
                 filePath = target.absolutePath,
@@ -102,11 +108,13 @@ internal class AndroidMutableAudioByteStore(initialDirectory: File) : AudioByteS
         store = AndroidAudioByteStore(directory)
     }
 
+    override fun audioFilePath(fileName: String): String = store.audioFilePath(fileName)
+
     override suspend fun writeAudioBytes(
-        fileName: String,
+        temporaryFileName: String,
         errorMessage: String,
-        writeBytes: suspend (AudioByteWriter) -> Boolean,
-    ): StoredAudioBytes = store.writeAudioBytes(fileName, errorMessage, writeBytes)
+        writeBytes: suspend (AudioByteWriter) -> String,
+    ): StoredAudioBytes = store.writeAudioBytes(temporaryFileName, errorMessage, writeBytes)
 
     override fun deleteAudioBytes(filePath: String) = store.deleteAudioBytes(filePath)
 }
