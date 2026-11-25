@@ -33,6 +33,14 @@ interface PlaybackEngine {
     fun stop()
 }
 
+/**
+ * A gain applied after the user's volume and ReplayGain, so a timed fade never rewrites the saved
+ * volume and carries across track changes, crossfades and seeks.
+ */
+interface OutputFadePlaybackEngine : PlaybackEngine {
+    fun setOutputFadeFactor(factor: Float)
+}
+
 /** Native engines whose buffered timeline requires rebuilding the current stream for exact seeks. */
 interface RestartOnSeekPlaybackEngine : PlaybackEngine
 

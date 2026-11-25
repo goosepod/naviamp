@@ -255,7 +255,7 @@ private fun LyricTunnelStageLine(
         lineHeight = (fontSize * 1.08f).sp,
         fontWeight = FontWeight.ExtraBold,
         textAlign = TextAlign.Center,
-    )
+    ).withNaviampFont()
 
     Box(
         modifier = modifier.graphicsLayer {

@@ -21,7 +21,7 @@ class NaviampSmartPlaylistPickerUiTest {
                 Box(Modifier.size(700.dp, 500.dp)) {
                     NaviampAlertDialog(onDismissRequest = { dismissed = true }, confirmButton = {}, text = {
                         SmartPlaylistDropdown("Field", "Artist", NaviampColors(),
-                            listOf("Artist" to "artist", "Rating" to "rating"), {})
+                            listOf("Artist" to "artist", "Rating" to "rating"), {}, searchable = true)
                     })
                 }
             }
@@ -43,7 +43,7 @@ class NaviampSmartPlaylistPickerUiTest {
             var value by remember { mutableStateOf("Artist") }
             NaviampAlertDialog(onDismissRequest = {}, confirmButton = {}, text = {
                 SmartPlaylistDropdown("Field", value, NaviampColors(),
-                    listOf("Artist" to "Artist", "Rating" to "Rating"), { value = it; selected = it })
+                    listOf("Artist" to "Artist", "Rating" to "Rating"), { value = it; selected = it }, searchable = true)
             })
         }
         onNodeWithText("Artist").performMouseInput { click() }
@@ -63,7 +63,7 @@ class NaviampSmartPlaylistPickerUiTest {
         setContent {
             NaviampAlertDialog(onDismissRequest = {}, confirmButton = {}, text = {
                 SmartPlaylistDropdown("Field", "Artist", NaviampColors(),
-                    listOf("Artist" to "Artist", "Rating" to "Rating"), {})
+                    listOf("Artist" to "Artist", "Rating" to "Rating"), {}, searchable = true)
             })
         }
         onNodeWithText("Artist").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.RequestFocus)
@@ -80,8 +80,9 @@ class NaviampSmartPlaylistPickerUiTest {
         var selected = "is"
         setContent {
             NaviampAlertDialog(onDismissRequest = {}, confirmButton = {}, text = {
-                SmartPlaylistDropdown("Operator", "is", NaviampColors(),
-                    listOf("is" to "is", "contains" to "contains", "begins with" to "begins with"), { selected = it })
+                SmartPlaylistDropdown("Field", "is", NaviampColors(),
+                    listOf("is" to "is", "contains" to "contains", "begins with" to "begins with"), { selected = it },
+                    searchable = true)
             })
         }
         onNodeWithText("is").performMouseInput { click() }

@@ -46,6 +46,8 @@ sealed interface PlaybackQueueFinishedCommand {
 data class PlaybackQueueFinishedUpdate(
     val queue: PlaybackQueue,
     val command: PlaybackQueueFinishedCommand,
+    /** The finished track was the last one a sleep timer allowed; the queue did not advance. */
+    val endedBySleepTimer: Boolean = false,
 ) {
     val shouldPlay: Boolean
         get() = command != PlaybackQueueFinishedCommand.None

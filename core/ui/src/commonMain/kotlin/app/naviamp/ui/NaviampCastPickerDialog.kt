@@ -1,5 +1,6 @@
 package app.naviamp.ui
 
+import app.naviamp.domain.settings.InterfaceSettings
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -31,6 +32,7 @@ fun NaviampCastPickerDialog(
     onLocal: () -> Unit,
     onRetry: () -> Unit,
     onDismiss: () -> Unit,
+    interfaceSettings: InterfaceSettings = InterfaceSettings(),
 ) {
     NaviampPopupPresence()
     val colors = NaviampColors.Dark
@@ -43,7 +45,7 @@ fun NaviampCastPickerDialog(
             onBackground = colors.primaryText,
             onSurface = colors.primaryText,
         ),
-        typography = rememberNaviampTypography(),
+        typography = rememberNaviampTypography(interfaceSettings),
     ) {
         AlertDialog(
             onDismissRequest = onDismiss,

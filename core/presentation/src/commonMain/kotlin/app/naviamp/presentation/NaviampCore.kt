@@ -311,7 +311,8 @@ class NaviampCore private constructor(
             val livePlayback = NaviampLivePlaybackController(initialState.playback)
             val queue = NaviampPlaybackQueueCoordinator(livePlayback)
             val playbackOutputs = NaviampPlaybackOutputSelectionController()
-            val routedPlaybackEffects = NaviampCoreOutputPlaybackEffects(services.playback.effects, playbackOutputs)
+            val routedPlaybackEffects = NaviampCoreOutputPlaybackEffects(services.playback.effects, playbackOutputs,
+                services.playback.outputFade)
             var pauseMainForSample: () -> Unit = routedPlaybackEffects::pause
             val samplePlayback = NaviampCoreSamplePlaybackController(scope, services.playback.samples,
                 providerSource, {

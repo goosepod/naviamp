@@ -2,6 +2,7 @@ package app.naviamp.presentation
 
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.domain.cache.PlaybackSessionRepository
+import app.naviamp.domain.playback.OutputFadePlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.VisualizerSettings
@@ -48,5 +49,6 @@ fun naviampCoreStreamingPlaybackServices(
             }
         },
         sessions = NaviampPlaybackSessionController(playbackSessionRepository),
+        outputFade = { factor -> (engine as? OutputFadePlaybackEngine)?.setOutputFadeFactor(factor) },
     )
 }
