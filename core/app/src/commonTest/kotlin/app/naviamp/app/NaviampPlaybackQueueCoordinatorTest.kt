@@ -15,6 +15,32 @@ import kotlin.test.assertTrue
 
 class NaviampPlaybackQueueCoordinatorTest {
     @Test
+    fun sleepTimerBoundaryKeepsTheFinishedTrackCurrentAndReportsTheEnding() {
+        val first = track("first")
+        val second = track("second")
+        val playback = NaviampLivePlaybackController()
+        val coordinator = NaviampPlaybackQueueCoordinator(playback)
+        coordinator.startQueue(listOf(first, second), index = 0)
+        var ended = 0
+        var hold = true
+        coordinator.endAfterCurrentTrack = { hold }
+        coordinator.onEndedAfterCurrentTrack = { ended++ }
+
+        val held = coordinator.finishCurrentTrack()
+
+        assertEquals(PlaybackQueueFinishedCommand.None, held.command)
+        assertTrue(held.endedBySleepTimer)
+        assertEquals(first, playback.state.value.queue.current)
+        assertEquals(1, ended)
+
+        hold = false
+        val advanced = coordinator.finishCurrentTrack()
+        assertEquals(PlaybackQueueFinishedCommand.PlayNext, advanced.command)
+        assertFalse(advanced.endedBySleepTimer)
+        assertEquals(1, ended)
+    }
+
+    @Test
     fun lifecycleDecisionsUpdateTheSharedQueueSnapshot() {
         val first = track("first")
         val second = track("second")

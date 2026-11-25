@@ -277,7 +277,7 @@ private fun NaviampTelevisionAppShellContent(
             onBackground = colors.primaryText,
             onSurface = colors.primaryText,
         ),
-        typography = rememberNaviampTypography(),
+        typography = rememberNaviampTypography(interfaceSettings),
     ) {
         Box(
             modifier = modifier.fillMaxSize(),

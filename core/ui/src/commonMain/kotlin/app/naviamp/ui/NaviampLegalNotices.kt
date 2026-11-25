@@ -48,4 +48,12 @@ internal val NaviampLegalNotices = listOf(
             BASS_MPC is copyright 2002-2012 Sebastian Andersson. Portions are copyright 2006 The Musepack Development Team. The upstream package permits use and distribution and provides the library without warranty.
         """.trimIndent(),
     ),
+    NaviampLegalNotice(
+        title = "Nunito Sans and Inter fonts",
+        body = """
+            Nunito Sans is copyright 2016 The Nunito Sans Project Authors (https://github.com/Fonthausen/NunitoSans). Inter is copyright 2016 The Inter Project Authors (https://github.com/rsms/inter). Naviamp bundles Inter as an upright variable font limited to the weights it uses.
+
+            Both fonts are licensed under the SIL Open Font License, Version 1.1, available with a FAQ at https://openfontlicense.org. The complete license texts are retained in third-party/fonts in the source distribution.
+        """.trimIndent(),
+    ),
 )

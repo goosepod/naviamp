@@ -2,6 +2,8 @@ package app.naviamp.domain.playback
 
 import app.naviamp.domain.Track
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
+import kotlin.math.pow
 
 enum class SleepTimerTarget(
     val label: String,
@@ -18,9 +20,67 @@ data class SleepTimerState(
     val durationMillis: Long? = null,
     val trackId: String? = null,
     val albumId: String? = null,
+    /** The final part of a duration timer over which the volume falls to silence. */
+    val fadeMillis: Long = 0L,
+    /** Playing time already spent inside the fade window. */
+    val fadePlayedMillis: Long = 0L,
+    /** Set while playback is running; playing time since then has not been added yet. */
+    val playingSinceEpochMillis: Long? = null,
+    /** A faded ending pauses, so resuming continues where the listener fell asleep. */
+    val pauseAtEnd: Boolean = false,
 ) {
     val isDuration: Boolean
         get() = target == SleepTimerTarget.Duration
+
+    val fadeStartEpochMillis: Long?
+        get() = durationMillis?.takeIf { fadeMillis > 0L }?.let { startedAtEpochMillis + it - fadeMillis }
+}
+
+val SleepTimerFadeMinuteOptions: List<Int> = listOf(0, 1, 3, 5, 10)
+
+fun normalizedSleepTimerFadeMinutes(minutes: Int): Int =
+    SleepTimerFadeMinuteOptions.last { it <= minutes.coerceAtLeast(0) }
+
+/** The fade advances only while playback runs, so pausing freezes the level and the deadline. */
+fun SleepTimerState.withPlaybackActive(active: Boolean, nowEpochMillis: Long): SleepTimerState {
+    if (fadeMillis <= 0L) return this
+    if (active && playingSinceEpochMillis != null) return this
+    return copy(
+        fadePlayedMillis = fadePlayedMillisAt(nowEpochMillis),
+        playingSinceEpochMillis = nowEpochMillis.takeIf { active },
+    )
+}
+
+/** Keeps the time left but plays it at full volume, for a user who has adjusted the volume. */
+fun SleepTimerState.withoutFade(nowEpochMillis: Long): SleepTimerState {
+    if (fadeMillis <= 0L) return this
+    return copy(
+        startedAtEpochMillis = nowEpochMillis,
+        durationMillis = sleepTimerRemainingMillis(this, nowEpochMillis),
+        fadeMillis = 0L,
+        fadePlayedMillis = 0L,
+        playingSinceEpochMillis = null,
+    )
+}
+
+fun sleepTimerFadeProgress(timer: SleepTimerState, nowEpochMillis: Long): Float {
+    if (timer.fadeMillis <= 0L) return 0f
+    return (timer.fadePlayedMillisAt(nowEpochMillis).toFloat() / timer.fadeMillis).coerceIn(0f, 1f)
+}
+
+fun sleepTimerFadeVolumeFactor(timer: SleepTimerState, nowEpochMillis: Long): Float =
+    sleepTimerFadeVolumeFactor(sleepTimerFadeProgress(timer, nowEpochMillis))
+
+/** Perceived loudness follows amplitude^0.6, so this amplitude makes loudness fall linearly. */
+fun sleepTimerFadeVolumeFactor(progress: Float): Float =
+    (1.0 - progress.coerceIn(0f, 1f)).pow(1.0 / 0.6).toFloat()
+
+private fun SleepTimerState.fadePlayedMillisAt(nowEpochMillis: Long): Long {
+    val fadeStart = fadeStartEpochMillis ?: return 0L
+    val running = playingSinceEpochMillis
+        ?.let { (nowEpochMillis - maxOf(it, fadeStart)).coerceAtLeast(0L) }
+        ?: 0L
+    return (fadePlayedMillis + running).coerceAtMost(fadeMillis)
 }
 
 data class SleepTimerPlaybackSnapshot(
@@ -50,15 +110,24 @@ fun sleepTimerState(
     nowEpochMillis: Long,
     snapshot: SleepTimerPlaybackSnapshot,
     queueLastTrackId: String?,
+    fadeMinutes: Int = 0,
+    playing: Boolean = false,
 ): SleepTimerState =
     when (request) {
-        is SleepTimerRequest.DurationMinutes -> SleepTimerState(
-            target = SleepTimerTarget.Duration,
-            startedAtEpochMillis = nowEpochMillis,
-            durationMillis = request.minutes.coerceAtLeast(1) * 60_000L,
-            trackId = snapshot.currentTrackId,
-            albumId = snapshot.currentAlbumId,
-        )
+        is SleepTimerRequest.DurationMinutes -> {
+            val durationMillis = request.minutes.coerceAtLeast(1) * 60_000L
+            val fadeMillis = (normalizedSleepTimerFadeMinutes(fadeMinutes) * 60_000L).coerceAtMost(durationMillis)
+            SleepTimerState(
+                target = SleepTimerTarget.Duration,
+                startedAtEpochMillis = nowEpochMillis,
+                durationMillis = durationMillis,
+                trackId = snapshot.currentTrackId,
+                albumId = snapshot.currentAlbumId,
+                fadeMillis = fadeMillis,
+                playingSinceEpochMillis = nowEpochMillis.takeIf { playing && fadeMillis > 0L },
+                pauseAtEnd = fadeMillis > 0L,
+            )
+        }
         SleepTimerRequest.TrackEnd -> SleepTimerState(
             target = SleepTimerTarget.TrackEnd,
             startedAtEpochMillis = nowEpochMillis,
@@ -86,6 +155,7 @@ fun sleepTimerStateForPlayback(
     playbackQueue: PlaybackQueue,
     playbackProgress: PlaybackProgress,
     playbackState: PlaybackState,
+    fadeMinutes: Int = 0,
 ): SleepTimerState =
     sleepTimerState(
         request = request,
@@ -97,6 +167,8 @@ fun sleepTimerStateForPlayback(
             playbackState = playbackState,
         ),
         queueLastTrackId = playbackQueue.tracks.lastOrNull()?.id?.value,
+        fadeMinutes = fadeMinutes,
+        playing = playbackState == PlaybackState.Playing,
     )
 
 fun sleepTimerSelection(
@@ -106,6 +178,7 @@ fun sleepTimerSelection(
     playbackQueue: PlaybackQueue,
     playbackProgress: PlaybackProgress,
     playbackState: PlaybackState,
+    fadeMinutes: Int = 0,
 ): SleepTimerSelection {
     val timer = sleepTimerStateForPlayback(
         request = request,
@@ -114,6 +187,7 @@ fun sleepTimerSelection(
         playbackQueue = playbackQueue,
         playbackProgress = playbackProgress,
         playbackState = playbackState,
+        fadeMinutes = fadeMinutes,
     )
     return SleepTimerSelection(
         timer = timer,
@@ -144,7 +218,9 @@ fun sleepTimerPlaybackSnapshot(
 
 fun sleepTimerRemainingMillis(timer: SleepTimerState, nowEpochMillis: Long): Long? {
     val duration = timer.durationMillis ?: return null
-    return (timer.startedAtEpochMillis + duration - nowEpochMillis).coerceAtLeast(0L)
+    val fadeStart = timer.fadeStartEpochMillis
+        ?: return (timer.startedAtEpochMillis + duration - nowEpochMillis).coerceAtLeast(0L)
+    return (fadeStart - nowEpochMillis).coerceAtLeast(0L) + timer.fadeMillis - timer.fadePlayedMillisAt(nowEpochMillis)
 }
 
 fun sleepTimerDisplayLabel(timer: SleepTimerState, nowEpochMillis: Long): String =
@@ -172,27 +248,27 @@ fun shouldExpireSleepTimer(
     timer: SleepTimerState?,
     nowEpochMillis: Long,
     snapshot: SleepTimerPlaybackSnapshot,
+): Boolean = timer?.isDuration == true && sleepTimerRemainingMillis(timer, nowEpochMillis) == 0L
+
+/**
+ * Whether the current queue item is the last one an end-of-track, album or queue timer plays.
+ * Ending at the queue boundary, rather than near the track's reported duration, stops at the
+ * track's real end and ignores the Finished state between non-gapless tracks of one album.
+ */
+fun sleepTimerEndsAfterCurrentTrack(
+    timer: SleepTimerState?,
+    queue: PlaybackQueue,
+    repeatMode: RepeatMode = RepeatMode.Off,
 ): Boolean {
-    timer ?: return false
-    if (snapshot.playbackEnded) return true
-    return when (timer.target) {
-        SleepTimerTarget.Duration -> sleepTimerRemainingMillis(timer, nowEpochMillis) == 0L
-        SleepTimerTarget.TrackEnd -> timer.trackId != null &&
-            (
-                snapshot.currentTrackId != timer.trackId ||
-                    snapshot.isCurrentTrackEnding(timer.trackId)
-            )
-        SleepTimerTarget.AlbumEnd -> timer.albumId != null &&
-            (
-                snapshot.currentAlbumId != timer.albumId ||
-                    (
-                        snapshot.currentAlbumId == timer.albumId &&
-                            snapshot.nextTrackAlbumId != timer.albumId &&
-                            snapshot.isCurrentTrackEnding(targetTrackId = null)
-                    )
-            )
-        SleepTimerTarget.QueueEnd -> timer.trackId != null &&
-            snapshot.isCurrentTrackEnding(timer.trackId)
+    val current = queue.current ?: return false
+    return when (timer?.target) {
+        null, SleepTimerTarget.Duration -> false
+        SleepTimerTarget.TrackEnd -> true
+        SleepTimerTarget.AlbumEnd -> {
+            val next = queue.tracks.getOrNull(queue.currentIndex + 1)
+            current.albumId == null || next?.albumId != current.albumId
+        }
+        SleepTimerTarget.QueueEnd -> queue.currentIndex >= queue.tracks.lastIndex
     }
 }
 
@@ -244,12 +320,4 @@ class SleepTimerController(
         setSleepTimer(null)
         setStatus("Sleep timer stopped playback.")
     }
-}
-
-private fun SleepTimerPlaybackSnapshot.isCurrentTrackEnding(targetTrackId: String?): Boolean {
-    if (targetTrackId != null && currentTrackId != targetTrackId) return false
-    val position = positionSeconds ?: return false
-    val duration = durationSeconds ?: return false
-    if (duration <= 0.0) return false
-    return position >= duration - 0.5
 }

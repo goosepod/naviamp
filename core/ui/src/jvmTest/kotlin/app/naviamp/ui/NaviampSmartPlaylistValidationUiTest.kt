@@ -11,6 +11,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performMouseInput
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.graphics.asSkiaBitmap
@@ -144,7 +146,8 @@ class NaviampSmartPlaylistValidationUiTest {
         onNodeWithTag("smart-playlist-rule-error-${invalid.id}").assertExists()
         mainClock.advanceTimeBy(500)
         runOnIdle { assertEquals(0, requests) }
-        onNodeWithText("four").performScrollTo().performTextReplacement("4")
+        onNodeWithText("four").performScrollTo().performMouseInput { click() }
+        onNodeWithText("4 stars").performClick()
         waitUntil(timeoutMillis = 5_000) { requests == 1 }
         onNodeWithTag(SmartPlaylistSaveTestTag).assertIsEnabled()
         onNodeWithTag("smart-playlist-rule-error-${invalid.id}").assertDoesNotExist()
