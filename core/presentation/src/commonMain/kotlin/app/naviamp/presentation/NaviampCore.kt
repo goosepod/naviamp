@@ -461,6 +461,15 @@ class NaviampCore private constructor(
                 services.downloads.network,
                 radio::stations,
             )
+            val queueUndo = NaviampCoreQueueUndoController(
+                scope = scope,
+                stateStore = stateStore,
+                playback = livePlayback,
+                queue = queue,
+                effects = routedPlaybackEffects,
+                playbackOutput = { playbackOutputs.state.value },
+                publishNowPlaying = nowPlayingPresenter::publish,
+            )
             val queuePlayback = NaviampCoreQueuePlaybackController(
                 playback = livePlayback,
                 queue = queue,
@@ -469,6 +478,7 @@ class NaviampCore private constructor(
                 openNowPlaying = navigation::openNowPlaying,
                 activeSourceId = { stateStore.state.value.shell.connectionSettings.currentSourceId },
                 profiles = services.playback.profiles,
+                undo = queueUndo,
             )
             val downloads = NaviampCoreDownloadsController(
                 scope,
@@ -534,6 +544,7 @@ class NaviampCore private constructor(
                 onTrackPlayed = { sourceId, track, playedAt ->
                     scope.launch { home.recordPlayedTrack(sourceId, track, playedAt) }
                 },
+                queueUndo = queueUndo,
             )
             notifyPlaybackSettingsChanged = playback::playbackSettingsChanged
             val generatedRadioRecents = NaviampRecentRadioStreamController(
@@ -562,6 +573,7 @@ class NaviampCore private constructor(
                 favoriteArtistActivity = services.content.homeLibrary,
                 onFavoriteArtistActivityChanged = { scope.launch { home.refreshAfterConnection() } },
                 onAlbumUpdated = { provider, album -> services.content.albumIndex?.updateAlbum(provider, album) },
+                queueUndo = queueUndo,
             )
             val playlistMembership = NaviampCorePlaylistMembershipCoordinator(
                 providerSource = providerSource,
@@ -592,6 +604,7 @@ class NaviampCore private constructor(
                 onPlaylistContentsReconciled = playlistBrowse::reconcileContents,
                 onPlaylistCreated = playlistBrowse::publishCreated,
                 membershipCoordinator = playlistMembership,
+                queueUndo = queueUndo,
             )
             val connectCatalog = NaviampCoreConnectCatalogController(
                 providerSource = providerSource,
@@ -805,6 +818,7 @@ class NaviampCore private constructor(
                     downloads,
                     playback,
                     nowPlaying,
+                    queueUndo,
                     trackActions,
                     collectionActions,
                 ),

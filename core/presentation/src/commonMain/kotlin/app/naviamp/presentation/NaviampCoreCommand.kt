@@ -299,6 +299,7 @@ sealed interface NaviampCoreCommand {
         data class SleepTimer(val request: NowPlayingSleepTimerActionRequest) : NowPlaying
         data class Selection(val request: NowPlayingSelectionActionRequest) : NowPlaying
         data class QueueItem(val request: NowPlayingItemActionRequest) : NowPlaying
+        data class QueueUndo(val request: app.naviamp.ui.NaviampQueueUndoActionRequest) : NowPlaying
         data class TogglePlaylistMembership(val playlistId: String) : NowPlaying
         data class CreateMembershipPlaylist(val name: String) : NowPlaying
         data object RetryPlaylistMembership : NowPlaying

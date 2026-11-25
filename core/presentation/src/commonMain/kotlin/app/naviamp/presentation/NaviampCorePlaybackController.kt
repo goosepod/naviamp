@@ -69,6 +69,7 @@ class NaviampCorePlaybackController(
     private val presenter: NaviampCoreNowPlayingPresenter,
     private val nowEpochMillis: () -> Long,
     private val onTrackPlayed: (String, app.naviamp.domain.Track, Long) -> Unit = { _, _, _ -> },
+    private val queueUndo: NaviampCoreQueueUndoController? = null,
 ) : NaviampCoreCommandController {
     private var display = NaviampCoreNowPlayingDisplayState()
     private val commands = NaviampPlaybackCommandController(effects, playback)
@@ -780,14 +781,26 @@ class NaviampCorePlaybackController(
                 if (fromIndex == null || toIndex == null) publishStatus("Queue positions are missing.")
                 else mutations.moveUpcoming(fromIndex, toIndex)
             }
-            NowPlayingQueueAction.RemoveFromQueue -> request.queueIndex?.let(mutations::removeAt)
+            NowPlayingQueueAction.RemoveFromQueue -> request.queueIndex?.let(::removeFromQueue)
                 ?: publishStatus("Queue position is missing.")
             NowPlayingQueueAction.EmptyQueue -> {
+                val capture = queueUndo?.capture()
                 val update = queue.retainCurrentOnly()
                 if (update.changed) {
+                    queueUndo?.record(capture, app.naviamp.ui.NaviampQueueUndoKind.ClearedQueue, update.queue)
                     effects.applyQueue(update.queue, update.clearPreparedNext)
                 }
             }
+        }
+    }
+
+    private fun removeFromQueue(index: Int) {
+        val current = playback.state.value.queue
+        val capture = queueUndo?.capture()?.takeIf { index != current.currentIndex }
+        val update = mutations.removeAt(index)
+        if (update.changed) {
+            queueUndo?.record(capture, app.naviamp.ui.NaviampQueueUndoKind.RemovedTrack, update.queue,
+                current.tracks.getOrNull(index)?.title)
         }
     }
 
