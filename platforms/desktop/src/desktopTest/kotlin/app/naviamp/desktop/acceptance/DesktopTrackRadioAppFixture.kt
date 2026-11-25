@@ -49,7 +49,7 @@ fun main(args: Array<String>) {
             )
         }
         val settings = naviampCoreSettingsValueCatalog(DesktopCoreSettingsValueStore(directory.resolve("settings.json")))
-        settings.storedSettings.saveCache(CacheSettings(audioCachingEnabled = false, audioPrefetchDepth = 0, waveformsEnabled = false))
+        settings.storedSettings.saveCache(CacheSettings(audioCachingEnabled = false, unmeteredAudioPrefetchDepth = 0, meteredAudioPrefetchDepth = 0, waveformsEnabled = false))
         settings.savePlayback(PlaybackSettings(volumePercent = 0))
     }
     Files.writeString(profile.resolve("ready.txt"), "Owned Radio profile ready\nAPPDATA=${profile.resolve("Roaming")}\n")

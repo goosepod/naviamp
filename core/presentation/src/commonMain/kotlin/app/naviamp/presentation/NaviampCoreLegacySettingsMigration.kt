@@ -15,6 +15,7 @@ import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.settings.AppBackgroundStyle
 import app.naviamp.domain.settings.AuroraTone
 import app.naviamp.domain.settings.CacheSettings
+import app.naviamp.domain.settings.DefaultAudioPrefetchDepth
 import app.naviamp.domain.settings.DownloadedTrackPlayback
 import app.naviamp.domain.settings.InterfaceLanguage
 import app.naviamp.domain.settings.InterfaceSettings
@@ -364,10 +365,12 @@ private fun legacyStreamQuality(
 
 private fun legacyCacheSettings(values: NaviampCoreLegacySettingsValueStore): CacheSettings {
     val defaults = CacheSettings()
+    val prefetchDepth = values.int("audio_prefetch_depth", DefaultAudioPrefetchDepth)
     return CacheSettings(
         audioCachingEnabled = values.boolean("audio_caching_enabled", defaults.audioCachingEnabled),
         offlineModeEnabled = values.boolean("offline_mode_enabled", defaults.offlineModeEnabled),
-        audioPrefetchDepth = values.int("audio_prefetch_depth", defaults.audioPrefetchDepth),
+        unmeteredAudioPrefetchDepth = prefetchDepth,
+        meteredAudioPrefetchDepth = prefetchDepth,
         waveformsEnabled = values.boolean("waveforms_enabled", defaults.waveformsEnabled),
         waveformBucketCount = values.int("waveform_bucket_count", defaults.waveformBucketCount),
         maxAudioCacheBytes = values.long("max_audio_cache_bytes", defaults.maxAudioCacheBytes),

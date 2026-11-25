@@ -14,6 +14,7 @@ import app.naviamp.domain.settings.withAlbumArtworkPreference
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.homeSectionPresentation
 import app.naviamp.domain.settings.withHomeSectionPresentation
+import app.naviamp.domain.settings.toSettingsSyncAudioPrefetch
 import app.naviamp.ui.toCacheSettingsUi
 import app.naviamp.ui.NaviampAlbumDetailScreenUi
 import app.naviamp.ui.NaviampArtistDetailScreenUi
@@ -278,6 +279,7 @@ class NaviampCoreSettingsController(
         selectedDownloadLocationId: String? = null,
         selectedAudioCacheLocationId: String? = null,
     ) {
+        val previous = stateStore.state.value.shell.cache.settings
         val settings = cacheSettings.apply(requested)
         stateStore.updateShell { shell ->
             shell.copy(
@@ -296,6 +298,7 @@ class NaviampCoreSettingsController(
                 ),
             )
         }
+        if (previous.toSettingsSyncAudioPrefetch() != settings.toSettingsSyncAudioPrefetch()) onLocalSettingsChanged()
     }
 
     private fun updateStatsVisibility(visible: Boolean) {
