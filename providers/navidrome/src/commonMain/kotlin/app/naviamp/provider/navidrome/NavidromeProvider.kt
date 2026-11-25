@@ -33,6 +33,9 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.AlphabeticalLibraryKind
 import app.naviamp.domain.provider.ConnectionValidation
+import app.naviamp.domain.provider.OfflineSaveEndpoint
+import app.naviamp.domain.provider.offlineSaveEndpoint
+import app.naviamp.domain.provider.withAccountMediaRoles
 import app.naviamp.domain.provider.CoverArtSize
 import app.naviamp.domain.provider.LibraryScanStatus
 import app.naviamp.domain.provider.MediaPage
@@ -252,7 +255,10 @@ class NavidromeProvider(
             try {
                 val user = get("getUser.view", mapOf("username" to connection.username))
                     .subsonicResponse()["user"] as? JsonObject
-                capabilities = capabilities.copy(supportsDownloads = user?.booleanValue("downloadRole") ?: true)
+                capabilities = capabilities.withAccountMediaRoles(
+                    downloadRole = user?.booleanValue("downloadRole"),
+                    streamRole = user?.booleanValue("streamRole"),
+                )
                 authenticatedUsername = user?.stringValue("username")?.takeIf { it.isNotBlank() } ?: connection.username
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { /* Optional account metadata must not prevent a connection. */ }
@@ -1669,9 +1675,11 @@ class NavidromeProvider(
 
     override suspend fun downloadUrl(request: StreamRequest): String {
         require(!request.trackId.isDiscoveryPreview()) { "Samples cannot be downloaded as Library tracks" }
-        if (!capabilities.supportsDownloads) throw NavidromeException("Navidrome request failed.", 50)
-        return if (request.quality == StreamQuality.Original && !profile.originalDownloadsUseStream) url("download.view", mapOf("id" to request.trackId.value))
-        else streamUrl(request.copy(startPositionSeconds = null))
+        return when (capabilities.offlineSaveEndpoint(request.quality, profile.originalDownloadsUseStream)) {
+            OfflineSaveEndpoint.Download -> url("download.view", mapOf("id" to request.trackId.value))
+            OfflineSaveEndpoint.Stream -> streamUrl(request.copy(startPositionSeconds = null))
+            null -> throw NavidromeException("Navidrome request failed.", 50)
+        }
     }
 
     override suspend fun setTrackFavorite(trackId: TrackId, favorite: Boolean) {
