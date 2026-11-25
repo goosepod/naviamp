@@ -278,7 +278,7 @@ private fun NaviampSharedAppShellContent(
             onBackground = colors.primaryText,
             onSurface = colors.primaryText,
         ),
-        typography = rememberNaviampTypography(),
+        typography = rememberNaviampTypography(interfaceSettings),
     ) {
         uiState.playlistMembership?.let { membership ->
             NaviampFontSizeScope(interfaceSettings.nowPlayingFontSize, interfaceSettings.generalFontSize) {

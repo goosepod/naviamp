@@ -93,6 +93,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -108,6 +112,7 @@ import app.naviamp.domain.playback.EqualizerPreset
 import app.naviamp.domain.playback.MaxEqualizerGainDb
 import app.naviamp.domain.playback.MinEqualizerGainDb
 import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.playback.SleepTimerFadeMinuteOptions
 import app.naviamp.domain.playback.AudioOutputDevice
 import app.naviamp.domain.radio.MaxArtistRunLength
 import app.naviamp.domain.radio.MinArtistRunLength
@@ -131,7 +136,6 @@ import app.naviamp.domain.settings.DefaultAudioCacheBytes
 import app.naviamp.domain.settings.DefaultDownloadStorageBytes
 import app.naviamp.domain.settings.DownloadedTrackPlayback
 import app.naviamp.domain.settings.InterfaceLanguage
-import app.naviamp.domain.settings.InterfaceFontSize
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.HomeSectionLayout
 import app.naviamp.domain.settings.HomeSectionPageLayout
@@ -809,7 +813,7 @@ fun NaviampExperienceSettingsSection(
                 interfaceSettings = interfaceSettings,
                 onInterfaceSettingsChanged = onInterfaceSettingsChanged,
             )
-            ExperienceSettingsPage.TextSize -> FontSizeSettings(
+            ExperienceSettingsPage.Font -> FontSettings(
                 colors = colors,
                 interfaceSettings = interfaceSettings,
                 onInterfaceSettingsChanged = onInterfaceSettingsChanged,
@@ -869,14 +873,12 @@ fun NaviampExperienceSettingsSection(
             selectedSection = ExperienceSettingsPage.AppBackground
         }
         SettingsRow(
-            title = ExperienceSettingsPage.TextSize.title(),
-            subtitle = ExperienceSettingsPage.TextSize.subtitle(),
+            title = ExperienceSettingsPage.Font.title(),
+            subtitle = ExperienceSettingsPage.Font.subtitle(),
             colors = colors,
-            value = stringResource(Res.string.settings_font_size_summary,
-                interfaceSettings.generalFontSize.label(),
-                interfaceSettings.nowPlayingFontSize.label()),
+            value = interfaceSettings.fontSummary(),
         ) {
-            selectedSection = ExperienceSettingsPage.TextSize
+            selectedSection = ExperienceSettingsPage.Font
         }
         SettingsRow(
             title = ExperienceSettingsPage.Albums.title(),
@@ -1060,7 +1062,7 @@ private enum class ExperienceSettingsPage {
     Player,
     Radio,
     Lyrics,
-    TextSize,
+    Font,
     AppBackground,
     Albums,
     ArtistDetails,
@@ -1076,7 +1078,7 @@ private fun ExperienceSettingsPage.title(): String =
         ExperienceSettingsPage.Player -> stringResource(Res.string.settings_experience_player_title)
         ExperienceSettingsPage.Radio -> stringResource(Res.string.settings_experience_related_tracks_title)
         ExperienceSettingsPage.Lyrics -> stringResource(Res.string.settings_lyrics_title)
-        ExperienceSettingsPage.TextSize -> stringResource(Res.string.settings_font_size_title)
+        ExperienceSettingsPage.Font -> stringResource(Res.string.settings_font_title)
         ExperienceSettingsPage.AppBackground -> "App Background"
         ExperienceSettingsPage.Albums -> "Albums"
         ExperienceSettingsPage.ArtistDetails -> stringResource(Res.string.settings_experience_artist_details_title)
@@ -1092,7 +1094,7 @@ private fun ExperienceSettingsPage.subtitle(): String =
         ExperienceSettingsPage.Player -> stringResource(Res.string.settings_experience_player_subtitle)
         ExperienceSettingsPage.Radio -> stringResource(Res.string.settings_experience_related_tracks_subtitle)
         ExperienceSettingsPage.Lyrics -> stringResource(Res.string.settings_lyrics_subtitle)
-        ExperienceSettingsPage.TextSize -> stringResource(Res.string.settings_font_size_subtitle)
+        ExperienceSettingsPage.Font -> stringResource(Res.string.settings_font_subtitle)
         ExperienceSettingsPage.AppBackground -> "Choose the canvas behind Naviamp"
         ExperienceSettingsPage.Albums -> "Choose how album collections are presented"
         ExperienceSettingsPage.ArtistDetails -> stringResource(Res.string.settings_experience_artist_details_subtitle)
@@ -1158,53 +1160,6 @@ private fun UpdateNotificationSettings(
             onInterfaceSettingsChanged(
                 interfaceSettings.copy(applicationUpdateChannel = ApplicationUpdateChannel.Beta),
             )
-        }
-    }
-}
-
-@Composable
-internal fun FontSizeSettings(
-    colors: NaviampColors,
-    interfaceSettings: InterfaceSettings,
-    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
-) {
-    Text(
-        stringResource(Res.string.settings_font_size_general_title),
-        color = colors.primaryText,
-        fontSize = 14.sp,
-        fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.padding(horizontal = SettingsRowHorizontalPadding, vertical = 8.dp),
-    )
-    InterfaceFontSize.entries.forEach { size ->
-        SelectableSettingsRow(
-            colors = colors,
-            title = size.label(),
-            subtitle = size.subtitle(),
-            selected = interfaceSettings.generalFontSize == size,
-        ) {
-            onInterfaceSettingsChanged(interfaceSettings.copy(generalFontSize = size).normalized())
-        }
-    }
-    Text(
-        stringResource(Res.string.settings_font_size_now_playing_title),
-        color = colors.primaryText,
-        fontSize = 14.sp,
-        fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.padding(
-            start = SettingsRowHorizontalPadding,
-            end = SettingsRowHorizontalPadding,
-            top = 18.dp,
-            bottom = 8.dp,
-        ),
-    )
-    InterfaceFontSize.entries.forEach { size ->
-        SelectableSettingsRow(
-            colors = colors,
-            title = size.label(),
-            subtitle = size.subtitle(),
-            selected = interfaceSettings.nowPlayingFontSize == size,
-        ) {
-            onInterfaceSettingsChanged(interfaceSettings.copy(nowPlayingFontSize = size).normalized())
         }
     }
 }
@@ -2404,6 +2359,7 @@ fun NaviampAboutSettingsSection(
                     }
                     SettingsSectionTitle(stringResource(Res.string.settings_about_fonts_title), colors)
                     Text("Nunito Sans", color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
+                    Text("Inter", color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
                     SettingsSectionTitle(stringResource(Res.string.settings_about_audio_title), colors)
                     Text("BASS audio library", color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
                 }
@@ -2953,21 +2909,49 @@ private val DefaultNaviampLibraries = listOf(
 // Release notes stay in English and out of localized string resources.
 private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
+        title = "Features",
+        entries = listOf(
+            "Add an Aurral account as a companion to your primary music server. Aurral recommendations, catalog search, samples, monitoring, and requests open alongside your library without switching servers or interrupting playback. Standalone Aurral connections remain available.",
+            "Apple CarPlay (beta): browse your library, playlists, downloads, and radio, search on supported iOS versions, switch saved sources, and control playback and Up Next. CarPlay shares the iPhone's playback session.",
+            "Apple TV (beta): build Naviamp for Apple TV from source with the shared TV interface, connection setup including Aurral companions, remote and media keys, system Now Playing, and background playback. No Apple TV download is published with this release.",
+        ),
+    ),
+    NaviampChangelogSectionUi(
+        title = "Improvements",
+        entries = listOf(
+            "Android Auto leads with Playlists, Recently Played, and Radio, offers the full saved Internet Radio catalog, and adds Start Radio for the current song. Live stations hide unsupported track controls, Repeat shows distinct Off, Queue, and Track states, and current-track artwork is sharper.",
+            "Android TV and Google TV are no longer beta.",
+            "Show recently played tracks on Home and in Android Auto as soon as you listen to them.",
+            "Hide or reorder the Aurral section on Home like other Home sections.",
+            "Setting up Android TV from your phone also transfers an attached Aurral account.",
+            "Show a recovery screen with Retry on iPhone and iPad if Naviamp cannot start, instead of closing.",
+        ),
+    ),
+    NaviampChangelogSectionUi(
         title = "Bug fixes",
         entries = listOf(
-            "Remove white bands above and below the Android app by extending the selected background and filled Now Playing artwork behind the system bars while keeping controls safely inset.",
+            "Linux media controls show album artwork from a private local file instead of a server link that contained your sign-in details.",
+            "Mixes for you start a radio station seeded from the mix instead of playing the seed album.",
+            "Choosing a track in an album or playlist while controlling another device with Naviamp Connect queues the album or playlist from that track instead of sending only that track.",
+            "Elapsed time keeps advancing while you control another device with Naviamp Connect instead of staying at 0:00.",
+            "On Linux, the first launch opens its window without waiting for the system keyring. If secure storage is unavailable, Naviamp Connect settings show the problem with Retry instead of the app closing.",
+            "Reconnect after importing settings restores the imported server instead of failing with a duplicate-connection error.",
+            "Importing settings keeps this device's volume, output device, debug logging, and mobile-download settings.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Upgrade notes",
         entries = listOf(
-            "No special upgrade steps are required.",
+            "Aurral connections now require Aurral 3.x. Aurral 2.x servers are no longer supported.",
+            "The local database upgrades automatically to store Aurral companion accounts. Existing connections and settings are retained.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Known issues",
         entries = listOf(
-            "No new known issues. Existing playback, presentation, performance, and platform acceptance investigations continue.",
+            "Apple CarPlay and Apple TV are beta and were not verified on physical CarPlay or Apple TV hardware for this release.",
+            "On desktop windows of about 1280×800 or smaller, the full player can hide some of its controls.",
+            "Direct GitHub Windows and macOS downloads are not publisher-signed; the iOS IPA requires signing for sideloading.",
         ),
     ),
 )
@@ -4423,7 +4407,26 @@ private fun GaplessCrossfadeSettings(
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
 ) {
     var crossfadeOpen by remember { mutableStateOf(false) }
+    var sleepTimerFadeOpen by remember { mutableStateOf(false) }
     var pendingCrossfadeDurationForStrict by remember { mutableStateOf<Int?>(null) }
+    if (sleepTimerFadeOpen) {
+        SettingsSubsectionHeader(
+            stringResource(Res.string.settings_sleep_timer_fade_title),
+            stringResource(Res.string.settings_sleep_timer_fade_subtitle),
+            colors,
+        ) { sleepTimerFadeOpen = false }
+        SleepTimerFadeMinuteOptions.forEach { minutes ->
+            SelectableSettingsRow(
+                colors = colors,
+                title = sleepTimerFadeLabel(minutes),
+                subtitle = if (minutes == 0) stringResource(Res.string.settings_sleep_timer_fade_off_subtitle) else null,
+                selected = playbackSettings.sleepTimerFadeMinutes == minutes,
+            ) {
+                onPlaybackSettingsChanged(playbackSettings.copy(sleepTimerFadeMinutes = minutes))
+            }
+        }
+        return
+    }
     if (crossfadeOpen) {
         SettingsSubsectionHeader(
             stringResource(Res.string.settings_crossfade_title),
@@ -4525,7 +4528,19 @@ private fun GaplessCrossfadeSettings(
     ) {
         crossfadeOpen = true
     }
+    SettingsRow(
+        title = stringResource(Res.string.settings_sleep_timer_fade_title),
+        subtitle = stringResource(Res.string.settings_sleep_timer_fade_subtitle),
+        colors = colors,
+        value = sleepTimerFadeLabel(playbackSettings.sleepTimerFadeMinutes),
+    ) {
+        sleepTimerFadeOpen = true
+    }
 }
+
+@Composable
+internal fun sleepTimerFadeLabel(minutes: Int): String =
+    if (minutes == 0) stringResource(Res.string.common_off) else stringResource(Res.string.settings_minutes_short, minutes)
 
 @Composable
 private fun PlayerExperienceSettings(
@@ -5300,6 +5315,21 @@ fun NaviampDebugPlaybackSettingsSection(
     )
 }
 
+/** Ten band labels share a narrow row, so large text or a wide font shrinks them to fit their slot. */
+@Composable
+private fun EqualizerAxisLabel(text: String, color: Color, modifier: Modifier) {
+    BasicText(
+        text,
+        style = LocalTextStyle.current.merge(
+            TextStyle(color = color, fontSize = 9.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center),
+        ),
+        maxLines = 1,
+        softWrap = false,
+        autoSize = TextAutoSize.StepBased(minFontSize = 5.sp, maxFontSize = 9.sp, stepSize = 0.5.sp),
+        modifier = modifier,
+    )
+}
+
 @Composable
 internal fun EqualizerCurvePanel(
     colors: NaviampColors,
@@ -5331,13 +5361,10 @@ internal fun EqualizerCurvePanel(
         Text(stringResource(Res.string.equalizer_gain_axis), color = colors.secondaryText, fontSize = 11.sp)
         Row(modifier = Modifier.fillMaxWidth()) {
             normalized.bandsDb.forEach { gain ->
-                Text(
+                EqualizerAxisLabel(
                     if (gain % 1f == 0f) gain.toInt().toString() else gain.toDouble().oneDecimalLabel(),
-                    color = colors.primaryText,
-                    fontSize = 9.sp,
-                    maxLines = 1,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    modifier = Modifier.weight(1f),
+                    colors.primaryText,
+                    Modifier.weight(1f),
                 )
             }
         }
@@ -5402,13 +5429,10 @@ internal fun EqualizerCurvePanel(
         }
         Row(modifier = Modifier.fillMaxWidth()) {
             EqualizerBandFrequencies.forEach { frequency ->
-                Text(
+                EqualizerAxisLabel(
                     if (frequency >= 1000) "${frequency / 1000}k" else frequency.toString(),
-                    color = colors.secondaryText,
-                    fontSize = 9.sp,
-                    maxLines = 1,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    modifier = Modifier.weight(1f),
+                    colors.secondaryText,
+                    Modifier.weight(1f),
                 )
             }
         }
@@ -6013,7 +6037,7 @@ private fun Float.preampLabel(): String =
 
 private val CrossfadeDurationOptions = listOf(0, 3, 5, 8, 12)
 private val PreampDbOptions = listOf(6f, 5f, 4f, 3f, 2f, 1f, 0f, -1f, -2f, -3f, -4f, -5f, -6f, -9f, -12f)
-private val SettingsRowHorizontalPadding = 14.dp
+internal val SettingsRowHorizontalPadding = 14.dp
 private val SettingsDetailRowVerticalPadding = 4.dp
 private val SettingsDetailItemSpacing = 4.dp
 private val SettingsCategoryTitleSize = 17.sp

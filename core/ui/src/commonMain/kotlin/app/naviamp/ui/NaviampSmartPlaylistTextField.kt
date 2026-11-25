@@ -33,6 +33,7 @@ internal fun SmartPlaylistOutlinedTextField(
     visualTransformation: VisualTransformation = VisualTransformation.None,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
+    suffix: String? = null,
 ) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (label != null) Text(label, color = colors.secondaryText, fontSize = 12.sp)
@@ -49,6 +50,7 @@ internal fun SmartPlaylistOutlinedTextField(
             visualTransformation = visualTransformation,
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,
+            suffix = suffix?.let { unit -> { Text(unit, fontSize = 12.sp) } },
         )
     }
 }

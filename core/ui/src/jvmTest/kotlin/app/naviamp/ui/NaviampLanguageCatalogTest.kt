@@ -77,7 +77,10 @@ class NaviampLanguageCatalogTest {
     @Test fun systemDefaultRestoresTheHostsLayoutDirection() = runComposeUiTest {
         var language by mutableStateOf(InterfaceLanguage.English)
         var direction: LayoutDirection? = null
-        val effect = object : NaviampLocaleEffect { override fun applyLanguage(languageTag: String?) = Unit }
+        val effect = object : NaviampLocaleEffect {
+            override fun applyLanguage(languageTag: String?) = Unit
+            @Composable override fun nativeLocaleRevision(): Any? = null
+        }
         setContent {
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                 NaviampLocaleEnvironment(language, effect) {

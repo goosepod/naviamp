@@ -11,6 +11,7 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -184,6 +185,33 @@ class CoreBassPlaybackEngineTest {
 
         assertEquals(listOf<PlaybackState>(PlaybackState.Stopped), states)
         assertEquals(listOf(PlaybackProgress.Unknown), progress)
+    }
+
+    @Test
+    fun outputFadeScalesTheUserVolumeAndCarriesIntoTheNextTrack() = runTest {
+        val backend = SteadyPlaybackBackend()
+        val engine = CoreBassPlaybackEngine(
+            backendResult = Result.success(backend),
+            runtime = FakeBassPlaybackEngineRuntime,
+        )
+        engine.setVolume(50)
+        val states = mutableListOf<PlaybackState>()
+        engine.play(this, PlaybackRequest(url = "file:///music/one.flac", mediaId = "one"), states::add, {})
+        runCurrent()
+        assertEquals(0.5f, backend.volumes.lastOrNull(), states.toString())
+
+        engine.setOutputFadeFactor(0.5f)
+        assertEquals(0.25f, backend.volumes.last())
+        engine.setVolume(80)
+        assertEquals(0.4f, backend.volumes.last())
+
+        engine.play(this, PlaybackRequest(url = "file:///music/two.flac", mediaId = "two"), {}, {})
+        runCurrent()
+        assertEquals(0.4f, backend.volumes.last())
+
+        engine.setOutputFadeFactor(1f)
+        assertEquals(0.8f, backend.volumes.last())
+        engine.stop()
     }
 
     @Test
@@ -459,4 +487,29 @@ private class RecordingPlaybackBackend(
         releasedHandles += stream
         return Result.success(Unit)
     }
+}
+
+private class SteadyPlaybackBackend : BassAudioBackend {
+    val volumes = mutableListOf<Float>()
+    override fun init(): Result<Unit> = Result.success(Unit)
+    override fun init(deviceId: String?): Result<Unit> = Result.success(Unit)
+    override fun init(deviceId: String?, sampleRateHz: Int): Result<Unit> = Result.success(Unit)
+    override fun configurePlaybackBuffers(policy: BassPlaybackBufferPolicy): Result<Unit> = Result.success(Unit)
+    override fun configureInternetStreams(): Result<Unit> = Result.success(Unit)
+    override fun setSampleRateConverterQuality(quality: Int): Result<Unit> = Result.success(Unit)
+    override fun createFileStream(path: String): Result<BassStreamHandle> = Result.success(BassStreamHandle(41))
+    override fun createFileDecodeStream(path: String): Result<BassStreamHandle> = Result.success(BassStreamHandle(42))
+    override fun createUrlDecodeStream(url: String): Result<BassStreamHandle> = Result.success(BassStreamHandle(42))
+    override fun play(stream: BassStreamHandle): Result<Unit> = Result.success(Unit)
+    override fun stop(stream: BassStreamHandle): Result<Unit> = Result.success(Unit)
+    override fun activeState(stream: BassStreamHandle): Int = BassActiveState.Playing
+    override fun setVolume(stream: BassStreamHandle, volume: Float): Result<Unit> {
+        volumes += volume
+        return Result.success(Unit)
+    }
+    override fun positionSeconds(stream: BassStreamHandle): Double = 1.0
+    override fun durationSeconds(stream: BassStreamHandle): Double = 180.0
+    override fun lengthBytes(stream: BassStreamHandle): Long = 0L
+    override fun readFloatData(stream: BassStreamHandle, buffer: FloatArray): Result<Int> = Result.success(0)
+    override fun freeStream(stream: BassStreamHandle): Result<Unit> = Result.success(Unit)
 }
