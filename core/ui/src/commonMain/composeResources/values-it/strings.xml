@@ -598,4 +598,17 @@
     <string name="something_new_failed">Impossibile caricare brani tra cui scegliere.</string>
     <string name="something_new_from_downloads">Offline: riproduzione di un brano scaricato che non hai ancora ascoltato.</string>
     <string name="radio_offline">Sei offline. Per altri brani serve una connessione al tuo server.</string>
+    <plurals name="offline_playlist_availability">
+        <item quantity="one">%1$d brano su %2$d disponibile offline</item>
+        <item quantity="other">%1$d brani su %2$d disponibili offline</item>
+    </plurals>
+    <string name="offline_playlist_saved_copy">Stai visualizzando la copia scaricata. Riconnettiti per modificare questa playlist.</string>
+    <string name="offline_playlist_track_unavailable">Non disponibile offline</string>
+    <string name="offline_playlist_action_unavailable">Riconnettiti al tuo server musicale per usare questa azione.</string>
+    <string name="offline_playlist_nothing_playable">Nessun brano di questa playlist è disponibile offline.</string>
+    <string name="playlist_download_failed">Impossibile scaricare %1$s.</string>
+    <string name="playlist_download_failed_storage_limit">Impossibile scaricare %1$s. È stato raggiunto il limite di spazio per i download.</string>
+    <string name="playlist_download_failed_mobile_data">Impossibile scaricare %1$s. I download con dati mobili sono disattivati.</string>
+    <string name="playlist_download_already_saved">Tutti i brani di %1$s sono già scaricati.</string>
+    <string name="offline_playlist_track_not_downloaded">Questo brano non è stato scaricato. Riconnettiti per riprodurlo.</string>
 </resources>

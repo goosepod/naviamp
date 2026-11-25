@@ -226,7 +226,8 @@ private fun compositionTrack(id: String) = Track(
 private object EmptyDownloadStore :
     DownloadRepository<Unit, Unit>,
     DownloadReplacementRepository<Unit>,
-    KeepDownloadedRepository {
+    KeepDownloadedRepository,
+    app.naviamp.domain.cache.OfflinePlaylistRepository by app.naviamp.domain.cache.EmptyOfflinePlaylistRepository {
     override fun savedDownloadJobs(sourceId: String) = emptyList<app.naviamp.domain.cache.PersistedDownloadJob>()
     override fun saveDownloadJob(job: app.naviamp.domain.cache.PersistedDownloadJob) = Unit
     override fun deleteDownloadJob(sourceId: String, jobId: String) = Unit

@@ -428,6 +428,10 @@ class NaviampCore private constructor(
                 services.content.playlistSupplement,
                 mediaRegistry = mediaRegistry,
                 playbackProfiles = playbackProfiles,
+                offlinePlaylists = NaviampCoreOfflinePlaylistSource(services.downloads.offlinePlaylists) { sourceId ->
+                    services.downloads.storage.availableDownloads(sourceId)
+                        ?.filter { it.sizeBytes > 0L }?.mapTo(mutableSetOf()) { it.track.id.value }
+                },
             )
             val radio = NaviampCoreInternetRadioController(
                 stateStore,
@@ -489,6 +493,7 @@ class NaviampCore private constructor(
                 services.downloads.keepDownloaded,
                 NaviampCoreDownloadedPlaybackPort { tracks, index -> queuePlayback.play(tracks, index) },
                 services.downloads.network,
+                services.downloads.offlinePlaylists,
             )
             val publishPlaylistQueueUpdate: () -> Unit = nowPlayingPresenter::publish
             val playlistTransactions = NaviampCorePlaylistTransactionController(
@@ -528,6 +533,7 @@ class NaviampCore private constructor(
                 downloads::playlistTracksChanged,
                 playbackProfiles,
                 syncLibrary = catalog::syncSmartPlaylistPreview,
+                messages = services.playlists.messages,
             )
             val playback = NaviampCorePlaybackController(
                 scope,
@@ -648,7 +654,11 @@ class NaviampCore private constructor(
                 queue = NaviampCoreSonicQueuePort { tracks, _ -> mediaTransactions.addToQueue(tracks) },
             )
             playback.attachNativePlayback()
-            val trackActions = NaviampCoreTrackActionController(mediaRegistry, mediaTransactions, playlistMembership::open)
+            val trackActions = NaviampCoreTrackActionController(mediaRegistry, mediaTransactions,
+                isUnavailableOfflinePlaylistTrack = playlistBrowse::isUnavailableOffline,
+                notDownloadedMessage = services.playlists.messages.trackNotDownloaded,
+                publishPlaylistNotice = playlistBrowse::publishDetailNotice,
+                openPlaylistMembership = playlistMembership::open)
             // Resolved mix commands re-enter the Connect-aware handler created below.
             var resolvedCommandHandler: NaviampCoreCommandHandler? = null
             val collectionActions = NaviampCoreCollectionActionController(
@@ -767,7 +777,10 @@ class NaviampCore private constructor(
                 onUserConnected = {
                     navigation.dispatch(NaviampCoreCommand.Navigation.SelectRoute(app.naviamp.ui.SharedRoute.Home))
                 },
-                onOfflineRestored = { sourceId -> restoreLocalSession(sourceId, false) },
+                onOfflineRestored = { sourceId ->
+                    restoreLocalSession(sourceId, false)
+                    scope.launch { playlistBrowse.refreshAfterConnection() }
+                },
             )
             if (initialState.connectionInventory.currentSourceId != null) {
                 scope.launch { providerSessionLifecycle.refreshNow() }

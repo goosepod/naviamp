@@ -598,4 +598,16 @@
     <string name="something_new_failed">選択する曲を読み込めませんでした。</string>
     <string name="something_new_from_downloads">オフライン: まだ再生していないダウンロード済みの曲を再生しています。</string>
     <string name="radio_offline">オフラインです。曲を追加するにはサーバーへの接続が必要です。</string>
+    <plurals name="offline_playlist_availability">
+        <item quantity="other">%2$d 曲中 %1$d 曲をオフラインで再生可能</item>
+    </plurals>
+    <string name="offline_playlist_saved_copy">ダウンロード済みのコピーを表示しています。このプレイリストを編集するには再接続してください。</string>
+    <string name="offline_playlist_track_unavailable">オフラインでは利用できません</string>
+    <string name="offline_playlist_action_unavailable">この操作を行うには音楽サーバーに再接続してください。</string>
+    <string name="offline_playlist_nothing_playable">このプレイリストにはオフラインで再生できる曲がありません。</string>
+    <string name="playlist_download_failed">%1$s をダウンロードできませんでした。</string>
+    <string name="playlist_download_failed_storage_limit">%1$s をダウンロードできませんでした。ダウンロードの保存容量の上限に達しました。</string>
+    <string name="playlist_download_failed_mobile_data">%1$s をダウンロードできませんでした。モバイルデータでのダウンロードはオフになっています。</string>
+    <string name="playlist_download_already_saved">%1$s のすべてのトラックはダウンロード済みです。</string>
+    <string name="offline_playlist_track_not_downloaded">この曲はダウンロードされていません。再生するには再接続してください。</string>
 </resources>

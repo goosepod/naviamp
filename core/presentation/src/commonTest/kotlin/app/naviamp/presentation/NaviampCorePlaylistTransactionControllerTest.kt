@@ -475,7 +475,7 @@ private class TransactionTestEffects :
         lastTracks = tracks
     }
 
-    override suspend fun download(playlist: Playlist, tracks: List<Track>, option: String?) {
+    override suspend fun download(playlist: Playlist, tracks: List<Track>, option: String?, onFinished: suspend (NaviampCoreDownloadOutcome) -> Unit) {
         downloads += "${playlist.id}:$option"
         lastTracks = tracks
     }

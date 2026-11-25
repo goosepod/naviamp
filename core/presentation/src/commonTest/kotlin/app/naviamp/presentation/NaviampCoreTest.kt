@@ -379,7 +379,8 @@ class NaviampCoreTest {
         advanceUntilIdle()
 
         assertEquals(listOf(provider.track.id.value), transferredTrackIds)
-        assertEquals("Starting download for Core Playlist...", core.state.value.shell.playlists.status)
+        // The transfer completed, so the starting status must not remain.
+        assertEquals(null, core.state.value.shell.playlists.status)
     }
 
     @Test
@@ -1072,6 +1073,7 @@ internal fun fakeCoreServices(
     ),
     playlists = NaviampCorePlaylistServices(
         history = NaviampCorePlaylistHistoryPort { current, _ -> current },
+        messages = englishPlaylistMessages,
     ),
     radio = NaviampCoreRadioServices(
         playback = NaviampCoreInternetRadioPlaybackPort {},
@@ -1205,7 +1207,7 @@ private fun fakeCoreSettingsSyncServices(): NaviampCoreSettingsSyncServices {
     )
 }
 
-private class FakeCorePlaybackEffects : NaviampCorePlaybackEffectPort {
+internal class FakeCorePlaybackEffects : NaviampCorePlaybackEffectPort {
     override val capabilities = NaviampCorePlaybackCapabilities()
     override val playbackSource = PlaybackSource.ProviderStream
     val selections = mutableListOf<PlaybackQueue>()
@@ -1254,4 +1256,20 @@ private fun coreTrack(id: String) = Track(
     coverArtId = id,
     audioInfo = null,
     replayGain = null,
+)
+
+/** English copies of the translated playlist notices; Android host tests cannot load Compose resources. */
+internal val englishPlaylistMessages = NaviampCorePlaylistMessages(
+    offlineActionUnavailable = { "Reconnect to your music server to use this action." },
+    offlineNothingPlayable = { "No tracks in this playlist are available offline." },
+    trackNotDownloaded = { "This track is not downloaded. Reconnect to play it." },
+    downloadFailed = { name, reason ->
+        when (reason) {
+            NaviampCoreDownloadFailure.StorageLimit -> "Could not download $name. The download storage limit was reached."
+            NaviampCoreDownloadFailure.MobileDataDisabled ->
+                "Could not download $name. Downloads over mobile data are turned off."
+            NaviampCoreDownloadFailure.Other -> "Could not download $name."
+        }
+    },
+    alreadyDownloaded = { name -> "All tracks in $name are already downloaded." },
 )

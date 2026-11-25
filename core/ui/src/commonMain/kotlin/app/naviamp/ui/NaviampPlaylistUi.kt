@@ -36,6 +36,9 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
@@ -344,8 +347,9 @@ private fun PlaylistListRow(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth(),
             ) {
+                val offline = playlist.offlineAvailability
                 Text(
-                    playlist.subtitle,
+                    offline?.let { offlineAvailabilityLabel(it) } ?: playlist.subtitle,
                     color = colors.secondaryText,
                     fontSize = 11.sp,
                     maxLines = 1,
@@ -354,7 +358,7 @@ private fun PlaylistListRow(
                 )
                 MiniPlayerIconButton(
                     colors,
-                    true,
+                    offline == null || offline.availableCount > 0,
                     NaviampTransportIcons.Play,
                     stringResource(Res.string.playlists_play),
                     onClick = {
@@ -364,7 +368,7 @@ private fun PlaylistListRow(
                 )
                 MiniPlayerIconButton(
                     colors,
-                    playlist.meta != "1 track",
+                    if (offline == null) playlist.meta != "1 track" else offline.availableCount > 1,
                     NaviampTransportIcons.Shuffle,
                     stringResource(Res.string.playlists_shuffle),
                     onClick = {
@@ -376,7 +380,9 @@ private fun PlaylistListRow(
         }
         NaviampRowOverflowMenu(
             colors = colors,
-            items = playlistRowActions(
+            items = (playlist.offlineAvailability?.let { offline ->
+                playlistRowActions(canAddToQueue = capabilities.canAddToQueue && offline.availableCount > 0)
+            } ?: playlistRowActions(
                 canDownload = capabilities.canDownload,
                 canKeepDownloaded = capabilities.canKeepDownloaded,
                 keepDownloadedActive = playlist.keepDownloadedActive,
@@ -387,7 +393,7 @@ private fun PlaylistListRow(
                 canDuplicateSmartPlaylist = capabilities.canEditSmartPlaylist && playlist.isSmartPlaylist,
                 duplicateSmartPlaylistLabel = duplicateSmartPlaylistLabel,
                 canDelete = capabilities.canDelete && playlist.canManagePlaylist,
-            ).mapNotNull { action ->
+            )).mapNotNull { action ->
                 when (action.action) {
                     NaviampAction.DownloadPlaylist -> NaviampRowMenuItem(
                         action.label,
@@ -695,11 +701,21 @@ private fun PlaylistDetailContent(
                 mediaKind = SharedMediaItemKind.Playlist,
             )
             Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
-                Text(detail.playlist.subtitle, color = colors.secondaryText, fontSize = 12.sp)
-                status?.let { Text(it, color = colors.secondaryText, fontSize = 11.sp) }
+                val offline = detail.playlist.offlineAvailability
+                Text(offline?.let { offlineAvailabilityLabel(it) } ?: detail.playlist.subtitle, color = colors.secondaryText, fontSize = 12.sp)
+                if (offline != null) Text(offlinePlaylistSavedCopyNote(), color = colors.secondaryText, fontSize = 11.sp)
+                status?.let {
+                    Text(it, color = colors.secondaryText, fontSize = 11.sp,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                }
                 NaviampResponsiveActionRow(
                     colors = colors,
-                    actions = buildList {
+                    actions = if (offline != null) buildList {
+                        add(NaviampDetailAction(stringResource(Res.string.playlists_play), NaviampTransportIcons.Play, onPlayPlaylist, offline.availableCount > 0))
+                        add(NaviampDetailAction(stringResource(Res.string.playlists_shuffle), NaviampTransportIcons.Shuffle, onShufflePlaylist, offline.availableCount > 1))
+                        add(NaviampDetailAction(stringResource(Res.string.playlists_add_to_queue), NaviampIcons.Queue, onAddPlaylistToQueue, offline.availableCount > 0))
+                        add(NaviampDetailAction("Playback profile", NaviampIcons.Settings, { playbackProfileOpen = true }, offline.availableCount > 0))
+                    } else buildList {
                         add(NaviampDetailAction(stringResource(Res.string.playlists_play), NaviampTransportIcons.Play, onPlayPlaylist, detail.tracks.isNotEmpty()))
                         add(NaviampDetailAction(stringResource(Res.string.playlists_shuffle), NaviampTransportIcons.Shuffle, onShufflePlaylist, detail.tracks.size > 1))
                         if (detail.playlist.isSmartPlaylist && detail.playlist.canManagePlaylist) {
@@ -747,7 +763,15 @@ private fun PlaylistDetailContent(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
         androidx.compose.runtime.key(detail.playlist.id) {
-            if (detail.playlist.isSmartPlaylist || !detail.playlist.canEditPlaylist) {
+            if (detail.playlist.offlineAvailability != null) {
+                OfflinePlaylistTrackList(
+                    colors = colors,
+                    tracks = detail.tracks,
+                    onTrackSelected = onTrackSelected,
+                    onTrackAction = onTrackAction,
+                    capabilities = trackCapabilities,
+                )
+            } else if (detail.playlist.isSmartPlaylist || !detail.playlist.canEditPlaylist) {
                 SmartPlaylistTrackList(
                     colors = colors,
                     tracks = detail.tracks,

@@ -598,4 +598,19 @@
     <string name="something_new_failed">Не удалось загрузить треки для выбора.</string>
     <string name="something_new_from_downloads">Офлайн: воспроизводится загруженный трек, который вы ещё не слушали.</string>
     <string name="radio_offline">Вы офлайн. Для новых треков нужно подключение к серверу.</string>
+    <plurals name="offline_playlist_availability">
+        <item quantity="one">%1$d из %2$d трека доступен офлайн</item>
+        <item quantity="few">%1$d из %2$d треков доступны офлайн</item>
+        <item quantity="many">%1$d из %2$d треков доступны офлайн</item>
+        <item quantity="other">%1$d из %2$d трека доступны офлайн</item>
+    </plurals>
+    <string name="offline_playlist_saved_copy">Показана загруженная копия. Подключитесь снова, чтобы изменить этот плейлист.</string>
+    <string name="offline_playlist_track_unavailable">Недоступно офлайн</string>
+    <string name="offline_playlist_action_unavailable">Подключитесь к музыкальному серверу снова, чтобы выполнить это действие.</string>
+    <string name="offline_playlist_nothing_playable">Ни один трек из этого плейлиста не доступен офлайн.</string>
+    <string name="playlist_download_failed">Не удалось загрузить %1$s.</string>
+    <string name="playlist_download_failed_storage_limit">Не удалось загрузить %1$s. Достигнут лимит хранилища для загрузок.</string>
+    <string name="playlist_download_failed_mobile_data">Не удалось загрузить %1$s. Загрузка по мобильной сети отключена.</string>
+    <string name="playlist_download_already_saved">Все треки из %1$s уже загружены.</string>
+    <string name="offline_playlist_track_not_downloaded">Этот трек не загружен. Подключитесь снова, чтобы воспроизвести его.</string>
 </resources>
