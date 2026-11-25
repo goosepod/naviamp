@@ -831,6 +831,10 @@ data class NaviampLibraryCatalogUi(
     val albumSortOrder: LibraryAlbumSortOrder = LibraryAlbumSortOrder.Title,
     /** Changes only after an explicit refresh; automatic loads preserve the viewport. */
     val refreshGeneration: Long = 0L,
+    /** Items index syncs added to a complete catalog that the viewer has not seen yet; never a guess. */
+    val addedItemIds: List<String> = emptyList(),
+    /** Changes whenever additions are reported, so an automatic sync never moves the viewport. */
+    val addedItemsGeneration: Long = 0L,
 )
 
 data class NaviampLibraryScreenUi(
@@ -885,6 +889,10 @@ data class NaviampLibraryActions(
     val onSaveSources: () -> Unit = {},
     val onCancelSources: () -> Unit = {},
     val onRetrySources: () -> Unit = {},
+    /** Show or dismiss: clears the report with this generation. */
+    val onAddedItemsDismissed: (NaviampLibraryView, Long) -> Unit = { _, _ -> },
+    /** Added items that have been on screen. */
+    val onAddedItemsSeen: (NaviampLibraryView, Set<String>) -> Unit = { _, _ -> },
 )
 
 data class SharedArtistMixBuilderUi(

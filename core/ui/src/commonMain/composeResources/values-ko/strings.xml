@@ -610,4 +610,13 @@
     <string name="playlist_download_failed_mobile_data">%1$s을(를) 다운로드할 수 없습니다. 모바일 데이터 다운로드가 꺼져 있습니다.</string>
     <string name="playlist_download_already_saved">%1$s의 모든 트랙이 이미 다운로드되어 있습니다.</string>
     <string name="offline_playlist_track_not_downloaded">이 곡은 다운로드되지 않았습니다. 재생하려면 다시 연결하세요.</string>
+||||||| parent of 4a7840640 (Return Library to the top after refresh and show newly added items (#707))
+    <string name="library_new_items_show">보기</string>
+    <string name="library_new_items_dismiss">닫기</string>
+    <plurals name="library_new_albums">
+        <item quantity="other">새 앨범 %1$d개</item>
+    </plurals>
+    <plurals name="library_new_artists">
+        <item quantity="other">새 아티스트 %1$d명</item>
+    </plurals>
 </resources>

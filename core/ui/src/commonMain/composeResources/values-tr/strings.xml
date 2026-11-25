@@ -611,4 +611,15 @@
     <string name="playlist_download_failed_mobile_data">%1$s indirilemedi. Mobil veri üzerinden indirme kapalı.</string>
     <string name="playlist_download_already_saved">%1$s içindeki tüm parçalar zaten indirildi.</string>
     <string name="offline_playlist_track_not_downloaded">Bu parça indirilmedi. Çalmak için yeniden bağlanın.</string>
+||||||| parent of 4a7840640 (Return Library to the top after refresh and show newly added items (#707))
+    <string name="library_new_items_show">Göster</string>
+    <string name="library_new_items_dismiss">Kapat</string>
+    <plurals name="library_new_albums">
+        <item quantity="one">%1$d yeni albüm</item>
+        <item quantity="other">%1$d yeni albüm</item>
+    </plurals>
+    <plurals name="library_new_artists">
+        <item quantity="one">%1$d yeni sanatçı</item>
+        <item quantity="other">%1$d yeni sanatçı</item>
+    </plurals>
 </resources>
