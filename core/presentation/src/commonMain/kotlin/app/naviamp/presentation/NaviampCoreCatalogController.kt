@@ -90,6 +90,9 @@ class NaviampCoreCatalogController(
         is NaviampCoreCommand.Library.AcknowledgeAddedItems -> handled {
             acknowledgeAddedItems(command.view, command.generation)
         }
+        is NaviampCoreCommand.Library.MarkAddedItemsSeen -> handled {
+            markAddedItemsSeen(command.view, command.ids)
+        }
         is NaviampCoreCommand.Library.ChangeAlbumSortOrder -> handled {
             changeAlbumSortOrder(command.order)
         }
@@ -206,6 +209,14 @@ class NaviampCoreCatalogController(
     private fun acknowledgeAddedItems(view: NaviampLibraryView, generation: Long) {
         updateLibraryCatalog(view) {
             if (it.addedItemsGeneration == generation) it.copy(addedItemIds = emptyList()) else it
+        }
+    }
+
+    /** Additions leave the report as they are seen, so the notice counts only what is still unseen. */
+    private fun markAddedItemsSeen(view: NaviampLibraryView, ids: Set<String>) {
+        updateLibraryCatalog(view) { catalog ->
+            val unseen = catalog.addedItemIds.filterNot(ids::contains)
+            if (unseen.size == catalog.addedItemIds.size) catalog else catalog.copy(addedItemIds = unseen)
         }
     }
 

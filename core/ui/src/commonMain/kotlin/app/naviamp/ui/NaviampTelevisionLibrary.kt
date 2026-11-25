@@ -109,11 +109,9 @@ internal fun TelevisionLibrary(
     val sortFocus = remember { FocusRequester() }
     val addedItemsFocus = remember { FocusRequester() }
     val addedItems = libraryAddedItems(view, catalog, ids)
-    AcknowledgeAddedItemsWhenVisible(view, catalog.addedItemsGeneration, addedItems,
-        visibleKeys = {
-            if (view == NaviampLibraryView.Songs) viewport.lists.listState(view).layoutInfo.visibleItemsInfo.map { it.key }
-            else viewport.grid(view).layoutInfo.visibleItemsInfo.map { it.key }
-        },
+    // Songs never report additions, so only the grids need watching.
+    ReportVisibleAddedItems(view, if (addedItems != null) catalog.addedItemIds else emptyList(),
+        visibleKeys = { viewport.grid(view).layoutInfo.mostlyVisibleKeys() },
         onSeen = actions.onAddedItemsSeen)
     val showShortcuts = view != NaviampLibraryView.Albums || catalog.albumSortOrder == LibraryAlbumSortOrder.Title
     val shortcuts = if (showShortcuts) televisionLibraryShortcuts() else emptyList()
@@ -350,7 +348,7 @@ internal fun TelevisionLibrary(
                 val generation = catalog.addedItemsGeneration
                 val showAddedItems = {
                     focusContent(addedItems.firstIndex)
-                    actions.onAddedItemsSeen(view, generation)
+                    actions.onAddedItemsDismissed(view, generation)
                 }
                 TelevisionTextButton(libraryAddedItemsLabel(view, addedItems.count), colors, calmFocus = true,
                     contentPadding = controlPadding, onClick = showAddedItems,

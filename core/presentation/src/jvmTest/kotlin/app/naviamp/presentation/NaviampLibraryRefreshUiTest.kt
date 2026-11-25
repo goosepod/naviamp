@@ -10,6 +10,8 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -70,8 +72,11 @@ class NaviampLibraryRefreshUiTest {
                 NaviampLibraryContent(NaviampColors(), state.shell.library, NaviampLibraryActions(
                     onViewChanged = {}, onQueryChanged = {}, onRefresh = {}, onLoadMore = {},
                     onJumpToLetter = {}, onTrackAction = {},
-                    onAddedItemsSeen = { view, generation ->
+                    onAddedItemsDismissed = { view, generation ->
                         controller.dispatch(NaviampCoreCommand.Library.AcknowledgeAddedItems(view, generation))
+                    },
+                    onAddedItemsSeen = { view, ids ->
+                        controller.dispatch(NaviampCoreCommand.Library.MarkAddedItemsSeen(view, ids))
                     },
                 ), NaviampMediaActions({}, {}), viewport)
             }
@@ -92,6 +97,7 @@ class NaviampLibraryRefreshUiTest {
             .performClick()
         waitForIdle()
         onNodeWithText("Album 050 Deluxe").assertIsDisplayed()
+        onNode(isFocused()).assert(hasText("Album 050 Deluxe", substring = true))
         runOnIdle { assertEquals(51, list().firstVisibleItemIndex) }
         onNodeWithText("1 new album").assertDoesNotExist()
 
@@ -117,22 +123,33 @@ class NaviampLibraryRefreshUiTest {
         runOnIdle { list().requestScrollToItem(80) }
         waitForIdle()
         val anchor = onNodeWithText("Album 079").getBoundsInRoot()
-        titles = titles + "Album 020 Live"
+        titles = titles + "Album 020 Live" + "Album 060 Remix"
         now += 60 * 60 * 1000L
         runBlocking {
             controller.dispatch(albums)
             controller.execute(albums)
         }
         waitForIdle()
-        onNodeWithText("1 new album").assertIsDisplayed()
-        runOnIdle { assertEquals(81, list().firstVisibleItemIndex) }
+        onNodeWithText("2 new albums").assertIsDisplayed()
+        runOnIdle { assertEquals(82, list().firstVisibleItemIndex) }
         assertEquals(anchor, onNodeWithText("Album 079").getBoundsInRoot())
 
-        // Scrolling the new album into view counts as seeing it.
+        // Scrolling one new album into view leaves only the other in the notice.
         runOnIdle { list().requestScrollToItem(19) }
         waitForIdle()
         onNodeWithText("Album 020 Live").assertIsDisplayed()
+        onNodeWithText("1 new album").assertIsDisplayed()
+        runOnIdle { assertEquals(listOf("Album 060 Remix"), store.state.value.shell.library.albums.addedItemIds) }
+
+        // A row under the notice has not been seen.
+        runOnIdle { list().requestScrollToItem(63) }
+        waitForIdle()
+        runOnIdle { assertEquals(63, list().firstVisibleItemIndex) }
+        onNodeWithText("1 new album").assertIsDisplayed()
+
+        onNodeWithText("1 new album").performClick()
+        waitForIdle()
         onNodeWithText("1 new album").assertDoesNotExist()
-        runOnIdle { assertEquals(emptyList(), store.state.value.shell.library.albums.addedItemIds) }
+        onNode(isFocused()).assert(hasText("Album 060 Remix", substring = true))
     }
 }

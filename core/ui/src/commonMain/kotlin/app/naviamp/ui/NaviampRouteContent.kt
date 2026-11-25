@@ -47,6 +47,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.boundsInParent
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.FocusRequester
@@ -1439,11 +1441,14 @@ fun NaviampLibraryContent(
     val restoredIndex = focusIds.indexOfFirst { libraryItemFocusTarget(it) == restoredTarget }
     val targetExists = restoredIndex >= 0 || restoredTarget == LibrarySearchFocusTarget
     val addedItems = libraryAddedItems(screen.selectedView, catalog, focusIds)
-    // Show acknowledges the report, so the row keeps its requester after the indicator hides.
+    // Show clears the report, so the requester follows a remembered row rather than the report.
     var addedItemFocusId by remember(screen.selectedView) { mutableStateOf<String?>(null) }
-    val addedItemFocusRequester = remember(screen.selectedView, addedItemFocusId) { FocusRequester() }
-    AcknowledgeAddedItemsWhenVisible(screen.selectedView, catalog.addedItemsGeneration, addedItems,
-        visibleKeys = { activeListState.layoutInfo.visibleItemsInfo.map { it.key } },
+    val addedItemFocusRequester = remember(screen.selectedView) { FocusRequester() }
+    var addedItemsNoticeBottom by remember { mutableStateOf<Int?>(null) }
+    ReportVisibleAddedItems(screen.selectedView, if (addedItems != null) catalog.addedItemIds else emptyList(),
+        visibleKeys = {
+            addedItemsNoticeBottom?.let { activeListState.layoutInfo.keysVisibleBelow(it) }.orEmpty()
+        },
         onSeen = actions.onAddedItemsSeen)
     androidx.compose.runtime.LaunchedEffect(screen.selectedView, targetExists, catalog.refreshGeneration) {
         if (viewportState.hasPendingRefresh(screen.selectedView, catalog.refreshGeneration)) return@LaunchedEffect
@@ -1809,15 +1814,19 @@ fun NaviampLibraryContent(
                 NaviampLibraryNewItemsIndicator(colors, screen.selectedView, addedItems,
                     onShow = {
                         addedItemFocusId = addedItems.firstId
-                        actions.onAddedItemsSeen(screen.selectedView, generation)
+                        actions.onAddedItemsDismissed(screen.selectedView, generation)
                         libraryScope.launch {
                             activeListState.scrollToItem(addedItems.firstIndex)
-                            withFrameNanos { }
-                            addedItemFocusRequester.requestFocus()
+                            // The row picks up the requester when it recomposes with the new focus id.
+                            repeat(5) {
+                                withFrameNanos { }
+                                if (addedItemFocusRequester.requestFocus()) return@launch
+                            }
                         }
                     },
-                    onDismiss = { actions.onAddedItemsSeen(screen.selectedView, generation) },
-                    modifier = Modifier.align(Alignment.TopCenter),
+                    onDismiss = { actions.onAddedItemsDismissed(screen.selectedView, generation) },
+                    modifier = Modifier.align(Alignment.TopCenter)
+                        .onPlaced { addedItemsNoticeBottom = it.boundsInParent().bottom.toInt() },
                 )
             }
           }

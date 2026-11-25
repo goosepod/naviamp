@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyListLayoutInfo
+import androidx.compose.foundation.lazy.grid.LazyGridLayoutInfo
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -33,7 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.ui.generated.resources.*
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.filter
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -113,23 +115,36 @@ internal fun libraryAddedItemsLabel(view: NaviampLibraryView, count: Int): Strin
     if (view == NaviampLibraryView.Artists) pluralStringResource(Res.plurals.library_new_artists, count, count)
     else pluralStringResource(Res.plurals.library_new_albums, count, count)
 
-/** Acknowledges a report once its first addition has been on screen, so it never outlives being seen. */
+/** Reports added items as they come on screen, so the notice never counts what was already seen. */
 @Composable
-internal fun AcknowledgeAddedItemsWhenVisible(
+internal fun ReportVisibleAddedItems(
     view: NaviampLibraryView,
-    generation: Long,
-    added: NaviampLibraryAddedItems?,
+    addedIds: List<String>,
     visibleKeys: () -> List<Any>,
-    onSeen: (NaviampLibraryView, Long) -> Unit,
+    onSeen: (NaviampLibraryView, Set<String>) -> Unit,
 ) {
-    val firstId = added?.firstId ?: return
+    if (addedIds.isEmpty()) return
     val currentVisibleKeys by rememberUpdatedState(visibleKeys)
     val currentOnSeen by rememberUpdatedState(onSeen)
-    LaunchedEffect(view, generation, firstId) {
-        snapshotFlow { firstId in currentVisibleKeys() }.first { it }
-        currentOnSeen(view, generation)
+    LaunchedEffect(view, addedIds) {
+        val added = addedIds.toSet()
+        snapshotFlow { currentVisibleKeys().filterIsInstance<String>().filterTo(mutableSetOf(), added::contains) }
+            .filter { it.isNotEmpty() }
+            .collect { currentOnSeen(view, it) }
     }
 }
+
+/** Rows at least half visible below [top]; a row under the floating notice has not been seen. */
+internal fun LazyListLayoutInfo.keysVisibleBelow(top: Int): List<Any> = visibleItemsInfo.filter {
+    (minOf(it.offset + it.size, viewportEndOffset) - maxOf(it.offset, top, viewportStartOffset)) * 2 >= it.size
+}.map { it.key }
+
+/** Grid cells at least half visible. */
+internal fun LazyGridLayoutInfo.mostlyVisibleKeys(): List<Any> = visibleItemsInfo.filter {
+    val top = it.offset.y
+    val height = it.size.height
+    (minOf(top + height, viewportEndOffset) - maxOf(top, viewportStartOffset)) * 2 >= height
+}.map { it.key }
 
 /**
  * New items can sort anywhere in a title-ordered catalog, so returning to the top is not enough.

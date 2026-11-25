@@ -433,9 +433,14 @@ class NaviampCoreCatalogControllerTest {
         assertEquals(2L, library().addedItemsGeneration)
         assertEquals(3L, library().refreshGeneration)
 
+        // Seen additions leave the report one by one; the rest keep the notice alive.
+        controller.dispatch(NaviampCoreCommand.Library.MarkAddedItemsSeen(NaviampLibraryView.Albums, setOf("delta", "zulu")))
+        assertEquals(listOf("bravo", "echo"), library().addedItemIds)
+        assertEquals(2L, library().addedItemsGeneration)
+
         // Acknowledging an older report must not clear additions it never showed.
         controller.dispatch(NaviampCoreCommand.Library.AcknowledgeAddedItems(NaviampLibraryView.Albums, 1L))
-        assertEquals(listOf("bravo", "delta", "echo"), library().addedItemIds)
+        assertEquals(listOf("bravo", "echo"), library().addedItemIds)
         controller.dispatch(NaviampCoreCommand.Library.AcknowledgeAddedItems(NaviampLibraryView.Albums, 2L))
         assertEquals(emptyList(), library().addedItemIds)
 

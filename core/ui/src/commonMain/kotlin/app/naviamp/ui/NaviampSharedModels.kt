@@ -889,7 +889,10 @@ data class NaviampLibraryActions(
     val onSaveSources: () -> Unit = {},
     val onCancelSources: () -> Unit = {},
     val onRetrySources: () -> Unit = {},
-    val onAddedItemsSeen: (NaviampLibraryView, Long) -> Unit = { _, _ -> },
+    /** Show or dismiss: clears the report with this generation. */
+    val onAddedItemsDismissed: (NaviampLibraryView, Long) -> Unit = { _, _ -> },
+    /** Added items that have been on screen. */
+    val onAddedItemsSeen: (NaviampLibraryView, Set<String>) -> Unit = { _, _ -> },
 )
 
 data class SharedArtistMixBuilderUi(

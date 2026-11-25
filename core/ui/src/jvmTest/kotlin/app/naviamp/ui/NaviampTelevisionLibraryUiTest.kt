@@ -245,10 +245,16 @@ class NaviampTelevisionLibraryUiTest {
                     NaviampLibraryView.Songs -> value.copy(songs = value.songs.copy(query = query))
                 }
             }, onRefresh = {}, onLoadMore = onLoadMore, onJumpToLetter = onJump, onTrackAction = onTrack,
-            onAddedItemsSeen = { view, generation ->
+            onAddedItemsDismissed = { view, generation ->
                 val albums = screen.value.albums
                 if (view == NaviampLibraryView.Albums && albums.addedItemsGeneration == generation) {
                     screen.value = screen.value.copy(albums = albums.copy(addedItemIds = emptyList()))
+                }
+            },
+            onAddedItemsSeen = { view, ids ->
+                val albums = screen.value.albums
+                if (view == NaviampLibraryView.Albums) {
+                    screen.value = screen.value.copy(albums = albums.copy(addedItemIds = albums.addedItemIds - ids))
                 }
             },
         ), NaviampMediaActions({}, onMedia), viewport, FocusRequester())
