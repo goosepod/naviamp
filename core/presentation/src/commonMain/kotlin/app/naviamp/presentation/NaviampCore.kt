@@ -38,6 +38,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -294,6 +295,11 @@ class NaviampCore private constructor(
             onAsyncFailure: (NaviampCoreCommand, Throwable) -> Unit,
         ): NaviampCore {
             val stateStore = NaviampCoreStateStore(initialState.product)
+            // Native media services may publish text before, or without, any application composition.
+            app.naviamp.ui.NaviampResourceLanguage.follow(
+                scope,
+                stateStore.state.map { it.shell.general.interfaceSettings.language }.distinctUntilChanged(),
+            )
             val playbackProfiles = NaviampCorePlaybackProfileController(
                 stateStore = stateStore,
                 repository = services.playback.profiles,
@@ -311,7 +317,8 @@ class NaviampCore private constructor(
             val livePlayback = NaviampLivePlaybackController(initialState.playback)
             val queue = NaviampPlaybackQueueCoordinator(livePlayback)
             val playbackOutputs = NaviampPlaybackOutputSelectionController()
-            val routedPlaybackEffects = NaviampCoreOutputPlaybackEffects(services.playback.effects, playbackOutputs)
+            val routedPlaybackEffects = NaviampCoreOutputPlaybackEffects(services.playback.effects, playbackOutputs,
+                services.playback.outputFade)
             var pauseMainForSample: () -> Unit = routedPlaybackEffects::pause
             val samplePlayback = NaviampCoreSamplePlaybackController(scope, services.playback.samples,
                 providerSource, {

@@ -9,6 +9,7 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.ui.*
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -27,6 +28,102 @@ class NaviampCoreAlbumPlaybackProfileTest {
 
     @Test fun albumTrackSelectionRetainsTheAlbumProfileBeforePlaybackAndPreparation() = runTest {
         verifyEntryPoint(selectTrack = true)
+    }
+
+    @Test fun nowPlayingVolumeChangeDuringStreamResolutionKeepsTheAlbumGaplessProfile() = runTest {
+        verifyGlobalApplyDuringResolution { core, _ ->
+            core.execute(NaviampCoreCommand.NowPlaying.Playback(
+                NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.ChangeVolume, volumePercent = 40)))
+        }
+    }
+
+    @Test fun playbackSettingsChangeDuringStreamResolutionKeepsTheAlbumGaplessProfile() = runTest {
+        verifyGlobalApplyDuringResolution { core, _ ->
+            core.execute(NaviampCoreCommand.Settings.ChangePlayback(
+                core.state.value.shell.playback.settings.copy(volumePercent = 55), redownload = false))
+        }
+    }
+
+    // Settings sync and import apply the shared playback settings port directly.
+    @Test fun syncedPlaybackSettingsApplyDuringStreamResolutionKeepsTheAlbumGaplessProfile() = runTest {
+        verifyGlobalApplyDuringResolution { _, settings ->
+            settings.apply(PlaybackSettings(gaplessEnabled = false, crossfadeDurationSeconds = 8, volumePercent = 70),
+                redownload = false)
+        }
+    }
+
+    /**
+     * A global playback-settings apply can land while Core is still resolving a stream URL, after
+     * the album profile was pushed to the engine but before the engine creates or prepares audio.
+     */
+    private suspend fun TestScope.verifyGlobalApplyDuringResolution(
+        applyGlobalSettings: suspend (NaviampCore, NaviampCorePlaybackSettingsPort) -> Unit,
+    ) {
+        val original = FakeCoreMediaProvider()
+        val album = original.album
+        val tracks = (1..3).map { original.track.copy(id = TrackId("track-$it")) }
+        var gate: CompletableDeferred<Unit>? = null
+        val provider = object : MediaProvider by original {
+            override suspend fun album(albumId: AlbumId) = AlbumDetails(album, tracks)
+            override suspend fun streamUrl(request: StreamRequest): String {
+                gate?.await()
+                return original.streamUrl(request)
+            }
+        }
+        val saved = mutableMapOf<PlaybackProfileTarget, PlaybackProfile>()
+        val profiles = object : PlaybackProfileRepository {
+            override fun playbackProfile(sourceId: String, target: PlaybackProfileTarget) = saved[target]
+            override fun playbackProfiles(sourceId: String) = saved.map { PlaybackProfileAssignment(it.key, it.value) }
+            override fun savePlaybackProfile(sourceId: String, target: PlaybackProfileTarget, profile: PlaybackProfile?) {
+                if (profile == null) saved.remove(target) else saved[target] = profile
+            }
+        }
+        val engine = AlbumProfileProbeEngine()
+        val defaults = fakeCoreServices(provider, profiles = profiles)
+        val global = PlaybackSettings(gaplessEnabled = false, crossfadeDurationSeconds = 8)
+        val streaming = naviampCoreStreamingPlaybackServices(this, engine, defaults.content.providerSource,
+            global, {},
+            object : PlaybackSessionRepository {
+                override fun loadPlaybackSession(sourceId: String?): PlaybackSessionSettings? = null
+                override fun savePlaybackSession(session: PlaybackSessionSettings?, sourceId: String?) = Unit
+            }, {}).copy(profiles = profiles)
+        val initial = NaviampCoreInitialState()
+        val shell = initial.product.shell
+        val core = NaviampCore.create(this, defaults.copy(playback = streaming), initial.copy(
+            connection = NaviampConnectionRuntimeState(phase = NaviampConnectionPhase.Connected, sourceId = "source"),
+            product = initial.product.copy(shell = shell.copy(
+                connectionSettings = shell.connectionSettings.copy(currentSourceId = "source"),
+                playback = shell.playback.copy(settings = global))),
+        ))
+        try {
+            val item = album.toSharedMediaItemUi({ null })
+            core.execute(NaviampCoreCommand.Media.ItemAction(item.albumActionRequest(NaviampArtistAlbumCommand.Select)))
+            advanceUntilIdle()
+            core.execute(NaviampCoreCommand.Detail.Album(NaviampAlbumDetailActionRequest(item,
+                NaviampAlbumDetailCommand.SavePlaybackProfile(PlaybackProfile(transitionMode = PlaybackTransitionMode.Gapless)))))
+
+            gate = CompletableDeferred()
+            core.execute(NaviampCoreCommand.Detail.Album(NaviampAlbumDetailActionRequest(item,
+                NaviampAlbumDetailCommand.Play(shuffle = false))))
+            advanceUntilIdle()
+            assertEquals(emptyList(), engine.crossfadeAtPlay, "the first stream URL is still resolving")
+            applyGlobalSettings(core, streaming.settings)
+            advanceUntilIdle()
+            gate?.complete(Unit)
+            advanceUntilIdle()
+            assertEquals(listOf(0), engine.crossfadeAtPlay, "crossfade when the engine starts the album")
+
+            gate = CompletableDeferred()
+            engine.progress(PlaybackProgress(179.0, 180.0))
+            advanceUntilIdle()
+            assertEquals(emptyList(), engine.preparedIds, "the next stream URL is still resolving")
+            applyGlobalSettings(core, streaming.settings)
+            advanceUntilIdle()
+            gate?.complete(Unit)
+            advanceUntilIdle()
+            assertEquals(listOf<String?>("track-2"), engine.preparedIds)
+            assertEquals(listOf(0), engine.crossfadeAtPrepare, "crossfade when the engine prepares the next album track")
+        } finally { core.close() }
     }
 
     private suspend fun TestScope.verifyEntryPoint(selectTrack: Boolean) {

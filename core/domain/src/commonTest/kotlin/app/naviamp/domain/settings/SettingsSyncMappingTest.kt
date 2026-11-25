@@ -141,6 +141,23 @@ class SettingsSyncMappingTest {
     }
 
     @Test
+    fun sleepTimerFadeRoundTripsWithOlderDefaultsAndImportedNormalization() {
+        for (minutes in listOf(0, 1, 3, 5, 10)) {
+            val document = buildSettingsSyncDocument(
+                SettingsSyncLocalSnapshot(playback = PlaybackSettings(sleepTimerFadeMinutes = minutes)), 1L, "test")
+            val applied = applySettingsSyncDocument(SettingsSyncJson.decode(SettingsSyncJson.encode(document)),
+                RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository()).playbackSettings
+            assertEquals(minutes, applied.sleepTimerFadeMinutes)
+        }
+        assertEquals(0, SettingsSyncJson.decode("""{"preferences":{"playback":{"gaplessEnabled":true}}}""")
+            .preferences.playback.sleepTimerFadeMinutes)
+        for ((raw, expected) in listOf(Int.MIN_VALUE to 0, -1 to 0, 2 to 1, 4 to 3, 9 to 5, 11 to 10, Int.MAX_VALUE to 10)) {
+            val imported = SettingsSyncJson.decode("""{"preferences":{"playback":{"sleepTimerFadeMinutes":$raw}}}""")
+            assertEquals(expected, imported.preferences.playback.sleepTimerFadeMinutes)
+        }
+    }
+
+    @Test
     fun independentRadioBatchSizesArePortableAndAppliedNormalized() {
         val exported = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(
             playback = PlaybackSettings(radioMinimumTracks = 30, sonicAutoplayMinimumTracks = 80)), 1L, "test")

@@ -27,6 +27,7 @@ enum class NaviampAction(
     AddPlaylistToPlaylist("Add playlist to playlist", NaviampIcons.Playlist),
     RenamePlaylist("Rename playlist", NaviampIcons.Edit),
     EditSmartPlaylist("Edit smart playlist", NaviampIcons.Brain),
+    DuplicateSmartPlaylist("Duplicate smart playlist", NaviampIcons.Duplicate),
     DeletePlaylist("Delete playlist", NaviampIcons.Trash),
     EditStation("Edit station", NaviampIcons.Edit),
     DeleteStation("Delete station", NaviampIcons.Trash),
@@ -171,6 +172,8 @@ fun playlistRowActions(
     canAddToPlaylist: Boolean = false,
     canRename: Boolean = false,
     canEditSmartPlaylist: Boolean = false,
+    canDuplicateSmartPlaylist: Boolean = false,
+    duplicateSmartPlaylistLabel: String = NaviampAction.DuplicateSmartPlaylist.label,
     canDelete: Boolean = false,
 ): List<NaviampActionSpec> =
     listOfNotNull(
@@ -182,6 +185,7 @@ fun playlistRowActions(
         NaviampAction.AddPlaylistToPlaylist.takeIf { canAddToPlaylist }?.toSpec(),
         NaviampAction.RenamePlaylist.takeIf { canRename }?.toSpec(),
         NaviampAction.EditSmartPlaylist.takeIf { canEditSmartPlaylist }?.toSpec(),
+        NaviampAction.DuplicateSmartPlaylist.takeIf { canDuplicateSmartPlaylist }?.toSpec(label = duplicateSmartPlaylistLabel),
         NaviampAction.DeletePlaylist.takeIf { canDelete }?.toSpec(),
     )
 

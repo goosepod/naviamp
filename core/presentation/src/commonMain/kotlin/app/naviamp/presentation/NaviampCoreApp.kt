@@ -14,7 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import app.naviamp.ui.NaviampLocaleEnvironment
-import app.naviamp.ui.createNaviampLocaleEffect
 import app.naviamp.ui.NaviampApplicationUpdateChecker
 import app.naviamp.ui.NaviampApplicationSurface
 import app.naviamp.ui.LocalNaviampApplicationSurface
@@ -124,7 +123,7 @@ fun NaviampCoreApp(
             core.maintainProviderSession()
         }
     }
-    NaviampLocaleEnvironment(state.shell.general.interfaceSettings.language, remember { createNaviampLocaleEffect() }) {
+    NaviampLocaleEnvironment {
         NaviampScreenAwakeEnvironment(screenAwakeEffect, state.shell.general.interfaceSettings.keepScreenAwake) {
             CompositionLocalProvider(LocalNaviampApplicationSurface provides applicationSurface) {
               Box(Modifier.fillMaxSize()) {
@@ -158,25 +157,28 @@ fun NaviampCoreApp(
                         )
                     }
                 }
-                state.overlays.busyMessage?.let { message ->
-                    NaviampBusyDialog(message)
-                }
-                state.overlays.radioNotice?.let { notice ->
-                    app.naviamp.ui.NaviampRadioNotice(
-                        app.naviamp.ui.NaviampColors.Dark, notice,
-                        onDismiss = { core.dispatch(NaviampCoreCommand.Settings.DismissRadioNotice) },
-                        modifier = Modifier.align(Alignment.BottomCenter),
-                    )
-                }
-                core.castPickerState?.let { pickerState ->
-                    val picker by pickerState.collectAsState()
-                    if (picker.visible) app.naviamp.ui.NaviampCastPickerDialog(
-                        picker, core::selectCastTarget, core::selectLocalPlayback,
-                        core::retryCastDiscovery, core::dismissCastPicker,
-                    )
-                }
-                if (state.overlays.statsForNerdsVisible) {
-                    NaviampCoreDiagnosticsPresentation(core, statsForNerdsPresenter)
+                app.naviamp.ui.NaviampTypographyScope(state.shell.general.interfaceSettings) {
+                    state.overlays.busyMessage?.let { message ->
+                        NaviampBusyDialog(message)
+                    }
+                    state.overlays.radioNotice?.let { notice ->
+                        app.naviamp.ui.NaviampRadioNotice(
+                            app.naviamp.ui.NaviampColors.Dark, notice,
+                            onDismiss = { core.dispatch(NaviampCoreCommand.Settings.DismissRadioNotice) },
+                            modifier = Modifier.align(Alignment.BottomCenter),
+                        )
+                    }
+                    core.castPickerState?.let { pickerState ->
+                        val picker by pickerState.collectAsState()
+                        if (picker.visible) app.naviamp.ui.NaviampCastPickerDialog(
+                            picker, core::selectCastTarget, core::selectLocalPlayback,
+                            core::retryCastDiscovery, core::dismissCastPicker,
+                            interfaceSettings = state.shell.general.interfaceSettings,
+                        )
+                    }
+                    if (state.overlays.statsForNerdsVisible) {
+                        NaviampCoreDiagnosticsPresentation(core, statsForNerdsPresenter)
+                    }
                 }
               }
             }

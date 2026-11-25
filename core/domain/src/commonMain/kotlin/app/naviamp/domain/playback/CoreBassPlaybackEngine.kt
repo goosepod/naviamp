@@ -91,6 +91,7 @@ open class CoreBassPlaybackEngine(
     RestartOnSeekPlaybackEngine,
     DownloadFallbackAwarePlaybackEngine,
     AudioOutputDevicePlaybackEngine,
+    OutputFadePlaybackEngine,
     PlaybackEngineDiagnostics,
     PreviewPlaybackEngine {
     private val backend: BassAudioBackend? = backendResult.getOrNull()
@@ -159,6 +160,8 @@ open class CoreBassPlaybackEngine(
     private var equalizerSettings: EqualizerSettings = EqualizerSettings()
     private var selectedOutputDeviceId: String? = null
     private var transientOutputVolumeFactor: Float = 1f
+    private var outputFadeFactor: Float = 1f
+    private var playbackMuted = false
     private var verifyNetworkCertificates: Boolean = true
     private var previewVolumePercent: Int = 100
     private val preview = BassPreviewPlayback(runtime) { verify ->
@@ -417,7 +420,7 @@ open class CoreBassPlaybackEngine(
     override fun setVolume(percent: Int) {
         volumePercent = percent.coerceIn(0, 100)
         previewVolumePercent = volumePercent
-        preview.setVolume(outputVolumeFactor())
+        preview.setVolume(playbackUserVolumeFactor(previewVolumePercent, transientOutputVolumeFactor))
         val handle = stream
         val bass = backend ?: return
         if (handle != 0) {
@@ -886,7 +889,27 @@ open class CoreBassPlaybackEngine(
     }
 
     private fun outputVolumeFactor(): Float =
-        playbackUserVolumeFactor(volumePercent, transientOutputVolumeFactor)
+        playbackUserVolumeFactor(volumePercent, transientOutputVolumeFactor) * outputFadeFactor
+
+    override fun setOutputFadeFactor(factor: Float) {
+        val normalized = factor.coerceIn(0f, 1f)
+        if (normalized == outputFadeFactor) return
+        outputFadeFactor = normalized
+        val bass = backend ?: return
+        val handle = stream.takeIf { it != 0 } ?: return
+        if (playbackMuted) return
+        // Only the output stream changes: rewriting a mixer source would cancel a crossfade slide.
+        val separateSource = currentSourceStream != 0 && currentSourceStream != handle
+        val plan = playbackVolumeApplicationPlan(
+            userVolumeFactor = outputVolumeFactor(),
+            replayGainFactor = currentReplayGainAdjustment.volumeFactor,
+            hasSeparateSourceStream = separateSource,
+        )
+        bass.setVolume(
+            BassStreamHandle(handle),
+            if (separateSource) plan.outputVolumeFactor else plan.directVolumeFactor,
+        ).onFailure { lastError = it.message }
+    }
 
     protected fun setTransientOutputVolumeFactor(factor: Float) {
         transientOutputVolumeFactor = factor.coerceIn(0f, 1f)
@@ -917,6 +940,7 @@ open class CoreBassPlaybackEngine(
             .onFailure { lastError = it.message }
 
     private fun setPlaybackMuted(bass: BassAudioBackend, muted: Boolean) {
+        playbackMuted = muted
         bass.setBassPlaybackMuted(
             outputStream = stream,
             sourceStream = currentSourceStream,

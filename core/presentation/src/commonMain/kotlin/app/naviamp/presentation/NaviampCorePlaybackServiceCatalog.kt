@@ -13,6 +13,7 @@ import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.lyrics.LyricsOffsetController
 import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
+import app.naviamp.domain.playback.OutputFadePlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackLocalAudio
 import app.naviamp.domain.playback.EmptyPlaybackProfileRepository
@@ -111,6 +112,7 @@ fun naviampCorePlaybackServiceCatalog(
             )
         },
     )
+    settings.activeProfile = effects
     return NaviampCorePlaybackServices(
         samples = NaviampCoreEngineSamplePlayback(scope, engine, providerSource,
             verifyProviderNetworkCertificates, { settings.current().volumePercent }),
@@ -133,6 +135,7 @@ fun naviampCorePlaybackServiceCatalog(
             }
         },
         sessions = NaviampPlaybackSessionController(playbackSessionRepository),
+        outputFade = { factor -> (engine as? OutputFadePlaybackEngine)?.setOutputFadeFactor(factor) },
         profiles = playbackProfileRepository,
     )
 }

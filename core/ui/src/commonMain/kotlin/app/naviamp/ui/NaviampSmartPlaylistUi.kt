@@ -11,6 +11,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.focus.FocusManager
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import app.naviamp.domain.smartplaylist.hasUnsavedChanges
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -43,6 +54,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -60,6 +73,15 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult
 import app.naviamp.domain.smartplaylist.inspectSmartPlaylistJson
 import app.naviamp.domain.smartplaylist.SmartPlaylistDraft
 import app.naviamp.domain.smartplaylist.SmartPlaylistFieldCatalog
+import app.naviamp.domain.smartplaylist.SmartPlaylistFieldCategory
+import app.naviamp.domain.smartplaylist.smartPlaylistFieldChoices
+import androidx.compose.foundation.background
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
 import app.naviamp.domain.smartplaylist.SmartPlaylistFieldOption
 import app.naviamp.domain.smartplaylist.SmartPlaylistFields
 import app.naviamp.domain.smartplaylist.SmartPlaylistGroupDraft
@@ -72,11 +94,13 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistPreview
 import app.naviamp.domain.smartplaylist.SmartPlaylistRefreshDelay
 import app.naviamp.domain.smartplaylist.SmartPlaylistSortDraft
 import app.naviamp.domain.smartplaylist.SmartPlaylistTemplates
-import app.naviamp.domain.smartplaylist.SmartPlaylistValueType
+import app.naviamp.domain.smartplaylist.SmartPlaylistChoiceLabel
+import app.naviamp.domain.smartplaylist.SmartPlaylistOperandInput
+import app.naviamp.domain.smartplaylist.SmartPlaylistValueChoice
+import app.naviamp.domain.smartplaylist.operandInput
 import app.naviamp.domain.smartplaylist.displayLabel
 import app.naviamp.domain.smartplaylist.smartPlaylistGenreSuggestions
 import app.naviamp.domain.smartplaylist.updated
-import app.naviamp.domain.smartplaylist.usesCalendarDate
 import app.naviamp.domain.smartplaylist.valueLabel
 import app.naviamp.domain.smartplaylist.validate
 import app.naviamp.domain.smartplaylist.SmartPlaylistValidationIssue
@@ -94,6 +118,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import org.jetbrains.compose.resources.stringResource
 
 private val LocalSmartPlaylistLibraries = androidx.compose.runtime.staticCompositionLocalOf<List<ConnectionFormMusicFolder>> { emptyList() }
@@ -117,19 +142,24 @@ fun SmartPlaylistBuilderDialog(
     onSave: suspend (SmartPlaylistDefinition) -> Unit,
     onSaveWithPassword: (suspend (SmartPlaylistDefinition, String) -> Unit)? = null,
     scrollState: androidx.compose.foundation.ScrollState = rememberScrollState(),
+    systemInsets: WindowInsets = WindowInsets.safeDrawing,
+    keyboardInsets: WindowInsets = WindowInsets.ime,
 ) {
-    var draft by remember(initialDraft) {
-        mutableStateOf(
-            if (initialDraft.selectedLibraryIds == null && selectedConnectionLibraryIds.size > 1) {
-                initialDraft.copy(selectedLibraryIds = selectedConnectionLibraryIds)
-            } else {
-                initialDraft
-            },
-        )
+    val openingDraft = remember(initialDraft) {
+        if (initialDraft.selectedLibraryIds == null && selectedConnectionLibraryIds.size > 1) {
+            initialDraft.copy(selectedLibraryIds = selectedConnectionLibraryIds)
+        } else {
+            initialDraft
+        }
     }
+    var draft by remember(initialDraft) { mutableStateOf(openingDraft) }
+    // The draft as opened; applying the connection's default library scope is not a user edit.
+    var savedBaseline by remember(initialDraft) { mutableStateOf(openingDraft) }
     LaunchedEffect(selectedConnectionLibraryIds) {
         if (draft.selectedLibraryIds == null && selectedConnectionLibraryIds.size > 1) {
-            draft = draft.copy(selectedLibraryIds = selectedConnectionLibraryIds)
+            val scoped = draft.copy(selectedLibraryIds = selectedConnectionLibraryIds)
+            if (!draft.hasUnsavedChanges(savedBaseline)) savedBaseline = scoped
+            draft = scoped
         }
     }
     var inspection by remember { mutableStateOf<SmartPlaylistEditingResult?>(null) }
@@ -204,12 +234,36 @@ fun SmartPlaylistBuilderDialog(
         previewLoading = false
     }
 
+    var discardPromptOpen by remember { mutableStateOf(false) }
+    var dialogFocusManager by remember { mutableStateOf<FocusManager?>(null) }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val density = LocalDensity.current
+    val closeEditor = {
+        librarySyncJob?.cancel()
+        onDismissRequest()
+    }
+    // Every dismiss path: hide a showing keyboard first, then ask before dropping edits.
+    val requestClose: () -> Unit = {
+        when {
+            keyboardInsets.getBottom(density) > 0 -> {
+                keyboardController?.hide()
+                dialogFocusManager?.clearFocus()
+            }
+            draft.hasUnsavedChanges(savedBaseline) -> discardPromptOpen = true
+            else -> closeEditor()
+        }
+    }
+
     NaviampPopupPresence()
 
     NaviampAlertDialog(
-        onDismissRequest = { librarySyncJob?.cancel(); onDismissRequest() },
+        onDismissRequest = requestClose,
+        // Keeps the title below the status bar and the actions above the keyboard on edge-to-edge hosts.
+        modifier = Modifier.naviampContentInsets(systemInsets, keyboardInsets).testTag(SmartPlaylistEditorDialogTestTag),
         title = { Text(title) },
         text = {
+            val focusManager = LocalFocusManager.current
+            SideEffect { dialogFocusManager = focusManager }
             androidx.compose.runtime.CompositionLocalProvider(LocalSmartPlaylistLibraries provides availableLibraries) {
             Column(
                 modifier = Modifier
@@ -405,7 +459,7 @@ fun SmartPlaylistBuilderDialog(
                                 label = "Paste .nsp or Navidrome smart playlist JSON",
                                 minLines = 4,
                                 maxLines = 8,
-                                textStyle = TextStyle(fontSize = 12.sp),
+                                textStyle = TextStyle(fontSize = 12.sp).withNaviampFont(),
                                 modifier = Modifier.fillMaxWidth().naviampTextInputFocus(),
                             )
                             TextButton(
@@ -441,7 +495,7 @@ fun SmartPlaylistBuilderDialog(
                             readOnly = true,
                             minLines = 6,
                             maxLines = 10,
-                            textStyle = TextStyle(fontSize = 12.sp),
+                            textStyle = TextStyle(fontSize = 12.sp).withNaviampFont(),
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -483,7 +537,7 @@ fun SmartPlaylistBuilderDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismissRequest) {
+            TextButton(onClick = requestClose) {
                 Text("Cancel")
             }
         },
@@ -491,6 +545,16 @@ fun SmartPlaylistBuilderDialog(
         titleContentColor = colors.primaryText,
         textContentColor = colors.secondaryText,
     )
+    if (discardPromptOpen) {
+        SmartPlaylistDiscardPrompt(
+            colors = colors,
+            onKeepEditing = { discardPromptOpen = false },
+            onDiscard = {
+                discardPromptOpen = false
+                closeEditor()
+            },
+        )
+    }
     inspection?.let { editing ->
         SmartPlaylistInspectionDialog(editing, colors) { inspection = null }
     }
@@ -525,7 +589,7 @@ fun SmartPlaylistBuilderDialog(
                         label = "Password",
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
-                        textStyle = TextStyle(fontSize = 13.sp),
+                        textStyle = TextStyle(fontSize = 13.sp).withNaviampFont(),
                     )
                     passwordError?.let { message ->
                         Text(message, color = colors.secondaryText, fontSize = 12.sp)
@@ -588,6 +652,38 @@ internal const val SmartPlaylistLoadPasswordFieldTestTag = "smart-playlist-load-
 internal const val SmartPlaylistLoadPasswordConfirmTestTag = "smart-playlist-load-password-confirm"
 internal const val SmartPlaylistGenreValueTestTag = "smart-playlist-genre-value"
 internal const val SmartPlaylistPreviewTestTag = "smart-playlist-preview"
+internal const val SmartPlaylistEditorDialogTestTag = "smart-playlist-editor-dialog"
+internal const val SmartPlaylistKeepEditingTestTag = "smart-playlist-keep-editing"
+internal const val SmartPlaylistDiscardTestTag = "smart-playlist-discard"
+
+@Composable
+private fun SmartPlaylistDiscardPrompt(colors: NaviampColors, onKeepEditing: () -> Unit, onDiscard: () -> Unit) {
+    val keepEditingFocus = remember { FocusRequester() }
+    NaviampPopupPresence()
+    NaviampAlertDialog(
+        onDismissRequest = onKeepEditing,
+        title = { Text(stringResource(Res.string.smart_playlist_discard_title)) },
+        text = { Text(stringResource(Res.string.smart_playlist_discard_message)) },
+        confirmButton = {
+            TextButton(onClick = onDiscard, modifier = Modifier.testTag(SmartPlaylistDiscardTestTag)) {
+                Text(stringResource(Res.string.smart_playlist_discard), color = colors.favorite)
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onKeepEditing,
+                modifier = Modifier.focusRequester(keepEditingFocus).testTag(SmartPlaylistKeepEditingTestTag),
+            ) {
+                Text(stringResource(Res.string.smart_playlist_keep_editing), color = colors.accent)
+            }
+        },
+        containerColor = colors.controlSurface,
+        titleContentColor = colors.primaryText,
+        textContentColor = colors.secondaryText,
+    )
+    // Start keyboard and D-pad users on the safe choice.
+    LaunchedEffect(Unit) { runCatching { keepEditingFocus.requestFocus() } }
+}
 private const val SmartPlaylistPreviewDebounceMillis = 350L
 
 @Composable
@@ -628,7 +724,7 @@ internal fun SmartPlaylistLoadPasswordDialog(
                     label = "Password",
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
-                    textStyle = TextStyle(fontSize = 13.sp),
+                    textStyle = TextStyle(fontSize = 13.sp).withNaviampFont(),
                 )
                 errorMessage?.let { message ->
                     Text(message, color = colors.secondaryText, fontSize = 12.sp)
@@ -855,13 +951,12 @@ internal fun SmartPlaylistCustomControls(
                         }
                     },
                 ) {
-                    SmartPlaylistDropdown(
+                    SmartPlaylistFieldDropdown(
                         label = "Field",
-                        value = smartPlaylistFieldLabel(sort.field),
+                        selected = sort.field,
+                        fields = SmartPlaylistFieldCatalog.sortableFields,
+                        commonFields = SmartPlaylistFieldCatalog.commonSortFields,
                         colors = colors,
-                        options = SmartPlaylistFieldCatalog.sortableFields
-                            .smartPlaylistMenuOrder(CommonSmartPlaylistSortFields)
-                            .map { smartPlaylistFieldLabel(it) to it },
                         onSelected = { field ->
                             onDraftChange(draft.copy(sort = draft.sort.updated(index, sort.copy(field = field))))
                         },
@@ -903,6 +998,7 @@ internal fun SmartPlaylistCustomControls(
             onValueChange = { onDraftChange(draft.copy(limit = it.toIntOrNull() ?: draft.limit)) },
             label = if (draft.limitMode == SmartPlaylistLimitMode.Percent) "Limit percent" else "Track limit",
             colors = colors,
+            keyboardOptions = SmartPlaylistLimitKeyboardOptions,
         )
 
     }
@@ -1012,13 +1108,12 @@ private fun SmartPlaylistRuleControls(
             }
         },
     ) {
-        SmartPlaylistDropdown(
+        SmartPlaylistFieldDropdown(
             label = "Field",
-            value = smartPlaylistFieldLabel(condition.field),
+            selected = condition.field,
+            fields = SmartPlaylistFieldCatalog.fields,
+            commonFields = SmartPlaylistFieldCatalog.commonRuleFields,
             colors = colors,
-            options = SmartPlaylistFieldCatalog.fields
-                .smartPlaylistMenuOrder(CommonSmartPlaylistRuleFields)
-                .map { smartPlaylistFieldLabel(it) to it },
             onSelected = { field ->
                 onConditionChange(
                     condition.copy(
@@ -1054,8 +1149,8 @@ private fun SmartPlaylistRuleControls(
             onConditionChange = onConditionChange,
         )
         if (condition.operator == SmartPlaylistOperator.InTheRange) {
-            SmartPlaylistOperandField(
-                calendarDate = condition.usesCalendarDate(),
+            SmartPlaylistTypedOperand(
+                input = condition.operandInput(),
                 value = condition.secondValue,
                 onValueChange = { value -> onConditionChange(condition.copy(secondValue = value)) },
                 label = stringResource(Res.string.smart_playlist_end_value),
@@ -1216,31 +1311,19 @@ private fun SmartPlaylistConditionValueControls(
     onReferencesRetry: () -> Unit,
     onConditionChange: (SmartPlaylistConditionDraft) -> Unit,
 ) {
-    if (condition.field.valueType == SmartPlaylistValueType.PlaylistId) {
+    val input = condition.operandInput()
+    if (input == SmartPlaylistOperandInput.PlaylistReference) {
         SmartPlaylistReferencePicker(condition.value, references, referencesLoading, referencesFailed,
             currentPlaylistId, onReferencesRetry, colors) { id -> onConditionChange(condition.copy(value = id)) }
         return
     }
-    if (condition.field.valueType == SmartPlaylistValueType.Boolean ||
-        condition.operator == SmartPlaylistOperator.IsMissing ||
-        condition.operator == SmartPlaylistOperator.IsPresent
-    ) {
-        SmartPlaylistDropdown(
-            label = condition.valueLabel(),
-            value = when (condition.value.trim().lowercase()) {
-                "true" -> "True"
-                "false" -> "False"
-                else -> "Choose"
-            },
-            colors = colors,
-            options = listOf("True" to "true", "False" to "false"),
-            onSelected = { value -> onConditionChange(condition.copy(value = value)) },
-        )
+    if (input == SmartPlaylistOperandInput.None) {
+        Text(stringResource(Res.string.smart_playlist_presence_no_value), color = colors.secondaryText, fontSize = 11.sp)
         return
     }
 
     val libraries = LocalSmartPlaylistLibraries.current
-    if (condition.field.field == SmartPlaylistFields.LibraryId && libraries.isNotEmpty()) {
+    if (input == SmartPlaylistOperandInput.Library && libraries.isNotEmpty()) {
         SmartPlaylistDropdown(label = condition.valueLabel(),
             value = smartPlaylistLibraryName(condition.value, libraries), colors = colors,
             options = libraries.map { it.name to it.id },
@@ -1248,7 +1331,7 @@ private fun SmartPlaylistConditionValueControls(
         return
     }
 
-    if (condition.field.field == SmartPlaylistFields.Genre) {
+    if (input == SmartPlaylistOperandInput.Genre) {
         SmartPlaylistGenreTypeahead(
             value = condition.value,
             onValueChange = { value ->
@@ -1282,16 +1365,57 @@ private fun SmartPlaylistConditionValueControls(
             )
         }
     } else {
-        SmartPlaylistOperandField(
-            calendarDate = condition.usesCalendarDate(),
+        SmartPlaylistTypedOperand(
+            input = if (input == SmartPlaylistOperandInput.Library) SmartPlaylistOperandInput.Number(decimal = false) else input,
             value = condition.value,
             onValueChange = { value -> onConditionChange(condition.copy(value = value)) },
             label = condition.valueLabel(),
             colors = colors,
-            relativeDays = condition.operator == SmartPlaylistOperator.InTheLast ||
-                condition.operator == SmartPlaylistOperator.NotInTheLast,
         )
     }
+}
+
+/** Renders one operand from the shared operand policy; raw text always stays editable. */
+@Composable
+internal fun SmartPlaylistTypedOperand(
+    input: SmartPlaylistOperandInput,
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    colors: NaviampColors,
+) {
+    when (input) {
+        // A value outside the choices stays visible with its inline error until a choice replaces it.
+        is SmartPlaylistOperandInput.Choice -> SmartPlaylistDropdown(
+            label = label,
+            value = input.selected(value)?.let { smartPlaylistChoiceLabel(it) } ?: value.ifBlank { "Choose" },
+            colors = colors,
+            options = input.choices.map { smartPlaylistChoiceLabel(it) to it.value },
+            onSelected = onValueChange,
+        )
+        SmartPlaylistOperandInput.CalendarDate ->
+            SmartPlaylistOperandField(calendarDate = true, value = value, onValueChange = onValueChange, label = label, colors = colors)
+        is SmartPlaylistOperandInput.RelativeDays -> SmartPlaylistOperandField(
+            calendarDate = false, value = value, onValueChange = onValueChange, label = label, colors = colors,
+            relativeDays = true, dayPresets = input.presets,
+        )
+        is SmartPlaylistOperandInput.Number -> SmartPlaylistOperandField(
+            calendarDate = false, value = value, onValueChange = onValueChange, label = label, colors = colors, number = input,
+        )
+        else -> SmartPlaylistOperandField(calendarDate = false, value = value, onValueChange = onValueChange, label = label, colors = colors)
+    }
+}
+
+@Composable
+private fun smartPlaylistChoiceLabel(choice: SmartPlaylistValueChoice): String = when (choice.label) {
+    SmartPlaylistChoiceLabel.True -> stringResource(Res.string.smart_playlist_value_true)
+    SmartPlaylistChoiceLabel.False -> stringResource(Res.string.smart_playlist_value_false)
+    SmartPlaylistChoiceLabel.Unrated -> stringResource(Res.string.smart_playlist_rating_unrated)
+    SmartPlaylistChoiceLabel.Stars -> if (choice.count == 1) stringResource(Res.string.smart_playlist_rating_one)
+        else stringResource(Res.string.smart_playlist_rating_many, choice.count)
+    SmartPlaylistChoiceLabel.Explicit -> stringResource(Res.string.smart_playlist_explicit_explicit)
+    SmartPlaylistChoiceLabel.Clean -> stringResource(Res.string.smart_playlist_explicit_clean)
+    SmartPlaylistChoiceLabel.NotSpecified -> stringResource(Res.string.smart_playlist_explicit_not_specified)
 }
 
 @Composable
@@ -1315,7 +1439,7 @@ private fun SmartPlaylistGenreTypeahead(
             },
             label = label,
             singleLine = true,
-            textStyle = TextStyle(fontSize = 13.sp),
+            textStyle = TextStyle(fontSize = 13.sp).withNaviampFont(),
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag(SmartPlaylistGenreValueTestTag)
@@ -1363,12 +1487,16 @@ private fun SmartPlaylistGenreTypeahead(
     }
 }
 
+/** Track count and percent limits are whole numbers. */
+internal val SmartPlaylistLimitKeyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+
 @Composable
 private fun SmartPlaylistTextField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
     colors: NaviampColors,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
 ) {
     SmartPlaylistOutlinedTextField(
         colors = colors,
@@ -1376,12 +1504,12 @@ private fun SmartPlaylistTextField(
         onValueChange = onValueChange,
         label = label,
         singleLine = true,
-        textStyle = TextStyle(fontSize = 13.sp),
+        keyboardOptions = keyboardOptions,
+        textStyle = TextStyle(fontSize = 13.sp).withNaviampFont(),
         modifier = Modifier.fillMaxWidth().naviampTextInputFocus(),
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun <T> SmartPlaylistDropdown(
     label: String,
@@ -1389,12 +1517,93 @@ internal fun <T> SmartPlaylistDropdown(
     colors: NaviampColors,
     options: List<Pair<String, T>>,
     onSelected: (T) -> Unit,
+    searchable: Boolean = false,
+) {
+    SmartPlaylistSearchableDropdown(
+        label = label,
+        value = value,
+        colors = colors,
+        sections = { query ->
+            listOf(SmartPlaylistDropdownSection(null, options.filter { (optionLabel, _) ->
+                query.isBlank() || optionLabel.contains(query, ignoreCase = true)
+            }))
+        },
+        emptyText = "No matches",
+        selected = options.firstOrNull { it.first == value }?.second,
+        onSelected = onSelected,
+        searchable = searchable,
+    )
+}
+
+internal data class SmartPlaylistDropdownSection<T>(val header: String?, val options: List<Pair<String, T>>)
+
+/** Searchable field picker; categories and ranking come from the shared field search policy. */
+@Composable
+internal fun SmartPlaylistFieldDropdown(
+    label: String,
+    selected: SmartPlaylistFieldOption,
+    fields: List<SmartPlaylistFieldOption>,
+    commonFields: List<String>,
+    colors: NaviampColors,
+    onSelected: (SmartPlaylistFieldOption) -> Unit,
+) {
+    val labels = fields.associateWith { smartPlaylistFieldLabel(it) }
+    val headers = SmartPlaylistFieldCategory.entries.associateWith { smartPlaylistFieldCategoryLabel(it) }
+    SmartPlaylistSearchableDropdown(
+        label = label,
+        value = labels[selected] ?: smartPlaylistFieldLabel(selected),
+        colors = colors,
+        sections = { query ->
+            smartPlaylistFieldChoices(fields, query, commonFields) { labels.getValue(it) }.map { group ->
+                SmartPlaylistDropdownSection(headers.getValue(group.category), group.fields.map { labels.getValue(it) to it })
+            }
+        },
+        emptyText = stringResource(Res.string.smart_playlist_field_no_matches),
+        selected = selected,
+        onSelected = onSelected,
+        searchable = true,
+    )
+}
+
+@Composable
+private fun smartPlaylistFieldCategoryLabel(category: SmartPlaylistFieldCategory): String = stringResource(
+    when (category) {
+        SmartPlaylistFieldCategory.Common -> Res.string.smart_playlist_field_category_common
+        SmartPlaylistFieldCategory.Track -> Res.string.smart_playlist_field_category_track
+        SmartPlaylistFieldCategory.AlbumAndArtist -> Res.string.smart_playlist_field_category_album_artist
+        SmartPlaylistFieldCategory.Activity -> Res.string.smart_playlist_field_category_activity
+        SmartPlaylistFieldCategory.Dates -> Res.string.smart_playlist_field_category_dates
+        SmartPlaylistFieldCategory.AudioAndFile -> Res.string.smart_playlist_field_category_audio_file
+        SmartPlaylistFieldCategory.Identifiers -> Res.string.smart_playlist_field_category_identifiers
+        SmartPlaylistFieldCategory.Other -> Res.string.smart_playlist_field_category_other
+    },
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun <T> SmartPlaylistSearchableDropdown(
+    label: String,
+    value: String,
+    colors: NaviampColors,
+    sections: (String) -> List<SmartPlaylistDropdownSection<T>>,
+    emptyText: String,
+    selected: T?,
+    onSelected: (T) -> Unit,
+    searchable: Boolean,
 ) {
     var expanded by remember { mutableStateOf(false) }
     var query by remember(value) { mutableStateOf(value) }
     val normalizedQuery = query.trim().takeUnless { it.equals(value, ignoreCase = true) }.orEmpty()
-    val visibleOptions = options
-        .filter { (optionLabel, _) -> normalizedQuery.isBlank() || optionLabel.contains(normalizedQuery, ignoreCase = true) }
+    val visibleSections = sections(normalizedQuery).filter { it.options.isNotEmpty() }
+    val visibleOptions = visibleSections.flatMap { it.options }
+    // A searchable field keeps focus, so keyboard and D-pad move a highlighted option instead of focus.
+    var highlighted by remember(expanded, normalizedQuery) {
+        mutableStateOf(
+            if (!searchable) -1
+            else if (normalizedQuery.isEmpty()) visibleOptions.indexOfFirst { it.second == selected }
+            else if (visibleOptions.isEmpty()) -1 else 0,
+        )
+    }
     // Keep the anchor gesture alive across focus/preview recompositions during a held press.
     val changeExpanded = remember(value) {
         { requested: Boolean ->
@@ -1402,32 +1611,65 @@ internal fun <T> SmartPlaylistDropdown(
             if (!requested) query = value
         }
     }
+    val choose: (Pair<String, T>) -> Unit = { (optionLabel, optionValue) ->
+        expanded = false
+        query = optionLabel
+        onSelected(optionValue)
+    }
     // Open on completed anchor activation, rather than text-input focus during mouse press.
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = changeExpanded,
         modifier = Modifier.fillMaxWidth(),
     ) {
+        // Only searchable pickers take text; fixed choices are read-only so no soft keyboard opens.
+        val anchor = if (searchable) {
+            Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable).naviampTextInputFocus()
+        } else {
+            Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+        }
         SmartPlaylistOutlinedTextField(
             colors = colors,
-            value = if (expanded) query else value,
+            value = if (expanded && searchable) query else value,
             onValueChange = {
                 query = it
                 expanded = true
             },
             label = label,
+            readOnly = !searchable,
             singleLine = true,
-            textStyle = TextStyle(fontSize = 13.sp),
+            textStyle = TextStyle(fontSize = 13.sp).withNaviampFont(),
             modifier = Modifier
                 .fillMaxWidth()
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable)
-                .naviampTextInputFocus()
+                .then(anchor)
                 .onPreviewKeyEvent { event ->
-                    if (expanded && event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
-                        expanded = false
-                        query = value
-                        true
-                    } else false
+                    if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                    if (!expanded) {
+                        return@onPreviewKeyEvent if (!searchable && event.key in SmartPlaylistSelectorOpenKeys) {
+                            expanded = true
+                            true
+                        } else false
+                    }
+                    when (event.key) {
+                        Key.Escape -> {
+                            expanded = false
+                            query = value
+                            true
+                        }
+                        Key.DirectionDown -> {
+                            if (searchable && visibleOptions.isNotEmpty()) highlighted = (highlighted + 1).mod(visibleOptions.size)
+                            searchable
+                        }
+                        Key.DirectionUp -> {
+                            if (searchable && visibleOptions.isNotEmpty()) {
+                                highlighted = if (highlighted <= 0) visibleOptions.lastIndex else highlighted - 1
+                            }
+                            searchable
+                        }
+                        Key.Enter, Key.NumPadEnter, Key.DirectionCenter ->
+                            visibleOptions.getOrNull(highlighted)?.takeIf { searchable }?.let { choose(it); true } ?: false
+                        else -> false
+                    }
                 },
         )
         NaviampDropdownMenu(
@@ -1437,67 +1679,71 @@ internal fun <T> SmartPlaylistDropdown(
                 query = value
             },
             containerColor = colors.controlSurface,
-            properties = PopupProperties(focusable = false),
+            // A fixed list takes focus so keyboard and D-pad move through its items.
+            properties = PopupProperties(focusable = !searchable),
             modifier = Modifier.heightIn(max = 280.dp),
         ) {
             NaviampPopupPresence()
             if (visibleOptions.isEmpty()) {
                 DropdownMenuItem(
-                    text = { Text("No matches", color = colors.secondaryText) },
+                    text = { Text(emptyText, color = colors.secondaryText) },
                     onClick = {},
                     enabled = false,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                 )
             }
-            visibleOptions.forEach { (optionLabel, optionValue) ->
-                DropdownMenuItem(
-                    text = { Text(optionLabel, color = colors.primaryText) },
-                    onClick = {
-                        expanded = false
-                        query = optionLabel
-                        onSelected(optionValue)
-                    },
-                )
+            var index = 0
+            visibleSections.forEach { section ->
+                section.header?.let { header ->
+                    Text(
+                        header,
+                        color = colors.secondaryText,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp).semantics { heading() },
+                    )
+                }
+                section.options.forEach { option ->
+                    SmartPlaylistDropdownOption(option.first, option.second == selected, index == highlighted, colors) {
+                        choose(option)
+                    }
+                    index++
+                }
             }
         }
     }
 }
 
-private val CommonSmartPlaylistRuleFields = listOf(
-    SmartPlaylistFields.Loved,
-    SmartPlaylistFields.DateLoved,
-    SmartPlaylistFields.Rating,
-    SmartPlaylistFields.DateRated,
-    SmartPlaylistFields.LastPlayed,
-    SmartPlaylistFields.PlayCount,
-    SmartPlaylistFields.DateAdded,
-    SmartPlaylistFields.Artist,
-    SmartPlaylistFields.Album,
-    SmartPlaylistFields.Title,
-    SmartPlaylistFields.Genre,
-    SmartPlaylistFields.Year,
-)
+private val SmartPlaylistSelectorOpenKeys = setOf(Key.Enter, Key.NumPadEnter, Key.DirectionCenter, Key.Spacebar)
 
-private val CommonSmartPlaylistSortFields = listOf(
-    SmartPlaylistFields.DateLoved,
-    SmartPlaylistFields.LastPlayed,
-    SmartPlaylistFields.DateAdded,
-    SmartPlaylistFields.Rating,
-    SmartPlaylistFields.PlayCount,
-    SmartPlaylistFields.Artist,
-    SmartPlaylistFields.Album,
-    SmartPlaylistFields.Title,
-    SmartPlaylistFields.Genre,
-    SmartPlaylistFields.Year,
-    SmartPlaylistFields.Random,
-)
-
-private fun List<SmartPlaylistFieldOption>.smartPlaylistMenuOrder(commonFields: List<String>): List<SmartPlaylistFieldOption> =
-    sortedWith(
-        compareBy<SmartPlaylistFieldOption> { option ->
-            val index = commonFields.indexOf(option.field)
-            if (index == -1) Int.MAX_VALUE else index
-        }.thenBy { option -> option.label.lowercase() },
+@Composable
+private fun SmartPlaylistDropdownOption(
+    label: String,
+    isSelected: Boolean,
+    isHighlighted: Boolean,
+    colors: NaviampColors,
+    onClick: () -> Unit,
+) {
+    val bringIntoView = remember { BringIntoViewRequester() }
+    LaunchedEffect(isHighlighted) { if (isHighlighted) bringIntoView.bringIntoView() }
+    DropdownMenuItem(
+        text = {
+            Text(
+                label,
+                color = colors.primaryText,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+            )
+        },
+        trailingIcon = if (isSelected) {
+            { Icon(NaviampIcons.Check, contentDescription = null, tint = colors.accent) }
+        } else null,
+        onClick = onClick,
+        modifier = Modifier
+            .bringIntoViewRequester(bringIntoView)
+            .background(if (isHighlighted) colors.accent.copy(alpha = 0.18f) else Color.Transparent)
+            .semantics { selected = isSelected },
     )
+}
 
 @Composable
 internal fun smartPlaylistFieldLabel(option: SmartPlaylistFieldOption): String = when (option.field) {

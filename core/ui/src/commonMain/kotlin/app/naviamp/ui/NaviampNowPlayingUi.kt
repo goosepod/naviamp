@@ -1572,7 +1572,7 @@ private fun FilledArtworkMetadataRow(
     val audioVisible = showAudioInfo && nowPlaying.audioInfo.isNotBlank()
     if (!ratingVisible && !audioVisible) return
     val (format, quality) = nowPlaying.audioInfo.compactAudioInfoParts()
-    val textStyle = TextStyle(fontSize = if (largeSizing) 14.sp else 11.sp)
+    val textStyle = TextStyle(fontSize = if (largeSizing) 14.sp else 11.sp).withNaviampFont()
     val measurer = rememberTextMeasurer()
     val favoriteWidth = if (largeSizing) 30.dp else 24.dp
     val starsWidth = if (largeSizing) 116.dp else 92.dp

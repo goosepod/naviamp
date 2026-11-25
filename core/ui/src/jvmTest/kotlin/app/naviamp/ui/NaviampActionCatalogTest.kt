@@ -115,6 +115,7 @@ class NaviampActionCatalogTest {
             canAddToPlaylist = true,
             canRename = true,
             canEditSmartPlaylist = true,
+            canDuplicateSmartPlaylist = true,
             canDelete = true,
         )
 
@@ -125,6 +126,7 @@ class NaviampActionCatalogTest {
                 NaviampAction.AddPlaylistToPlaylist,
                 NaviampAction.RenamePlaylist,
                 NaviampAction.EditSmartPlaylist,
+                NaviampAction.DuplicateSmartPlaylist,
                 NaviampAction.DeletePlaylist,
             ),
             actions.map { it.action },

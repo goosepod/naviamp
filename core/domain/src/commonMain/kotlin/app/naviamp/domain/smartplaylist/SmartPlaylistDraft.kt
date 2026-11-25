@@ -522,6 +522,36 @@ object SmartPlaylistFieldCatalog {
 
     val defaultField: SmartPlaylistFieldOption = fields.first { it.field == SmartPlaylistFields.Artist }
 
+    /** Listed first, in this order, when a rule field picker has no search text. */
+    val commonRuleFields = listOf(
+        SmartPlaylistFields.Loved,
+        SmartPlaylistFields.DateLoved,
+        SmartPlaylistFields.Rating,
+        SmartPlaylistFields.DateRated,
+        SmartPlaylistFields.LastPlayed,
+        SmartPlaylistFields.PlayCount,
+        SmartPlaylistFields.DateAdded,
+        SmartPlaylistFields.Artist,
+        SmartPlaylistFields.Album,
+        SmartPlaylistFields.Title,
+        SmartPlaylistFields.Genre,
+        SmartPlaylistFields.Year,
+    )
+
+    val commonSortFields = listOf(
+        SmartPlaylistFields.DateLoved,
+        SmartPlaylistFields.LastPlayed,
+        SmartPlaylistFields.DateAdded,
+        SmartPlaylistFields.Rating,
+        SmartPlaylistFields.PlayCount,
+        SmartPlaylistFields.Artist,
+        SmartPlaylistFields.Album,
+        SmartPlaylistFields.Title,
+        SmartPlaylistFields.Genre,
+        SmartPlaylistFields.Year,
+        SmartPlaylistFields.Random,
+    )
+
     val sortableFields: List<SmartPlaylistFieldOption> =
         fields.filter { it.sortable } + SmartPlaylistFieldOption(
             SmartPlaylistFields.Random,
