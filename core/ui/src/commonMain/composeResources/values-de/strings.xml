@@ -230,17 +230,17 @@
     <string name="settings_about_changelog_description">Was hat sich in dieser Version geändert?</string>
     <string name="settings_source_edit_connection_title">Verbindung bearbeiten</string>
     <string name="settings_source_new_connection_title">Neue Verbindung</string>
-    <string name="settings_source_edit_connection_subtitle">Server, Anmeldung, TLS und Bibliotheken</string>
-    <string name="settings_source_new_connection_subtitle">Fügen Sie einen Navidrome-Server hinzu</string>
+    <string name="settings_source_edit_connection_subtitle">Server-Anmeldung, TLS und Bibliotheken</string>
+    <string name="settings_source_new_connection_subtitle">Navidrome Server hinzufügen</string>
     <string name="settings_source_connections_title">Verbindungen</string>
     <string name="settings_source_connections_subtitle">Gespeicherte Navidrome-Server</string>
     <string name="settings_source_connections_subtitle_period">Gespeicherte Navidrome-Server.</string>
     <string name="settings_source_no_connections">Noch keine gespeicherten Verbindungen.</string>
     <string name="settings_source_new_connection_button">Neue Verbindung</string>
     <string name="settings_sync_title">Einstellungen synchronisieren</string>
-    <string name="settings_sync_subtitle">Synchronisierung ordnerbasierter Einstellungen</string>
+    <string name="settings_sync_subtitle">Ordnerbasierte Synchronisierung der Einstellungen</string>
     <string name="settings_sync_subtitle_period">Synchronisierung ordnerbasierter Einstellungen.</string>
-    <string name="settings_sync_description">Verwenden Sie einen Ordner, der von Nextcloud, Dropbox, Syncthing, FolderSync oder einer anderen Dateisynchronisierungs-App verwaltet wird. Naviamp behält eine lokale Kopie und synchronisiert diese Datei, wenn der Anbieter dies zulässt.</string>
+    <string name="settings_sync_description">Verwende einen Ordner, der von Nextcloud, Dropbox, Syncthing, FolderSync oder einer anderen Synchronisierungs-App verwaltet wird. Naviamp speichert eine lokale Kopie und synchronisiert diese Datei, sofern der Anbieter dies unterstützt.</string>
     <string name="settings_sync_auto_sync">Änderungen automatisch synchronisieren</string>
     <string name="settings_sync_choose_folder">Wählen Sie den Synchronisierungsordner</string>
     <string name="settings_sync_now">Jetzt synchronisieren</string>
@@ -1328,7 +1328,6 @@
     <string name="storage_recovery_unavailable">Gespeicherte Einstellungen sind vorübergehend nicht verfügbar. Versuche es erneut.</string>
     <string name="storage_recovery_reset_title">Gespeicherte Einstellungen zurücksetzen?</string>
     <string name="storage_recovery_reset_message">Gespeicherte Einstellungen und Verbindungen auf diesem Gerät werden gelöscht. Deine Serverbibliothek wird nicht gelöscht.</string>
-
     <string name="vehicle_connection_setup_on_phone">Füge Verbindungen auf deinem Telefon hinzu oder aktualisiere sie.</string>
     <string name="vehicle_connection_offline">Offline</string>
     <string name="tv_search_keyboard_space">Leerzeichen</string>
