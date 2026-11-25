@@ -120,7 +120,7 @@ internal class StorageProviderIdentityMigrationStore(
 
             // Response bodies and image URLs can contain IDs in provider-defined structures. They
             // are disposable caches, so invalidation is safer than incomplete JSON rewriting.
-            queries.deleteResponsesForProviderIdentityMigration(providerId)
+            queries.deleteResponsesForProviderIdentityMigration(providerId = providerId, sourceId = sourceId)
             queries.clearImages()
             queries.markProviderIdentityVersion(targetVersion, sourceId)
         }

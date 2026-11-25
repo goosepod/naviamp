@@ -2048,7 +2048,11 @@ WHERE id = ?;
 
 deleteResponsesForProviderIdentityMigration:
 DELETE FROM cached_response
-WHERE provider_id = ?;
+WHERE provider_id = :providerId
+   OR provider_id = (
+       SELECT cache_namespace FROM media_source
+       WHERE id = :sourceId AND provider_id = :providerId
+   );
 
 clearLibraryTracks:
 DELETE FROM library_track;

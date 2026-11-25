@@ -268,7 +268,7 @@ class HomeService(
             ?: provider.artists(limit)
 
     private suspend fun playlists(limit: Int): List<Playlist> =
-        providerResponseService?.playlists(provider, limit)
+        providerResponseService?.playlists(provider, limit, maxAgeMillis = 0L)
             ?: provider.playlists(limit)
 
     private suspend fun internetRadioStations(): List<InternetRadioStation> =

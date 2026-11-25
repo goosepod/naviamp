@@ -4,7 +4,9 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 ## Unreleased
 
-No changes yet.
+### Bug fixes
+
+- Fix Home playlists showing stale artwork or “playlist not found” after a Navidrome upgrade. Home reloads current playlist metadata while retaining cached metadata if the server is unavailable. On the next connection, accounts whose identifier migration already ran receive a one-time repair of response caches; the library index and artwork cache are rebuilt, while downloaded files remain in place.
 
 ## v2.12.0
 
