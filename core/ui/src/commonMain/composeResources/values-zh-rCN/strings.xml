@@ -610,4 +610,12 @@
     <string name="playlist_download_failed_mobile_data">无法下载 %1$s。已关闭通过移动数据下载。</string>
     <string name="playlist_download_already_saved">%1$s 中的所有曲目均已下载。</string>
     <string name="offline_playlist_track_not_downloaded">此曲目尚未下载。重新连接后即可播放。</string>
+||||||| parent of 4a7840640 (Return Library to the top after refresh and show newly added items (#707))
+    <string name="library_new_items_show">查看</string>
+    <plurals name="library_new_albums">
+        <item quantity="other">%1$d 张新专辑</item>
+    </plurals>
+    <plurals name="library_new_artists">
+        <item quantity="other">%1$d 位新艺人</item>
+    </plurals>
 </resources>

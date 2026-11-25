@@ -32,6 +32,15 @@ class NaviampLibraryViewportState internal constructor(
     }
 
     private val focusedTargets = mutableStateMapOf<NaviampLibraryView, String>()
+    private val shownAddedItems = mutableStateMapOf<NaviampLibraryView, Long>()
+
+    /** The added-items indicator stays until it is used once for that refresh. */
+    internal fun hasUnseenAddedItems(view: NaviampLibraryView, generation: Long): Boolean =
+        generation != 0L && shownAddedItems[view] != generation
+
+    internal fun markAddedItemsShown(view: NaviampLibraryView, generation: Long) {
+        shownAddedItems[view] = generation
+    }
 
     fun listState(view: NaviampLibraryView): LazyListState = listStates.getValue(view)
 

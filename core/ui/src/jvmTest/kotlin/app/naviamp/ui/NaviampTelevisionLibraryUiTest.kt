@@ -172,6 +172,25 @@ class NaviampTelevisionLibraryUiTest {
         }
     }
 
+    @Test fun addedItemsIndicatorIsReachableFromRefreshAndFocusesTheFirstNewAlbum() = runDesktopComposeUiTest(1280, 720) {
+        val screen = mutableStateOf(screen().copy(selectedView = NaviampLibraryView.Albums))
+        setContent { LibraryFixture(screen, rememberNaviampTelevisionLibraryState()) }
+        runOnIdle {
+            screen.value = screen.value.copy(albums = screen.value.albums.copy(
+                refreshGeneration = 1L, refreshAddedItemIds = listOf("album-27", "album-24")))
+        }
+        waitForIdle()
+        onNodeWithTag(LibraryNewItemsIndicatorTestTag).assertTextEquals("2 new albums")
+            .assert(SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.LiveRegion))
+        onNodeWithText("Refresh").performSemanticsAction(SemanticsActions.RequestFocus)
+            .performKeyInput { pressKey(Key.DirectionRight) }
+        onNodeWithTag(LibraryNewItemsIndicatorTestTag).assertIsFocused()
+            .performKeyInput { pressKey(Key.Enter) }
+        waitForIdle()
+        onNodeWithTag(itemTag("album-24")).assertIsFocused().assertIsDisplayed()
+        onNodeWithTag(LibraryNewItemsIndicatorTestTag).assertDoesNotExist()
+    }
+
     @Test fun libraryAt720p() = checkSize(1280, 720)
     @Test fun libraryAt1080p() = checkSize(1920, 1080)
     @Test fun libraryAtNative4k() = checkSize(3840, 2160)

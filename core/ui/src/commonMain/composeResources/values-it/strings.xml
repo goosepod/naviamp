@@ -611,4 +611,16 @@
     <string name="playlist_download_failed_mobile_data">Impossibile scaricare %1$s. I download con dati mobili sono disattivati.</string>
     <string name="playlist_download_already_saved">Tutti i brani di %1$s sono già scaricati.</string>
     <string name="offline_playlist_track_not_downloaded">Questo brano non è stato scaricato. Riconnettiti per riprodurlo.</string>
+||||||| parent of 4a7840640 (Return Library to the top after refresh and show newly added items (#707))
+    <string name="library_new_items_show">Mostra</string>
+    <plurals name="library_new_albums">
+        <item quantity="one">%1$d nuovo album</item>
+        <item quantity="many">%1$d nuovi album</item>
+        <item quantity="other">%1$d nuovi album</item>
+    </plurals>
+    <plurals name="library_new_artists">
+        <item quantity="one">%1$d nuovo artista</item>
+        <item quantity="many">%1$d nuovi artisti</item>
+        <item quantity="other">%1$d nuovi artisti</item>
+    </plurals>
 </resources>

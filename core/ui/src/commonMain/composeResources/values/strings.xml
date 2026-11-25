@@ -392,6 +392,15 @@
     <string name="library_search_songs">Search library songs</string>
     <string name="library_refresh">Refresh</string>
     <string name="library_refreshing">Refreshing...</string>
+    <string name="library_new_items_show">Show</string>
+    <plurals name="library_new_albums">
+        <item quantity="one">%1$d new album</item>
+        <item quantity="other">%1$d new albums</item>
+    </plurals>
+    <plurals name="library_new_artists">
+        <item quantity="one">%1$d new artist</item>
+        <item quantity="other">%1$d new artists</item>
+    </plurals>
     <string name="library_no_artists">No library artists found.</string>
     <string name="library_no_artist_matches">No library artists match.</string>
     <string name="library_no_albums">No library albums found.</string>

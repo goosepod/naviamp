@@ -613,4 +613,18 @@
     <string name="playlist_download_failed_mobile_data">Не вдалося завантажити %1$s. Завантаження через мобільні дані вимкнено.</string>
     <string name="playlist_download_already_saved">Усі треки з %1$s уже завантажено.</string>
     <string name="offline_playlist_track_not_downloaded">Цей трек не завантажено. Підключіться знову, щоб відтворити його.</string>
+||||||| parent of 4a7840640 (Return Library to the top after refresh and show newly added items (#707))
+    <string name="library_new_items_show">Показати</string>
+    <plurals name="library_new_albums">
+        <item quantity="one">%1$d новий альбом</item>
+        <item quantity="few">%1$d нові альбоми</item>
+        <item quantity="many">%1$d нових альбомів</item>
+        <item quantity="other">%1$d нового альбому</item>
+    </plurals>
+    <plurals name="library_new_artists">
+        <item quantity="one">%1$d новий виконавець</item>
+        <item quantity="few">%1$d нові виконавці</item>
+        <item quantity="many">%1$d нових виконавців</item>
+        <item quantity="other">%1$d нового виконавця</item>
+    </plurals>
 </resources>

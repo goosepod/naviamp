@@ -1437,6 +1437,11 @@ fun NaviampLibraryContent(
     val focusIds = if (screen.selectedView == NaviampLibraryView.Songs) filteredTracks.map { it.id } else filteredItems.map { it.id }
     val restoredIndex = focusIds.indexOfFirst { libraryItemFocusTarget(it) == restoredTarget }
     val targetExists = restoredIndex >= 0 || restoredTarget == LibrarySearchFocusTarget
+    val refreshAddedItems = libraryAddedItems(screen.selectedView, catalog, focusIds)
+    val addedItems = refreshAddedItems
+        ?.takeIf { viewportState.hasUnseenAddedItems(screen.selectedView, catalog.refreshGeneration) }
+    // Stays attached after the indicator hides so its own click can still move focus.
+    val addedItemFocusRequester = remember(screen.selectedView, refreshAddedItems?.firstId) { FocusRequester() }
     androidx.compose.runtime.LaunchedEffect(screen.selectedView, targetExists, catalog.refreshGeneration) {
         if (viewportState.hasPendingRefresh(screen.selectedView, catalog.refreshGeneration)) return@LaunchedEffect
         if (restoredTarget == null && (activeListState.firstVisibleItemIndex > 0 || activeListState.firstVisibleItemScrollOffset > 0)) return@LaunchedEffect
@@ -1643,6 +1648,16 @@ fun NaviampLibraryContent(
         }
         // Loading and refresh feedback must never displace the search controls.
         NaviampLibraryLoadingStatus(colors, screen.selectedView, catalog)
+        if (addedItems != null) {
+            NaviampLibraryNewItemsIndicator(colors, screen.selectedView, addedItems, onShow = {
+                viewportState.markAddedItemsShown(screen.selectedView, catalog.refreshGeneration)
+                libraryScope.launch {
+                    activeListState.scrollToItem(addedItems.firstIndex)
+                    withFrameNanos { }
+                    addedItemFocusRequester.requestFocus()
+                }
+            })
+        }
         Row(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -1768,6 +1783,13 @@ fun NaviampLibraryContent(
                             .then(
                                 if (restoredTarget == focusTarget) {
                                     Modifier.focusRequester(restoredItemFocusRequester)
+                                } else {
+                                    Modifier
+                                },
+                            )
+                            .then(
+                                if (item.id == refreshAddedItems?.firstId) {
+                                    Modifier.focusRequester(addedItemFocusRequester)
                                 } else {
                                     Modifier
                                 },

@@ -792,6 +792,17 @@
     <string name="library_search_songs">Buscar músicas da biblioteca</string>
     <string name="library_refresh">Atualizar</string>
     <string name="library_refreshing">Atualizando...</string>
+    <string name="library_new_items_show">Mostrar</string>
+    <plurals name="library_new_albums">
+        <item quantity="one">%1$d álbum novo</item>
+        <item quantity="many">%1$d de álbuns novos</item>
+        <item quantity="other">%1$d álbuns novos</item>
+    </plurals>
+    <plurals name="library_new_artists">
+        <item quantity="one">%1$d artista novo</item>
+        <item quantity="many">%1$d de artistas novos</item>
+        <item quantity="other">%1$d artistas novos</item>
+    </plurals>
     <string name="library_no_artists">Nenhum artista encontrado na biblioteca.</string>
     <string name="library_no_artist_matches">Nenhum artista da biblioteca corresponde.</string>
     <string name="library_no_albums">Nenhum álbum encontrado na biblioteca.</string>

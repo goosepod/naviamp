@@ -710,4 +710,18 @@
     <string name="playlist_download_failed_mobile_data">Nie udało się pobrać: %1$s. Pobieranie przez dane komórkowe jest wyłączone.</string>
     <string name="playlist_download_already_saved">Wszystkie utwory z %1$s są już pobrane.</string>
     <string name="offline_playlist_track_not_downloaded">Ten utwór nie jest pobrany. Połącz się ponownie, aby go odtworzyć.</string>
+||||||| parent of 4a7840640 (Return Library to the top after refresh and show newly added items (#707))
+    <string name="library_new_items_show">Pokaż</string>
+    <plurals name="library_new_albums">
+        <item quantity="one">%1$d nowy album</item>
+        <item quantity="few">%1$d nowe albumy</item>
+        <item quantity="many">%1$d nowych albumów</item>
+        <item quantity="other">%1$d nowego albumu</item>
+    </plurals>
+    <plurals name="library_new_artists">
+        <item quantity="one">%1$d nowy wykonawca</item>
+        <item quantity="few">%1$d nowych wykonawców</item>
+        <item quantity="many">%1$d nowych wykonawców</item>
+        <item quantity="other">%1$d nowego wykonawcy</item>
+    </plurals>
 </resources>

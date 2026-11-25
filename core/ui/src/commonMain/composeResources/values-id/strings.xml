@@ -610,4 +610,12 @@
     <string name="playlist_download_failed_mobile_data">Tidak dapat mengunduh %1$s. Unduhan melalui data seluler dinonaktifkan.</string>
     <string name="playlist_download_already_saved">Semua lagu di %1$s sudah diunduh.</string>
     <string name="offline_playlist_track_not_downloaded">Lagu ini belum diunduh. Sambungkan kembali untuk memutarnya.</string>
+||||||| parent of 4a7840640 (Return Library to the top after refresh and show newly added items (#707))
+    <string name="library_new_items_show">Tampilkan</string>
+    <plurals name="library_new_albums">
+        <item quantity="other">%1$d album baru</item>
+    </plurals>
+    <plurals name="library_new_artists">
+        <item quantity="other">%1$d artis baru</item>
+    </plurals>
 </resources>

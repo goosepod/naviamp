@@ -611,4 +611,14 @@
     <string name="playlist_download_failed_mobile_data">Kan %1$s niet downloaden. Downloaden via mobiele data staat uit.</string>
     <string name="playlist_download_already_saved">Alle nummers in %1$s zijn al gedownload.</string>
     <string name="offline_playlist_track_not_downloaded">Dit nummer is niet gedownload. Maak opnieuw verbinding om het af te spelen.</string>
+||||||| parent of 4a7840640 (Return Library to the top after refresh and show newly added items (#707))
+    <string name="library_new_items_show">Tonen</string>
+    <plurals name="library_new_albums">
+        <item quantity="one">%1$d nieuw album</item>
+        <item quantity="other">%1$d nieuwe albums</item>
+    </plurals>
+    <plurals name="library_new_artists">
+        <item quantity="one">%1$d nieuwe artiest</item>
+        <item quantity="other">%1$d nieuwe artiesten</item>
+    </plurals>
 </resources>
