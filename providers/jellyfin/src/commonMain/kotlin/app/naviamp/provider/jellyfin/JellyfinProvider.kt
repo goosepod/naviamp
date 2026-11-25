@@ -268,21 +268,31 @@ class JellyfinProvider(
             },
         ).items().mapNotNull { item -> item.string("Name")?.let(::Genre) }
 
+    // Jellyfin's track ParentId names the album, not the library; Items queries are scoped by parentId instead.
+    override fun tracksInSelectedLibraries(tracks: List<Track>): List<Track> = tracks
+
     override suspend fun randomSongs(
         limit: Int,
         genre: String?,
         fromYear: Int?,
         toYear: Int?,
-    ): List<Track> = itemPage(
-        request = MediaPageRequest(limit = limit.coerceIn(1, 200)),
-        includeItemTypes = "Audio",
-        sortBy = "Random",
-        extraParameters = buildList {
-            genre?.trim()?.takeIf(String::isNotEmpty)?.let { add("genres" to it) }
-            if (fromYear != null && toYear != null) add("years" to (fromYear..toYear).joinToString(","))
-        },
-        mapper = { it.toTrack() },
-    ).items
+    ): List<Track> {
+        val size = limit.coerceIn(1, 200)
+        suspend fun randomPage(parentId: String?) = itemPage(
+            request = MediaPageRequest(limit = size),
+            includeItemTypes = "Audio",
+            parentId = parentId,
+            sortBy = "Random",
+            extraParameters = buildList {
+                genre?.trim()?.takeIf(String::isNotEmpty)?.let { add("genres" to it) }
+                if (fromYear != null && toYear != null) add("years" to (fromYear..toYear).joinToString(","))
+            },
+            mapper = { it.toTrack() },
+        ).items
+        if (selectedMusicFolderIds.size <= 1) return randomPage(selectedMusicFolderIds.singleOrNull())
+        // An unscoped query would also sample the libraries the user hid.
+        return selectedMusicFolderIds.flatMap { randomPage(it) }.distinctBy { it.id }.shuffled().take(size)
+    }
 
     override suspend fun artistRadio(artistId: ArtistId, count: Int): List<Track> =
         instantMix("Artists/${artistId.value}/InstantMix", count)

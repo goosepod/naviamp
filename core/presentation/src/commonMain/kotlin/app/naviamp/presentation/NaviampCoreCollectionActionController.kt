@@ -26,7 +26,9 @@ class NaviampCoreCollectionActionController(
     private val issueResolvedCommand: (suspend (NaviampCoreCommand) -> Unit)? = null,
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
-        is NaviampCoreCommand.Home.SelectStation,
+        is NaviampCoreCommand.Home.SelectStation ->
+            if (command.station.id == app.naviamp.domain.home.HomeStationSomethingNew) NaviampCoreImmediateCommandResult.Unhandled
+            else NaviampCoreImmediateCommandResult.Deferred
         is NaviampCoreCommand.Home.StartAlbumMix,
         is NaviampCoreCommand.Detail.Album,
         -> NaviampCoreImmediateCommandResult.Deferred

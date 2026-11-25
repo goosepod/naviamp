@@ -329,6 +329,7 @@ fun createNaviampCoreActions(
             onPlaylistMembershipRetried = { send(NaviampCoreCommand.NowPlaying.RetryPlaylistMembership) },
             onPlaylistMembershipApplied = { send(NaviampCoreCommand.NowPlaying.ApplyPlaylistMembership) },
             onPlaylistMembershipDismissed = { send(NaviampCoreCommand.NowPlaying.DismissPlaylistMembership) },
+            onPlaySomethingNew = { send(NaviampCoreCommand.Home.PlaySomethingNew) },
         ),
         connectActions = connectActions,
     )

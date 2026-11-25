@@ -589,4 +589,13 @@
     <string name="queue_undo_cleared">कतार खाली की गई।</string>
     <string name="queue_undo_replaced_upcoming">आगे के ट्रैक बदले गए।</string>
     <string name="queue_undo_replaced_resumes">कतार बदली गई। पूर्ववत करने पर %1$s पर लौटेंगे।</string>
+    <string name="something_new_title">कुछ नया चलाएँ</string>
+    <string name="something_new_subtitle">ऐसा ट्रैक जो आपने कभी नहीं सुना</string>
+    <string name="something_new_nothing_unplayed">ऐसा कोई ट्रैक नहीं मिला जो आपने नहीं सुना हो।</string>
+    <string name="something_new_nothing_unplayed_offline">ऑफ़लाइन: ऐसा कोई डाउनलोड किया गया ट्रैक नहीं मिला जो आपने नहीं सुना हो।</string>
+    <string name="something_new_no_downloads">ऑफ़लाइन: कुछ नया चलाने के लिए संगीत डाउनलोड करें।</string>
+    <string name="something_new_no_play_counts">यह सर्वर प्ले काउंट नहीं बताता, इसलिए Naviamp यह नहीं जान सकता कि कौन से ट्रैक नए हैं।</string>
+    <string name="something_new_failed">चुनने के लिए ट्रैक लोड नहीं हो सके।</string>
+    <string name="something_new_from_downloads">ऑफ़लाइन: ऐसा डाउनलोड किया गया ट्रैक चल रहा है जो आपने नहीं सुना।</string>
+    <string name="radio_offline">आप ऑफ़लाइन हैं। और ट्रैक के लिए आपके सर्वर से कनेक्शन ज़रूरी है।</string>
 </resources>

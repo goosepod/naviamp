@@ -589,4 +589,13 @@
     <string name="queue_undo_cleared">Antrean dikosongkan.</string>
     <string name="queue_undo_replaced_upcoming">Lagu berikutnya diganti.</string>
     <string name="queue_undo_replaced_resumes">Antrean diganti. Urungkan kembali ke %1$s.</string>
+    <string name="something_new_title">Putar sesuatu yang baru</string>
+    <string name="something_new_subtitle">Lagu yang belum pernah Anda putar</string>
+    <string name="something_new_nothing_unplayed">Tidak menemukan lagu yang belum pernah Anda putar.</string>
+    <string name="something_new_nothing_unplayed_offline">Offline: tidak menemukan lagu unduhan yang belum pernah Anda putar.</string>
+    <string name="something_new_no_downloads">Offline: unduh musik untuk memutar sesuatu yang baru.</string>
+    <string name="something_new_no_play_counts">Server ini tidak melaporkan jumlah pemutaran, jadi Naviamp tidak dapat mengetahui lagu mana yang baru.</string>
+    <string name="something_new_failed">Tidak dapat memuat lagu untuk dipilih.</string>
+    <string name="something_new_from_downloads">Offline: memutar lagu unduhan yang belum pernah Anda putar.</string>
+    <string name="radio_offline">Anda sedang offline. Lagu lainnya memerlukan koneksi ke server Anda.</string>
 </resources>

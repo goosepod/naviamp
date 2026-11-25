@@ -83,8 +83,13 @@ private suspend fun similarityAttempt(load: suspend () -> List<Track>): Similari
         httpStatus = codes?.httpStatus, serverCode = codes?.serverCode)
 }
 
-enum class RadioBuildOutcome { Empty, Failed, TimedOut, Unsupported }
+enum class RadioBuildOutcome { Empty, Failed, TimedOut, Unsupported, Offline }
 data class RadioBuildDiagnostics(val outcome: RadioBuildOutcome, val autoplay: Boolean = false)
+
+/** Offline, an unreachable server is expected, so the notice must not blame the server. */
+fun RadioBuildDiagnostics.whileOffline(offline: Boolean): RadioBuildDiagnostics =
+    if (offline && outcome in setOf(RadioBuildOutcome.Failed, RadioBuildOutcome.TimedOut)) copy(outcome = RadioBuildOutcome.Offline)
+    else this
 
 fun SimilarityResult.radioDiagnostics(autoplay: Boolean = false): RadioBuildDiagnostics? = when {
     failure != null -> RadioBuildDiagnostics(when (failure.kind) {

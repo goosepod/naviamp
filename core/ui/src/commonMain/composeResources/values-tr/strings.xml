@@ -589,4 +589,13 @@
     <string name="queue_undo_cleared">Sıra temizlendi.</string>
     <string name="queue_undo_replaced_upcoming">Sıradaki parçalar değiştirildi.</string>
     <string name="queue_undo_replaced_resumes">Sıra değiştirildi. Geri al, %1$s parçasına döner.</string>
+    <string name="something_new_title">Yeni bir şey çal</string>
+    <string name="something_new_subtitle">Hiç dinlemediğiniz bir parça</string>
+    <string name="something_new_nothing_unplayed">Henüz dinlemediğiniz bir parça bulunamadı.</string>
+    <string name="something_new_nothing_unplayed_offline">Çevrimdışı: henüz dinlemediğiniz indirilmiş bir parça bulunamadı.</string>
+    <string name="something_new_no_downloads">Çevrimdışı: yeni bir şey çalmak için müzik indirin.</string>
+    <string name="something_new_no_play_counts">Bu sunucu çalma sayılarını bildirmiyor, bu nedenle Naviamp hangi parçaların yeni olduğunu bilemez.</string>
+    <string name="something_new_failed">Seçilecek parçalar yüklenemedi.</string>
+    <string name="something_new_from_downloads">Çevrimdışı: henüz dinlemediğiniz indirilmiş bir parça çalınıyor.</string>
+    <string name="radio_offline">Çevrimdışısınız. Daha fazla parça için sunucunuza bağlantı gerekiyor.</string>
 </resources>

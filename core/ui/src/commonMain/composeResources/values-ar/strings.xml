@@ -589,4 +589,13 @@
     <string name="queue_undo_cleared">تم مسح قائمة الانتظار.</string>
     <string name="queue_undo_replaced_upcoming">تم استبدال المقاطع التالية.</string>
     <string name="queue_undo_replaced_resumes">تم استبدال قائمة الانتظار. يعيدك التراجع إلى %1$s.</string>
+    <string name="something_new_title">تشغيل شيء جديد</string>
+    <string name="something_new_subtitle">مقطع لم تستمع إليه من قبل</string>
+    <string name="something_new_nothing_unplayed">تعذّر العثور على مقطع لم تستمع إليه.</string>
+    <string name="something_new_nothing_unplayed_offline">غير متصل: تعذّر العثور على مقطع منزَّل لم تستمع إليه.</string>
+    <string name="something_new_no_downloads">غير متصل: نزِّل موسيقى لتشغيل شيء جديد.</string>
+    <string name="something_new_no_play_counts">لا يُبلغ هذا الخادم عن عدد مرات التشغيل، لذا لا يستطيع Naviamp معرفة المقاطع الجديدة.</string>
+    <string name="something_new_failed">تعذّر تحميل مقاطع للاختيار منها.</string>
+    <string name="something_new_from_downloads">غير متصل: يتم تشغيل مقطع منزَّل لم تستمع إليه.</string>
+    <string name="radio_offline">أنت غير متصل. تتطلب المقاطع الإضافية اتصالًا بالخادم.</string>
 </resources>

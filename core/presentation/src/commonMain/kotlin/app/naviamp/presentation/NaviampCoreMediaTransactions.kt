@@ -1,5 +1,6 @@
 package app.naviamp.presentation
 import app.naviamp.domain.radio.radioDiagnostics
+import app.naviamp.domain.radio.whileOffline
 import app.naviamp.domain.radio.radioSimilarityMethod
 
 import app.naviamp.app.NaviampLivePlaybackController
@@ -634,10 +635,13 @@ class NaviampCoreMediaTransactions(
     }
 
     private fun recordRadioDiagnostics(result: app.naviamp.domain.radio.RadioBuildDiagnostics?) {
-        stateStore.update { state -> state.copy(
-            shell = state.shell.copy(playback = state.shell.playback.copy(radioDiagnostics = result)),
-            overlays = state.overlays.copy(radioNotice = result),
-        ) }
+        stateStore.update { state ->
+            val diagnostics = result?.whileOffline(state.shell.connectionSettings.connection.offline)
+            state.copy(
+                shell = state.shell.copy(playback = state.shell.playback.copy(radioDiagnostics = diagnostics)),
+                overlays = state.overlays.copy(radioNotice = diagnostics),
+            )
+        }
     }
 
     private suspend fun rememberRecentRadio(stream: RecentRadioStream?, tracks: List<Track>, sourceId: String?) {

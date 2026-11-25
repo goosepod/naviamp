@@ -420,7 +420,7 @@ internal fun HomeCollectionGridCard(
             )
         }
         Text(
-            text = item.title,
+            text = item.displayTitle(),
             color = colors.primaryText,
             fontSize = 12.sp,
             lineHeight = 14.sp,
@@ -430,7 +430,7 @@ internal fun HomeCollectionGridCard(
             modifier = Modifier.padding(horizontal = 2.dp),
         )
         Text(
-            text = item.subtitle,
+            text = item.displaySubtitle(),
             color = colors.secondaryText,
             fontSize = 10.sp,
             lineHeight = 12.sp,
@@ -518,6 +518,8 @@ private fun navibeatMixArtwork(kind: String): NavibeatMixArtwork = when (kind) {
 private fun stationArtwork(id: String): NavibeatMixArtwork = when {
     id == "library" -> NavibeatMixArtwork(NaviampIcons.Library, listOf(Color(0xFF526DFF), Color(0xFF6E3BB8)))
     id == "random-album" -> NavibeatMixArtwork(NaviampIcons.Album, listOf(Color(0xFFFF9A3D), Color(0xFFCF3F72)))
+    id == app.naviamp.domain.home.HomeStationSomethingNew ->
+        NavibeatMixArtwork(NaviampIcons.Turntable, listOf(Color(0xFF00B8D4), Color(0xFF5E35B1)))
     id.startsWith("decade:") -> NavibeatMixArtwork(NaviampIcons.Clock, listOf(Color(0xFFFFB13B), Color(0xFF8B46C7)))
     else -> NavibeatMixArtwork(NaviampTransportIcons.Radio, listOf(Color(0xFF20BFA9), Color(0xFF2374C6)))
 }
@@ -855,7 +857,7 @@ private fun HomeCollectionListRow(
         HomeCollectionArtwork(item, colors, 48.dp)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                text = item.title,
+                text = item.displayTitle(),
                 color = colors.primaryText,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -863,7 +865,7 @@ private fun HomeCollectionListRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = item.subtitle,
+                text = item.displaySubtitle(),
                 color = colors.secondaryText,
                 fontSize = 11.sp,
                 maxLines = 1,

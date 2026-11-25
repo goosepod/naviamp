@@ -377,7 +377,7 @@ private fun TelevisionHomeCard(
             TelevisionHomeCardWidth,
             Modifier.televisionMediaArtworkFocusEffect(focused, colors, artworkShape),
         )
-        TelevisionCardLabels(item.title, item.subtitle, colors)
+        TelevisionCardLabels(item.displayTitle(), item.displaySubtitle(), colors)
     }
 }
 

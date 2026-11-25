@@ -589,4 +589,13 @@
     <string name="queue_undo_cleared">キューをクリアしました。</string>
     <string name="queue_undo_replaced_upcoming">次の曲を置き換えました。</string>
     <string name="queue_undo_replaced_resumes">キューを置き換えました。元に戻すと %1$s に戻ります。</string>
+    <string name="something_new_title">新しい曲を再生</string>
+    <string name="something_new_subtitle">まだ再生したことのない曲</string>
+    <string name="something_new_nothing_unplayed">まだ再生していない曲が見つかりませんでした。</string>
+    <string name="something_new_nothing_unplayed_offline">オフライン: まだ再生していないダウンロード済みの曲が見つかりませんでした。</string>
+    <string name="something_new_no_downloads">オフライン: 新しい曲を再生するには音楽をダウンロードしてください。</string>
+    <string name="something_new_no_play_counts">このサーバーは再生回数を報告しないため、Naviamp はどの曲が新しいか判断できません。</string>
+    <string name="something_new_failed">選択する曲を読み込めませんでした。</string>
+    <string name="something_new_from_downloads">オフライン: まだ再生していないダウンロード済みの曲を再生しています。</string>
+    <string name="radio_offline">オフラインです。曲を追加するにはサーバーへの接続が必要です。</string>
 </resources>
