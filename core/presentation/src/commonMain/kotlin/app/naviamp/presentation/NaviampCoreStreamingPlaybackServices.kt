@@ -31,16 +31,18 @@ fun naviampCoreStreamingPlaybackServices(
         initial = initialPlaybackSettings,
         persist = persistPlaybackSettings,
     )
+    val effects = NaviampCorePlaybackEngineAdapter(
+        scope = scope,
+        engine = engine,
+        providerSource = providerSource,
+        settings = settings::current,
+        verifyProviderNetworkCertificates = verifyProviderNetworkCertificates,
+    )
+    settings.activeProfile = effects
     return NaviampCorePlaybackServices(
         samples = NaviampCoreEngineSamplePlayback(scope, engine, providerSource,
             verifyProviderNetworkCertificates, { settings.current().volumePercent }),
-        effects = NaviampCorePlaybackEngineAdapter(
-            scope = scope,
-            engine = engine,
-            providerSource = providerSource,
-            settings = settings::current,
-            verifyProviderNetworkCertificates = verifyProviderNetworkCertificates,
-        ),
+        effects = effects,
         settings = settings,
         sidecars = NaviampCoreMutableNowPlayingSidecars(),
         visualizerSettings = object : NaviampCoreVisualizerSettingsPort {

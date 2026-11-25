@@ -189,6 +189,15 @@
     <string name="settings_related_radio_minimum">电台批次大小</string>
     <string name="settings_related_radio_minimum_subtitle">启动电台时请求的相关曲目数。返回的曲目可能更少。</string>
     <string name="smart_playlist_inspection_title">智能播放列表规则</string>
+    <string name="smart_playlist_field_category_common">常用</string>
+    <string name="smart_playlist_field_category_track">曲目</string>
+    <string name="smart_playlist_field_category_album_artist">专辑和艺人</string>
+    <string name="smart_playlist_field_category_activity">收藏、评分和播放</string>
+    <string name="smart_playlist_field_category_dates">日期</string>
+    <string name="smart_playlist_field_category_audio_file">音频和文件</string>
+    <string name="smart_playlist_field_category_identifiers">标识符</string>
+    <string name="smart_playlist_field_category_other">其他</string>
+    <string name="smart_playlist_field_no_matches">没有匹配的字段</string>
     <string name="smart_playlist_inspection_read_only">此播放列表使用了此编辑器无法安全更改的规则或设置。原始定义仅供查看。</string>
     <string name="smart_playlist_inspection_missing">服务器未提供此播放列表的规则。</string>
     <string name="smart_playlist_inspection_permission">您无权查看此播放列表的规则。</string>

@@ -189,6 +189,15 @@
     <string name="settings_related_radio_minimum">Nombre de titres pour Radio</string>
     <string name="settings_related_radio_minimum_subtitle">Titres similaires demandés au démarrage de Radio. Le nombre reçu peut être inférieur.</string>
     <string name="smart_playlist_inspection_title">Règles de la liste intelligente</string>
+    <string name="smart_playlist_field_category_common">Courants</string>
+    <string name="smart_playlist_field_category_track">Morceau</string>
+    <string name="smart_playlist_field_category_album_artist">Album et artiste</string>
+    <string name="smart_playlist_field_category_activity">Favoris, notes et écoutes</string>
+    <string name="smart_playlist_field_category_dates">Dates</string>
+    <string name="smart_playlist_field_category_audio_file">Audio et fichier</string>
+    <string name="smart_playlist_field_category_identifiers">Identifiants</string>
+    <string name="smart_playlist_field_category_other">Autres</string>
+    <string name="smart_playlist_field_no_matches">Aucun champ correspondant</string>
     <string name="smart_playlist_inspection_read_only">Cette liste utilise des règles ou paramètres que cet éditeur ne peut pas modifier en toute sécurité. La définition originale est affichée uniquement pour consultation.</string>
     <string name="smart_playlist_inspection_missing">Le serveur a omis les règles de cette liste.</string>
     <string name="smart_playlist_inspection_permission">Vous ne pouvez pas consulter les règles de cette liste.</string>
