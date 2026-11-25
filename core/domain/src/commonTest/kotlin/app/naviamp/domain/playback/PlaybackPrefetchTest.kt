@@ -196,6 +196,60 @@ class PlaybackPrefetchTest {
     }
 
     @Test
+    fun plannedItemsRecordTheirPositionInThePrefetchHorizon() {
+        val work = planAudioPrefetchWork(
+            sourceId = "server",
+            provider = "provider",
+            quality = StreamQuality.Original,
+            queue = PlaybackQueue(
+                tracks = listOf(prefetchTrack("current"), prefetchTrack("next-1"), prefetchTrack("next-2")),
+                currentIndex = 0,
+            ),
+            enabled = true,
+            configuredDepth = 5,
+        )
+
+        assertEquals(listOf(0, 1), requireNotNull(work).items.map { it.horizonPosition })
+    }
+
+    @Test
+    fun networkChangeDuringARunFinishesTheInFlightTrackAndLimitsLaterTracksToTheNewDepth() = runTest {
+        var depth = 3
+        val started = mutableListOf<String>()
+        val result = runAudioPrefetch(
+            stats = initialAudioPrefetchStats(enabled = true, configuredDepth = 3),
+            items = listOf(prefetchItem("next-1", 0), prefetchItem("next-2", 1), prefetchItem("next-3", 2)),
+            isActive = { true },
+            currentDepth = { depth },
+            cacheAudio = { track ->
+                started += track.id.value
+                // The device leaves Wi-Fi while this download is in flight.
+                depth = 1
+                track
+            },
+        )
+
+        assertEquals(listOf("next-1"), started)
+        assertEquals(1, result.completed)
+        assertEquals(0, result.failed)
+        assertFalse(result.running)
+    }
+
+    @Test
+    fun depthZeroAfterANetworkChangeStartsNoFurtherPrefetchWork() = runTest {
+        val started = mutableListOf<String>()
+        runAudioPrefetch(
+            stats = initialAudioPrefetchStats(enabled = true, configuredDepth = 2),
+            items = listOf(prefetchItem("next-1", 0), prefetchItem("next-2", 1)),
+            isActive = { true },
+            currentDepth = { 0 },
+            cacheAudio = { track -> started += track.id.value; track },
+        )
+
+        assertTrue(started.isEmpty())
+    }
+
+    @Test
     fun runAudioPrefetchUpdatesStatsForSuccessAndFailure() = runTest {
         val changes = mutableListOf<AudioPrefetchStats>()
         val result = runAudioPrefetch(
@@ -310,13 +364,14 @@ class PlaybackPrefetchTest {
             replayGain = null,
         )
 
-    private fun prefetchItem(id: String): AudioPrefetchItem {
+    private fun prefetchItem(id: String, horizonPosition: Int = 0): AudioPrefetchItem {
         val track = prefetchTrack(id)
         return AudioPrefetchItem(
             track = track,
             key = AudioPrefetchKey("server", track.id, StreamQuality.Original),
             cacheAudio = true,
             prepareSidecars = true,
+            horizonPosition = horizonPosition,
         )
     }
 }

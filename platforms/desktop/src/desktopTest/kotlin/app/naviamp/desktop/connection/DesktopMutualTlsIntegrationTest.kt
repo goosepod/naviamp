@@ -98,7 +98,7 @@ class DesktopMutualTlsIntegrationTest {
                         val adapter = NaviampCorePlaybackEngineAdapter(
                             scope = this, engine = engine, providerSource = NaviampCoreMediaProviderSource { provider },
                             settings = { PlaybackSettings() },
-                            cacheSettings = { CacheSettings(audioCachingEnabled = false, audioPrefetchDepth = 0) },
+                            cacheSettings = { CacheSettings(audioCachingEnabled = false, unmeteredAudioPrefetchDepth = 0, meteredAudioPrefetchDepth = 0) },
                             cacheAudio = { _, _, _, _ -> error("mTLS streaming must not wait for a full cached file") },
                         )
                         adapter.attach(object : NaviampCorePlaybackObserver {

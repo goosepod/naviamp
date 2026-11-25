@@ -49,6 +49,7 @@ class NaviampCoreNowPlayingMediaController(
     onPlaylistCreated: (app.naviamp.domain.Playlist) -> Unit = {},
     onPlaylistContentsReconciled: (String, List<Track>) -> Unit = { _, _ -> },
     membershipCoordinator: NaviampCorePlaylistMembershipCoordinator? = null,
+    private val queueUndo: NaviampCoreQueueUndoController? = null,
 ) : NaviampCoreCommandController {
     private val membership = membershipCoordinator ?: NaviampCorePlaylistMembershipCoordinator(
         providerSource = providerSource,
@@ -272,7 +273,13 @@ class NaviampCoreNowPlayingMediaController(
             NowPlayingItemAction.ToggleFavorite -> track?.let { toggleFavorite(it) } ?: staleTrack()
             NowPlayingItemAction.RemoveFromQueue -> {
                 val index = (request.target as? NowPlayingItemTarget.QueueIndex)?.index
-                if (index == null) staleTrack() else applyQueueMutation(queue.removeAt(index))
+                if (index == null) staleTrack() else {
+                    val capture = queueUndo?.capture()?.takeIf { index != live.queue.currentIndex }
+                    val update = queue.removeAt(index)
+                    if (update.changed) queueUndo?.record(capture, app.naviamp.ui.NaviampQueueUndoKind.RemovedTrack,
+                        update.queue, live.queue.tracks.getOrNull(index)?.title)
+                    applyQueueMutation(update)
+                }
             }
         }
     }

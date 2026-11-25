@@ -189,6 +189,19 @@
     <string name="settings_related_radio_minimum">Tamanho do lote do Rádio</string>
     <string name="settings_related_radio_minimum_subtitle">Faixas relacionadas solicitadas ao iniciar o Rádio. Menos faixas podem ser retornadas.</string>
     <string name="smart_playlist_inspection_title">Regras da playlist inteligente</string>
+    <string name="smart_playlist_field_category_common">Comuns</string>
+    <string name="smart_playlist_field_category_track">Faixa</string>
+    <string name="smart_playlist_field_category_album_artist">Álbum e artista</string>
+    <string name="smart_playlist_field_category_activity">Favoritos, avaliações e reproduções</string>
+    <string name="smart_playlist_field_category_dates">Datas</string>
+    <string name="smart_playlist_field_category_audio_file">Áudio e arquivo</string>
+    <string name="smart_playlist_field_category_identifiers">Identificadores</string>
+    <string name="smart_playlist_field_category_other">Outros</string>
+    <string name="smart_playlist_field_no_matches">Nenhum campo correspondente</string>
+    <string name="playlists_duplicate_smart">Duplicar playlist inteligente</string>
+    <string name="smart_playlist_duplicate_name">%1$s cópia</string>
+    <string name="smart_playlist_duplicate_name_numbered">%1$s cópia %2$d</string>
+    <string name="smart_playlist_duplicate_password">Digite sua senha do Navidrome para duplicar esta playlist inteligente.</string>
     <string name="smart_playlist_inspection_read_only">Esta playlist usa regras ou configurações que este editor não pode alterar com segurança. A definição original é exibida apenas para consulta.</string>
     <string name="smart_playlist_inspection_missing">O servidor não forneceu as regras desta playlist.</string>
     <string name="smart_playlist_inspection_permission">Você não tem permissão para ver as regras desta playlist.</string>
@@ -593,8 +606,10 @@
     <string name="settings_audio_cache_title">Cache de áudio</string>
     <string name="settings_audio_cache_enable">Ativar pré-carregamento de áudio</string>
     <string name="settings_audio_cache_enable_subtitle">Armazena em cache os próximos áudios para uma reprodução mais fluida.</string>
-    <string name="settings_audio_cache_prefetch_depth_title">Profundidade do pré-carregamento</string>
-    <string name="settings_audio_cache_prefetch_depth_subtitle">Faixas a armazenar em cache adiante na fila de reprodução.</string>
+    <string name="settings_audio_cache_prefetch_unmetered_title">Pré-carregamento no Wi-Fi/Ethernet</string>
+    <string name="settings_audio_cache_prefetch_unmetered_subtitle">Faixas a armazenar em cache adiante na fila de reprodução no Wi-Fi ou Ethernet.</string>
+    <string name="settings_audio_cache_prefetch_metered_title">Pré-carregamento nos dados móveis</string>
+    <string name="settings_audio_cache_prefetch_metered_subtitle">Faixas a armazenar em cache adiante nos dados móveis e em outras redes limitadas, ou quando o tipo de rede é desconhecido.</string>
     <string name="settings_audio_cache_budget_title">Limite do cache de áudio</string>
     <string name="settings_audio_cache_budget_subtitle">Espaço máximo para o áudio pré-carregado.</string>
     <string name="settings_tracks_count">%1$d faixas</string>
@@ -1321,4 +1336,10 @@
     <string name="settings_sleep_timer_fade_subtitle">Diminui o volume gradualmente antes que o timer de desligamento pause a reprodução.</string>
     <string name="settings_sleep_timer_fade_off_subtitle">Parar a reprodução quando o timer terminar.</string>
     <string name="settings_minutes_short">%1$d min</string>
+    <string name="queue_undo_action">Desfazer</string>
+    <string name="queue_undo_action_description">Desfazer: %1$s</string>
+    <string name="queue_undo_removed_track">Removido da fila: %1$s.</string>
+    <string name="queue_undo_cleared">Fila limpa.</string>
+    <string name="queue_undo_replaced_upcoming">Próximas faixas substituídas.</string>
+    <string name="queue_undo_replaced_resumes">Fila substituída. Desfazer volta para %1$s.</string>
 </resources>

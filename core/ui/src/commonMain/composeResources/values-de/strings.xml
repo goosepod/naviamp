@@ -269,8 +269,10 @@
     <string name="settings_audio_cache_title">Audio-Cache</string>
     <string name="settings_audio_cache_enable">Aktivieren Sie den Audio-Prefetch</string>
     <string name="settings_audio_cache_enable_subtitle">Cachen Sie anstehende Audiodaten für eine flüssigere Wiedergabe.</string>
-    <string name="settings_audio_cache_prefetch_depth_title">Prefetch-Tiefe</string>
-    <string name="settings_audio_cache_prefetch_depth_subtitle">Titel, die in der Wiedergabewarteschlange zwischengespeichert werden sollen.</string>
+    <string name="settings_audio_cache_prefetch_unmetered_title">Prefetch über WLAN/Ethernet</string>
+    <string name="settings_audio_cache_prefetch_unmetered_subtitle">Titel, die im WLAN oder per Ethernet in der Wiedergabewarteschlange vorab zwischengespeichert werden.</string>
+    <string name="settings_audio_cache_prefetch_metered_title">Prefetch über mobile Daten</string>
+    <string name="settings_audio_cache_prefetch_metered_subtitle">Titel, die über mobile Daten und andere getaktete Netzwerke oder bei unbekanntem Netzwerktyp vorab zwischengespeichert werden.</string>
     <string name="settings_audio_cache_budget_title">Audio-Cache-Budget</string>
     <string name="settings_audio_cache_budget_subtitle">Maximaler Speicherplatz für vorab abgerufenes Audio.</string>
     <string name="settings_tracks_count">%1$d Titel</string>
@@ -975,6 +977,19 @@
     <string name="settings_related_radio_minimum">Titel pro Radio-Anfrage</string>
     <string name="settings_related_radio_minimum_subtitle">Beim Start von Radio angeforderte ähnliche Titel. Es können weniger Titel zurückgegeben werden.</string>
     <string name="smart_playlist_inspection_title">Regeln der intelligenten Wiedergabeliste</string>
+    <string name="smart_playlist_field_category_common">Häufig</string>
+    <string name="smart_playlist_field_category_track">Titel</string>
+    <string name="smart_playlist_field_category_album_artist">Album und Künstler</string>
+    <string name="smart_playlist_field_category_activity">Favoriten, Bewertungen und Wiedergaben</string>
+    <string name="smart_playlist_field_category_dates">Daten</string>
+    <string name="smart_playlist_field_category_audio_file">Audio und Datei</string>
+    <string name="smart_playlist_field_category_identifiers">Kennungen</string>
+    <string name="smart_playlist_field_category_other">Sonstiges</string>
+    <string name="smart_playlist_field_no_matches">Keine passenden Felder</string>
+    <string name="playlists_duplicate_smart">Intelligente Wiedergabeliste duplizieren</string>
+    <string name="smart_playlist_duplicate_name">%1$s Kopie</string>
+    <string name="smart_playlist_duplicate_name_numbered">%1$s Kopie %2$d</string>
+    <string name="smart_playlist_duplicate_password">Gib dein Navidrome-Passwort ein, um diese intelligente Wiedergabeliste zu duplizieren.</string>
     <string name="smart_playlist_inspection_read_only">Diese Liste verwendet Regeln oder Einstellungen, die dieser Editor nicht sicher ändern kann. Die Originaldefinition wird nur zur Ansicht angezeigt.</string>
     <string name="smart_playlist_inspection_missing">Der Server hat die Regeln dieser Liste nicht bereitgestellt.</string>
     <string name="smart_playlist_inspection_permission">Du darfst die Regeln dieser Liste nicht anzeigen.</string>
@@ -1315,4 +1330,10 @@
     <string name="settings_sleep_timer_fade_subtitle">Senkt die Lautstärke allmählich, bevor ein zeitgesteuerter Sleep-Timer die Wiedergabe pausiert.</string>
     <string name="settings_sleep_timer_fade_off_subtitle">Wiedergabe beim Ablauf des Timers beenden.</string>
     <string name="settings_minutes_short">%1$d Min.</string>
+    <string name="queue_undo_action">Rückgängig</string>
+    <string name="queue_undo_action_description">Rückgängig: %1$s</string>
+    <string name="queue_undo_removed_track">%1$s aus der Warteschlange entfernt.</string>
+    <string name="queue_undo_cleared">Warteschlange geleert.</string>
+    <string name="queue_undo_replaced_upcoming">Nächste Titel ersetzt.</string>
+    <string name="queue_undo_replaced_resumes">Warteschlange ersetzt. Rückgängig kehrt zu %1$s zurück.</string>
 </resources>

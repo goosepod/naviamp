@@ -78,6 +78,8 @@ import app.naviamp.ui.radioArtworkNeedsTrackLookup
 import app.naviamp.ui.radioTrackArtworkKey
 import app.naviamp.ui.radioTrackArtworkMatch
 import app.naviamp.ui.radioTrackArtworkQuery
+import app.naviamp.domain.network.NetworkMeteringSource
+import app.naviamp.domain.settings.audioPrefetchDepthFor
 import kotlinx.coroutines.CancellationException
 import app.naviamp.app.NaviampPlaybackStreamRelay
 import kotlinx.coroutines.CoroutineScope
@@ -102,10 +104,11 @@ class NaviampCorePlaybackEngineAdapter(
     private val providerSource: NaviampCoreMediaProviderSource,
     private val settings: () -> PlaybackSettings,
     private val isMobileData: () -> Boolean = { false },
+    private val networkMetering: NetworkMeteringSource? = null,
     private val activeSourceId: () -> String? = { null },
     private val verifyProviderNetworkCertificates: () -> Boolean = { true },
     private val cacheSettings: () -> CacheSettings = {
-        CacheSettings(audioCachingEnabled = false, audioPrefetchDepth = 0)
+        CacheSettings(audioCachingEnabled = false)
     },
     private val audioAssets: PlaybackAudioAssetRepository = emptyPlaybackAudioAssetRepository(),
     private val cacheAudio: suspend (
@@ -631,7 +634,9 @@ class NaviampCorePlaybackEngineAdapter(
                     }
                 },
                 onProgressChanged = { progress ->
-                    if (requestGeneration == generation && !executionFinished.load() && playbackState !is PlaybackState.Error) {
+                    // A deferred start means the loaded stream is no longer the queue's current track.
+                    if (requestGeneration == generation && !deferredStart && !executionFinished.load() &&
+                        playbackState !is PlaybackState.Error) {
                         val timelineProgress = progress.withProviderStartOffset(
                             providerStartPositionSeconds = audioSource
                                 ?.target
@@ -692,7 +697,7 @@ class NaviampCorePlaybackEngineAdapter(
             quality = quality,
             queue = queue,
             enabled = configured.audioCachingEnabled,
-            configuredDepth = configured.audioPrefetchDepth,
+            configuredDepth = configured.audioPrefetchDepthFor(networkMetering),
             completedAudio = completedAudioPrefetch,
             completedSidecars = completedSidecarPrefetch,
         ) ?: return
@@ -703,6 +708,7 @@ class NaviampCorePlaybackEngineAdapter(
                 isActive = {
                     requestGeneration == generation && activePrefetchGeneration == prefetchGeneration
                 },
+                currentDepth = { cacheSettings().audioPrefetchDepthFor(networkMetering) },
                 cacheAudio = { track ->
                     val plan = resolvePlaybackAudioSource(
                         sourceId = work.sourceId,

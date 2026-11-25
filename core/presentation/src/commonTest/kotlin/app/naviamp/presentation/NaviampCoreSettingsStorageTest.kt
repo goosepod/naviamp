@@ -23,7 +23,7 @@ class NaviampCoreSettingsStorageTest {
             downloadCount = 3, downloadBytes = 512L * 1024 * 1024)
         val location = NaviampStorageLocationUi("external", "External", "/external")
         val original = NaviampCacheSettingsUi(
-            settings = CacheSettings(audioPrefetchDepth = 15),
+            settings = CacheSettings(unmeteredAudioPrefetchDepth = 15, meteredAudioPrefetchDepth = 15),
             diagnostics = NaviampDiagnosticsUi(listOf(NaviampDiagnosticsSectionUi("Other", listOf("Fact" to "value")))),
             downloadLocations = listOf(location),
             audioCacheLocations = listOf(location),
