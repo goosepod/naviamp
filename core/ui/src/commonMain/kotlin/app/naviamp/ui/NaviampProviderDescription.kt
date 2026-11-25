@@ -34,7 +34,7 @@ internal fun NaviampProviderDescription(description: String?, contentKey: String
             color = colors.secondaryText,
             maxLines = if (expanded) Int.MAX_VALUE else 3,
             overflow = TextOverflow.Ellipsis,
-            style = TextStyle(fontSize = 14.sp, lineHeight = 20.sp),
+            style = TextStyle(fontSize = 14.sp, lineHeight = 20.sp).withNaviampFont(),
             onTextLayout = { if (!expanded) overflows = it.hasVisualOverflow },
         )
         if (expanded || overflows) {

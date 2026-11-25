@@ -15,6 +15,20 @@ MusicBrainz data license: <https://musicbrainz.org/doc/About/Data_License>
 
 CC0 1.0 Universal: <https://creativecommons.org/publicdomain/zero/1.0/>
 
+## Nunito Sans and Inter fonts
+
+Naviamp bundles two interface fonts, both licensed under the SIL Open Font License, Version 1.1:
+
+- Nunito Sans, copyright 2016 The Nunito Sans Project Authors
+  (<https://github.com/Fonthausen/NunitoSans>). License: [`third-party/fonts/NunitoSans-OFL.txt`](third-party/fonts/NunitoSans-OFL.txt).
+- Inter 4.1, copyright 2016 The Inter Project Authors (<https://github.com/rsms/inter>). License:
+  [`third-party/fonts/Inter-OFL.txt`](third-party/fonts/Inter-OFL.txt). Naviamp bundles the upright
+  `InterVariable.ttf` instanced with fontTools `varLib.instancer` to the 400-700 weight range at
+  the 14 pt optical size, which keeps every glyph and OpenType feature, including tabular
+  numerals. Inter declares no Reserved Font Name.
+
+SIL Open Font License 1.1: <https://openfontlicense.org>
+
 ## Google Cast trust certificates
 
 The Google Cast and Eureka root certificates are distributed with Chromium under its

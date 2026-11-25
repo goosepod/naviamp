@@ -50,6 +50,7 @@ import app.naviamp.ui.NowPlayingSleepTimerAction
 import app.naviamp.ui.NowPlayingSleepTimerActionRequest
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.CompletableDeferred
@@ -1184,6 +1185,263 @@ class NaviampCorePlaybackControllerTest {
         assertEquals("Sleep timer stopped playback.", fixture.store.state.value.overlays.status)
     }
 
+
+    @Test
+    fun durationSleepTimerFadesOverItsFinalMinutesAndPausesInSilence() = runTest {
+        val fixture = playbackFixture(this, nowEpochMillis = { testScheduler.currentTime })
+        fixture.controller.attachNativePlayback()
+        fixture.useSleepTimerFade(3)
+
+        fixture.selectSleepTimer(20)
+        advanceTimeBy(17 * Minute)
+        runCurrent()
+        assertTrue(fixture.effects.fades.isEmpty())
+
+        advanceTimeBy(90_000L)
+        runCurrent()
+        val halfway = fixture.effects.fades.last()
+        assertTrue(halfway > 0f && halfway < 1f, "halfway level $halfway")
+        assertEquals(fixture.effects.fades.sortedDescending(), fixture.effects.fades)
+        // The ramp drives the engine only: Now Playing state is not republished for each step.
+        val published = fixture.store.state.value
+        advanceTimeBy(10_000L)
+        runCurrent()
+        assertSame(published, fixture.store.state.value)
+        assertTrue(fixture.effects.fades.size <= 100 * 4 + 1, "steps ${fixture.effects.fades.size}")
+
+        advanceTimeBy(80_000L)
+        runCurrent()
+        assertEquals(0f, fixture.effects.fades.last())
+        assertEquals(1, fixture.effects.pauses)
+        assertEquals(0, fixture.effects.stops)
+        assertFalse(fixture.store.state.value.shell.nowPlaying?.sleepTimer?.active == true)
+        assertTrue(fixture.effects.volumes.isEmpty())
+        assertTrue(fixture.savedSettings.isEmpty())
+
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Paused)
+        assertEquals(0f, fixture.effects.fades.last())
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        assertEquals(1f, fixture.effects.fades.last())
+    }
+
+    @Test
+    fun pausingDuringTheFadeFreezesTheLevelAndTheDeadline() = runTest {
+        val fixture = playbackFixture(this, nowEpochMillis = { testScheduler.currentTime })
+        fixture.controller.attachNativePlayback()
+        fixture.useSleepTimerFade(3)
+        fixture.selectSleepTimer(20)
+        advanceTimeBy(18 * Minute + 30_000L)
+        runCurrent()
+
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Paused)
+        val frozen = fixture.effects.fades.last()
+        val steps = fixture.effects.fades.size
+        advanceTimeBy(30 * Minute)
+        runCurrent()
+        assertEquals(steps, fixture.effects.fades.size)
+        assertEquals(0, fixture.effects.pauses)
+
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        runCurrent()
+        assertEquals(frozen, fixture.effects.fades.last(), 0.01f)
+        advanceTimeBy(89_000L)
+        runCurrent()
+        assertEquals(0, fixture.effects.pauses)
+        advanceTimeBy(2_000L)
+        runCurrent()
+        assertEquals(1, fixture.effects.pauses)
+        assertEquals(0f, fixture.effects.fades.last())
+    }
+
+    @Test
+    fun cancellingOrExtendingDuringTheFadeRestoresTheVolumeImmediately() = runTest {
+        val fixture = playbackFixture(this, nowEpochMillis = { testScheduler.currentTime })
+        fixture.controller.attachNativePlayback()
+        fixture.useSleepTimerFade(3)
+        fixture.selectSleepTimer(20)
+        advanceTimeBy(19 * Minute)
+        runCurrent()
+        assertTrue(fixture.effects.fades.last() < 1f)
+
+        fixture.selectSleepTimer(20)
+        assertEquals(1f, fixture.effects.fades.last())
+        advanceTimeBy(17 * Minute + 30_000L)
+        runCurrent()
+        assertTrue(fixture.effects.fades.last() < 1f)
+        assertEquals(0, fixture.effects.pauses)
+
+        fixture.controller.execute(
+            NaviampCoreCommand.NowPlaying.SleepTimer(NowPlayingSleepTimerActionRequest(NowPlayingSleepTimerAction.Cancel)),
+        )
+        assertEquals(1f, fixture.effects.fades.last())
+        advanceTimeBy(10 * Minute)
+        runCurrent()
+        assertEquals(1f, fixture.effects.fades.last())
+        assertEquals(0, fixture.effects.pauses)
+    }
+
+    @Test
+    fun changingTheVolumeDuringTheFadeKeepsTheTimerAtFullVolume() = runTest {
+        val fixture = playbackFixture(this, nowEpochMillis = { testScheduler.currentTime })
+        fixture.controller.attachNativePlayback()
+        fixture.useSleepTimerFade(5)
+        fixture.selectSleepTimer(10)
+        advanceTimeBy(6 * Minute)
+        runCurrent()
+        assertTrue(fixture.effects.fades.last() < 1f)
+
+        fixture.controller.execute(
+            NaviampCoreCommand.NowPlaying.Playback(
+                NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.ChangeVolume, volumePercent = 70),
+            ),
+        )
+        assertEquals(1f, fixture.effects.fades.last())
+        advanceTimeBy(4 * Minute - 1_000L)
+        runCurrent()
+        assertEquals(1f, fixture.effects.fades.last())
+        assertEquals(0, fixture.effects.pauses)
+        advanceTimeBy(2_000L)
+        runCurrent()
+        assertEquals(1, fixture.effects.pauses)
+    }
+
+    @Test
+    fun changingTheVolumeAfterAFadedEndingRestoresTheLevelWhilePaused() = runTest {
+        val fixture = playbackFixture(this, nowEpochMillis = { testScheduler.currentTime })
+        fixture.controller.attachNativePlayback()
+        fixture.useSleepTimerFade(1)
+        fixture.selectSleepTimer(1)
+        advanceTimeBy(Minute + 1L)
+        runCurrent()
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Paused)
+        assertEquals(0f, fixture.effects.fades.last())
+
+        fixture.controller.execute(
+            NaviampCoreCommand.NowPlaying.Playback(
+                NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.ChangeVolume, volumePercent = 40),
+            ),
+        )
+
+        assertEquals(1f, fixture.effects.fades.last())
+        assertEquals(40, fixture.savedSettings.last().volumePercent)
+    }
+
+    @Test
+    fun sleepTimerWithoutFadeStopsAtTheDeadlineAtFullVolume() = runTest {
+        val fixture = playbackFixture(this, nowEpochMillis = { testScheduler.currentTime })
+        fixture.controller.attachNativePlayback()
+        fixture.selectSleepTimer(20)
+
+        advanceTimeBy(20 * Minute - 1L)
+        runCurrent()
+        assertEquals(0, fixture.effects.stops)
+        advanceTimeBy(2L)
+        runCurrent()
+        assertEquals(1, fixture.effects.stops)
+        assertEquals(0, fixture.effects.pauses)
+        assertTrue(fixture.effects.fades.isEmpty())
+        assertEquals(PlaybackState.Stopped, fixture.live.state.value.playbackState)
+        assertEquals("Sleep timer stopped playback.", fixture.store.state.value.overlays.status)
+    }
+
+
+    @Test
+    fun albumEndTimerOnANonGaplessAlbumAdvancesWithinTheAlbumAndEndsAfterItsLastTrack() = runTest {
+        val fixture = albumFixture(this)
+        fixture.controller.attachNativePlayback()
+        fixture.selectEndTimer(app.naviamp.domain.playback.SleepTimerRequest.AlbumEnd)
+        assertEquals(false, fixture.effects.stopAfterCurrent.lastOrNull() ?: false)
+
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Finished)
+        assertEquals(listOf<PlaybackQueueNavigationCommand>(PlaybackQueueNavigationCommand.Next), fixture.effects.navigation)
+        assertEquals("a2", fixture.live.state.value.currentTrack?.id?.value)
+        assertEquals(true, fixture.effects.stopAfterCurrent.last())
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Loading)
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Finished)
+        assertEquals(1, fixture.effects.navigation.size)
+        assertEquals("a2", fixture.live.state.value.currentTrack?.id?.value)
+        assertFalse(fixture.store.state.value.shell.nowPlaying?.sleepTimer?.active == true)
+        assertEquals(false, fixture.effects.stopAfterCurrent.last())
+        assertEquals("Sleep timer stopped playback.", fixture.store.state.value.overlays.status)
+        assertTrue(fixture.effects.fades.isEmpty())
+    }
+
+    @Test
+    fun gaplessAndCrossfadeEnginesAreToldNotToStartTheNextAlbumBeforeTheTimerEnds() = runTest {
+        val fixture = albumFixture(this, currentIndex = 1)
+        fixture.controller.attachNativePlayback()
+
+        fixture.selectEndTimer(app.naviamp.domain.playback.SleepTimerRequest.AlbumEnd)
+
+        // The engine never prepares b1, so neither a gapless join nor a crossfade can begin.
+        assertEquals(listOf(true), fixture.effects.stopAfterCurrent)
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Finished)
+        assertTrue(fixture.effects.navigation.isEmpty())
+        assertEquals(listOf(true, false), fixture.effects.stopAfterCurrent)
+    }
+
+    @Test
+    fun trackEndTimerFollowsSkipsAndEndsWhenTheCurrentTrackFinishes() = runTest {
+        val fixture = albumFixture(this)
+        fixture.controller.attachNativePlayback()
+        fixture.selectEndTimer(app.naviamp.domain.playback.SleepTimerRequest.TrackEnd)
+        assertEquals(listOf(true), fixture.effects.stopAfterCurrent)
+
+        fixture.controller.execute(
+            NaviampCoreCommand.NowPlaying.Playback(NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.Next)),
+        )
+        assertEquals("a2", fixture.live.state.value.currentTrack?.id?.value)
+        assertTrue(fixture.store.state.value.shell.nowPlaying?.sleepTimer?.active == true)
+        assertEquals(0, fixture.effects.stops)
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Finished)
+        assertEquals(listOf<PlaybackQueueNavigationCommand>(PlaybackQueueNavigationCommand.Next), fixture.effects.navigation)
+        assertEquals("a2", fixture.live.state.value.currentTrack?.id?.value)
+        assertFalse(fixture.store.state.value.shell.nowPlaying?.sleepTimer?.active == true)
+    }
+
+    @Test
+    fun queueEndTimerEndsAfterTheLastTrackWithoutRepeatingOrAutoplay() = runTest {
+        val fixture = albumFixture(this)
+        fixture.enableSonicAutoplay()
+        fixture.live.updateRepeatMode(RepeatMode.Queue)
+        fixture.controller.attachNativePlayback()
+        fixture.selectEndTimer(app.naviamp.domain.playback.SleepTimerRequest.QueueEnd)
+
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Finished)
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Finished)
+        assertEquals("b1", fixture.live.state.value.currentTrack?.id?.value)
+        assertEquals(true, fixture.effects.stopAfterCurrent.last())
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Finished)
+        advanceUntilIdle()
+        assertEquals(2, fixture.effects.navigation.size)
+        assertEquals("b1", fixture.live.state.value.currentTrack?.id?.value)
+        assertEquals(3, fixture.live.state.value.queue.tracks.size)
+        assertFalse(fixture.store.state.value.shell.nowPlaying?.sleepTimer?.active == true)
+    }
+
+    @Test
+    fun cancellingAnEndOfTrackTimerLetsPlaybackContinue() = runTest {
+        val fixture = albumFixture(this, currentIndex = 1)
+        fixture.controller.attachNativePlayback()
+        fixture.selectEndTimer(app.naviamp.domain.playback.SleepTimerRequest.AlbumEnd)
+
+        fixture.controller.execute(
+            NaviampCoreCommand.NowPlaying.SleepTimer(NowPlayingSleepTimerActionRequest(NowPlayingSleepTimerAction.Cancel)),
+        )
+        assertEquals(listOf(true, false), fixture.effects.stopAfterCurrent)
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Finished)
+
+        assertEquals(listOf<PlaybackQueueNavigationCommand>(PlaybackQueueNavigationCommand.Next), fixture.effects.navigation)
+        assertEquals("b1", fixture.live.state.value.currentTrack?.id?.value)
+    }
+
     @Test
     fun databaseResetStopsPlaybackAndRemovesTheQueueAndPersistedSession() = runTest {
         val fixture = playbackFixture(this)
@@ -1304,6 +1562,45 @@ private fun playbackFixture(
     return PlaybackFixture(store, provider, live, effects, sidecars, sessionRepository, controller, saved)
 }
 
+private const val Minute = 60_000L
+
+private fun albumFixture(scope: kotlinx.coroutines.CoroutineScope, currentIndex: Int = 0): PlaybackFixture {
+    val fixture = playbackFixture(scope)
+    val tracks = listOf(
+        playbackTrack("a1").copy(albumId = AlbumId("a")),
+        playbackTrack("a2").copy(albumId = AlbumId("a")),
+        playbackTrack("b1").copy(albumId = AlbumId("b")),
+    )
+    val queue = PlaybackQueue(tracks, currentIndex)
+    fixture.live.replace(fixture.live.state.value.copy(currentTrack = queue.current, queue = queue))
+    return fixture
+}
+
+private suspend fun PlaybackFixture.selectEndTimer(request: app.naviamp.domain.playback.SleepTimerRequest) {
+    controller.execute(
+        NaviampCoreCommand.NowPlaying.SleepTimer(
+            NowPlayingSleepTimerActionRequest(NowPlayingSleepTimerAction.Select, request),
+        ),
+    )
+}
+
+private suspend fun PlaybackFixture.selectSleepTimer(minutes: Int) {
+    controller.execute(
+        NaviampCoreCommand.NowPlaying.SleepTimer(
+            NowPlayingSleepTimerActionRequest(
+                NowPlayingSleepTimerAction.Select,
+                app.naviamp.domain.playback.SleepTimerRequest.DurationMinutes(minutes),
+            ),
+        ),
+    )
+}
+
+private fun PlaybackFixture.useSleepTimerFade(minutes: Int) {
+    store.updateShell { shell ->
+        shell.copy(playback = shell.playback.copy(settings = shell.playback.settings.copy(sleepTimerFadeMinutes = minutes)))
+    }
+}
+
 private fun PlaybackFixture.enableSonicAutoplay() {
     store.updateShell { shell ->
         shell.copy(
@@ -1340,6 +1637,8 @@ private class PlaybackTestEffects : NaviampCorePlaybackEffectPort {
     val seeks = mutableListOf<Double>()
     val replays = mutableListOf<Double>()
     val volumes = mutableListOf<Int>()
+    val fades = mutableListOf<Float>()
+    val stopAfterCurrent = mutableListOf<Boolean>()
     val navigation = mutableListOf<PlaybackQueueNavigationCommand>()
     val queues = mutableListOf<PlaybackQueue>()
     var restoredStartPositionSeconds: Double? = null
@@ -1355,6 +1654,8 @@ private class PlaybackTestEffects : NaviampCorePlaybackEffectPort {
     override fun seek(positionSeconds: Double) { seeks += positionSeconds }
     override fun replayCurrent(positionSeconds: Double) { replays += positionSeconds }
     override fun setVolume(percent: Int) { volumes += percent }
+    override fun setOutputFadeFactor(factor: Float) { fades += factor }
+    override fun setStopAfterCurrent(enabled: Boolean) { stopAfterCurrent += enabled }
     override fun stop() { stops += 1 }
     override fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean) { queues += queue }
     override fun restoreQueue(queue: PlaybackQueue, startPositionSeconds: Double?) {

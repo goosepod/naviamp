@@ -12,5 +12,8 @@ class NaviampLegalNoticesTest {
         assertTrue(text.contains("free non-commercial terms"))
         assertTrue(text.contains("Commercial use requires"))
         assertTrue(text.contains("OpenSSL"))
+        assertTrue(text.contains("Nunito Sans Project Authors"))
+        assertTrue(text.contains("Inter Project Authors"))
+        assertTrue(text.contains("SIL Open Font License, Version 1.1"))
     }
 }

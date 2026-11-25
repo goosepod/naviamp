@@ -45,7 +45,7 @@ class NaviampSmartPlaylistFieldLabelsTest {
             val input = onNodeWithContentDescription(label).fetchSemanticsNode().boundsInRoot
             assertTrue(caption.bottom + 3f <= input.top, "$label must be above its outline")
             assertEquals(input.left, caption.left, "$label must align with its field")
-            onNodeWithContentDescription(label).assert(hasSetTextAction())
+            onNodeWithContentDescription(label).assert(if (label == "Match") hasClickAction() else hasSetTextAction())
         }
         listOf("Name", "Match", "Value").forEach(::check)
         val initial = onNodeWithText("Name").fetchSemanticsNode().boundsInRoot
