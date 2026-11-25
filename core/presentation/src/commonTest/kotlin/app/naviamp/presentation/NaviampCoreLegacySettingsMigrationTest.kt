@@ -75,7 +75,8 @@ class NaviampCoreLegacySettingsMigrationTest {
             ),
             stored.loadPlayback().lyricsSearchOrder,
         )
-        assertEquals(3, stored.loadCache().audioPrefetchDepth)
+        assertEquals(3, stored.loadCache().unmeteredAudioPrefetchDepth)
+        assertEquals(3, stored.loadCache().meteredAudioPrefetchDepth)
         assertEquals(
             CacheSettings(maxAudioCacheBytes = 4096L).normalized().maxAudioCacheBytes,
             stored.loadCache().maxAudioCacheBytes,

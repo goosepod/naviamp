@@ -56,7 +56,7 @@ fun main(args: Array<String>) = runBlocking {
                     PlaybackSessionSettings.fromTracks(listOf(track), 0)?.copy(nowPlayingOpen = true), source.id)
             }
             val settings = naviampCoreSettingsValueCatalog(DesktopCoreSettingsValueStore(directory.resolve("settings.json")))
-            settings.storedSettings.saveCache(CacheSettings(audioCachingEnabled = false, audioPrefetchDepth = 0, waveformsEnabled = false))
+            settings.storedSettings.saveCache(CacheSettings(audioCachingEnabled = false, unmeteredAudioPrefetchDepth = 0, meteredAudioPrefetchDepth = 0, waveformsEnabled = false))
             settings.savePlayback(PlaybackSettings(volumePercent = 0,
                 outputDevice = AudioOutputDevicePreference(AudioOutputDeviceMode.Pinned, "0", "No sound")))
         }

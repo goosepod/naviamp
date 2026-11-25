@@ -245,6 +245,7 @@ class NaviampCoreSettingsSyncController(
             shell.copy(
                 general = shell.general.copy(interfaceSettings = snapshot.interfaceSettings),
                 playback = shell.playback.copy(settings = snapshot.playback),
+                cache = snapshot.cache?.let { shell.cache.copy(settings = it) } ?: shell.cache,
                 shellChrome = shell.shellChrome.copy(
                     selectedVisualizer = naviampVisualizerFromName(snapshot.visualizer.selectedVisualizer),
                 ),

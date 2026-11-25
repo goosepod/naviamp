@@ -12,6 +12,7 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.playback.EqualizerSettings
+import app.naviamp.domain.playback.MaxAudioPrefetchDepth
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.ReplayGainPlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
@@ -850,11 +851,14 @@ enum class UpNextSelectionBehavior {
     SkipToSelected,
 }
 
-@Serializable
+@OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+@kotlinx.serialization.KeepGeneratedSerializer
+@Serializable(with = CacheSettingsSerializer::class)
 data class CacheSettings(
     val audioCachingEnabled: Boolean = true,
     val offlineModeEnabled: Boolean = false,
-    val audioPrefetchDepth: Int = DefaultAudioPrefetchDepth,
+    val unmeteredAudioPrefetchDepth: Int = DefaultAudioPrefetchDepth,
+    val meteredAudioPrefetchDepth: Int = DefaultAudioPrefetchDepth,
     val waveformsEnabled: Boolean = true,
     val waveformBucketCount: Int = DefaultWaveformBucketCount,
     val maxAudioCacheBytes: Long = DefaultAudioCacheBytes,
@@ -864,7 +868,8 @@ data class CacheSettings(
 ) {
     fun normalized(): CacheSettings =
         copy(
-            audioPrefetchDepth = audioPrefetchDepth.coerceIn(0, 25),
+            unmeteredAudioPrefetchDepth = unmeteredAudioPrefetchDepth.coerceIn(0, MaxAudioPrefetchDepth),
+            meteredAudioPrefetchDepth = meteredAudioPrefetchDepth.coerceIn(0, MaxAudioPrefetchDepth),
             waveformBucketCount = waveformBucketCount.coerceIn(MinWaveformBucketCount, MaxWaveformBucketCount),
             maxAudioCacheBytes = maxAudioCacheBytes.coerceIn(DefaultAudioCacheBytes, 20L * 1024L * 1024L * 1024L),
             maxDownloadBytes = maxDownloadBytes.coerceIn(DefaultDownloadStorageBytes, 100L * 1024L * 1024L * 1024L),

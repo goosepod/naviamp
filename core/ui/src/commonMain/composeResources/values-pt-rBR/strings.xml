@@ -606,8 +606,10 @@
     <string name="settings_audio_cache_title">Cache de áudio</string>
     <string name="settings_audio_cache_enable">Ativar pré-carregamento de áudio</string>
     <string name="settings_audio_cache_enable_subtitle">Armazena em cache os próximos áudios para uma reprodução mais fluida.</string>
-    <string name="settings_audio_cache_prefetch_depth_title">Profundidade do pré-carregamento</string>
-    <string name="settings_audio_cache_prefetch_depth_subtitle">Faixas a armazenar em cache adiante na fila de reprodução.</string>
+    <string name="settings_audio_cache_prefetch_unmetered_title">Pré-carregamento no Wi-Fi/Ethernet</string>
+    <string name="settings_audio_cache_prefetch_unmetered_subtitle">Faixas a armazenar em cache adiante na fila de reprodução no Wi-Fi ou Ethernet.</string>
+    <string name="settings_audio_cache_prefetch_metered_title">Pré-carregamento nos dados móveis</string>
+    <string name="settings_audio_cache_prefetch_metered_subtitle">Faixas a armazenar em cache adiante nos dados móveis e em outras redes limitadas, ou quando o tipo de rede é desconhecido.</string>
     <string name="settings_audio_cache_budget_title">Limite do cache de áudio</string>
     <string name="settings_audio_cache_budget_subtitle">Espaço máximo para o áudio pré-carregado.</string>
     <string name="settings_tracks_count">%1$d faixas</string>
@@ -1334,4 +1336,10 @@
     <string name="settings_sleep_timer_fade_subtitle">Diminui o volume gradualmente antes que o timer de desligamento pause a reprodução.</string>
     <string name="settings_sleep_timer_fade_off_subtitle">Parar a reprodução quando o timer terminar.</string>
     <string name="settings_minutes_short">%1$d min</string>
+    <string name="queue_undo_action">Desfazer</string>
+    <string name="queue_undo_action_description">Desfazer: %1$s</string>
+    <string name="queue_undo_removed_track">Removido da fila: %1$s.</string>
+    <string name="queue_undo_cleared">Fila limpa.</string>
+    <string name="queue_undo_replaced_upcoming">Próximas faixas substituídas.</string>
+    <string name="queue_undo_replaced_resumes">Fila substituída. Desfazer volta para %1$s.</string>
 </resources>

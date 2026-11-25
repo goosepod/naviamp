@@ -579,4 +579,14 @@
     <string name="settings_sleep_timer_fade_subtitle">स्लीप टाइमर द्वारा प्लेबैक रोकने से पहले आवाज़ धीरे-धीरे कम करता है।</string>
     <string name="settings_sleep_timer_fade_off_subtitle">टाइमर समाप्त होने पर प्लेबैक रोकें।</string>
     <string name="settings_minutes_short">%1$d मिनट</string>
+    <string name="settings_audio_cache_prefetch_unmetered_title">Wi-Fi/Ethernet पर प्रीफ़ेच</string>
+    <string name="settings_audio_cache_prefetch_unmetered_subtitle">Wi-Fi या Ethernet पर प्ले कतार में आगे के लिए कैश किए जाने वाले ट्रैक।</string>
+    <string name="settings_audio_cache_prefetch_metered_title">मोबाइल डेटा पर प्रीफ़ेच</string>
+    <string name="settings_audio_cache_prefetch_metered_subtitle">मोबाइल डेटा और अन्य सीमित नेटवर्क पर, या नेटवर्क का प्रकार अज्ञात होने पर, आगे के लिए कैश किए जाने वाले ट्रैक।</string>
+    <string name="queue_undo_action">पूर्ववत करें</string>
+    <string name="queue_undo_action_description">पूर्ववत करें: %1$s</string>
+    <string name="queue_undo_removed_track">कतार से हटाया गया: %1$s।</string>
+    <string name="queue_undo_cleared">कतार खाली की गई।</string>
+    <string name="queue_undo_replaced_upcoming">आगे के ट्रैक बदले गए।</string>
+    <string name="queue_undo_replaced_resumes">कतार बदली गई। पूर्ववत करने पर %1$s पर लौटेंगे।</string>
 </resources>

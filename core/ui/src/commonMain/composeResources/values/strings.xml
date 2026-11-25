@@ -184,8 +184,10 @@
     <string name="settings_audio_cache_title">Audio cache</string>
     <string name="settings_audio_cache_enable">Enable audio prefetch</string>
     <string name="settings_audio_cache_enable_subtitle">Cache upcoming audio for smoother playback.</string>
-    <string name="settings_audio_cache_prefetch_depth_title">Prefetch Depth</string>
-    <string name="settings_audio_cache_prefetch_depth_subtitle">Tracks to cache ahead in the play queue.</string>
+    <string name="settings_audio_cache_prefetch_unmetered_title">Prefetch on Wi-Fi/Ethernet</string>
+    <string name="settings_audio_cache_prefetch_unmetered_subtitle">Tracks to cache ahead in the play queue on Wi-Fi or Ethernet.</string>
+    <string name="settings_audio_cache_prefetch_metered_title">Prefetch on mobile data</string>
+    <string name="settings_audio_cache_prefetch_metered_subtitle">Tracks to cache ahead on mobile data and other metered networks, or when the network type is unknown.</string>
     <string name="settings_audio_cache_budget_title">Audio Cache Budget</string>
     <string name="settings_audio_cache_budget_subtitle">Maximum space for prefetched audio.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Upgrade cached audio on Wi-Fi</string>
@@ -1357,4 +1359,10 @@
     <string name="settings_sleep_timer_fade_subtitle">Lower the volume gradually before a timed sleep timer pauses playback.</string>
     <string name="settings_sleep_timer_fade_off_subtitle">Stop playback when the timer ends.</string>
     <string name="settings_minutes_short">%1$d min</string>
+    <string name="queue_undo_action">Undo</string>
+    <string name="queue_undo_action_description">Undo: %1$s</string>
+    <string name="queue_undo_removed_track">Removed %1$s from the queue.</string>
+    <string name="queue_undo_cleared">Cleared the queue.</string>
+    <string name="queue_undo_replaced_upcoming">Replaced the upcoming tracks.</string>
+    <string name="queue_undo_replaced_resumes">Replaced the queue. Undo returns to %1$s.</string>
 </resources>

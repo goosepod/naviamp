@@ -579,4 +579,14 @@
     <string name="settings_sleep_timer_fade_subtitle">スリープタイマーが再生を一時停止する前に、音量を徐々に下げます。</string>
     <string name="settings_sleep_timer_fade_off_subtitle">タイマー終了時に再生を停止します。</string>
     <string name="settings_minutes_short">%1$d分</string>
+    <string name="settings_audio_cache_prefetch_unmetered_title">Wi-Fi/イーサネットでの先読み</string>
+    <string name="settings_audio_cache_prefetch_unmetered_subtitle">Wi-Fi またはイーサネット接続時に再生キューから事前にキャッシュする曲数です。</string>
+    <string name="settings_audio_cache_prefetch_metered_title">モバイルデータでの先読み</string>
+    <string name="settings_audio_cache_prefetch_metered_subtitle">モバイルデータやその他の従量制ネットワーク、またはネットワークの種類が不明なときに事前にキャッシュする曲数です。</string>
+    <string name="queue_undo_action">元に戻す</string>
+    <string name="queue_undo_action_description">元に戻す: %1$s</string>
+    <string name="queue_undo_removed_track">キューから削除しました: %1$s</string>
+    <string name="queue_undo_cleared">キューをクリアしました。</string>
+    <string name="queue_undo_replaced_upcoming">次の曲を置き換えました。</string>
+    <string name="queue_undo_replaced_resumes">キューを置き換えました。元に戻すと %1$s に戻ります。</string>
 </resources>

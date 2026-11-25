@@ -992,7 +992,7 @@ private fun NowPlayingDetails(
         } else {
             Arrangement.spacedBy(if (compactLayout) 5.dp else 6.dp)
         },
-        modifier = modifier.padding(
+        modifier = modifier.naviampNowPlayingNoticeAnchor(showControls).padding(
             bottom = when {
                 pinBottomActions -> 8.dp
                 mobileLayout -> 4.dp
@@ -1261,7 +1261,7 @@ private fun NowPlayingDetails(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .requiredHeight(if (mobileLayout) 46.dp else 44.dp)
+                    .requiredHeight(if (mobileLayout) NaviampNowPlayingBottomActionsHeight else 44.dp)
                     .testTag("now-playing-bottom-actions")
                     .padding(horizontal = if (pinBottomActions) 8.dp else 0.dp),
             ) {

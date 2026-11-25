@@ -312,6 +312,7 @@ private fun NaviampCoreCommand.invalidatesInterruptionResume(): Boolean = when (
     is NaviampCoreCommand.NowPlaying.CurrentTrack -> request.action == app.naviamp.ui.NowPlayingCurrentTrackAction.StartRadio
     is NaviampCoreCommand.NowPlaying.QueueItem -> request.action in setOf(
         app.naviamp.ui.NowPlayingItemAction.StartRadio, app.naviamp.ui.NowPlayingItemAction.RemoveFromQueue)
+    is NaviampCoreCommand.NowPlaying.QueueUndo -> request.action == app.naviamp.ui.NaviampQueueUndoAction.Undo
     NaviampCoreCommand.Connection.Connect, is NaviampCoreCommand.Connection.ConnectSaved,
     is NaviampCoreCommand.Connection.SwitchAccount, is NaviampCoreCommand.Connection.SelectSavedSource -> true
     else -> connectMediaSelectionOrNull() != null

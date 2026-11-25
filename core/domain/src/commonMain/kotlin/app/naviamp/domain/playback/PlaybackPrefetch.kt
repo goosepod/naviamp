@@ -48,6 +48,8 @@ data class AudioPrefetchItem(
     val key: AudioPrefetchKey,
     val cacheAudio: Boolean,
     val prepareSidecars: Boolean,
+    /** Zero-based distance into the prefetch horizon, compared with the depth for the current network. */
+    val horizonPosition: Int = 0,
 )
 
 class AudioPrefetchCompletionLedger(
@@ -140,7 +142,7 @@ fun <Provider> planAudioPrefetchWork(
         includeCurrentTrack = includeCurrentTrack,
     )
     val normalizedSidecarDepth = sidecarDepth.coerceIn(0, stats.configuredDepth)
-    val items = tracks.filterNot { it.id.isDiscoveryPreview() }.mapIndexedNotNull { index, track ->
+    val items = tracks.withIndex().filterNot { it.value.id.isDiscoveryPreview() }.mapIndexedNotNull { index, (horizonPosition, track) ->
         val key = AudioPrefetchKey(activeSourceId, track.id, activeQuality)
         val cacheAudio = completedAudio?.contains(key) != true
         val prepareSidecars = index < normalizedSidecarDepth && completedSidecars?.contains(key) != true
@@ -152,6 +154,7 @@ fun <Provider> planAudioPrefetchWork(
                 key = key,
                 cacheAudio = cacheAudio,
                 prepareSidecars = prepareSidecars,
+                horizonPosition = horizonPosition,
             )
         }
     }.take(maximumItemsPerRun.coerceAtLeast(0))
@@ -170,6 +173,7 @@ suspend fun <CachedAudio> runAudioPrefetch(
     items: List<AudioPrefetchItem>,
     isActive: () -> Boolean,
     cacheAudio: suspend (Track) -> CachedAudio?,
+    currentDepth: () -> Int = { MaxAudioPrefetchDepth },
     warmCoverArt: suspend (Track) -> Unit = {},
     prepareSidecars: suspend (Track, CachedAudio?) -> PlaybackSidecarPrepResult = { _, _ ->
         PlaybackSidecarPrepResult()
@@ -184,6 +188,8 @@ suspend fun <CachedAudio> runAudioPrefetch(
     onStatsChanged(currentStats)
     for (item in items) {
         if (!isActive()) break
+        // A network change limits work not yet started; the in-flight download is kept.
+        if (item.horizonPosition >= currentDepth()) break
         var sidecarResult: PlaybackSidecarPrepResult? = null
         val result = runCatching {
             val cachedAudio = if (item.cacheAudio) {
