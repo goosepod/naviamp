@@ -109,7 +109,7 @@ internal fun TelevisionLibrary(
     val sortFocus = remember { FocusRequester() }
     val addedItemsFocus = remember { FocusRequester() }
     val addedItems = libraryAddedItems(view, catalog, ids)
-        ?.takeIf { viewport.lists.hasUnseenAddedItems(view, catalog.refreshGeneration) }
+        ?.takeIf { viewport.lists.hasUnseenAddedItems(view, catalog.addedItemsGeneration) }
     val showShortcuts = view != NaviampLibraryView.Albums || catalog.albumSortOrder == LibraryAlbumSortOrder.Title
     val shortcuts = if (showShortcuts) televisionLibraryShortcuts() else emptyList()
     val letterFocus = remember(shortcuts) { shortcuts.associateWith { FocusRequester() } }
@@ -343,7 +343,7 @@ internal fun TelevisionLibrary(
             if (addedItems != null) {
                 val showLabel = stringResource(Res.string.library_new_items_show)
                 val showAddedItems = {
-                    viewport.lists.markAddedItemsShown(view, catalog.refreshGeneration)
+                    viewport.lists.markAddedItemsShown(view, catalog.addedItemsGeneration)
                     focusContent(addedItems.firstIndex)
                 }
                 TelevisionTextButton(libraryAddedItemsLabel(view, addedItems.count), colors, calmFocus = true,

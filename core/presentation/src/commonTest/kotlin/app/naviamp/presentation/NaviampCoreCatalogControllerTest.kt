@@ -385,7 +385,7 @@ class NaviampCoreCatalogControllerTest {
     }
 
     @Test
-    fun explicitRefreshReportsAlbumsAddedToTheCompleteIndexedCatalog() = runTest {
+    fun indexSyncsReportAlbumsAddedToTheCompleteCatalogWithoutMovingAutomaticLoads() = runTest {
         val snapshots = mutableMapOf<app.naviamp.domain.library.AlbumCatalogScope, app.naviamp.domain.library.AlbumCatalogSnapshot>()
         val repository = object : app.naviamp.domain.library.AlbumCatalogRepository {
             override fun readAlbumCatalog(scope: app.naviamp.domain.library.AlbumCatalogScope) = snapshots[scope]
@@ -398,27 +398,39 @@ class NaviampCoreCatalogControllerTest {
             override suspend fun albumsPage(request: MediaPageRequest) = MediaPage(
                 titles.map { Album(AlbumId(it.lowercase()), it, "Artist", null, null) }, 0, request.limit, false)
         }
+        var now = 1_000L
         val store = NaviampCoreStateStore()
         val controller = NaviampCoreCatalogController(store, { object : MediaProvider by provider {} },
-            albumIndex = app.naviamp.domain.library.AlbumLibraryIndex(repository, { "source" }, { 1_000L }))
+            albumIndex = app.naviamp.domain.library.AlbumLibraryIndex(repository, { "source" }, { now }))
+        val library = { store.state.value.shell.library.albums }
         val albums = NaviampCoreCommand.Library.ChangeView(NaviampLibraryView.Albums)
         controller.dispatch(albums)
         controller.execute(albums)
         controller.execute(NaviampCoreCommand.Library.Refresh)
-        assertEquals(1L, store.state.value.shell.library.albums.refreshGeneration)
-        assertEquals(emptyList(), store.state.value.shell.library.albums.refreshAddedItemIds)
+        assertEquals(1L, library().refreshGeneration)
+        assertEquals(emptyList(), library().addedItemIds)
+        assertEquals(0L, library().addedItemsGeneration)
 
         titles = listOf("Delta", "Alpha", "Bravo", "Charlie")
         controller.execute(NaviampCoreCommand.Library.Refresh)
-        assertEquals(listOf("alpha", "bravo", "charlie", "delta"), store.state.value.shell.library.albums.items.map { it.id })
-        assertEquals(2L, store.state.value.shell.library.albums.refreshGeneration)
-        assertEquals(listOf("bravo", "delta"), store.state.value.shell.library.albums.refreshAddedItemIds)
+        assertEquals(listOf("alpha", "bravo", "charlie", "delta"), library().items.map { it.id })
+        assertEquals(2L, library().refreshGeneration)
+        assertEquals(listOf("bravo", "delta"), library().addedItemIds)
+        assertEquals(1L, library().addedItemsGeneration)
 
         controller.execute(NaviampCoreCommand.Library.LoadMore)
-        controller.execute(albums)
-        assertEquals(listOf("bravo", "delta"), store.state.value.shell.library.albums.refreshAddedItemIds)
         controller.execute(NaviampCoreCommand.Library.Refresh)
-        assertEquals(emptyList(), store.state.value.shell.library.albums.refreshAddedItemIds)
+        assertEquals(listOf("bravo", "delta"), library().addedItemIds)
+        assertEquals(1L, library().addedItemsGeneration)
+
+        // Opening Albums with a stale index syncs in the background; it reports but never scrolls.
+        titles = titles + "Echo"
+        now += 60 * 60 * 1000L
+        controller.dispatch(albums)
+        controller.execute(albums)
+        assertEquals(listOf("echo"), library().addedItemIds)
+        assertEquals(2L, library().addedItemsGeneration)
+        assertEquals(3L, library().refreshGeneration)
     }
 
     @Test
@@ -434,10 +446,10 @@ class NaviampCoreCatalogControllerTest {
             libraryIndex = CatalogIndexRepository())
         controller.execute(NaviampCoreCommand.Library.Refresh)
         assertEquals(listOf("one"), store.state.value.shell.library.artists.items.map { it.id })
-        assertEquals(emptyList(), store.state.value.shell.library.artists.refreshAddedItemIds)
+        assertEquals(emptyList(), store.state.value.shell.library.artists.addedItemIds)
         names = listOf("One", "Two")
         controller.execute(NaviampCoreCommand.Library.Refresh)
-        assertEquals(listOf("two"), store.state.value.shell.library.artists.refreshAddedItemIds)
+        assertEquals(listOf("two"), store.state.value.shell.library.artists.addedItemIds)
     }
 
     @Test
@@ -458,14 +470,14 @@ class NaviampCoreCatalogControllerTest {
         controller.execute(NaviampCoreCommand.Library.Refresh)
         assertEquals(listOf("alpha", "bravo"), store.state.value.shell.library.albums.items.map { it.id })
         assertEquals(1L, store.state.value.shell.library.albums.refreshGeneration)
-        assertEquals(emptyList(), store.state.value.shell.library.albums.refreshAddedItemIds)
+        assertEquals(emptyList(), store.state.value.shell.library.albums.addedItemIds)
         val query = NaviampCoreCommand.Library.ChangeQuery("a")
         controller.dispatch(query)
         controller.execute(query)
         titles = listOf("Alpha", "Bravo", "Charlie")
         controller.execute(NaviampCoreCommand.Library.Refresh)
         assertEquals(2L, store.state.value.shell.library.albums.refreshGeneration)
-        assertEquals(emptyList(), store.state.value.shell.library.albums.refreshAddedItemIds)
+        assertEquals(emptyList(), store.state.value.shell.library.albums.addedItemIds)
     }
 
     @Test

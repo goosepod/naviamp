@@ -831,8 +831,10 @@ data class NaviampLibraryCatalogUi(
     val albumSortOrder: LibraryAlbumSortOrder = LibraryAlbumSortOrder.Title,
     /** Changes only after an explicit refresh; automatic loads preserve the viewport. */
     val refreshGeneration: Long = 0L,
-    /** Items an explicit refresh added to a complete catalog; empty when the count would be a guess. */
-    val refreshAddedItemIds: List<String> = emptyList(),
+    /** Items the last sync that found additions added to a complete catalog; never a guess. */
+    val addedItemIds: List<String> = emptyList(),
+    /** Changes whenever additions are reported, so an automatic sync never moves the viewport. */
+    val addedItemsGeneration: Long = 0L,
 )
 
 data class NaviampLibraryScreenUi(

@@ -85,7 +85,7 @@ internal fun NaviampLibraryLoadingStatus(
 
 internal const val LibraryNewItemsIndicatorTestTag = "library-new-items"
 
-/** Items an explicit refresh added that are currently listed, in display order. */
+/** Items a sync added that are currently listed, in display order. */
 internal data class NaviampLibraryAddedItems(val count: Int, val firstIndex: Int, val firstId: String)
 
 internal fun libraryAddedItems(
@@ -94,8 +94,8 @@ internal fun libraryAddedItems(
     displayedIds: List<String>,
 ): NaviampLibraryAddedItems? {
     // Songs are paged, so Core never reports added songs.
-    if (view == NaviampLibraryView.Songs || catalog.query.isNotBlank() || catalog.refreshAddedItemIds.isEmpty()) return null
-    val added = catalog.refreshAddedItemIds.toSet()
+    if (view == NaviampLibraryView.Songs || catalog.query.isNotBlank() || catalog.addedItemIds.isEmpty()) return null
+    val added = catalog.addedItemIds.toSet()
     val firstIndex = displayedIds.indexOfFirst(added::contains).takeIf { it >= 0 } ?: return null
     return NaviampLibraryAddedItems(displayedIds.count(added::contains), firstIndex, displayedIds[firstIndex])
 }

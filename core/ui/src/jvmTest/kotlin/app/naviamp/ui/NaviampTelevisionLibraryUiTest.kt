@@ -177,7 +177,7 @@ class NaviampTelevisionLibraryUiTest {
         setContent { LibraryFixture(screen, rememberNaviampTelevisionLibraryState()) }
         runOnIdle {
             screen.value = screen.value.copy(albums = screen.value.albums.copy(
-                refreshGeneration = 1L, refreshAddedItemIds = listOf("album-27", "album-24")))
+                addedItemsGeneration = 1L, addedItemIds = listOf("album-27", "album-24")))
         }
         waitForIdle()
         onNodeWithTag(LibraryNewItemsIndicatorTestTag).assertTextEquals("2 new albums")

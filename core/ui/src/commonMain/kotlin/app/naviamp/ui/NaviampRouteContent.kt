@@ -1439,7 +1439,7 @@ fun NaviampLibraryContent(
     val targetExists = restoredIndex >= 0 || restoredTarget == LibrarySearchFocusTarget
     val refreshAddedItems = libraryAddedItems(screen.selectedView, catalog, focusIds)
     val addedItems = refreshAddedItems
-        ?.takeIf { viewportState.hasUnseenAddedItems(screen.selectedView, catalog.refreshGeneration) }
+        ?.takeIf { viewportState.hasUnseenAddedItems(screen.selectedView, catalog.addedItemsGeneration) }
     // Stays attached after the indicator hides so its own click can still move focus.
     val addedItemFocusRequester = remember(screen.selectedView, refreshAddedItems?.firstId) { FocusRequester() }
     androidx.compose.runtime.LaunchedEffect(screen.selectedView, targetExists, catalog.refreshGeneration) {
@@ -1650,7 +1650,7 @@ fun NaviampLibraryContent(
         NaviampLibraryLoadingStatus(colors, screen.selectedView, catalog)
         if (addedItems != null) {
             NaviampLibraryNewItemsIndicator(colors, screen.selectedView, addedItems, onShow = {
-                viewportState.markAddedItemsShown(screen.selectedView, catalog.refreshGeneration)
+                viewportState.markAddedItemsShown(screen.selectedView, catalog.addedItemsGeneration)
                 libraryScope.launch {
                     activeListState.scrollToItem(addedItems.firstIndex)
                     withFrameNanos { }

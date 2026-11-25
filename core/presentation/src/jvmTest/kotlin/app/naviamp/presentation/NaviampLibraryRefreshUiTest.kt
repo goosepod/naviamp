@@ -37,7 +37,7 @@ import kotlin.test.assertEquals
 @OptIn(ExperimentalTestApi::class)
 class NaviampLibraryRefreshUiTest {
     @Test
-    fun explicitRefreshReturnsToTopAndTheIndicatorShowsAlbumsAddedMidCatalog() = runComposeUiTest {
+    fun refreshReturnsToTopAndTheIndicatorShowsAlbumsAddedByExplicitAndAutomaticSyncs() = runComposeUiTest {
         val snapshots = mutableMapOf<AlbumCatalogScope, AlbumCatalogSnapshot>()
         val repository = object : AlbumCatalogRepository {
             override fun readAlbumCatalog(scope: AlbumCatalogScope) = snapshots[scope]
@@ -50,10 +50,11 @@ class NaviampLibraryRefreshUiTest {
             override suspend fun albumsPage(request: MediaPageRequest) = MediaPage(
                 titles.map { Album(AlbumId(it), it, "Artist", null, null) }, 0, request.limit, false)
         }
+        var now = 1_000L
         val store = NaviampCoreStateStore()
         // Mirrors the app, whose provider source returns a new decorator for every lookup.
         val controller = NaviampCoreCatalogController(store, { object : MediaProvider by provider {} },
-            albumIndex = AlbumLibraryIndex(repository, { "source" }, { 1_000L }))
+            albumIndex = AlbumLibraryIndex(repository, { "source" }, { now }))
         val albums = NaviampCoreCommand.Library.ChangeView(NaviampLibraryView.Albums)
         runBlocking {
             controller.dispatch(albums)
@@ -94,5 +95,21 @@ class NaviampLibraryRefreshUiTest {
         waitForIdle()
         runOnIdle { assertEquals(0, list().firstVisibleItemIndex) }
         onNodeWithText("1 new album").assertDoesNotExist()
+
+        // Reopening Albums with a stale index syncs in the background without moving the list.
+        runOnIdle { list().requestScrollToItem(80) }
+        waitForIdle()
+        titles = titles + "Album 020 Live"
+        now += 60 * 60 * 1000L
+        runBlocking {
+            controller.dispatch(albums)
+            controller.execute(albums)
+        }
+        waitForIdle()
+        runOnIdle { assertEquals(81, list().firstVisibleItemIndex) }
+        onNodeWithText("1 new album").assertIsDisplayed().performClick()
+        waitForIdle()
+        onNodeWithText("Album 020 Live").assertIsDisplayed()
+        runOnIdle { assertEquals(21, list().firstVisibleItemIndex) }
     }
 }
