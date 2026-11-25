@@ -122,6 +122,13 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Restore Gradle caches from main (read only)
+        if: needs.changes.outputs.run_full == 'true'
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          # Only the trusted main-branch Gradle cache workflow writes these entries.
+          cache-read-only: true
+
       - name: Set up Android SDK
         if: needs.changes.outputs.run_full == 'true'
         uses: android-actions/setup-android@v4
@@ -136,7 +143,11 @@ jobs:
 
       - name: Install Android build packages
         if: needs.changes.outputs.run_full == 'true'
-        run: sdkmanager "platforms;android-37.0" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973"
+        run: |
+          # Older release sources rebuilt through workflow_call predate the retrying installer.
+          install=(sdkmanager)
+          if [ -x scripts/install-android-sdk-packages.sh ]; then install=(scripts/install-android-sdk-packages.sh); fi
+          "${install[@]}" "platforms;android-37.0" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973"
 
       - name: Run shared and Android unit tests
         if: needs.changes.outputs.run_full == 'true'
@@ -191,6 +202,12 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+
+      - name: Restore Gradle caches from main (read only)
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          # Only the trusted main-branch Gradle cache workflow writes these entries.
+          cache-read-only: true
 
       - name: Run Desktop tests with macOS native libraries
         env:
@@ -273,6 +290,13 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Restore Gradle caches from main (read only)
+        if: needs.changes.outputs.run_full == 'true'
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          # Only the trusted main-branch Gradle cache workflow writes these entries.
+          cache-read-only: true
+
       - name: Set up Android SDK
         if: needs.changes.outputs.run_full == 'true'
         uses: android-actions/setup-android@v4
@@ -286,7 +310,13 @@ jobs:
           export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avd"
           mkdir -p "$ANDROID_AVD_HOME"
           echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
-          sdkmanager "platforms;android-37.0" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973" "emulator" "system-images;android-${{ matrix.api-level }};google_apis;x86_64" 2>&1 | tee /tmp/naviamp-sdkmanager.log
+          packages=("platforms;android-37.0" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973" "emulator" "system-images;android-${{ matrix.api-level }};google_apis;x86_64")
+          if [ -x scripts/install-android-sdk-packages.sh ]; then
+            scripts/install-android-sdk-packages.sh --log /tmp/naviamp-sdkmanager.log "${packages[@]}"
+          else
+            # Older release sources rebuilt through workflow_call predate the retrying installer.
+            sdkmanager "${packages[@]}" 2>&1 | tee /tmp/naviamp-sdkmanager.log
+          fi
           echo no | avdmanager create avd --force --name naviamp-ci --package "system-images;android-${{ matrix.api-level }};google_apis;x86_64" 2>&1 | tee /tmp/naviamp-avdmanager.log
 
       - name: Enable KVM access
@@ -467,6 +497,12 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      - name: Restore Gradle caches from main (read only)
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          # Only the trusted main-branch Gradle cache workflow writes these entries.
+          cache-read-only: true
+
       - name: Run Desktop tests with Windows native libraries
         shell: powershell
         run: .\gradlew.bat "-Pkotlin.native.enableKlibsCrossCompilation=false" "-Pnaviamp.bass.platform=windows-x64" "-Pnaviamp.bass.test.outputDevice=0" desktopTest :providers:navidrome:jvmTest
@@ -541,6 +577,12 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+
+      - name: Restore Gradle caches from main (read only)
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          # Only the trusted main-branch Gradle cache workflow writes these entries.
+          cache-read-only: true
 
       - name: Install native test dependencies
         run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libxrender-dev libsecret-tools xcompmgr xvfb dbus-daemon playerctl pulseaudio libasound2-plugins
