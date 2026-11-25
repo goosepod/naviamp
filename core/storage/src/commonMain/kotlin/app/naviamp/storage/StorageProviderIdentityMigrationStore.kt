@@ -73,6 +73,7 @@ internal class StorageProviderIdentityMigrationStore(
             }
 
             migrateKeepDownloaded(sourceId, ::migrate)
+            migrateOfflinePlaylists(sourceId, ::migrate)
 
             queries.selectManagedKeepDownloadedTrackIdsForIdentityMigration(sourceId).executeAsList().forEach { oldId ->
                 queries.updateManagedKeepDownloadedTrackId(migrate(oldId), sourceId, oldId)
@@ -119,7 +120,7 @@ internal class StorageProviderIdentityMigrationStore(
 
             // Response bodies and image URLs can contain IDs in provider-defined structures. They
             // are disposable caches, so invalidation is safer than incomplete JSON rewriting.
-            queries.deleteResponsesForProviderIdentityMigration(providerId)
+            queries.deleteResponsesForProviderIdentityMigration(providerId = providerId, sourceId = sourceId)
             queries.clearImages()
             queries.markProviderIdentityVersion(targetVersion, sourceId)
         }
@@ -170,6 +171,22 @@ internal class StorageProviderIdentityMigrationStore(
             row.trackIds.forEach { trackId ->
                 queries.insertKeepDownloadedCollectionTrack(sourceId, row.kind, migratedId, migrate(trackId))
             }
+        }
+    }
+
+    private fun migrateOfflinePlaylists(sourceId: String, migrate: (String) -> String) {
+        val store = StorageKeepDownloadedStore(queries) { 0L }
+        val ids = queries.selectOfflinePlaylists(sourceId).executeAsList().map { it.playlist_id }
+        val snapshots = ids.mapNotNull { id -> runCatching { store.offlinePlaylist(sourceId, id) }.getOrNull() }
+        ids.forEach { store.deleteOfflinePlaylist(sourceId, it) }
+        snapshots.forEach { snapshot ->
+            store.saveOfflinePlaylist(snapshot.copy(
+                playlist = snapshot.playlist.copy(
+                    id = migrate(snapshot.playlist.id),
+                    coverArtId = snapshot.playlist.coverArtId?.let(migrate),
+                ),
+                tracks = snapshot.tracks.map { SavedTrack.fromTrack(it).migratedProviderIdentities(migrate).toTrack() },
+            ))
         }
     }
 

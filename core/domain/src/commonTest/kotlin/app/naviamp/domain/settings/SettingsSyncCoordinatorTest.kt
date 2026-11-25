@@ -2,6 +2,7 @@ package app.naviamp.domain.settings
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -64,6 +65,26 @@ class SettingsSyncCoordinatorTest {
         assertEquals(20L, runtime.lastLocalUpdateEpochMillis)
         assertEquals(20L, runtime.lastAppliedSyncUpdateEpochMillis)
         assertTrue(result.hasServerProfiles)
+        assertTrue(result.needsCredentials)
+    }
+
+    @Test
+    fun importOfAProfileThisDeviceAlreadyHoldsCredentialsForNeedsNoPassword() {
+        var runtime = SettingsSyncRuntimeState()
+        val coordinator = SettingsSyncCoordinator(
+            deviceId = "test",
+            state = { runtime },
+            saveState = { runtime = it },
+            nowEpochMillis = { 100L },
+            buildLocalDocument = { updatedAt -> document(updatedAt) },
+            applyDocument = {},
+            importNeedsCredentials = { false },
+        )
+
+        val result = coordinator.applySyncedDocument(document(updatedAt = 20L, serverProfiles = listOf(profile("source"))))
+
+        assertTrue(result.hasServerProfiles)
+        assertFalse(result.needsCredentials)
     }
 
     @Test

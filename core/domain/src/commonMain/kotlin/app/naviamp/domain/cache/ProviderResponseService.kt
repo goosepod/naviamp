@@ -42,15 +42,28 @@ class ProviderResponseService(
     suspend fun playlists(
         provider: MediaProvider,
         limit: Int,
-    ): List<Playlist> =
-        cacheRepository.cachedProviderResponse(
+        maxAgeMillis: Long? = null,
+    ): List<Playlist> {
+        val decode: (String) -> List<Playlist> = { json.decodeFromString<List<PlaylistDto>>(it).map { dto -> dto.toPlaylist() } }
+        val encode: (List<Playlist>) -> String = { json.encodeToString(it.map { playlist -> PlaylistDto.fromPlaylist(playlist) }) }
+        val fetch: suspend () -> List<Playlist> = { provider.playlists(limit) }
+        return if (maxAgeMillis == null) cacheRepository.cachedProviderResponse(
             provider = provider,
             resourceType = PlaylistsResourceType,
             resourceId = limitedResourceId(limit),
-            decode = { json.decodeFromString<List<PlaylistDto>>(it).map { dto -> dto.toPlaylist() } },
-            encode = { json.encodeToString(it.map { playlist -> PlaylistDto.fromPlaylist(playlist) }) },
-            fetch = { provider.playlists(limit) },
+            decode = decode,
+            encode = encode,
+            fetch = fetch,
+        ) else cacheRepository.revalidatedProviderResponse(
+            provider = provider,
+            resourceType = PlaylistsResourceType,
+            resourceId = limitedResourceId(limit),
+            maxAgeMillis = maxAgeMillis,
+            decode = decode,
+            encode = encode,
+            fetch = fetch,
         )
+    }
 
     suspend fun internetRadioStations(provider: MediaProvider): List<InternetRadioStation> =
         cacheRepository.cachedProviderResponse(

@@ -6,14 +6,21 @@ import app.naviamp.domain.provider.MediaProvider
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.random.Random
 
 class AudioByteStoreService(
     private val store: AudioByteStore,
     private val httpClient: SharedHttpClient,
+    private val uniqueSuffix: () -> String = ::randomAudioFileSuffix,
 ) {
     private val inFlightMutex = Mutex()
     private val inFlightWrites = mutableMapOf<String, CompletableDeferred<Result<StoredAudioBytes>>>()
 
+    /**
+     * Saves validated provider audio under a new file name, so an existing copy is never overwritten.
+     * [recordPendingFile] is called with each path before the filesystem can create it; the caller
+     * owns deleting those paths when they do not become referenced.
+     */
     suspend fun writeProviderAudio(
         sourceId: String,
         trackId: TrackId,
@@ -24,6 +31,7 @@ class AudioByteStoreService(
         errorMessage: String,
         maxBytes: Long = Long.MAX_VALUE,
         sizeLimitErrorMessage: String = errorMessage,
+        recordPendingFile: (String) -> Unit = {},
     ): StoredAudioBytes {
         val inFlightKey = "$sourceId:${trackId.value}:$qualityKey"
         var ownsWrite = false
@@ -49,6 +57,7 @@ class AudioByteStoreService(
                 errorMessage = errorMessage,
                 maxBytes = maxBytes,
                 sizeLimitErrorMessage = sizeLimitErrorMessage,
+                recordPendingFile = recordPendingFile,
             )
         }
         writeResult.complete(result)
@@ -70,34 +79,40 @@ class AudioByteStoreService(
         errorMessage: String,
         maxBytes: Long,
         sizeLimitErrorMessage: String,
-    ): StoredAudioBytes =
-        store.writeAudioBytes(
-            fileName = stableAudioFileName(sourceId, trackId.value, qualityKey) + contentType.audioExtension(),
+        recordPendingFile: (String) -> Unit,
+    ): StoredAudioBytes {
+        val stem = stableAudioFileName(sourceId, trackId.value, qualityKey) + uniqueSuffix()
+        val temporaryFileName = stem + TemporaryAudioExtension
+        recordPendingFile(store.audioFilePath(temporaryFileName))
+        var observed: ObservedAudioMedia? = null
+        val stored = store.writeAudioBytes(
+            temporaryFileName = temporaryFileName,
             errorMessage = errorMessage,
             writeBytes = { writer ->
                 var written = 0L
-                var prefix = byteArrayOf()
+                val inspector = AudioMediaInspector()
                 val success = provider.downloadStream(streamUrl, httpClient) { bytes, count ->
                     if (count.toLong() > maxBytes.coerceAtLeast(0L) - written) {
                         throw IllegalStateException(sizeLimitErrorMessage)
                     }
-                    if (prefix.size < 512) prefix += bytes.copyOfRange(0, minOf(count, 512 - prefix.size))
+                    inspector.accept(bytes, count)
                     writer.write(bytes, count)
                     written += count
                 }
-                // Validate before the store commits its temporary file over an existing download.
-                val start = prefix.decodeToString().trimStart('\uFEFF', ' ', '\t', '\r', '\n').lowercase()
-                val errorDocument = listOf("<!doctype html", "<html", "<?xml", "<error", "<subsonic-response", "{", "[")
-                    .any { start.startsWith(it) }
-                if (written == 0L || errorDocument) throw IllegalStateException(errorMessage)
-                success
+                // Validate before the store renames the temporary file into place.
+                val media = inspector.finish()
+                if (!success || !media.isAcceptable) throw IllegalStateException(errorMessage)
+                observed = media
+                (stem + media.fileExtension).also { fileName -> recordPendingFile(store.audioFilePath(fileName)) }
             },
-        ).also { stored ->
-            if (stored.sizeBytes <= 0L) {
-                store.deleteAudioBytes(stored.filePath)
-                throw IllegalStateException(errorMessage)
-            }
+        )
+        val media = checkNotNull(observed)
+        if (stored.sizeBytes != media.receivedBytes) {
+            store.deleteAudioBytes(stored.filePath)
+            throw IllegalStateException(errorMessage)
         }
+        return stored.copy(contentType = media.savedContentType(contentType))
+    }
 
     fun deleteAudio(filePath: String) {
         store.deleteAudioBytes(filePath)
@@ -116,7 +131,7 @@ fun stableAudioFileName(sourceId: String, trackId: String, qualityKey: String): 
     }.take(32)
 }
 
-/** Defense-in-depth check used before deleting an audio path recorded in Naviamp storage. */
+/** Defense-in-depth check used before deleting an audio path recorded in Naviamp storage, including unfinished writes. */
 fun isNaviampOwnedAudioFileName(fileName: String): Boolean {
     val extensionIndex = fileName.lastIndexOf('.')
     if (extensionIndex <= 0) return false
@@ -124,7 +139,14 @@ fun isNaviampOwnedAudioFileName(fileName: String): Boolean {
     val extension = fileName.substring(extensionIndex).lowercase()
     return stem.length in setOf(32, 40, 64) &&
         stem.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' } &&
-        extension in setOf(".mp3", ".aac", ".flac", ".ogg", ".opus", ".m4a", ".wav", ".audio")
+        extension in setOf(".mp3", ".aac", ".flac", ".ogg", ".opus", ".m4a", ".wav", ".audio", TemporaryAudioExtension)
+}
+
+private const val TemporaryAudioExtension = ".part"
+
+private fun randomAudioFileSuffix(): String {
+    val hex = "0123456789abcdef"
+    return buildString(32) { repeat(32) { append(hex[Random.nextInt(16)]) } }
 }
 
 fun String?.audioExtension(): String =

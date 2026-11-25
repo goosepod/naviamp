@@ -17,6 +17,18 @@ class NaviampActionCatalogTest {
     }
 
     @Test
+    fun currentTrackMenuOffersPlaySomethingNewOnlyWhereItCanStart() {
+        fun actions(available: Boolean, live: Boolean = false) = nowPlayingTrackMenuActions(
+            visualizerAvailable = false, isLive = live, hasDetails = false,
+            canAddToPlaylist = false, canSaveQueueAsPlaylist = false, canEmptyQueue = false,
+            sleepTimerLabel = "Sleep timer", canPlaySomethingNew = available,
+        ).map { it.action }
+        assertEquals(true, NaviampAction.PlaySomethingNew in actions(true))
+        assertEquals(true, NaviampAction.PlaySomethingNew in actions(true, live = true))
+        assertEquals(false, NaviampAction.PlaySomethingNew in actions(false))
+    }
+
+    @Test
     fun sharedMediaBaselineIncludesEveryCrossPlatformProductAction() {
         assertEquals(true, NaviampSharedMediaCapabilities.album.canAddToPlaylist)
         assertEquals(true, NaviampSharedMediaCapabilities.artist.canAddToQueue)
@@ -115,6 +127,7 @@ class NaviampActionCatalogTest {
             canAddToPlaylist = true,
             canRename = true,
             canEditSmartPlaylist = true,
+            canDuplicateSmartPlaylist = true,
             canDelete = true,
         )
 
@@ -125,6 +138,7 @@ class NaviampActionCatalogTest {
                 NaviampAction.AddPlaylistToPlaylist,
                 NaviampAction.RenamePlaylist,
                 NaviampAction.EditSmartPlaylist,
+                NaviampAction.DuplicateSmartPlaylist,
                 NaviampAction.DeletePlaylist,
             ),
             actions.map { it.action },

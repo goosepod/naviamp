@@ -35,9 +35,8 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistReference
 import app.naviamp.domain.smartplaylist.smartPlaylistReferenceMatches
 import app.naviamp.ui.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
-import org.jetbrains.compose.resources.getString
 
-suspend fun smartPlaylistSelfReferenceMessage(): String = getString(Res.string.smart_playlist_reference_self)
+suspend fun smartPlaylistSelfReferenceMessage(): String = naviampString(Res.string.smart_playlist_reference_self)
 
 @Composable
 internal fun SmartPlaylistReferencePicker(

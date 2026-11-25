@@ -1,6 +1,7 @@
 package app.naviamp.presentation
 
 import app.naviamp.domain.connect.NaviampConnectMediaType
+import app.naviamp.domain.connect.NaviampConnectPlaybackContext
 import app.naviamp.domain.connect.NaviampConnectQueueMedia
 import app.naviamp.domain.connect.NaviampConnectQueuePlacement
 import app.naviamp.domain.connect.NaviampConnectSourceIdentity
@@ -20,6 +21,8 @@ internal data class NaviampCoreConnectMediaSelection(
     val id: String,
     val startRadio: Boolean = false,
     val shuffle: Boolean = false,
+    /** The catalog list a plain track selection came from, so the target can queue all of it. */
+    val context: NaviampConnectPlaybackContext? = null,
 ) {
     fun toCommand(sourceIdentity: NaviampConnectSourceIdentity) = NaviampConnectStartMedia(
         mediaType = type,
@@ -27,7 +30,31 @@ internal data class NaviampCoreConnectMediaSelection(
         startRadio = startRadio,
         shuffle = shuffle,
         sourceIdentity = sourceIdentity,
+        context = context,
     )
+
+    /** Attaches the selection's list only to a plain track selection; radio and collections stay as-is. */
+    fun withTrackListContext(context: NaviampConnectPlaybackContext?) =
+        if (type == NaviampConnectMediaType.Track && !startRadio && context != null) copy(context = context) else this
+}
+
+/**
+ * Names the catalog list that local track selection would queue for [command], using the same
+ * registry lists as [NaviampCoreTrackActionController]. Only lists a target can resolve by provider
+ * ID are named; other track lists keep single-track remote selection.
+ */
+internal fun NaviampCoreMediaRegistry.connectTrackSelectionContext(
+    command: NaviampCoreCommand,
+): NaviampConnectPlaybackContext? = when (command) {
+    is NaviampCoreCommand.Detail.AlbumTrack -> albumDetails
+        ?.takeIf { command.request.action == SharedTrackRowAction.Select }
+        ?.takeIf { details -> details.tracks.any { it.id.value == command.request.track.id } }
+        ?.let { NaviampConnectPlaybackContext(NaviampConnectMediaType.Album, it.album.id.value) }
+    is NaviampCoreCommand.Detail.PlaylistTrack -> selectedPlaylist
+        ?.takeIf { command.request.action == SharedTrackRowAction.Select }
+        ?.takeIf { selectedPlaylistTracks.any { it.id.value == command.request.track.id } }
+        ?.let { NaviampConnectPlaybackContext(NaviampConnectMediaType.Playlist, it.id) }
+    else -> null
 }
 
 internal data class NaviampCoreConnectQueueSelection(
@@ -57,7 +84,9 @@ internal fun NaviampCoreCommand.connectQueueSelectionOrNull(): NaviampCoreConnec
             is NaviampPlaylistMediaCommand.Detail -> playlist.command.playlistQueueSelection(request.item.id)
             else -> null
         }
-        NaviampMediaItemCommand.PlayAlbum -> null
+        NaviampMediaItemCommand.PlayAlbum,
+        NaviampMediaItemCommand.PlayAlbumMix,
+        -> null
     }
     is NaviampCoreCommand.Detail.Album -> request.command.albumQueueSelection(request.album.id)
     is NaviampCoreCommand.Detail.Artist -> request.command.artistQueueSelection(request.artist.id)
@@ -90,6 +119,8 @@ internal fun NaviampCoreCommand.connectMediaSelectionOrNull(): NaviampCoreConnec
             NaviampConnectMediaType.Album,
             request.item.id,
         )
+        // Not routed until Core resolves the seed: see NaviampCoreCommand.Home.StartAlbumMix.
+        NaviampMediaItemCommand.PlayAlbumMix -> null
         is NaviampMediaItemCommand.Album -> when (itemCommand.command) {
             NaviampArtistAlbumCommand.StartRadio -> NaviampCoreConnectMediaSelection(
                 NaviampConnectMediaType.Album,
@@ -153,6 +184,12 @@ internal fun NaviampCoreCommand.connectMediaSelectionOrNull(): NaviampCoreConnec
     }
     is NaviampCoreCommand.Home.SelectInternetRadio ->
         NaviampCoreConnectMediaSelection(NaviampConnectMediaType.InternetRadioStation, item.id)
+    // Existing protocol intent: every target, old or new, plays seed-track radio (similar songs),
+    // which has no album fallback, so a remote mix can never become the seed album.
+    is NaviampCoreCommand.Home.StartAlbumMix ->
+        NaviampCoreConnectMediaSelection(NaviampConnectMediaType.Track, seed.id.value, startRadio = true)
+    is NaviampCoreCommand.Home.StartSomethingNewRadio ->
+        NaviampCoreConnectMediaSelection(NaviampConnectMediaType.Track, seed.id.value, startRadio = startRadio)
     else -> null
 }
 
@@ -277,6 +314,7 @@ private fun NaviampCoreCommand.invalidatesInterruptionResume(): Boolean = when (
     is NaviampCoreCommand.NowPlaying.CurrentTrack -> request.action == app.naviamp.ui.NowPlayingCurrentTrackAction.StartRadio
     is NaviampCoreCommand.NowPlaying.QueueItem -> request.action in setOf(
         app.naviamp.ui.NowPlayingItemAction.StartRadio, app.naviamp.ui.NowPlayingItemAction.RemoveFromQueue)
+    is NaviampCoreCommand.NowPlaying.QueueUndo -> request.action == app.naviamp.ui.NaviampQueueUndoAction.Undo
     NaviampCoreCommand.Connection.Connect, is NaviampCoreCommand.Connection.ConnectSaved,
     is NaviampCoreCommand.Connection.SwitchAccount, is NaviampCoreCommand.Connection.SelectSavedSource -> true
     else -> connectMediaSelectionOrNull() != null

@@ -208,6 +208,8 @@ data class NaviampNowPlayingActions(
     val onPlaylistMembershipDismissed: () -> Unit = {},
     val onCreateRadioDj: () -> Unit = {},
     val onFindInAurral: (String, String, String) -> Unit = { _, _, _ -> },
+    /** Null hides the action on surfaces that cannot start local discovery. */
+    val onPlaySomethingNew: (() -> Unit)? = null,
 ) {
     fun playback(action: NowPlayingPlaybackAction) {
         onPlaybackAction(NowPlayingPlaybackActionRequest(action))
@@ -992,7 +994,7 @@ private fun NowPlayingDetails(
         } else {
             Arrangement.spacedBy(if (compactLayout) 5.dp else 6.dp)
         },
-        modifier = modifier.padding(
+        modifier = modifier.naviampNowPlayingNoticeAnchor(showControls).padding(
             bottom = when {
                 pinBottomActions -> 8.dp
                 mobileLayout -> 4.dp
@@ -1261,7 +1263,7 @@ private fun NowPlayingDetails(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .requiredHeight(if (mobileLayout) 46.dp else 44.dp)
+                    .requiredHeight(if (mobileLayout) NaviampNowPlayingBottomActionsHeight else 44.dp)
                     .testTag("now-playing-bottom-actions")
                     .padding(horizontal = if (pinBottomActions) 8.dp else 0.dp),
             ) {
@@ -1447,10 +1449,14 @@ private fun NowPlayingDetails(
                                 canSaveQueueAsPlaylist = nowPlaying.canSaveQueueAsPlaylist,
                                 canEmptyQueue = nowPlaying.upNext.isNotEmpty(),
                                 sleepTimerLabel = nowPlaying.sleepTimer.label,
+                                canPlaySomethingNew = actions.onPlaySomethingNew != null,
                             ).forEach { action ->
                                 NaviampDropdownMenuItem(
-                                    label = if (action.action == NaviampAction.StartTrackRadio)
-                                        stringResource(Res.string.tv_start_radio) else action.label,
+                                    label = when (action.action) {
+                                        NaviampAction.StartTrackRadio -> stringResource(Res.string.tv_start_radio)
+                                        NaviampAction.PlaySomethingNew -> stringResource(Res.string.something_new_title)
+                                        else -> action.label
+                                    },
                                     icon = action.icon,
                                     enabled = action.enabled,
                                     onClick = {
@@ -1458,6 +1464,7 @@ private fun NowPlayingDetails(
                                         when (action.action) {
                                             NaviampAction.StartTrackRadio ->
                                                 actions.currentTrack(NowPlayingCurrentTrackAction.StartRadio)
+                                            NaviampAction.PlaySomethingNew -> actions.onPlaySomethingNew?.invoke()
                                             NaviampAction.ChangeVisualizer -> visualizerMenuExpanded = true
                                             NaviampAction.DownloadTrack ->
                                                 actions.currentTrack(NowPlayingCurrentTrackAction.Download)
@@ -1572,7 +1579,7 @@ private fun FilledArtworkMetadataRow(
     val audioVisible = showAudioInfo && nowPlaying.audioInfo.isNotBlank()
     if (!ratingVisible && !audioVisible) return
     val (format, quality) = nowPlaying.audioInfo.compactAudioInfoParts()
-    val textStyle = TextStyle(fontSize = if (largeSizing) 14.sp else 11.sp)
+    val textStyle = TextStyle(fontSize = if (largeSizing) 14.sp else 11.sp).withNaviampFont()
     val measurer = rememberTextMeasurer()
     val favoriteWidth = if (largeSizing) 30.dp else 24.dp
     val starsWidth = if (largeSizing) 116.dp else 92.dp

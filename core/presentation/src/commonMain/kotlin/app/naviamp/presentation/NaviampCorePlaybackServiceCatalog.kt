@@ -13,6 +13,7 @@ import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.lyrics.LyricsOffsetController
 import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
+import app.naviamp.domain.playback.OutputFadePlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackLocalAudio
 import app.naviamp.domain.playback.EmptyPlaybackProfileRepository
@@ -27,6 +28,7 @@ import app.naviamp.domain.settings.VisualizerSettings
 import app.naviamp.domain.waveform.AudioWaveformAnalyzer
 import app.naviamp.domain.waveform.AudioWaveformService
 import app.naviamp.ui.NaviampVisualizer
+import app.naviamp.domain.network.NetworkMeteringSource
 import kotlinx.coroutines.CoroutineScope
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
@@ -45,6 +47,7 @@ fun naviampCorePlaybackServiceCatalog(
     persistPlaybackSettings: (PlaybackSettings) -> Unit,
     cacheSettings: () -> CacheSettings,
     isMobileData: () -> Boolean = { false },
+    networkMetering: NetworkMeteringSource? = null,
     activeSourceId: () -> String?,
     verifyProviderNetworkCertificates: () -> Boolean = { true },
     audioAssets: PlaybackAudioAssetRepository,
@@ -90,6 +93,7 @@ fun naviampCorePlaybackServiceCatalog(
         providerSource = providerSource,
         settings = settings::current,
         isMobileData = isMobileData,
+        networkMetering = networkMetering,
         activeSourceId = activeSourceId,
         verifyProviderNetworkCertificates = verifyProviderNetworkCertificates,
         cacheSettings = cacheSettings,
@@ -111,6 +115,7 @@ fun naviampCorePlaybackServiceCatalog(
             )
         },
     )
+    settings.activeProfile = effects
     return NaviampCorePlaybackServices(
         samples = NaviampCoreEngineSamplePlayback(scope, engine, providerSource,
             verifyProviderNetworkCertificates, { settings.current().volumePercent }),
@@ -133,6 +138,7 @@ fun naviampCorePlaybackServiceCatalog(
             }
         },
         sessions = NaviampPlaybackSessionController(playbackSessionRepository),
+        outputFade = { factor -> (engine as? OutputFadePlaybackEngine)?.setOutputFadeFactor(factor) },
         profiles = playbackProfileRepository,
     )
 }

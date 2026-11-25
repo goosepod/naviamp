@@ -47,6 +47,12 @@ interface NaviampCorePlaybackEffectPort : NaviampPlaybackExecution {
     /** Quiesce pending main loads before a separate preview can take audio output. */
     fun prepareForPreview() = Unit
 
+    /** Scales audible output without touching the saved volume; outputs that cannot fade ignore it. */
+    fun setOutputFadeFactor(factor: Float) = Unit
+
+    /** While set, the engine must not prepare, join or crossfade into the next queue item. */
+    fun setStopAfterCurrent(enabled: Boolean) = Unit
+
     fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean)
     /** A successful explicit provider-radio intent may preserve current audio while changing upcoming sources. */
     fun applyProviderQueue(queue: PlaybackQueue, clearPreparedNext: Boolean) = applyQueue(queue, clearPreparedNext)

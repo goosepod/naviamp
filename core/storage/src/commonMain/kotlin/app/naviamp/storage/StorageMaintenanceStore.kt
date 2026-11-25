@@ -22,6 +22,8 @@ class StorageMaintenanceStore(
                 queries.deleteDownloadedAudio(row.source_id, row.remote_track_id, row.quality_key)
             }
         }
+        val snapshots = StorageKeepDownloadedStore(queries) { 0L }
+        queries.selectAllOfflinePlaylistSourceIds().executeAsList().forEach { snapshots.pruneOrphanedOfflinePlaylists(it) }
     }
 
     fun clearProviderData() {

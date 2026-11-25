@@ -612,7 +612,7 @@ private fun PlaylistManagementTrackRow(
 }
 
 @Composable
-private fun PlaylistTrackIdentity(
+internal fun PlaylistTrackIdentity(
     track: SharedTrackRowUi,
     colors: NaviampColors,
     modifier: Modifier = Modifier,

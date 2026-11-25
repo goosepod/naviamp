@@ -14,12 +14,12 @@ class NaviampCacheSettingsControllerTest {
             applyPlatformSettings = { events += "apply" to it },
         )
 
-        val result = controller.apply(CacheSettings(audioPrefetchDepth = -10))
+        val result = controller.apply(CacheSettings(unmeteredAudioPrefetchDepth = -10, meteredAudioPrefetchDepth = -10))
 
         assertEquals(listOf("set", "save", "apply"), events.map { it.first })
         assertEquals(result, events[0].second)
         assertEquals(result, events[1].second)
         assertEquals(result, events[2].second)
-        assertEquals(CacheSettings(audioPrefetchDepth = -10).normalized(), result)
+        assertEquals(CacheSettings(unmeteredAudioPrefetchDepth = -10, meteredAudioPrefetchDepth = -10).normalized(), result)
     }
 }

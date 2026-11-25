@@ -168,7 +168,8 @@ class HomeService(
                     maxAgeMillis = if (forceRefreshRecentlyAdded) 0L else HomeRecentlyAddedMaximumAgeMillis,
                 )
             }.getOrDefault(emptyList()),
-            mixAlbums = randomPool.take(8),
+            // Mix tiles start similar-song radio; without track radio they would only replay albums.
+            mixAlbums = if (provider.capabilities.supportsTrackRadio) randomPool.take(8) else emptyList(),
             recentAlbums = runCatching { albumList(AlbumListType.Recent, limit = 6) }.getOrDefault(emptyList()),
             frequentAlbums = runCatching { albumList(AlbumListType.Frequent, limit = 6) }.getOrDefault(emptyList()),
             randomAlbums = randomPool.drop(8).ifEmpty { randomPool }.take(6),
@@ -267,7 +268,7 @@ class HomeService(
             ?: provider.artists(limit)
 
     private suspend fun playlists(limit: Int): List<Playlist> =
-        providerResponseService?.playlists(provider, limit)
+        providerResponseService?.playlists(provider, limit, maxAgeMillis = 0L)
             ?: provider.playlists(limit)
 
     private suspend fun internetRadioStations(): List<InternetRadioStation> =
@@ -285,6 +286,8 @@ data class HomeStation(
 
 fun homeStations(homeContent: HomeContent): List<HomeStation> =
     buildList {
+        // Rendered with translated copy by the shared Home UI.
+        add(HomeStation(HomeStationSomethingNew, "Play something new", "A track you have never played"))
         add(HomeStation(HomeStationLibrary, "Library Radio", "Random tracks from your full library"))
         add(HomeStation(HomeStationRandomAlbum, "Random Album Radio", "Start from a random album"))
         homeContent.genres.take(3).forEach { genre ->
@@ -375,6 +378,7 @@ private fun Int.floorMod(divisor: Int): Int =
 
 const val HomeStationLibrary = "library"
 const val HomeStationRandomAlbum = "random-album"
+const val HomeStationSomethingNew = "something-new"
 const val HomeDefaultArtistLimit = 50
 
 private const val HomeStationGenrePrefix = "genre:"

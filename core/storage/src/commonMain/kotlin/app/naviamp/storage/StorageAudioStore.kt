@@ -1,6 +1,7 @@
 package app.naviamp.storage
 
 import app.naviamp.domain.AlbumId
+import app.naviamp.domain.cache.DownloadStorageLimitExceededMessage
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.StreamQuality
@@ -12,6 +13,7 @@ import app.naviamp.domain.cache.AudioCacheRepository
 import app.naviamp.domain.cache.CachedAudioEvictionCandidate
 import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.DownloadReplacementRepository
+import app.naviamp.domain.cache.StoredAudioBytes
 import app.naviamp.domain.cache.downloadContentType
 import app.naviamp.domain.cache.planAudioCacheEviction
 import app.naviamp.domain.cache.toStoredAudioQuality
@@ -83,6 +85,8 @@ class StorageAudioStore(
     DownloadReplacementRepository<StorageDownloadedAudioFile> {
 
     private val downloadMutationMutex = Mutex()
+    private val reconcileMutex = Mutex()
+    private var reconciled = false
 
     override fun updateAudioCacheLimit(maxBytes: Long) {
         maxAudioCacheBytes = maxBytes.coerceAtLeast(0L)
@@ -152,29 +156,35 @@ class StorageAudioStore(
     ): StorageCachedAudioFile = withContext(workContext) {
         cachedAudioFile(sourceId, track.id, quality)?.let { return@withContext it }
         val qualityKey = quality.cacheKey()
-        val contentType = quality.downloadContentType(track.audioInfo?.contentType)
-        val stored = audioCacheByteStoreService.writeProviderAudio(
-            sourceId = sourceId,
-            trackId = track.id,
-            qualityKey = qualityKey,
-            contentType = contentType,
-            provider = provider,
-            streamUrl = provider.streamUrl(StreamRequest(trackId = track.id, quality = quality)),
-            errorMessage = "Could not cache audio track.",
-        )
-        val now = nowEpochMillis()
-        queries.upsertCachedAudio(
-            source_id = sourceId,
-            remote_track_id = track.id.value,
-            quality_key = qualityKey,
-            file_path = stored.filePath,
-            size_bytes = stored.sizeBytes,
-            content_type = contentType,
-            created_at_epoch_millis = now,
-            last_accessed_epoch_millis = now,
-        )
-        trimAudioStore()
-        StorageCachedAudioFile(stored.filePath, stored.sizeBytes, contentType, qualityKey)
+        writeTrackedAudio(
+            storeKind = CacheStoreKind,
+            write = { recordPendingFile ->
+                audioCacheByteStoreService.writeProviderAudio(
+                    sourceId = sourceId,
+                    trackId = track.id,
+                    qualityKey = qualityKey,
+                    contentType = quality.downloadContentType(track.audioInfo?.contentType),
+                    provider = provider,
+                    streamUrl = provider.streamUrl(StreamRequest(trackId = track.id, quality = quality)),
+                    errorMessage = "Could not cache audio track.",
+                    recordPendingFile = recordPendingFile,
+                )
+            },
+        ) { stored ->
+            val now = nowEpochMillis()
+            queries.upsertCachedAudio(
+                source_id = sourceId,
+                remote_track_id = track.id.value,
+                quality_key = qualityKey,
+                file_path = stored.filePath,
+                size_bytes = stored.sizeBytes,
+                content_type = stored.contentType,
+                created_at_epoch_millis = now,
+                last_accessed_epoch_millis = now,
+            )
+            trimAudioStore()
+            StorageCachedAudioFile(stored.filePath, stored.sizeBytes, stored.contentType, qualityKey)
+        }
     }
 
     override suspend fun downloadedAudioFile(
@@ -219,29 +229,18 @@ class StorageAudioStore(
     ): StorageDownloadedAudioFile = withContext(workContext) {
         downloadMutationMutex.withLock {
             downloadedAudioFile(sourceId, track.id)?.let { return@withLock it }
-            val qualityKey = quality.cacheKey()
-            val contentType = quality.downloadContentType(track.audioInfo?.contentType)
-            val stored = downloadAudioByteStoreService.writeProviderAudio(
-                sourceId = sourceId,
-                trackId = track.id,
-                qualityKey = qualityKey,
-                contentType = contentType,
-                provider = provider,
-                streamUrl = provider.downloadUrl(StreamRequest(trackId = track.id, quality = quality)),
-                errorMessage = "Could not download audio track.",
-                maxBytes = (maxDownloadBytes.coerceAtLeast(0L) - queries.downloadedAudioSize().executeAsOne()).coerceAtLeast(0L),
-                sizeLimitErrorMessage = "Download storage limit exceeded.",
-            )
-            val currentBytes = queries.downloadedAudioSize().executeAsOne()
-            if (currentBytes + stored.sizeBytes > maxDownloadBytes.coerceAtLeast(0L)) {
-                downloadAudioByteStoreService.deleteAudio(stored.filePath)
-                throw IllegalStateException("Download storage limit exceeded.")
+            val limit = maxDownloadBytes.coerceAtLeast(0L)
+            writeDownload(sourceId, provider, track, quality, limit - queries.downloadedAudioSize().executeAsOne()) { stored ->
+                if (queries.downloadedAudioSize().executeAsOne() + stored.sizeBytes > limit) {
+                    throw IllegalStateException(DownloadStorageLimitExceededMessage)
+                }
+                upsertDownloadedAudio(sourceId, track, quality.cacheKey(), stored, nowEpochMillis())
+                emptyList()
             }
-            upsertDownloadedAudio(sourceId, track, qualityKey, stored.filePath, stored.sizeBytes, contentType, nowEpochMillis())
-            StorageDownloadedAudioFile(stored.filePath, stored.sizeBytes, contentType, qualityKey)
         }
     }
 
+    /** Keeps every existing copy of [track] until the validated replacement is committed. */
     override suspend fun replaceDownloadedAudioTrack(
         sourceId: String,
         provider: MediaProvider,
@@ -250,41 +249,105 @@ class StorageAudioStore(
         maxDownloadBytes: Long,
     ): StorageDownloadedAudioFile = withContext(workContext) {
         downloadMutationMutex.withLock {
-            val qualityKey = quality.cacheKey()
-            val existingRows = queries.selectDownloadedAudio(sourceId).executeAsList()
+            val limit = maxDownloadBytes.coerceAtLeast(0L)
+            fun existingRows() = queries.selectDownloadedAudio(sourceId).executeAsList()
                 .filter { it.remote_track_id == track.id.value }
-            val contentType = quality.downloadContentType(track.audioInfo?.contentType)
-            val stored = downloadAudioByteStoreService.writeProviderAudio(
-                sourceId = sourceId,
-                trackId = track.id,
-                qualityKey = qualityKey,
-                contentType = contentType,
-                provider = provider,
-                streamUrl = provider.downloadUrl(StreamRequest(trackId = track.id, quality = quality)),
-                errorMessage = "Could not download audio track.",
-                maxBytes = (maxDownloadBytes.coerceAtLeast(0L) -
-                    (queries.downloadedAudioSize().executeAsOne() - existingRows.sumOf { it.size_bytes })).coerceAtLeast(0L),
-                sizeLimitErrorMessage = "Download storage limit exceeded.",
-            )
-            val nextSize = queries.downloadedAudioSize().executeAsOne() - existingRows.sumOf { it.size_bytes } + stored.sizeBytes
-            if (nextSize > maxDownloadBytes.coerceAtLeast(0L)) {
-                downloadAudioByteStoreService.deleteAudio(stored.filePath)
-                throw IllegalStateException("Download storage limit exceeded.")
+            fun othersSize() = queries.downloadedAudioSize().executeAsOne() - existingRows().sumOf { it.size_bytes }
+            writeDownload(sourceId, provider, track, quality, limit - othersSize()) { stored ->
+                if (othersSize() + stored.sizeBytes > limit) throw IllegalStateException(DownloadStorageLimitExceededMessage)
+                val obsolete = existingRows().map { it.file_path }.filter { it != stored.filePath }.distinct()
+                val now = nowEpochMillis()
+                obsolete.forEach { path -> queries.insertPendingAudioFile(path, DownloadStoreKind, now) }
+                queries.deleteDownloadedAudioForTrack(sourceId, track.id.value)
+                upsertDownloadedAudio(sourceId, track, quality.cacheKey(), stored, now)
+                obsolete
             }
-            val obsoleteRows = existingRows.filterNot { it.file_path == stored.filePath }
-            if (obsoleteRows.any { row -> downloadedAudioFileExists(row.file_path) && !deleteKnownDownloadFile(row.file_path) }) {
-                downloadAudioByteStoreService.deleteAudio(stored.filePath)
-                throw IllegalStateException("Could not replace downloaded audio safely.")
-            }
-            obsoleteRows.forEach { row ->
-                queries.deleteDownloadedAudio(row.source_id, row.remote_track_id, row.quality_key)
-            }
-            queries.deleteDownloadedAudioForTrack(sourceId, track.id.value)
-            upsertDownloadedAudio(sourceId, track, qualityKey, stored.filePath, stored.sizeBytes, contentType, nowEpochMillis())
-            StorageDownloadedAudioFile(stored.filePath, stored.sizeBytes, contentType, qualityKey)
         }
     }
 
+    /**
+     * Finishes any write a previous process left between its file and database steps. It runs before
+     * this instance's first write so it never sees that write's own pending paths.
+     */
+    suspend fun reconcileInterruptedAudioWrites() = withContext(workContext) {
+        if (reconciled) return@withContext
+        reconcileMutex.withLock {
+            if (reconciled) return@withLock
+            queries.selectPendingAudioFiles().executeAsList().forEach(::settlePendingAudioFile)
+            reconciled = true
+        }
+    }
+
+    private suspend fun writeDownload(
+        sourceId: String,
+        provider: MediaProvider,
+        track: Track,
+        quality: StreamQuality,
+        remainingBytes: Long,
+        recordRows: (StoredAudioBytes) -> List<String>,
+    ): StorageDownloadedAudioFile {
+        val qualityKey = quality.cacheKey()
+        return writeTrackedAudio(
+            storeKind = DownloadStoreKind,
+            write = { recordPendingFile ->
+                downloadAudioByteStoreService.writeProviderAudio(
+                    sourceId = sourceId,
+                    trackId = track.id,
+                    qualityKey = qualityKey,
+                    contentType = quality.downloadContentType(track.audioInfo?.contentType),
+                    provider = provider,
+                    streamUrl = provider.downloadUrl(StreamRequest(trackId = track.id, quality = quality)),
+                    errorMessage = "Could not download audio track.",
+                    maxBytes = remainingBytes.coerceAtLeast(0L),
+                    sizeLimitErrorMessage = DownloadStorageLimitExceededMessage,
+                    recordPendingFile = recordPendingFile,
+                )
+            },
+        ) { stored ->
+            val obsolete = queries.transactionWithResult { recordRows(stored) }
+            obsolete.forEach { path ->
+                queries.selectPendingAudioFile(path).executeAsOneOrNull()?.let(::settlePendingAudioFile)
+            }
+            StorageDownloadedAudioFile(stored.filePath, stored.sizeBytes, stored.contentType, qualityKey)
+        }
+    }
+
+    /**
+     * Journals every path before the filesystem can create it, then deletes whichever of them the
+     * database step did not reference. A crash leaves the journal for [reconcileInterruptedAudioWrites].
+     */
+    private suspend fun <T> writeTrackedAudio(
+        storeKind: String,
+        write: suspend (recordPendingFile: (String) -> Unit) -> StoredAudioBytes,
+        recordRows: (StoredAudioBytes) -> T,
+    ): T {
+        reconcileInterruptedAudioWrites()
+        val pendingPaths = mutableListOf<String>()
+        try {
+            val stored = write { path ->
+                queries.insertPendingAudioFile(path, storeKind, nowEpochMillis())
+                pendingPaths += path
+            }
+            return recordRows(stored)
+        } finally {
+            pendingPaths.forEach { path ->
+                queries.selectPendingAudioFile(path).executeAsOneOrNull()?.let(::settlePendingAudioFile)
+            }
+        }
+    }
+
+    private fun settlePendingAudioFile(pending: Pending_audio_file) {
+        val path = pending.file_path
+        if (queries.audioFileReferenceCount(path).executeAsOne() > 0L) {
+            queries.deletePendingAudioFile(path)
+            return
+        }
+        val download = pending.store_kind == DownloadStoreKind
+        val exists = if (download) downloadedAudioFileExists(path) else cachedAudioFileExists(path)
+        val deleted = !exists || (if (download) deleteKnownDownloadFile(path) else deleteKnownAudioCacheFile(path))
+        // An undeletable file stays journaled and is retried by a later reconciliation.
+        if (deleted) queries.deletePendingAudioFile(path)
+    }
 
     override fun downloadedTracks(sourceId: String): List<StorageDownloadedTrack> =
         queries.selectDownloadedAudio(sourceId).executeAsList().map { row ->
@@ -343,18 +406,16 @@ class StorageAudioStore(
         sourceId: String,
         track: Track,
         qualityKey: String,
-        filePath: String,
-        sizeBytes: Long,
-        contentType: String?,
+        stored: StoredAudioBytes,
         downloadedAtEpochMillis: Long,
     ) {
         queries.upsertDownloadedAudio(
             source_id = sourceId,
             remote_track_id = track.id.value,
             quality_key = qualityKey,
-            file_path = filePath,
-            size_bytes = sizeBytes,
-            content_type = contentType,
+            file_path = stored.filePath,
+            size_bytes = stored.sizeBytes,
+            content_type = stored.contentType,
             title = track.title,
             artist_id = track.artistId?.value,
             artist_name = track.artistName,
@@ -415,6 +476,9 @@ private fun Downloaded_audio.toTrack(): Track = Track(
     favoritedAtIso8601 = favorited_at_iso8601,
     userRating = user_rating?.toInt(),
 )
+
+private const val CacheStoreKind = "cache"
+private const val DownloadStoreKind = "download"
 
 private fun StreamQuality.cacheKey(): String = when (this) {
     StreamQuality.Original -> "original"

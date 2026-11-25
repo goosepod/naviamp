@@ -12,6 +12,7 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.playback.EqualizerSettings
+import app.naviamp.domain.playback.MaxAudioPrefetchDepth
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.ReplayGainPlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
@@ -25,6 +26,8 @@ import app.naviamp.domain.provider.providerDescriptor
 import app.naviamp.domain.source.ConnectionHeaderDefinition
 import app.naviamp.domain.source.ConnectionSecondaryUrl
 import app.naviamp.domain.source.normalizedMusicFolderIds
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.KeepGeneratedSerializer
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -161,14 +164,9 @@ enum class ApplicationUpdateChannel {
     Beta,
 }
 
-@Serializable
-enum class InterfaceFontSize(val scale: Float) {
-    Small(0.9f),
-    Standard(1f),
-    Large(1.15f),
-}
-
-@Serializable
+@OptIn(ExperimentalSerializationApi::class)
+@KeepGeneratedSerializer
+@Serializable(with = InterfaceSettingsSerializer::class)
 data class InterfaceSettings(
     val favoriteArtistSort: FavoriteArtistSort = FavoriteArtistSort.Name,
     val language: InterfaceLanguage = InterfaceLanguage.System,
@@ -197,6 +195,9 @@ data class InterfaceSettings(
     val groupAlbumsByReleaseType: Boolean = true,
     val generalFontSize: InterfaceFontSize = InterfaceFontSize.Standard,
     val nowPlayingFontSize: InterfaceFontSize = InterfaceFontSize.Standard,
+    val fontFamily: InterfaceFontFamily = InterfaceFontFamily.NunitoSans,
+    /** An installed font family name; it syncs with the other font settings and falls back where missing. */
+    val installedFontFamily: String? = null,
     val homeSectionPresentations: Map<String, HomeSectionPresentationSettings> = emptyMap(),
     val homeSectionOrder: List<String> = emptyList(),
     val globalKeyboardShortcuts: GlobalKeyboardShortcutSettings = GlobalKeyboardShortcutSettings(),
@@ -219,6 +220,9 @@ data class InterfaceSettings(
             .toMap(),
         homeSectionOrder = homeSectionOrder.map(String::trim).filter(String::isNotBlank).distinct(),
         globalKeyboardShortcuts = globalKeyboardShortcuts.normalized(),
+        generalFontSize = generalFontSize.normalized(),
+        nowPlayingFontSize = nowPlayingFontSize.normalized(),
+        installedFontFamily = normalizedInstalledFontFamily(installedFontFamily),
     )
 }
 
@@ -529,10 +533,13 @@ data class PlaybackSettings(
     val downloadQuality: StreamQualityPreference = StreamQualityPreference(),
     val downloadedTrackPlayback: DownloadedTrackPlayback = DownloadedTrackPlayback.PreferDownloaded,
     val allowMobileDownloads: Boolean = false,
+    /** Minutes over which a duration sleep timer fades out; 0 stops without fading. */
+    val sleepTimerFadeMinutes: Int = 0,
 )
 
 fun PlaybackSettings.normalized(): PlaybackSettings =
     copy(
+        sleepTimerFadeMinutes = app.naviamp.domain.playback.normalizedSleepTimerFadeMinutes(sleepTimerFadeMinutes),
         replayGainPreampDb = replayGainPreampDb.coerceIn(MinReplayGainPreampDb, MaxReplayGainPreampDb),
         crossfadeDurationSeconds = crossfadeDurationSeconds.coerceIn(0, 12),
         volumePercent = volumePercent.coerceIn(0, 100),
@@ -844,11 +851,14 @@ enum class UpNextSelectionBehavior {
     SkipToSelected,
 }
 
-@Serializable
+@OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+@kotlinx.serialization.KeepGeneratedSerializer
+@Serializable(with = CacheSettingsSerializer::class)
 data class CacheSettings(
     val audioCachingEnabled: Boolean = true,
     val offlineModeEnabled: Boolean = false,
-    val audioPrefetchDepth: Int = DefaultAudioPrefetchDepth,
+    val unmeteredAudioPrefetchDepth: Int = DefaultAudioPrefetchDepth,
+    val meteredAudioPrefetchDepth: Int = DefaultAudioPrefetchDepth,
     val waveformsEnabled: Boolean = true,
     val waveformBucketCount: Int = DefaultWaveformBucketCount,
     val maxAudioCacheBytes: Long = DefaultAudioCacheBytes,
@@ -858,7 +868,8 @@ data class CacheSettings(
 ) {
     fun normalized(): CacheSettings =
         copy(
-            audioPrefetchDepth = audioPrefetchDepth.coerceIn(0, 25),
+            unmeteredAudioPrefetchDepth = unmeteredAudioPrefetchDepth.coerceIn(0, MaxAudioPrefetchDepth),
+            meteredAudioPrefetchDepth = meteredAudioPrefetchDepth.coerceIn(0, MaxAudioPrefetchDepth),
             waveformBucketCount = waveformBucketCount.coerceIn(MinWaveformBucketCount, MaxWaveformBucketCount),
             maxAudioCacheBytes = maxAudioCacheBytes.coerceIn(DefaultAudioCacheBytes, 20L * 1024L * 1024L * 1024L),
             maxDownloadBytes = maxDownloadBytes.coerceIn(DefaultDownloadStorageBytes, 100L * 1024L * 1024L * 1024L),

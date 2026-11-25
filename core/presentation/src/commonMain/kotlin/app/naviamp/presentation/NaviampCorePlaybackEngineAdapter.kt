@@ -78,6 +78,8 @@ import app.naviamp.ui.radioArtworkNeedsTrackLookup
 import app.naviamp.ui.radioTrackArtworkKey
 import app.naviamp.ui.radioTrackArtworkMatch
 import app.naviamp.ui.radioTrackArtworkQuery
+import app.naviamp.domain.network.NetworkMeteringSource
+import app.naviamp.domain.settings.audioPrefetchDepthFor
 import kotlinx.coroutines.CancellationException
 import app.naviamp.app.NaviampPlaybackStreamRelay
 import kotlinx.coroutines.CoroutineScope
@@ -102,10 +104,11 @@ class NaviampCorePlaybackEngineAdapter(
     private val providerSource: NaviampCoreMediaProviderSource,
     private val settings: () -> PlaybackSettings,
     private val isMobileData: () -> Boolean = { false },
+    private val networkMetering: NetworkMeteringSource? = null,
     private val activeSourceId: () -> String? = { null },
     private val verifyProviderNetworkCertificates: () -> Boolean = { true },
     private val cacheSettings: () -> CacheSettings = {
-        CacheSettings(audioCachingEnabled = false, audioPrefetchDepth = 0)
+        CacheSettings(audioCachingEnabled = false)
     },
     private val audioAssets: PlaybackAudioAssetRepository = emptyPlaybackAudioAssetRepository(),
     private val cacheAudio: suspend (
@@ -123,7 +126,7 @@ class NaviampCorePlaybackEngineAdapter(
     ) -> PlaybackSidecarPrepResult = { _, _, _, _, _ -> PlaybackSidecarPrepResult() },
     private val visualizerFrameIntervalMillis: Long = DefaultVisualizerFrameIntervalMillis,
     private val visualizerWorkContext: CoroutineContext = Dispatchers.Default,
-) : NaviampCorePlaybackEffectPort, NaviampCoreInternetRadioPlaybackPort {
+) : NaviampCorePlaybackEffectPort, NaviampCoreInternetRadioPlaybackPort, NaviampCoreActivePlaybackProfile {
     // Native polling can deliver Playing after an explicit pause. Preserve the user's intent
     // independently of reported state, including when seeking restarts the native execution.
     private val pauseRequested = AtomicBoolean(false)
@@ -163,6 +166,7 @@ class NaviampCorePlaybackEngineAdapter(
     private var visualizerFramesEnabled = false
     private var visualizerSamplingJob: Job? = null
     private val externalStreamUrls = mutableMapOf<TrackId, String>()
+    private var stopAfterCurrent = false
     private var authenticatedStreams: NaviampPlaybackStreamRelay? = null
 
     override fun attach(observer: NaviampCorePlaybackObserver) {
@@ -630,7 +634,9 @@ class NaviampCorePlaybackEngineAdapter(
                     }
                 },
                 onProgressChanged = { progress ->
-                    if (requestGeneration == generation && !executionFinished.load() && playbackState !is PlaybackState.Error) {
+                    // A deferred start means the loaded stream is no longer the queue's current track.
+                    if (requestGeneration == generation && !deferredStart && !executionFinished.load() &&
+                        playbackState !is PlaybackState.Error) {
                         val timelineProgress = progress.withProviderStartOffset(
                             providerStartPositionSeconds = audioSource
                                 ?.target
@@ -691,7 +697,7 @@ class NaviampCorePlaybackEngineAdapter(
             quality = quality,
             queue = queue,
             enabled = configured.audioCachingEnabled,
-            configuredDepth = configured.audioPrefetchDepth,
+            configuredDepth = configured.audioPrefetchDepthFor(networkMetering),
             completedAudio = completedAudioPrefetch,
             completedSidecars = completedSidecarPrefetch,
         ) ?: return
@@ -702,6 +708,7 @@ class NaviampCorePlaybackEngineAdapter(
                 isActive = {
                     requestGeneration == generation && activePrefetchGeneration == prefetchGeneration
                 },
+                currentDepth = { cacheSettings().audioPrefetchDepthFor(networkMetering) },
                 cacheAudio = { track ->
                     val plan = resolvePlaybackAudioSource(
                         sourceId = work.sourceId,
@@ -750,7 +757,14 @@ class NaviampCorePlaybackEngineAdapter(
         completedSidecarPrefetch.clear()
     }
 
+    override fun setStopAfterCurrent(enabled: Boolean) {
+        if (stopAfterCurrent == enabled) return
+        stopAfterCurrent = enabled
+        if (enabled) schedulePreparedNextInvalidation()
+    }
+
     private fun shouldPrepareNext(progress: app.naviamp.domain.playback.PlaybackProgress, settings: PlaybackSettings): Boolean {
+        if (stopAfterCurrent) return false
         val nextIndex = queue.nextIndex(repeatMode, repeatTrack = true)
         return planPrepareNextPlayback(
             progress = progress,
@@ -840,21 +854,24 @@ class NaviampCorePlaybackEngineAdapter(
         (supportsPlaybackByteTransport && request.quality == StreamQuality.Original &&
             !request.trackId.isDiscoveryPreview())
 
-    private fun effectivePlaybackSettingsForTrack(index: Int): PlaybackSettings {
-        val global = settings()
+    private fun effectivePlaybackSettingsForTrack(index: Int, global: PlaybackSettings = settings()): PlaybackSettings {
         return queue.groupAt(index)?.profile?.resolveAgainst(global)
             ?.effectiveForEngine(engine)
             ?: global.effectiveForEngine(engine)
     }
 
-    private fun effectivePlaybackSettingsForTransition(): PlaybackSettings {
-        val global = settings()
+    private fun effectivePlaybackSettingsForTransition(global: PlaybackSettings = settings()): PlaybackSettings {
         val nextIndex = queue.nextIndex(repeatMode, repeatTrack = true)
         val group = nextIndex?.let { queue.groupForTransition(toIndex = it) }
         return group?.profile?.resolveAgainst(global)
             ?.effectiveForEngine(engine)
             ?: global.effectiveForEngine(engine)
     }
+
+    override fun resolve(global: PlaybackSettings) = NaviampCoreActiveEngineSettings(
+        track = effectivePlaybackSettingsForTrack(queue.currentIndex, global),
+        transition = effectivePlaybackSettingsForTransition(global),
+    )
 
     private fun applyProfileEngineSettings(
         trackSettings: PlaybackSettings,
@@ -880,6 +897,17 @@ private fun PlaybackSettings.transitionSettings() = PlaybackTransitionSettings(
     crossfadeDurationSeconds = crossfadeDurationSeconds,
 )
 
+/** Engine values for the active queue position after its playback profile overrides global settings. */
+data class NaviampCoreActiveEngineSettings(
+    val track: PlaybackSettings,
+    val transition: PlaybackSettings,
+)
+
+/** Resolves global settings against the playback profile of the queue the engine is playing. */
+fun interface NaviampCoreActivePlaybackProfile {
+    fun resolve(global: PlaybackSettings): NaviampCoreActiveEngineSettings
+}
+
 /** Shared playback-settings owner and complete engine application policy. */
 class NaviampCorePlaybackEngineSettings(
     private val engine: PlaybackEngine,
@@ -887,6 +915,13 @@ class NaviampCorePlaybackEngineSettings(
     private val persist: (PlaybackSettings) -> Unit = {},
 ) : NaviampCorePlaybackSettingsPort {
     private var current = initial.normalized()
+
+    /**
+     * The engine adapter's profile resolution. A global apply can land while the adapter is still
+     * resolving a stream, so writing global crossfade or ReplayGain here would replace the active
+     * album or playlist override at the moment the engine creates or prepares audio.
+     */
+    var activeProfile: NaviampCoreActivePlaybackProfile? = null
 
     init {
         applyToEngine(current.effectiveForEngine(engine))
@@ -908,12 +943,15 @@ class NaviampCorePlaybackEngineSettings(
     }
 
     private fun applyToEngine(settings: PlaybackSettings) {
+        val active = activeProfile?.resolve(current)
+        val transition = active?.transition ?: settings
+        val track = active?.track ?: settings
         engine.setVolume(settings.volumePercent)
-        (engine as? QueueAwarePlaybackEngine)?.setCrossfadeDuration(settings.crossfadeDurationSeconds)
+        (engine as? QueueAwarePlaybackEngine)?.setCrossfadeDuration(transition.crossfadeDurationSeconds)
         (engine as? EqualizerPlaybackEngine)?.setEqualizer(settings.equalizer)
         (engine as? ReplayGainPlaybackEngine)?.setReplayGain(
-            settings.replayGainMode,
-            settings.replayGainPreampDb,
+            track.replayGainMode,
+            track.replayGainPreampDb,
         )
         (engine as? SampleRateConverterPlaybackEngine)?.setSampleRateConverter(settings.sampleRateConverter)
         (engine as? SampleRateMatchingPlaybackEngine)?.setSampleRateMatching(settings.sampleRateMatching)

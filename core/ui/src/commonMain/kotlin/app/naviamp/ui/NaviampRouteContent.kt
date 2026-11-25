@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.offset
@@ -46,6 +47,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.boundsInParent
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.FocusRequester
@@ -420,7 +423,7 @@ internal fun HomeCollectionGridCard(
             )
         }
         Text(
-            text = item.title,
+            text = item.displayTitle(),
             color = colors.primaryText,
             fontSize = 12.sp,
             lineHeight = 14.sp,
@@ -430,7 +433,7 @@ internal fun HomeCollectionGridCard(
             modifier = Modifier.padding(horizontal = 2.dp),
         )
         Text(
-            text = item.subtitle,
+            text = item.displaySubtitle(),
             color = colors.secondaryText,
             fontSize = 10.sp,
             lineHeight = 12.sp,
@@ -518,6 +521,8 @@ private fun navibeatMixArtwork(kind: String): NavibeatMixArtwork = when (kind) {
 private fun stationArtwork(id: String): NavibeatMixArtwork = when {
     id == "library" -> NavibeatMixArtwork(NaviampIcons.Library, listOf(Color(0xFF526DFF), Color(0xFF6E3BB8)))
     id == "random-album" -> NavibeatMixArtwork(NaviampIcons.Album, listOf(Color(0xFFFF9A3D), Color(0xFFCF3F72)))
+    id == app.naviamp.domain.home.HomeStationSomethingNew ->
+        NavibeatMixArtwork(NaviampIcons.Turntable, listOf(Color(0xFF00B8D4), Color(0xFF5E35B1)))
     id.startsWith("decade:") -> NavibeatMixArtwork(NaviampIcons.Clock, listOf(Color(0xFFFFB13B), Color(0xFF8B46C7)))
     else -> NavibeatMixArtwork(NaviampTransportIcons.Radio, listOf(Color(0xFF20BFA9), Color(0xFF2374C6)))
 }
@@ -529,6 +534,7 @@ internal fun dispatchHomeCollectionItem(
 ) {
     when (item.action) {
         SharedHomeCollectionItemAction.PlayAlbum -> mediaActions.onMediaItemAction(item.mediaItem.playAlbumRequest())
+        SharedHomeCollectionItemAction.PlayAlbumMix -> mediaActions.onMediaItemAction(item.mediaItem.playAlbumMixRequest())
         SharedHomeCollectionItemAction.OpenAlbum ->
             mediaActions.onMediaItemAction(item.mediaItem.albumActionRequest(NaviampArtistAlbumCommand.Select))
         SharedHomeCollectionItemAction.OpenArtist ->
@@ -854,7 +860,7 @@ private fun HomeCollectionListRow(
         HomeCollectionArtwork(item, colors, 48.dp)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                text = item.title,
+                text = item.displayTitle(),
                 color = colors.primaryText,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -862,7 +868,7 @@ private fun HomeCollectionListRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = item.subtitle,
+                text = item.displaySubtitle(),
                 color = colors.secondaryText,
                 fontSize = 11.sp,
                 maxLines = 1,
@@ -1434,6 +1440,16 @@ fun NaviampLibraryContent(
     val focusIds = if (screen.selectedView == NaviampLibraryView.Songs) filteredTracks.map { it.id } else filteredItems.map { it.id }
     val restoredIndex = focusIds.indexOfFirst { libraryItemFocusTarget(it) == restoredTarget }
     val targetExists = restoredIndex >= 0 || restoredTarget == LibrarySearchFocusTarget
+    val addedItems = libraryAddedItems(screen.selectedView, catalog, focusIds)
+    // Show clears the report, so the requester follows a remembered row rather than the report.
+    var addedItemFocusId by remember(screen.selectedView) { mutableStateOf<String?>(null) }
+    val addedItemFocusRequester = remember(screen.selectedView) { FocusRequester() }
+    var addedItemsNoticeBottom by remember { mutableStateOf<Int?>(null) }
+    ReportVisibleAddedItems(screen.selectedView, if (addedItems != null) catalog.addedItemIds else emptyList(),
+        visibleKeys = {
+            addedItemsNoticeBottom?.let { activeListState.layoutInfo.keysVisibleBelow(it) }.orEmpty()
+        },
+        onSeen = actions.onAddedItemsSeen)
     androidx.compose.runtime.LaunchedEffect(screen.selectedView, targetExists, catalog.refreshGeneration) {
         if (viewportState.hasPendingRefresh(screen.selectedView, catalog.refreshGeneration)) return@LaunchedEffect
         if (restoredTarget == null && (activeListState.firstVisibleItemIndex > 0 || activeListState.firstVisibleItemScrollOffset > 0)) return@LaunchedEffect
@@ -1644,9 +1660,10 @@ fun NaviampLibraryContent(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
+          Box(Modifier.weight(1f).fillMaxHeight()) {
             LazyColumn(
                 state = activeListState,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
             if (filteredItems.isEmpty() && filteredTracks.isEmpty() &&
@@ -1769,6 +1786,13 @@ fun NaviampLibraryContent(
                                     Modifier
                                 },
                             )
+                            .then(
+                                if (item.id == addedItemFocusId) {
+                                    Modifier.focusRequester(addedItemFocusRequester)
+                                } else {
+                                    Modifier
+                                },
+                            )
                             .onFocusChanged { focus ->
                                 if (focus.isFocused) {
                                     viewportState.recordFocusedTarget(screen.selectedView, focusTarget)
@@ -1785,6 +1809,27 @@ fun NaviampLibraryContent(
                 }
             }
         }
+            if (addedItems != null) {
+                val generation = catalog.addedItemsGeneration
+                NaviampLibraryNewItemsIndicator(colors, screen.selectedView, addedItems,
+                    onShow = {
+                        addedItemFocusId = addedItems.firstId
+                        actions.onAddedItemsDismissed(screen.selectedView, generation)
+                        libraryScope.launch {
+                            activeListState.scrollToItem(addedItems.firstIndex)
+                            // The row picks up the requester when it recomposes with the new focus id.
+                            repeat(5) {
+                                withFrameNanos { }
+                                if (addedItemFocusRequester.requestFocus()) return@launch
+                            }
+                        }
+                    },
+                    onDismiss = { actions.onAddedItemsDismissed(screen.selectedView, generation) },
+                    modifier = Modifier.align(Alignment.TopCenter)
+                        .onPlaced { addedItemsNoticeBottom = it.boundsInParent().bottom.toInt() },
+                )
+            }
+          }
             if (query.isBlank() && (
                 screen.selectedView != NaviampLibraryView.Albums ||
                     catalog.albumSortOrder == app.naviamp.domain.settings.LibraryAlbumSortOrder.Title

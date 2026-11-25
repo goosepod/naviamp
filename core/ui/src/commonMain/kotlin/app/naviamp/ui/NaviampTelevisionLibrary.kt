@@ -20,6 +20,9 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -104,6 +107,12 @@ internal fun TelevisionLibrary(
     val refreshFocus = remember { FocusRequester() }
     val sourcesFocus = remember { FocusRequester() }
     val sortFocus = remember { FocusRequester() }
+    val addedItemsFocus = remember { FocusRequester() }
+    val addedItems = libraryAddedItems(view, catalog, ids)
+    // Songs never report additions, so only the grids need watching.
+    ReportVisibleAddedItems(view, if (addedItems != null) catalog.addedItemIds else emptyList(),
+        visibleKeys = { viewport.grid(view).layoutInfo.mostlyVisibleKeys() },
+        onSeen = actions.onAddedItemsSeen)
     val showShortcuts = view != NaviampLibraryView.Albums || catalog.albumSortOrder == LibraryAlbumSortOrder.Title
     val shortcuts = if (showShortcuts) televisionLibraryShortcuts() else emptyList()
     val letterFocus = remember(shortcuts) { shortcuts.associateWith { FocusRequester() } }
@@ -325,7 +334,7 @@ internal fun TelevisionLibrary(
                         else sourcesFocus.requestFocus()
                         true
                     }
-                    Key.DirectionRight -> true
+                    Key.DirectionRight -> { if (addedItems != null) addedItemsFocus.requestFocus(); true }
                     Key.DirectionUp -> { topNavigationFocusRequester.requestFocus(); true }
                     Key.DirectionDown -> { focusContent(); true }
                     else -> false
@@ -334,6 +343,30 @@ internal fun TelevisionLibrary(
             TelevisionTextButton(stringResource(Res.string.library_refresh), colors,
                 enabled = !catalog.syncStatus.isSyncing, contentPadding = controlPadding, onClick = actions.onRefresh,
                 modifier = refreshModifier)
+            if (addedItems != null) {
+                val showLabel = stringResource(Res.string.library_new_items_show)
+                val generation = catalog.addedItemsGeneration
+                val showAddedItems = {
+                    focusContent(addedItems.firstIndex)
+                    actions.onAddedItemsDismissed(view, generation)
+                }
+                TelevisionTextButton(libraryAddedItemsLabel(view, addedItems.count), colors, calmFocus = true,
+                    contentPadding = controlPadding, onClick = showAddedItems,
+                    modifier = Modifier.focusRequester(addedItemsFocus).testTag(LibraryNewItemsIndicatorTestTag)
+                        .semantics {
+                            liveRegion = LiveRegionMode.Polite
+                            onClick(label = showLabel) { showAddedItems(); true }
+                        }
+                        .onPreviewKeyEvent { event ->
+                            if (event.type != KeyEventType.KeyDown) false else when (event.key) {
+                                Key.DirectionLeft -> { refreshFocus.requestFocus(); true }
+                                Key.DirectionRight -> true
+                                Key.DirectionUp -> { topNavigationFocusRequester.requestFocus(); true }
+                                Key.DirectionDown -> { focusContent(); true }
+                                else -> false
+                            }
+                        })
+            }
         }
         NaviampLibraryLoadingStatus(colors, view, catalog)
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.weight(1f).fillMaxWidth()) {

@@ -95,8 +95,15 @@ internal fun naviampCoreSettingsValueCatalogWithoutMigration(
     return NaviampCoreSettingsValueCatalog(
         savePlayback = { write(values, json, KeyPlayback, it.normalized()) },
         storedSettings = NaviampCoreStoredSettings(
-            loadInterface = { read(values, json, KeyInterface, InterfaceSettings()).normalized() },
-            saveInterface = { write(values, json, KeyInterface, it.normalized()) },
+            // An explicit serializer: a reflective lookup could resolve a different serializer than
+            // the one that wrote the value, and a failed decode would reset every interface setting.
+            loadInterface = {
+                values.read(KeyInterface)
+                    ?.let { encoded -> runCatching { json.decodeFromString(InterfaceSettings.serializer(), encoded) }.getOrNull() }
+                    ?.normalized()
+                    ?: InterfaceSettings()
+            },
+            saveInterface = { values.write(KeyInterface, json.encodeToString(InterfaceSettings.serializer(), it.normalized())) },
             loadPlayback = { read(values, json, KeyPlayback, PlaybackSettings()).normalized() },
             loadCache = { read(values, json, KeyCache, CacheSettings()).normalized() },
             saveCache = { write(values, json, KeyCache, it.normalized()) },

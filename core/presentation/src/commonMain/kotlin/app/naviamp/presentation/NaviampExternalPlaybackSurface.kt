@@ -3,6 +3,7 @@ package app.naviamp.presentation
 import app.naviamp.ui.NaviampRepeatMode
 import app.naviamp.ui.NaviampExternalPlaybackLabels
 import app.naviamp.ui.loadNaviampExternalPlaybackLabels
+import app.naviamp.ui.naviampExternalPlaybackLabelUpdates
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -95,7 +96,21 @@ class NaviampExternalPlaybackSurfaceSession<Artwork>(
             }
             surface.attach(::command, ::audioEvent)
             scope.launch {
-                try { labels = loadLabels(); snapshots.collect(::update) }
+                try {
+                    coroutineScope {
+                        val loaded = CompletableDeferred<Unit>()
+                        val labelUpdates = launch {
+                            naviampExternalPlaybackLabelUpdates(loadLabels).collect { next ->
+                                val refresh = loaded.isCompleted
+                                labels = next
+                                if (refresh) refreshLabels() else loaded.complete(Unit)
+                            }
+                        }
+                        loaded.await()
+                        snapshots.collect(::update)
+                        labelUpdates.cancel()
+                    }
+                }
                 catch (cancelled: CancellationException) { throw cancelled }
                 catch (failure: Exception) { fail(failure) }
                 finally { close() }
@@ -207,6 +222,11 @@ class NaviampExternalPlaybackSurfaceSession<Artwork>(
         try { publish(control.snapshot()) }
         catch (cancelled: CancellationException) { throw cancelled }
         catch (failure: Exception) { fail(failure) }
+    }
+
+    // A language change alters only labels; the planner's last publication stays accurate.
+    private fun refreshLabels() {
+        if (active.value) publish(control.snapshot())
     }
 
     private fun publish(snapshot: NaviampExternalPlaybackSnapshot) = surface.publish(snapshot, snapshot.surfaceActions(), artwork, labels)

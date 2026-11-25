@@ -34,7 +34,8 @@ import app.naviamp.presentation.automotiveQueue
 import app.naviamp.ui.NaviampRepeatMode
 import app.naviamp.ui.NaviampExternalPlaybackAction
 import app.naviamp.ui.NaviampExternalPlaybackLabels
-import app.naviamp.ui.loadNaviampExternalPlaybackLabels
+import app.naviamp.ui.NaviampExternalTransportLabel
+import app.naviamp.ui.naviampExternalPlaybackLabelUpdates
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -68,9 +69,12 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
         sessionToken = session.sessionToken
         attachBridge()
         scope.launch {
-            labels = loadNaviampExternalPlaybackLabels()
-            publishSessionContent(snapshot)
-            publishPlaybackState(snapshot)
+            naviampExternalPlaybackLabelUpdates().collect { next ->
+                labels = next
+                publishSessionContent(snapshot)
+                publishPlaybackState(snapshot)
+                presentation.publish(snapshot, notificationChanged = true)
+            }
         }
     }
 
@@ -295,25 +299,27 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
     private fun notification(value: NaviampExternalPlaybackSnapshot): Notification {
         val current = value.current
         val playPause = if (value.state == NaviampExternalPlaybackState.Playing) {
-            notificationAction(ActionPlayPause, android.R.drawable.ic_media_pause, "Pause")
+            notificationAction(ActionPlayPause, android.R.drawable.ic_media_pause, transportLabel(NaviampExternalTransportLabel.Pause))
         } else {
-            notificationAction(ActionPlayPause, android.R.drawable.ic_media_play, "Play")
+            notificationAction(ActionPlayPause, android.R.drawable.ic_media_play, transportLabel(NaviampExternalTransportLabel.Play))
         }
         return Notification.Builder(this, NotificationChannelId)
             .setContentTitle(current?.title ?: "Naviamp")
-            .setContentText(current?.subtitle ?: "Playback")
+            .setContentText(current?.subtitle ?: labels?.playback.orEmpty())
             .setSubText(current?.description?.takeIf(String::isNotBlank))
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(contentIntent())
             .setDeleteIntent(servicePendingIntent(ActionStop, 5))
-            .addAction(notificationAction(ActionPrevious, android.R.drawable.ic_media_previous, "Previous"))
+            .addAction(notificationAction(ActionPrevious, android.R.drawable.ic_media_previous, transportLabel(NaviampExternalTransportLabel.Previous)))
             .addAction(playPause)
-            .addAction(notificationAction(ActionNext, android.R.drawable.ic_media_next, "Next"))
+            .addAction(notificationAction(ActionNext, android.R.drawable.ic_media_next, transportLabel(NaviampExternalTransportLabel.Next)))
             .addAction(
                 notificationAction(
                     ActionFavorite,
                     if (value.favorite) R.drawable.ic_favorite_filled_24 else R.drawable.ic_favorite_24,
-                    if (value.favorite) "Unfavorite" else "Favorite",
+                    labels?.actions?.get(
+                        if (value.favorite) NaviampExternalPlaybackAction.Unfavorite else NaviampExternalPlaybackAction.Favorite,
+                    ).orEmpty(),
                 ),
             )
             .setStyle(
@@ -327,6 +333,8 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .build()
     }
+
+    private fun transportLabel(label: NaviampExternalTransportLabel): String = labels?.transport?.get(label).orEmpty()
 
     private fun notificationAction(action: String, icon: Int, title: String): Notification.Action =
         Notification.Action.Builder(

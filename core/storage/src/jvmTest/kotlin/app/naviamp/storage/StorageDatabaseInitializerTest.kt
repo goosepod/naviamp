@@ -147,6 +147,64 @@ class StorageDatabaseInitializerTest {
     }
 
     @Test
+    fun mainBaselineAddsThePendingAudioJournalWithoutChangingDownloads() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            driver.createReleasedSchema()
+            driver.execute(null, "PRAGMA user_version = 31", 0)
+            driver.execute(null, """
+                INSERT INTO media_source(id, provider_id, cache_namespace, display_name, base_url,
+                    username, token, salt, created_at_epoch_millis, authentication_mode)
+                VALUES ('source', 'navidrome', 'cache', 'Server', 'https://example.test',
+                    'user', 'token', 'salt', 1, 'token')
+            """.trimIndent(), 0)
+            driver.execute(null, """
+                INSERT INTO downloaded_audio(source_id, remote_track_id, quality_key, file_path, size_bytes,
+                    content_type, title, artist_name, downloaded_at_epoch_millis)
+                VALUES ('source', 'track', 'original', '/downloads/old.flac', 10, 'audio/flac', 'Track', 'Artist', 1)
+            """.trimIndent(), 0)
+
+            val database = initializeNaviampStorageDatabase(driver)
+
+            assertEquals(NaviampStorageSchema.version, driver.userVersion())
+            assertEquals("/downloads/old.flac", database.naviampStorageQueries.selectAllDownloadedAudio().executeAsOne().file_path)
+            assertEquals(0L, driver.queryLong("SELECT COUNT(*) FROM pending_audio_file"))
+            assertEquals(0L, driver.queryLong("SELECT COUNT(*) FROM offline_playlist"))
+        } finally {
+            driver.close()
+        }
+    }
+
+    @Test
+    fun mainVersionThirtyTwoAddsEmptyOfflinePlaylistsAndKeepsDownloads() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            driver.createMainSchema()
+            driver.execute(null, "PRAGMA user_version = 32", 0)
+            driver.execute(null, """
+                INSERT INTO media_source(id, provider_id, cache_namespace, display_name, base_url,
+                    username, token, salt, created_at_epoch_millis)
+                VALUES ('source', 'navidrome', 'cache', 'Server', 'https://example.test', 'user', '', '', 1)
+            """.trimIndent(), 0)
+            driver.execute(null, """
+                INSERT INTO downloaded_audio(source_id, remote_track_id, quality_key, file_path, size_bytes,
+                    title, artist_name, downloaded_at_epoch_millis)
+                VALUES ('source', 'one', 'original', '/fixture/one.flac', 100, 'One', 'Artist', 1)
+            """.trimIndent(), 0)
+
+            repeat(2) {
+                val database = initializeNaviampStorageDatabase(driver)
+                assertEquals(NaviampStorageSchema.version, driver.userVersion())
+                assertEquals(1, database.naviampStorageQueries.selectDownloadedAudio("source").executeAsList().size)
+                assertEquals(0L, driver.queryLong("SELECT COUNT(*) FROM offline_playlist"))
+                assertEquals(0L, driver.queryLong("SELECT COUNT(*) FROM offline_playlist_entry"))
+            }
+        } finally {
+            driver.close()
+        }
+    }
+
+    @Test
     fun createsAndVersionsAFreshDatabase() {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
@@ -385,7 +443,21 @@ private fun JdbcSqliteDriver.removeDiscMetadataColumns() {
 }
 /** Rewind the branch-only table before assigning a historical user_version to a fixture. */
 private fun JdbcSqliteDriver.createSchemaWithoutAcquisitions() {
-    NaviampStorageDatabase.Schema.create(this)
+    createReleasedSchema()
     execute(null, "DROP TABLE discovery_acquisition", 0)
     execute(null, "ALTER TABLE media_source DROP COLUMN aurral_companion", 0)
+}
+
+/** Version 31, the v2.12.0 schema, before the unreleased pending audio journal and offline playlists. */
+private fun JdbcSqliteDriver.createReleasedSchema() {
+    createMainSchema()
+    execute(null, "DROP TABLE pending_audio_file", 0)
+}
+
+/** Main's latest migration (database version 32), before the unreleased offline playlist tables. */
+private fun JdbcSqliteDriver.createMainSchema() {
+    NaviampStorageDatabase.Schema.create(this)
+    execute(null, "DROP INDEX offline_playlist_entry_track", 0)
+    execute(null, "DROP TABLE offline_playlist_entry", 0)
+    execute(null, "DROP TABLE offline_playlist", 0)
 }

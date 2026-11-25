@@ -117,6 +117,17 @@ class HomeServiceTest {
     }
 
     @Test
+    fun mixesForYouAreNotOfferedWhenTheProviderCannotBuildSimilarSongRadio() = runTest {
+        val home = HomeService(
+            provider = FakeHomeProvider(supportsTrackRadio = false),
+            date = HomeDate(year = 2026, dayOfYear = 1),
+        ).load()
+
+        assertEquals(emptyList(), home.mixAlbums)
+        assertEquals(listOf(album("random-14")), home.randomAlbums)
+    }
+
+    @Test
     fun loadUsesDefaultArtistLimit() = runTest {
         val provider = FakeHomeProvider()
 
@@ -254,6 +265,7 @@ class HomeServiceTest {
     private class FakeHomeProvider(
         private val playlists: List<Playlist> = listOf(Playlist("playlist", "Playlist", trackCount = 2)),
         supportsArtistFavorites: Boolean = false,
+        supportsTrackRadio: Boolean = true,
         private val favoriteArtists: List<Artist> = emptyList(),
     ) : MediaProvider {
         override val id: ProviderId = ProviderId("fake-home")
@@ -263,7 +275,7 @@ class HomeServiceTest {
             supportsDownloadTranscode = false,
             supportsArtistRadio = false,
             supportsAlbumRadio = false,
-            supportsTrackRadio = false,
+            supportsTrackRadio = supportsTrackRadio,
             supportsArtistFavorites = supportsArtistFavorites,
         )
 

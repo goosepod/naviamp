@@ -14,6 +14,10 @@ import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.CachedProviderResponse
+import app.naviamp.domain.cache.ProviderResponseCacheService
+import app.naviamp.domain.cache.ProviderResponseService
+import app.naviamp.domain.cache.ProviderResponseStore
 import app.naviamp.domain.provider.*
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.provider.AlbumListType
@@ -31,6 +35,8 @@ import app.naviamp.domain.settings.HomeSectionPresentationSettings
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.ui.SharedHomeCollectionSectionIds
 import app.naviamp.ui.SharedRoute
+import app.naviamp.ui.NaviampPlaylistMediaCommand
+import app.naviamp.ui.playlistActionRequest
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
@@ -40,6 +46,83 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NaviampCoreHomeControllerTest {
+    @Test fun refreshAndConnectionLoadReplaceCachedPlaylistIdsBeforeOpeningHomeCards() = runTest {
+        for (afterConnection in listOf(false, true)) {
+            val legacy = Playlist("f47ac10b-58cc-4372-a567-0e02b2c3d479", "Soundtrack", 34, coverArtId = "old-cover")
+            val canonical = legacy.copy(id = "7rke2SAWaicSeSYzkhww6R", coverArtId = "new-cover")
+            var playlists = listOf(legacy)
+            var playlistFailure = false
+            var fetches = 0
+            val openedIds = mutableListOf<String>()
+            val provider = object : MediaProvider by HomeTestProvider() {
+                override val cacheNamespace = "navidrome:https://example.test:user:folders=1"
+                override suspend fun playlists(limit: Int): List<Playlist> {
+                    fetches++
+                    if (playlistFailure) error("offline")
+                    return playlists
+                }
+                override suspend fun playlistTracks(playlistId: String): List<Track> {
+                    openedIds += playlistId
+                    check(playlistId == canonical.id) { "playlist not found" }
+                    return listOf(track("current-track"))
+                }
+            }
+            val otherProvider = object : MediaProvider by provider {
+                override val cacheNamespace = "navidrome:https://example.test:other-user:folders=1"
+            }
+            val responseStore = HomeResponseStore()
+            val responses = ProviderResponseService(ProviderResponseCacheService(responseStore) { 1L })
+            assertEquals(listOf(legacy), responses.playlists(provider, 50))
+            assertEquals(listOf(legacy), responses.playlists(otherProvider, 50))
+            val initialFetches = fetches
+            playlists = listOf(canonical)
+
+            val store = NaviampCoreStateStore()
+            val registry = NaviampCoreMediaRegistry()
+            val navigation = NaviampCoreNavigationController(NaviampNavigationController(), store,
+                NaviampCoreArtistNavigator { error("unused") })
+            val home = NaviampCoreHomeController(store, { provider }, navigation,
+                NaviampCoreHomeDateSource { HomeDate(2026, 100) },
+                providerResponseService = responses, mediaRegistry = registry)
+            if (afterConnection) home.refreshAfterConnection() else home.execute(NaviampCoreCommand.Home.Refresh)
+
+            assertEquals(initialFetches + 1, fetches)
+            assertEquals(listOf(canonical), registry.home.playlists)
+            assertEquals(listOf(canonical), responses.playlists(provider, 50))
+            assertEquals(listOf(legacy), responses.playlists(otherProvider, 50))
+            assertEquals(initialFetches + 1, fetches)
+            val card = store.state.value.shell.home.content.collectionSections
+                .single { it.id == app.naviamp.domain.settings.HomeSectionIds.RecentPlaylists }
+                .items.single().mediaItem
+            assertEquals(canonical.id, card.id)
+            val browse = NaviampCorePlaylistBrowseController(store, { provider }, navigation, mediaRegistry = registry)
+            browse.execute(NaviampCoreCommand.Media.ItemAction(card.playlistActionRequest(NaviampPlaylistMediaCommand.Select)))
+            assertEquals(listOf(canonical.id), openedIds)
+            assertEquals("current-track", store.state.value.shell.playlistDetail.detail?.tracks?.single()?.id)
+
+            playlistFailure = true
+            home.execute(NaviampCoreCommand.Home.Refresh)
+            assertEquals(listOf(canonical), registry.home.playlists)
+            assertEquals(canonical.id, store.state.value.shell.home.content.playlists.single().id)
+
+            val coldStore = NaviampCoreStateStore()
+            val coldHome = NaviampCoreHomeController(coldStore, { provider },
+                NaviampCoreNavigationController(NaviampNavigationController(), coldStore,
+                    NaviampCoreArtistNavigator { error("unused") }),
+                NaviampCoreHomeDateSource { HomeDate(2026, 100) },
+                providerResponseService = ProviderResponseService(ProviderResponseCacheService(responseStore) { 1L }))
+            coldHome.refreshAfterConnection()
+            assertEquals(canonical.id, coldStore.state.value.shell.home.content.playlists.single().id)
+
+            playlistFailure = false
+            playlists = emptyList()
+            home.execute(NaviampCoreCommand.Home.Refresh)
+            assertTrue(registry.home.playlists.isEmpty())
+            assertTrue(store.state.value.shell.home.content.playlists.isEmpty())
+            assertEquals(emptyList(), responses.playlists(provider, 50))
+        }
+    }
+
     @Test fun realListeningUpdatesRecentRowsRegistryAndRefreshWithoutUsingOldIndexMetadata() = runTest {
         val store = NaviampCoreStateStore()
         store.updateShell { it.copy(connectionSettings = it.connectionSettings.copy(currentSourceId = "source")) }
@@ -387,7 +470,7 @@ class NaviampCoreHomeControllerTest {
         val store = NaviampCoreStateStore()
         val controller = NaviampCoreHomeController(
             stateStore = store,
-            providerSource = NaviampCoreMediaProviderSource { HomeTestProvider() },
+            providerSource = NaviampCoreMediaProviderSource { HomeTestProvider(supportsTrackRadio = true) },
             navigationController = NaviampCoreNavigationController(
                 NaviampNavigationController(),
                 store,
@@ -591,6 +674,7 @@ class NaviampCoreHomeControllerTest {
 
 private class HomeTestProvider(
     supportsSonicSimilarity: Boolean = false,
+    supportsTrackRadio: Boolean = false,
     override val discovery: app.naviamp.domain.provider.ProviderDiscovery? = null,
 ) : MediaProvider {
     override val id = ProviderId("home")
@@ -600,7 +684,7 @@ private class HomeTestProvider(
         supportsDownloadTranscode = false,
         supportsArtistRadio = false,
         supportsAlbumRadio = false,
-        supportsTrackRadio = false,
+        supportsTrackRadio = supportsTrackRadio,
         supportsAlbumFavorites = true,
         supportsSonicSimilarity = supportsSonicSimilarity,
     )
@@ -641,3 +725,35 @@ private fun track(id: String) = Track(
     audioInfo = null,
     replayGain = null,
 )
+
+private class HomeResponseStore : ProviderResponseStore {
+    private data class Entry(
+        val providerId: String,
+        val resourceType: String,
+        val resourceId: String,
+        val response: CachedProviderResponse,
+    )
+    private val entries = mutableMapOf<String, Entry>()
+
+    override fun cachedResponse(cacheKey: String) = entries[cacheKey]?.response
+    override fun touchResponse(cacheKey: String, lastAccessedEpochMillis: Long) = Unit
+    override fun upsertResponse(
+        cacheKey: String,
+        providerId: String,
+        resourceType: String,
+        resourceId: String,
+        payload: String,
+        createdAtEpochMillis: Long,
+        lastAccessedEpochMillis: Long,
+    ) {
+        entries[cacheKey] = Entry(providerId, resourceType, resourceId, CachedProviderResponse(payload, createdAtEpochMillis))
+    }
+    override fun deleteResponsesByProviderAndType(providerId: String, resourceType: String) {
+        entries.entries.removeAll { (_, entry) -> entry.providerId == providerId && entry.resourceType == resourceType }
+    }
+    override fun deleteResponseByProviderTypeAndId(providerId: String, resourceType: String, resourceId: String) {
+        entries.entries.removeAll { (_, entry) ->
+            entry.providerId == providerId && entry.resourceType == resourceType && entry.resourceId == resourceId
+        }
+    }
+}

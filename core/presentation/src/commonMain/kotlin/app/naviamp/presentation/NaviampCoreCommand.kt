@@ -123,6 +123,8 @@ sealed interface NaviampCoreCommand {
         data object SaveSources : Library
         data object CancelSources : Library
         data object RetrySources : Library
+        data class AcknowledgeAddedItems(val view: app.naviamp.ui.NaviampLibraryView, val generation: Long) : Library
+        data class MarkAddedItemsSeen(val view: app.naviamp.ui.NaviampLibraryView, val ids: Set<String>) : Library
     }
 
     sealed interface Downloads : NaviampCoreCommand {
@@ -208,6 +210,23 @@ sealed interface NaviampCoreCommand {
         data class SelectInternetRadio(val item: SharedMediaItemUi) : Home
         data class SelectMixBuilder(val item: SharedMixBuilderUi) : Home
         data class SelectStation(val station: SharedHomeStationUi) : Home
+
+        /**
+         * A "Mixes for you" tile after Core resolved its seed track. It is issued through the full
+         * command handler so a remote Connect player receives seed-track radio, never the album.
+         */
+        data class StartAlbumMix(val album: app.naviamp.domain.Album, val seed: app.naviamp.domain.Track) : Home
+
+        /** Picks a never-played track from the current source, then issues [StartSomethingNewRadio]. */
+        data object PlaySomethingNew : Home
+
+        /**
+         * Issued through the full handler, like [StartAlbumMix], so Connect targets receive seed-track radio.
+         * An offline pick plays alone because no shared Radio method builds from downloads.
+         */
+        data class StartSomethingNewRadio(val seed: app.naviamp.domain.Track, val startRadio: Boolean = true) : Home
+        data object DismissSomethingNewNotice : Home
+        data class NoticeLifetime(val request: app.naviamp.ui.NaviampTimedNoticeRequest) : Home
         data class SonicTrackAction(val request: SharedHomeDiscoveryTrackActionRequest) : Home
         data class RecentTrackAction(val request: SharedTrackRowActionRequest) : Home
         data class OpenCollection(val sectionId: String) : Home
@@ -293,6 +312,7 @@ sealed interface NaviampCoreCommand {
         data class SleepTimer(val request: NowPlayingSleepTimerActionRequest) : NowPlaying
         data class Selection(val request: NowPlayingSelectionActionRequest) : NowPlaying
         data class QueueItem(val request: NowPlayingItemActionRequest) : NowPlaying
+        data class QueueUndo(val request: app.naviamp.ui.NaviampQueueUndoActionRequest) : NowPlaying
         data class TogglePlaylistMembership(val playlistId: String) : NowPlaying
         data class CreateMembershipPlaylist(val name: String) : NowPlaying
         data object RetryPlaylistMembership : NowPlaying

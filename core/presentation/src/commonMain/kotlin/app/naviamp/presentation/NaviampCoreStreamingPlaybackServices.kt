@@ -2,6 +2,7 @@ package app.naviamp.presentation
 
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.domain.cache.PlaybackSessionRepository
+import app.naviamp.domain.playback.OutputFadePlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.VisualizerSettings
@@ -30,16 +31,18 @@ fun naviampCoreStreamingPlaybackServices(
         initial = initialPlaybackSettings,
         persist = persistPlaybackSettings,
     )
+    val effects = NaviampCorePlaybackEngineAdapter(
+        scope = scope,
+        engine = engine,
+        providerSource = providerSource,
+        settings = settings::current,
+        verifyProviderNetworkCertificates = verifyProviderNetworkCertificates,
+    )
+    settings.activeProfile = effects
     return NaviampCorePlaybackServices(
         samples = NaviampCoreEngineSamplePlayback(scope, engine, providerSource,
             verifyProviderNetworkCertificates, { settings.current().volumePercent }),
-        effects = NaviampCorePlaybackEngineAdapter(
-            scope = scope,
-            engine = engine,
-            providerSource = providerSource,
-            settings = settings::current,
-            verifyProviderNetworkCertificates = verifyProviderNetworkCertificates,
-        ),
+        effects = effects,
         settings = settings,
         sidecars = NaviampCoreMutableNowPlayingSidecars(),
         visualizerSettings = object : NaviampCoreVisualizerSettingsPort {
@@ -48,5 +51,6 @@ fun naviampCoreStreamingPlaybackServices(
             }
         },
         sessions = NaviampPlaybackSessionController(playbackSessionRepository),
+        outputFade = { factor -> (engine as? OutputFadePlaybackEngine)?.setOutputFadeFactor(factor) },
     )
 }

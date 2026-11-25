@@ -48,6 +48,7 @@ class StorageAudioDirectoryTest {
 }
 
 private object NoBytes : AudioByteStore {
-    override suspend fun writeAudioBytes(fileName: String, errorMessage: String, writeBytes: suspend (AudioByteWriter) -> Boolean): StoredAudioBytes = error("Unexpected write")
+    override fun audioFilePath(fileName: String): String = error("Unexpected path")
+    override suspend fun writeAudioBytes(temporaryFileName: String, errorMessage: String, writeBytes: suspend (AudioByteWriter) -> String): StoredAudioBytes = error("Unexpected write")
     override fun deleteAudioBytes(filePath: String) = error("Unexpected delete")
 }

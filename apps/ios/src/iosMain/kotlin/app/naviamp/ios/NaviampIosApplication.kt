@@ -18,6 +18,7 @@ import app.naviamp.ios.settings.IosCoreSettingsSyncPort
 import app.naviamp.ios.settings.IosCoreSettingsValueStore
 import app.naviamp.presentation.AppleCoreExternalUriPort
 import app.naviamp.presentation.AppleHomeDateSource
+import app.naviamp.presentation.AppleNetworkMeteringSource
 import app.naviamp.presentation.AppleScreenAwakeEffect
 import app.naviamp.presentation.NaviampCoreApp
 import app.naviamp.presentation.vehicleBrowseController
@@ -60,10 +61,12 @@ class NaviampIosApplication(
     private val downloadDirectory = "${databaseLocation.directoryPath}/downloads"
     private var driver: SqlDriver? = null
     private var playbackEngine: CoreBassPlaybackEngine? = null
+    private var networkMetering: AppleNetworkMeteringSource? = null
     private val controller = naviampRecoverableStoredHostController(
         open = { applicationScope, onFailure ->
             val nativeDriver = NativeStorageDriverFactory(databaseLocation).createDriver().also { driver = it }
             val engine = createIosBassPlaybackEngine().also { playbackEngine = it }
+            val metering = AppleNetworkMeteringSource().also { networkMetering = it }
             NaviampStoredApplication(
                 scope = applicationScope,
                 database = NaviampStorageDatabase(nativeDriver),
@@ -89,11 +92,13 @@ class NaviampIosApplication(
                 audioCacheLocations = listOf(appStorageLocation(audioCacheDirectory)),
                 selectedDownloadLocationId = AppStorageLocationId,
                 selectedAudioCacheLocationId = AppStorageLocationId,
+                networkMetering = metering,
                 onAsyncFailure = { _, cause -> onFailure(cause) },
             ).also { it.core.startRuntimeServices() }
         },
         closeNative = {
             playbackEngine?.release(); playbackEngine = null
+            networkMetering?.close(); networkMetering = null
             driver?.close(); driver = null
         },
         // Durable iOS storage has no reset effect; retry is the only recovery action.

@@ -295,6 +295,33 @@ CREATE TABLE download_job (
   PRIMARY KEY(source_id, job_id)
 );
 
+CREATE TABLE offline_playlist (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  playlist_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  cover_art_id TEXT,
+  duration_seconds INTEGER,
+  is_smart INTEGER NOT NULL DEFAULT 0,
+  comment TEXT,
+  owner TEXT,
+  retention TEXT NOT NULL,
+  saved_at_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, playlist_id)
+);
+
+-- Rows are keyed by position so repeated tracks keep their saved order.
+CREATE TABLE offline_playlist_entry (
+  source_id TEXT NOT NULL,
+  playlist_id TEXT NOT NULL,
+  position INTEGER NOT NULL,
+  remote_track_id TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  PRIMARY KEY(source_id, playlist_id, position),
+  FOREIGN KEY(source_id, playlist_id)
+    REFERENCES offline_playlist(source_id, playlist_id)
+    ON DELETE CASCADE
+);
+
 CREATE TABLE cached_audio_waveform (
   source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
   remote_track_id TEXT NOT NULL,
@@ -489,6 +516,9 @@ ON keep_downloaded_collection_track(source_id, remote_track_id);
 
 CREATE INDEX download_retention_track
 ON download_retention(source_id, remote_track_id);
+
+CREATE INDEX offline_playlist_entry_track
+ON offline_playlist_entry(source_id, remote_track_id);
 
 CREATE INDEX cached_audio_waveform_access
 ON cached_audio_waveform(last_accessed_epoch_millis);
@@ -1400,6 +1430,89 @@ DELETE FROM keep_downloaded_managed_track
 WHERE source_id = ?
 AND remote_track_id = ?;
 
+selectOfflinePlaylists:
+SELECT *
+FROM offline_playlist
+WHERE source_id = ?
+ORDER BY name COLLATE NOCASE, playlist_id;
+
+selectOfflinePlaylist:
+SELECT *
+FROM offline_playlist
+WHERE source_id = ?
+AND playlist_id = ?;
+
+selectOfflinePlaylistTrackIds:
+SELECT playlist_id, remote_track_id
+FROM offline_playlist_entry
+WHERE source_id = ?
+ORDER BY playlist_id, position;
+
+selectOfflinePlaylistEntries:
+SELECT payload
+FROM offline_playlist_entry
+WHERE source_id = ?
+AND playlist_id = ?
+ORDER BY position;
+
+upsertOfflinePlaylist:
+INSERT OR REPLACE INTO offline_playlist(
+  source_id,
+  playlist_id,
+  name,
+  cover_art_id,
+  duration_seconds,
+  is_smart,
+  comment,
+  owner,
+  retention,
+  saved_at_epoch_millis
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateOfflinePlaylistDetails:
+UPDATE offline_playlist
+SET name = ?, cover_art_id = ?, duration_seconds = ?, is_smart = ?, comment = ?, owner = ?
+WHERE source_id = ?
+AND playlist_id = ?;
+
+deleteOfflinePlaylistEntries:
+DELETE FROM offline_playlist_entry
+WHERE source_id = ?
+AND playlist_id = ?;
+
+insertOfflinePlaylistEntry:
+INSERT INTO offline_playlist_entry(source_id, playlist_id, position, remote_track_id, payload)
+VALUES (?, ?, ?, ?, ?);
+
+deleteOfflinePlaylist:
+DELETE FROM offline_playlist
+WHERE source_id = ?
+AND playlist_id = ?;
+
+selectOrphanedManualOfflinePlaylistIds:
+SELECT playlist.playlist_id
+FROM offline_playlist AS playlist
+WHERE playlist.source_id = :sourceId
+AND playlist.retention = 'Manual'
+AND (:removedTrackId IS NULL OR EXISTS (
+  SELECT 1 FROM offline_playlist_entry AS removed
+  WHERE removed.source_id = playlist.source_id
+  AND removed.playlist_id = playlist.playlist_id
+  AND removed.remote_track_id = :removedTrackId
+))
+AND NOT EXISTS (
+  SELECT 1
+  FROM offline_playlist_entry AS entry
+  JOIN downloaded_audio AS audio
+    ON audio.source_id = entry.source_id
+    AND audio.remote_track_id = entry.remote_track_id
+  WHERE entry.source_id = playlist.source_id
+  AND entry.playlist_id = playlist.playlist_id
+);
+
+selectAllOfflinePlaylistSourceIds:
+SELECT DISTINCT source_id FROM offline_playlist;
+
 oldestCachedAudio:
 SELECT *
 FROM cached_audio
@@ -1935,7 +2048,11 @@ WHERE id = ?;
 
 deleteResponsesForProviderIdentityMigration:
 DELETE FROM cached_response
-WHERE provider_id = ?;
+WHERE provider_id = :providerId
+   OR provider_id = (
+       SELECT cache_namespace FROM media_source
+       WHERE id = :sourceId AND provider_id = :providerId
+   );
 
 clearLibraryTracks:
 DELETE FROM library_track;
@@ -2108,3 +2225,28 @@ VALUES (?, ?, ?, ?, ?);
 
 updateAurralCompanion:
 UPDATE media_source SET aurral_companion = :payload WHERE id = :sourceId OR server_connection_key = :serverConnectionKey;
+
+-- A path that may hold an unfinished or superseded audio file. It is deleted unless a cache or
+-- download row references it, so a crash between file and database steps cannot leak or lose files.
+CREATE TABLE pending_audio_file (
+  file_path TEXT NOT NULL PRIMARY KEY,
+  store_kind TEXT NOT NULL,
+  created_at_epoch_millis INTEGER NOT NULL
+);
+
+insertPendingAudioFile:
+INSERT OR REPLACE INTO pending_audio_file(file_path, store_kind, created_at_epoch_millis)
+VALUES (?, ?, ?);
+
+selectPendingAudioFiles:
+SELECT * FROM pending_audio_file ORDER BY created_at_epoch_millis, file_path;
+
+selectPendingAudioFile:
+SELECT * FROM pending_audio_file WHERE file_path = ?;
+
+deletePendingAudioFile:
+DELETE FROM pending_audio_file WHERE file_path = ?;
+
+audioFileReferenceCount:
+SELECT (SELECT COUNT(*) FROM cached_audio WHERE cached_audio.file_path = :filePath) +
+  (SELECT COUNT(*) FROM downloaded_audio WHERE downloaded_audio.file_path = :filePath);

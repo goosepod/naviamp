@@ -11,10 +11,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import app.naviamp.ui.NaviampLocaleEnvironment
-import app.naviamp.ui.createNaviampLocaleEffect
 import app.naviamp.ui.NaviampApplicationUpdateChecker
 import app.naviamp.ui.NaviampApplicationSurface
 import app.naviamp.ui.LocalNaviampApplicationSurface
@@ -124,9 +124,13 @@ fun NaviampCoreApp(
             core.maintainProviderSession()
         }
     }
-    NaviampLocaleEnvironment(state.shell.general.interfaceSettings.language, remember { createNaviampLocaleEffect() }) {
+    NaviampLocaleEnvironment {
         NaviampScreenAwakeEnvironment(screenAwakeEffect, state.shell.general.interfaceSettings.keepScreenAwake) {
-            CompositionLocalProvider(LocalNaviampApplicationSurface provides applicationSurface) {
+            val noticeAnchor = remember { app.naviamp.ui.NaviampNowPlayingNoticeAnchor() }
+            CompositionLocalProvider(
+                LocalNaviampApplicationSurface provides applicationSurface,
+                app.naviamp.ui.LocalNaviampNowPlayingNoticeAnchor provides noticeAnchor,
+            ) {
               Box(Modifier.fillMaxSize()) {
                 app.naviamp.ui.NaviampWindowEnvironment(
                     controller = windowController,
@@ -138,7 +142,7 @@ fun NaviampCoreApp(
                             modifier = modifier,
                             uiState = state.shell,
                             settingsSync = state.settingsSync,
-                            playbackProgress = core.playbackProgress,
+                            playbackProgress = core.presentedPlaybackProgress,
                             visualizerBandsProvider = visualizerBandsProvider,
                             actions = core.actions.shell,
                             syncActions = core.actions.settingsSync,
@@ -151,32 +155,59 @@ fun NaviampCoreApp(
                             modifier = modifier,
                             uiState = state.shell,
                             settingsSync = state.settingsSync,
-                            playbackProgress = core.playbackProgress,
+                            playbackProgress = core.presentedPlaybackProgress,
                             visualizerBandsProvider = visualizerBandsProvider,
                             actions = core.actions.shell,
                             syncActions = core.actions.settingsSync,
                         )
                     }
                 }
-                state.overlays.busyMessage?.let { message ->
-                    NaviampBusyDialog(message)
-                }
-                state.overlays.radioNotice?.let { notice ->
-                    app.naviamp.ui.NaviampRadioNotice(
-                        app.naviamp.ui.NaviampColors.Dark, notice,
-                        onDismiss = { core.dispatch(NaviampCoreCommand.Settings.DismissRadioNotice) },
-                        modifier = Modifier.align(Alignment.BottomCenter),
-                    )
-                }
-                core.castPickerState?.let { pickerState ->
-                    val picker by pickerState.collectAsState()
-                    if (picker.visible) app.naviamp.ui.NaviampCastPickerDialog(
-                        picker, core::selectCastTarget, core::selectLocalPlayback,
-                        core::retryCastDiscovery, core::dismissCastPicker,
-                    )
-                }
-                if (state.overlays.statsForNerdsVisible) {
-                    NaviampCoreDiagnosticsPresentation(core, statsForNerdsPresenter)
+                app.naviamp.ui.NaviampTypographyScope(state.shell.general.interfaceSettings) {
+                    state.overlays.busyMessage?.let { message ->
+                        NaviampBusyDialog(message)
+                    }
+                    app.naviamp.ui.NaviampBottomNoticeStack(
+                        Modifier.align(Alignment.BottomCenter),
+                        bottomClearance = if (state.shell.shellChrome.nowPlayingOpen) {
+                            app.naviamp.ui.NaviampNowPlayingNoticeClearance
+                        } else {
+                            0.dp
+                        },
+                        avoidAboveInRoot = noticeAnchor.controlsTop.takeIf { state.shell.shellChrome.nowPlayingOpen },
+                    ) {
+                        // Offline discovery can report its source while the radio build reports its own outcome.
+                        state.overlays.somethingNewNotice?.let { notice ->
+                            app.naviamp.ui.NaviampSomethingNewNoticeBar(
+                                app.naviamp.ui.NaviampColors.Dark, notice,
+                                onDismiss = { core.dispatch(NaviampCoreCommand.Home.DismissSomethingNewNotice) },
+                                onLifetime = { action, timeout -> core.dispatch(NaviampCoreCommand.Home.NoticeLifetime(
+                                    app.naviamp.ui.NaviampTimedNoticeRequest(app.naviamp.ui.NaviampTimedNotice.SomethingNew, action, timeout))) },
+                            )
+                        }
+                        state.overlays.radioNotice?.let { notice ->
+                            app.naviamp.ui.NaviampRadioNotice(
+                                app.naviamp.ui.NaviampColors.Dark, notice,
+                                onDismiss = { core.dispatch(NaviampCoreCommand.Settings.DismissRadioNotice) },
+                                onLifetime = { action, timeout -> core.dispatch(NaviampCoreCommand.Home.NoticeLifetime(
+                                    app.naviamp.ui.NaviampTimedNoticeRequest(app.naviamp.ui.NaviampTimedNotice.Radio, action, timeout))) },
+                            )
+                        }
+                        state.overlays.queueUndo?.let { undo ->
+                            app.naviamp.ui.NaviampQueueUndoNotice(app.naviamp.ui.NaviampColors.Dark, undo,
+                                onAction = { core.dispatch(NaviampCoreCommand.NowPlaying.QueueUndo(it)) })
+                        }
+                    }
+                    core.castPickerState?.let { pickerState ->
+                        val picker by pickerState.collectAsState()
+                        if (picker.visible) app.naviamp.ui.NaviampCastPickerDialog(
+                            picker, core::selectCastTarget, core::selectLocalPlayback,
+                            core::retryCastDiscovery, core::dismissCastPicker,
+                            interfaceSettings = state.shell.general.interfaceSettings,
+                        )
+                    }
+                    if (state.overlays.statsForNerdsVisible) {
+                        NaviampCoreDiagnosticsPresentation(core, statsForNerdsPresenter)
+                    }
                 }
               }
             }

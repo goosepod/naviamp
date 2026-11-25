@@ -26,7 +26,7 @@ class AurralRequestOutcomeTest {
     }
 
     @Test fun albumOwnerConflictIsNeitherQueuedNorOwnedAndCannotLeakCanonicalIdentity() = runTest {
-        withRequest(409, """{"error":"Album is managed by lidarr","code":"album_owner_conflict","managedBy":"lidarr","canonicalId":71,"providerId":7,"conflict":{"available":true}}""") {
+        withRequest(409, """{"error":"Aurral does not manage this album","code":"album_owner_conflict","conflict":{"available":true}}""") {
             assertEquals(ProviderDiscoveryOperationStatus.Conflict, it.status)
             assertNull(it.identity)
         }
@@ -106,5 +106,5 @@ class AurralRequestOutcomeTest {
     private val release = ProviderDiscoveryRelease("b1392450-e666-3926-a536-22c65f834433", "Release")
 }
 
-private const val Bootstrap = """{"api":{"version":1,"features":["discover","trackDownloads"]}}"""
+private const val Bootstrap = """{"appVersion":"3.0.1","api":{"version":2,"features":["libraryStatusFilter"]}}"""
 private const val Login = """{"token":"session","expiresAt":100000,"user":{"permissions":{"addAlbum":true}}}"""

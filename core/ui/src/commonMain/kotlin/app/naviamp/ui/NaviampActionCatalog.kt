@@ -11,6 +11,7 @@ enum class NaviampAction(
     AddTrackRadioToQueue("Add track radio to queue", NaviampIcons.Queue),
     StartAlbumRadio("Start Radio", NaviampTransportIcons.Radio),
     StartArtistRadio("Start Radio", NaviampTransportIcons.Radio),
+    PlaySomethingNew("Play something new", NaviampIcons.Turntable),
     DownloadTrack("Download track", NaviampIcons.Downloads),
     DownloadAlbum("Download album", NaviampIcons.Downloads),
     DownloadPlaylist("Download playlist", NaviampIcons.Downloads),
@@ -27,6 +28,7 @@ enum class NaviampAction(
     AddPlaylistToPlaylist("Add playlist to playlist", NaviampIcons.Playlist),
     RenamePlaylist("Rename playlist", NaviampIcons.Edit),
     EditSmartPlaylist("Edit smart playlist", NaviampIcons.Brain),
+    DuplicateSmartPlaylist("Duplicate smart playlist", NaviampIcons.Duplicate),
     DeletePlaylist("Delete playlist", NaviampIcons.Trash),
     EditStation("Edit station", NaviampIcons.Edit),
     DeleteStation("Delete station", NaviampIcons.Trash),
@@ -171,6 +173,8 @@ fun playlistRowActions(
     canAddToPlaylist: Boolean = false,
     canRename: Boolean = false,
     canEditSmartPlaylist: Boolean = false,
+    canDuplicateSmartPlaylist: Boolean = false,
+    duplicateSmartPlaylistLabel: String = NaviampAction.DuplicateSmartPlaylist.label,
     canDelete: Boolean = false,
 ): List<NaviampActionSpec> =
     listOfNotNull(
@@ -182,6 +186,7 @@ fun playlistRowActions(
         NaviampAction.AddPlaylistToPlaylist.takeIf { canAddToPlaylist }?.toSpec(),
         NaviampAction.RenamePlaylist.takeIf { canRename }?.toSpec(),
         NaviampAction.EditSmartPlaylist.takeIf { canEditSmartPlaylist }?.toSpec(),
+        NaviampAction.DuplicateSmartPlaylist.takeIf { canDuplicateSmartPlaylist }?.toSpec(label = duplicateSmartPlaylistLabel),
         NaviampAction.DeletePlaylist.takeIf { canDelete }?.toSpec(),
     )
 
@@ -213,9 +218,11 @@ fun nowPlayingTrackMenuActions(
     sleepTimerLabel: String,
     canStartRadio: Boolean = false,
     detailsLabel: String = NaviampAction.TrackDetails.label,
+    canPlaySomethingNew: Boolean = false,
 ): List<NaviampActionSpec> =
     listOfNotNull(
         NaviampAction.StartTrackRadio.takeIf { canStartRadio && !isLive }?.toSpec(),
+        NaviampAction.PlaySomethingNew.takeIf { canPlaySomethingNew }?.toSpec(),
         NaviampAction.ChangeVisualizer.toSpec(enabled = visualizerAvailable),
         NaviampAction.DownloadTrack.toSpec(enabled = !isLive),
         NaviampAction.TrackDetails.toSpec(label = detailsLabel, enabled = hasDetails),

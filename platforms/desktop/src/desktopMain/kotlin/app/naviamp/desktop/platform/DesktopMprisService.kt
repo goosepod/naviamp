@@ -1,6 +1,8 @@
 package app.naviamp.desktop.platform
 
-import app.naviamp.presentation.NaviampCoreExternalPlaybackBridge
+import app.naviamp.presentation.NaviampCore
+import app.naviamp.presentation.NaviampExternalArtworkFileWriter
+import app.naviamp.presentation.localArtworkExternalPlayback
 import app.naviamp.presentation.NaviampExternalPlaybackControl
 import app.naviamp.presentation.NaviampExternalPlaybackPublicationPlanner
 import app.naviamp.presentation.NaviampExternalPlaybackRegistration
@@ -9,6 +11,9 @@ import app.naviamp.presentation.NaviampExternalPlaybackState
 import app.naviamp.presentation.maintainExternalPlaybackRegistration
 import app.naviamp.ui.NaviampRepeatMode
 import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CompletableDeferred
@@ -28,24 +33,63 @@ import org.freedesktop.dbus.types.Variant
 /** Linux D-Bus lifetime and ABI adapter for Core-owned external playback. */
 class DesktopMprisService private constructor(
     scope: CoroutineScope,
-    bridge: NaviampCoreExternalPlaybackBridge,
+    core: NaviampCore,
 ) : AutoCloseable {
-    private val job = CoroutineScope(scope.coroutineContext + Dispatchers.IO)
-        .maintainExternalPlaybackRegistration(bridge.snapshots) {
-            registerMpris(bridge)
-        }
+    private val ioScope = CoroutineScope(scope.coroutineContext + Dispatchers.IO)
+    private val artworkFiles = DesktopMprisArtworkFiles()
+    private val playback = core.localArtworkExternalPlayback(ioScope, artworkFiles)
+    private val job = ioScope.maintainExternalPlaybackRegistration(playback.snapshots) {
+        registerMpris(playback)
+    }
 
-    override fun close() { job.cancel() }
+    override fun close() {
+        job.cancel()
+        playback.close()
+        artworkFiles.close()
+    }
 
     companion object {
         fun start(
             scope: CoroutineScope,
-            bridge: NaviampCoreExternalPlaybackBridge,
+            core: NaviampCore,
             osName: String = System.getProperty("os.name"),
         ): DesktopMprisService? {
             if (!osName.contains("linux", ignoreCase = true)) return null
-            return DesktopMprisService(scope, bridge)
+            return DesktopMprisService(scope, core)
         }
+    }
+}
+
+/**
+ * JVM filesystem effect for MPRIS artwork: an owner-only temporary directory whose files Core
+ * names and replaces. MPRIS clients read `mpris:artUrl` from other processes, so it can only be a
+ * local file; the directory is removed when the service closes.
+ */
+internal class DesktopMprisArtworkFiles(
+    private val createDirectory: () -> Path = { Files.createTempDirectory("naviamp-mpris-artwork") },
+) : NaviampExternalArtworkFileWriter, AutoCloseable {
+    private val lock = Any()
+    private var directory: Path? = null
+    private var closed = false
+
+    override suspend fun write(name: String, bytes: ByteArray): String? = synchronized(lock) {
+        if (closed) return null
+        require(name.matches(Regex("[A-Za-z0-9-]+"))) { "Invalid artwork file name" }
+        val target = (directory ?: createDirectory().also { directory = it }).resolve(name)
+        val staged = Files.createTempFile(target.parent, "$name-", ".tmp")
+        try {
+            Files.write(staged, bytes)
+            Files.move(staged, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+        } finally {
+            Files.deleteIfExists(staged)
+        }
+        target.toUri().toString()
+    }
+
+    override fun close() {
+        val owned = synchronized(lock) { closed = true; directory.also { directory = null } } ?: return
+        runCatching { Files.list(owned).use { files -> files.forEach(Files::deleteIfExists) } }
+        runCatching { Files.deleteIfExists(owned) }
     }
 }
 

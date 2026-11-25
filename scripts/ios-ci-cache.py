@@ -75,6 +75,17 @@ def outcomes(text):
     return counts
 
 
+BOOTED_SIMULATOR_TEST_EXCLUSIONS = [
+    '-x', ':platforms:ios:iosSimulatorArm64Test',
+    '-x', ':apps:ios:iosSimulatorArm64Test',
+    '-x', ':platforms:apple-media:iosSimulatorArm64Test',
+]
+BOOTED_SIMULATOR_TEST_BINARIES = [
+    ':apps:ios:linkDebugTestIosSimulatorArm64',
+    ':platforms:apple-media:linkDebugTestIosSimulatorArm64',
+]
+
+
 def build(root, native, focused):
     output = root / 'build/ci-cache'
     output.mkdir(parents=True, exist_ok=True)
@@ -85,8 +96,9 @@ def build(root, native, focused):
             ':platforms:ios:linkDebugTestIosSimulatorArm64',
             ':platforms:ios:stageIosSimulatorTestBassFrameworks']
     if not focused:
-        args.extend(['iosSimulatorArm64Test', '-x', ':platforms:ios:iosSimulatorArm64Test',
-                     ':apps:ios:compileKotlinIosArm64'])
+        # Tests that need a booted simulator stay in Verify; the cache still compiles their binaries.
+        args.extend(['iosSimulatorArm64Test', *BOOTED_SIMULATOR_TEST_EXCLUSIONS,
+                     *BOOTED_SIMULATOR_TEST_BINARIES, ':apps:ios:compileKotlinIosArm64'])
     if native:
         args.append(':core:testkit:prepareMobileMutualTlsFixture')
     started = time.monotonic()

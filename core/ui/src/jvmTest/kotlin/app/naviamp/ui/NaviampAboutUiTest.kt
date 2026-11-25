@@ -49,22 +49,22 @@ class NaviampAboutUiTest {
             }
         }
 
-        onNodeWithText("v2.11.2", substring = true).assertIsDisplayed()
+        onNodeWithText("v2.12.0", substring = true).assertIsDisplayed()
         onNodeWithText("Changelog").assertIsDisplayed().performClick()
         onNodeWithText("Latest Changes").assertIsDisplayed()
-        onNodeWithText("Remove white bands above and below the Android app by extending the selected background and filled Now Playing artwork behind the system bars while keeping controls safely inset.").assertIsDisplayed()
+        onNodeWithText(NaviampAboutUi().changelog.first().entries.first()).assertIsDisplayed()
         val roots = onAllNodes(isRoot())
         var rendered: androidx.compose.ui.graphics.ImageBitmap? = null
         waitUntil(timeoutMillis = 5_000) {
             val image = roots[roots.fetchSemanticsNodes().lastIndex].captureToImage()
-            val body = onNodeWithText(NaviampAboutUi().changelog.first().entries.single()).captureToImage()
+            val body = onNodeWithText(NaviampAboutUi().changelog.first().entries.first()).captureToImage()
             if (changelogBodyHasPainted(body)) {
                 rendered = image
                 true
             } else false
         }
         writeAboutReleaseImage(requireNotNull(rendered))
-        onNodeWithText("No special upgrade steps are required.").performScrollTo().assertIsDisplayed()
+        onNodeWithText("Aurral connections now require Aurral 3.x. Aurral 2.x servers are no longer supported.").performScrollTo().assertIsDisplayed()
         onNodeWithText("Known issues").performScrollTo().assertIsDisplayed()
     }
 }

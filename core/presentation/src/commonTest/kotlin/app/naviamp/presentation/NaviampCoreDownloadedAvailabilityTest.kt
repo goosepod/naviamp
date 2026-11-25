@@ -29,7 +29,7 @@ class NaviampCoreDownloadedAvailabilityTest {
         val replacement = object : DownloadReplacementRepository<String> {
             override suspend fun replaceDownloadedAudioTrack(sourceId: String, provider: MediaProvider, track: Track, quality: StreamQuality, maxDownloadBytes: Long): String = error("Replaced file")
         }
-        val keep = object : KeepDownloadedRepository {
+        val keep = object : KeepDownloadedRepository, OfflinePlaylistRepository by EmptyOfflinePlaylistRepository {
             override fun savedDownloadJobs(sourceId: String): List<PersistedDownloadJob> = error("Read jobs")
             override fun saveDownloadJob(job: PersistedDownloadJob) = error("Wrote job")
             override fun deleteDownloadJob(sourceId: String, jobId: String) = error("Deleted job")

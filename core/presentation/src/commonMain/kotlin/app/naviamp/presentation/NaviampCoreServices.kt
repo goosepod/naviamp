@@ -16,6 +16,13 @@ import app.naviamp.domain.home.HomeLibraryRepository
 import app.naviamp.domain.playback.EmptyPlaybackProfileRepository
 import app.naviamp.domain.playback.PlaybackProfileRepository
 import app.naviamp.domain.settings.RecentRadioStream
+import app.naviamp.ui.offlinePlaylistActionUnavailableMessage
+import app.naviamp.ui.offlinePlaylistNothingPlayableMessage
+import app.naviamp.ui.offlinePlaylistTrackNotDownloadedMessage
+import app.naviamp.ui.playlistAlreadyDownloadedMessage
+import app.naviamp.ui.playlistDownloadFailedMessage
+import app.naviamp.ui.playlistDownloadMobileDataMessage
+import app.naviamp.ui.playlistDownloadStorageLimitMessage
 
 /** Provider-backed product inputs that do not depend on an operating-system API. */
 data class NaviampCoreContentServices(
@@ -52,6 +59,22 @@ data class NaviampCorePlaylistServices(
     val preview: NaviampCoreSmartPlaylistPreviewPort = NaviampCoreSmartPlaylistPreviewPort {
         app.naviamp.domain.smartplaylist.SmartPlaylistPreview(message = "Preview is unavailable.")
     },
+    val messages: NaviampCorePlaylistMessages = NaviampCorePlaylistMessages(),
+)
+
+/** Translated playlist notices. Replaceable because resource loading needs a platform runtime in host tests. */
+data class NaviampCorePlaylistMessages(
+    val offlineActionUnavailable: suspend () -> String = ::offlinePlaylistActionUnavailableMessage,
+    val offlineNothingPlayable: suspend () -> String = ::offlinePlaylistNothingPlayableMessage,
+    val trackNotDownloaded: suspend () -> String = ::offlinePlaylistTrackNotDownloadedMessage,
+    val downloadFailed: suspend (String, NaviampCoreDownloadFailure) -> String = { name, reason ->
+        when (reason) {
+            NaviampCoreDownloadFailure.StorageLimit -> playlistDownloadStorageLimitMessage(name)
+            NaviampCoreDownloadFailure.MobileDataDisabled -> playlistDownloadMobileDataMessage(name)
+            NaviampCoreDownloadFailure.Other -> playlistDownloadFailedMessage(name)
+        }
+    },
+    val alreadyDownloaded: suspend (String) -> String = ::playlistAlreadyDownloadedMessage,
 )
 
 /** Filesystem/network effects required by the Core-owned Downloads feature. */
@@ -60,6 +83,8 @@ data class NaviampCoreDownloadServices(
     val transfer: NaviampCoreDownloadTransferPort,
     val keepDownloaded: NaviampCoreKeepDownloadedPort,
     val network: NaviampCoreMobileNetworkPort,
+    val offlinePlaylists: app.naviamp.domain.cache.OfflinePlaylistRepository =
+        app.naviamp.domain.cache.EmptyOfflinePlaylistRepository,
 )
 
 /** Native audio and sidecar effects behind the shared playback product. */
@@ -71,6 +96,8 @@ data class NaviampCorePlaybackServices(
     val sessions: NaviampPlaybackSessionController,
     val profiles: PlaybackProfileRepository = EmptyPlaybackProfileRepository,
     val samples: NaviampCoreSamplePlaybackPort = UnavailableNaviampSamplePlayback,
+    /** The native engine's sleep-timer fade, applied after user volume and ReplayGain. */
+    val outputFade: (Float) -> Unit = {},
 )
 
 /** Settings stores and maintenance mechanisms; Core owns their ordering and presentation. */

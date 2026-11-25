@@ -16,6 +16,7 @@ import app.naviamp.domain.source.SavedMediaSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SettingsSyncMappingTest {
@@ -33,6 +34,24 @@ class SettingsSyncMappingTest {
             assertTrue(restored.stereoDownmixEnabled)
             assertEquals(MaxReplayGainPreampDb, restored.replayGainPreampDb)
         }
+    }
+
+    @Test fun importKeepsTheReceivingDevicesLocalPlaybackSettings() {
+        val sender = PlaybackSettings(volumePercent = 20, debugLoggingEnabled = true, allowMobileDownloads = true,
+            outputDevice = AudioOutputDevicePreference(AudioOutputDeviceMode.Pinned, "sender-device", "Sender speakers"), gaplessEnabled = false)
+        val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(playback = sender), 1L, "sender")
+        val local = PlaybackSettings(volumePercent = 34, debugLoggingEnabled = true, allowMobileDownloads = true,
+            outputDevice = AudioOutputDevicePreference(AudioOutputDeviceMode.Pinned, "local-device", "Local speakers"))
+        val applied = applySettingsSyncDocument(SettingsSyncJson.decode(SettingsSyncJson.encode(document)),
+            RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository(), localPlayback = local).playbackSettings
+        assertEquals(34, applied.volumePercent)
+        assertEquals(local.outputDevice, applied.outputDevice)
+        assertTrue(applied.debugLoggingEnabled)
+        assertTrue(applied.allowMobileDownloads)
+        assertFalse(applied.gaplessEnabled, "Portable playback preferences still come from the document")
+        val older = applySettingsSyncDocument(SettingsSyncJson.decode("""{"preferences":{"playback":{"volumePercent":100}}}"""),
+            RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository(), localPlayback = local).playbackSettings
+        assertEquals(34, older.volumePercent, "Older exports never override this device's volume")
     }
 
     @Test fun artworkFillAndCornersAreIndependentPortablePreferences() {
@@ -119,6 +138,23 @@ class SettingsSyncMappingTest {
         assertFalse(SettingsSyncJson.decode("{}").preferences.playback.effectiveSonicSimilarityEnabled())
         assertTrue(SettingsSyncJson.decode("""{"preferences":{"playback":{"sonicSimilarityEnabled":true}}}""")
             .preferences.playback.effectiveSonicSimilarityEnabled())
+    }
+
+    @Test
+    fun sleepTimerFadeRoundTripsWithOlderDefaultsAndImportedNormalization() {
+        for (minutes in listOf(0, 1, 3, 5, 10)) {
+            val document = buildSettingsSyncDocument(
+                SettingsSyncLocalSnapshot(playback = PlaybackSettings(sleepTimerFadeMinutes = minutes)), 1L, "test")
+            val applied = applySettingsSyncDocument(SettingsSyncJson.decode(SettingsSyncJson.encode(document)),
+                RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository()).playbackSettings
+            assertEquals(minutes, applied.sleepTimerFadeMinutes)
+        }
+        assertEquals(0, SettingsSyncJson.decode("""{"preferences":{"playback":{"gaplessEnabled":true}}}""")
+            .preferences.playback.sleepTimerFadeMinutes)
+        for ((raw, expected) in listOf(Int.MIN_VALUE to 0, -1 to 0, 2 to 1, 4 to 3, 9 to 5, 11 to 10, Int.MAX_VALUE to 10)) {
+            val imported = SettingsSyncJson.decode("""{"preferences":{"playback":{"sleepTimerFadeMinutes":$raw}}}""")
+            assertEquals(expected, imported.preferences.playback.sleepTimerFadeMinutes)
+        }
     }
 
     @Test
@@ -325,6 +361,25 @@ class SettingsSyncMappingTest {
         assertEquals(1, applied.importedServerProfiles.importedCount)
         assertEquals("wide", radioDjs.radioDjPresets().single().id)
         assertEquals(1, mediaSources.connections.size)
+    }
+
+    @Test
+    fun importNeedsAPasswordOnlyWhenNoMatchingSavedConnectionHoldsCredentials() {
+        val local = savedSource()
+        val document = SettingsSyncDocument(serverProfiles = listOf(local.toSettingsSyncServerProfile()))
+        val withoutCredentials = local.copy(token = "", salt = "", nativeToken = null, password = null)
+        val otherAccount = savedSource(id = "source_2", displayName = "Other", baseUrl = "https://navidrome.lan/", username = "guest")
+
+        // The device already holds this exact account: reconnect it, no password prompt.
+        assertEquals(local, settingsSyncImportedConnection(document, listOf(otherAccount, local)))
+        assertFalse(settingsSyncImportNeedsCredentials(document, listOf(otherAccount, local)))
+        // A matching connection without credentials (a fresh device) still asks for the password.
+        assertTrue(settingsSyncImportNeedsCredentials(document, listOf(withoutCredentials)))
+        // Credentials for a different account on the same server are never reused.
+        assertNull(settingsSyncImportedConnection(document, listOf(otherAccount)))
+        assertTrue(settingsSyncImportNeedsCredentials(document, listOf(otherAccount)))
+        // A document without server profiles never asks for a password.
+        assertFalse(settingsSyncImportNeedsCredentials(SettingsSyncDocument(), listOf(local)))
     }
 
     private fun savedSource(): SavedMediaSource =

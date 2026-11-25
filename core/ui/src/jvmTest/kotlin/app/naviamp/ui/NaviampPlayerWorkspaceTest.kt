@@ -2,6 +2,7 @@ package app.naviamp.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
@@ -473,7 +474,11 @@ class NaviampPlayerWorkspaceTest {
     }
 
     @Test fun equalizerLabelsFitMinimumWidth() = runDesktopComposeUiTest(258, 360) {
-        setContent { EqualizerCurvePanel(NaviampColors(), EqualizerSettings(), false) { _, _ -> } }
+        setContent {
+            MaterialTheme(typography = rememberNaviampTypography()) {
+                EqualizerCurvePanel(NaviampColors(), EqualizerSettings(), false) { _, _ -> }
+            }
+        }
         for (label in listOf("31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k")) {
             val layouts = mutableListOf<TextLayoutResult>()
             onNodeWithText(label).assertIsDisplayed().performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }

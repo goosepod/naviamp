@@ -59,6 +59,7 @@ class NaviampCoreCatalogController(
         var loadingGeneration: Long? = null,
         var loadedSource: Pair<String, String>? = null,
         var completeAlbumCatalog: Boolean = false,
+        var completeArtistCatalog: Boolean = false,
         var browseSnapshot: LibraryBrowseSnapshot? = null,
     )
 
@@ -67,6 +68,7 @@ class NaviampCoreCatalogController(
     }
     private var jumpGeneration = 0L
     private var refreshGeneration = 0L
+    private var addedItemsGeneration = 0L
     private val explicitRefreshes = mutableMapOf<NaviampLibraryView, Long>()
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
@@ -85,6 +87,12 @@ class NaviampCoreCatalogController(
             NaviampCoreImmediateCommandResult.Deferred
         }
         is NaviampCoreCommand.Library.JumpToLetter -> NaviampCoreImmediateCommandResult.Deferred
+        is NaviampCoreCommand.Library.AcknowledgeAddedItems -> handled {
+            acknowledgeAddedItems(command.view, command.generation)
+        }
+        is NaviampCoreCommand.Library.MarkAddedItemsSeen -> handled {
+            markAddedItemsSeen(command.view, command.ids)
+        }
         is NaviampCoreCommand.Library.ChangeAlbumSortOrder -> handled {
             changeAlbumSortOrder(command.order)
         }
@@ -161,18 +169,60 @@ class NaviampCoreCatalogController(
             libraryLoads.getValue(view).generation == expectedLoadGeneration &&
             !refreshed.syncStatus.isSyncing && refreshed.syncStatus.message == null &&
             !refreshed.syncStatus.albumIndexFailed && activeLibrarySourceId() == sourceId &&
-            providerSource.current() === provider) {
+            isSameProvider(provider)) {
             // Explicit refresh replaces the browse snapshot too; clearing must not revive old data.
             libraryLoads.getValue(view).browseSnapshot = captureBrowseSnapshot(view)
             searchLibrary(query)
         }
         // Publish after the replacement data so keyed lists cannot anchor to an old first item.
         if (explicitRefreshes[view] == generation && activeLibrarySourceId() == sourceId &&
-            providerSource.current() === provider
+            isSameProvider(provider)
         ) {
             updateLibraryCatalog(view) { it.copy(refreshGeneration = generation) }
         }
     }
+
+    /** Ids shown from a complete catalog; a first load or a paged list cannot tell new from unloaded. */
+    private fun completeBrowseIds(view: NaviampLibraryView, complete: Boolean): Set<String>? =
+        stateStore.state.value.shell.library.catalog(view)
+            .takeIf { complete && it.query.isBlank() && it.items.isNotEmpty() }
+            ?.items?.mapTo(mutableSetOf()) { it.id }
+
+    /**
+     * Automatic syncs report additions too, since they otherwise arrive silently off-screen.
+     * Additions not yet acknowledged stay in the report so a later sync cannot hide them.
+     */
+    private fun publishAddedItems(view: NaviampLibraryView, before: Set<String>?) {
+        if (before == null) return
+        val catalog = stateStore.state.value.shell.library.catalog(view)
+        if (catalog.query.isNotBlank()) return
+        val current = catalog.items.map { it.id }
+        val added = current.filterNot(before::contains)
+        if (added.isEmpty()) return
+        val unseen = catalog.addedItemIds.toSet()
+        val report = current.filter { it in unseen || it !in before }
+        val generation = ++addedItemsGeneration
+        updateLibraryCatalog(view) { it.copy(addedItemIds = report, addedItemsGeneration = generation) }
+    }
+
+    /** A newer report still holds additions the viewer has not seen, so only its own generation clears. */
+    private fun acknowledgeAddedItems(view: NaviampLibraryView, generation: Long) {
+        updateLibraryCatalog(view) {
+            if (it.addedItemsGeneration == generation) it.copy(addedItemIds = emptyList()) else it
+        }
+    }
+
+    /** Additions leave the report as they are seen, so the notice counts only what is still unseen. */
+    private fun markAddedItemsSeen(view: NaviampLibraryView, ids: Set<String>) {
+        updateLibraryCatalog(view) { catalog ->
+            val unseen = catalog.addedItemIds.filterNot(ids::contains)
+            if (unseen.size == catalog.addedItemIds.size) catalog else catalog.copy(addedItemIds = unseen)
+        }
+    }
+
+    /** Decorators are recreated per lookup, so compare the server and library identity. */
+    private fun isSameProvider(provider: MediaProvider?): Boolean =
+        if (provider == null) providerSource.current() == null else providerSource.isCurrent(provider)
 
     private suspend fun refreshLibrary(
         view: NaviampLibraryView = stateStore.state.value.shell.library.selectedView,
@@ -192,6 +242,7 @@ class NaviampCoreCatalogController(
         val load = libraryLoads.getValue(view)
         val generation = ++load.generation
         load.loadedSource = null
+        load.completeArtistCatalog = false
         updateLibraryCatalog(view) { it.copy(pendingJump = null) }
         val request = MediaPageRequest(limit = libraryPageSize)
         load.nextRequest = request
@@ -238,7 +289,9 @@ class NaviampCoreCatalogController(
                 )) }
             } ?: return
             if (!current()) return
+            val before = completeBrowseIds(view, load.completeAlbumCatalog)
             publish(refreshed.albums)
+            publishAddedItems(view, before)
             load.completeAlbumCatalog = true
             updateLibraryCatalog(view) { it.copy(syncStatus = NaviampLibrarySyncStatusUi()) }
             stateStore.state.value.shell.library.albums.pendingJump?.let { letter ->
@@ -267,6 +320,7 @@ class NaviampCoreCatalogController(
             it.loadedSource = null
             it.loadingGeneration = null
             it.completeAlbumCatalog = false
+            it.completeArtistCatalog = false
             it.browseSnapshot = null
             it.nextRequest = MediaPageRequest(limit = libraryPageSize)
         }
@@ -394,7 +448,9 @@ class NaviampCoreCatalogController(
             val artists = provider.loadCompleteArtistLibrary()
             if (!current()) return
             repository.replaceLibraryArtists(sourceId, artists)
+            val before = completeBrowseIds(view, load.completeArtistCatalog)
             publishLibraryArtists(artists, provider)
+            publishAddedItems(view, before)
             load.nextRequest = null
             load.loadedSource = sourceKey
             provider.libraryScanStatus()?.signature?.let { signature ->
@@ -414,6 +470,7 @@ class NaviampCoreCatalogController(
     }
 
     private fun publishLibraryArtists(artists: List<Artist>, provider: MediaProvider) {
+        libraryLoads.getValue(NaviampLibraryView.Artists).completeArtistCatalog = true
         mediaRegistry.updateLibraryArtists(artists, replace = true)
         val mapped = artists.map { artist -> artist.toSharedMediaItemUi(
             coverArtUrl = { id -> id?.let(provider::coverArtUrl) },
@@ -549,6 +606,7 @@ class NaviampCoreCatalogController(
                 runCatching { libraryGenreRefresh.refresh() }
             }
             if (accepted && isCurrentLibraryLoad(load, generation, sourceKey)) {
+                if (replace && query.isBlank()) load.completeArtistCatalog = false
                 load.nextRequest = nextRequest
                 load.loadedSource = sourceKey
             }
@@ -632,7 +690,8 @@ class NaviampCoreCatalogController(
                     NaviampLibraryView.Songs -> mediaRegistry.updateLibraryTracks(snapshot.media.tracks, true)
                 }
                 updateLibraryCatalog(view) { snapshot.catalog.copy(query = query,
-                    refreshGeneration = it.refreshGeneration) }
+                    refreshGeneration = it.refreshGeneration, addedItemIds = it.addedItemIds,
+                    addedItemsGeneration = it.addedItemsGeneration) }
                 return
             }
         }

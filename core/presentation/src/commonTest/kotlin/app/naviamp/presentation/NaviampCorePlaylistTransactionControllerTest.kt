@@ -20,6 +20,7 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistCondition
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.smartplaylist.SmartPlaylistOperator
 import app.naviamp.domain.smartplaylist.SmartPlaylistValue
+import app.naviamp.domain.smartplaylist.duplicateDraft
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampPlaylistDetailActionRequest
 import app.naviamp.ui.NaviampPlaylistDetailCommand
@@ -318,6 +319,25 @@ class NaviampCorePlaylistTransactionControllerTest {
     }
 
     @Test
+    fun duplicatingAnInspectedSmartPlaylistCreatesANewPlaylistAndNeverUpdatesTheSource() = runTest {
+        val fixture = fixture()
+        val source = playlistItem("smart", "Smart", smart = true)
+        val definition = smartDefinition("Smart Mix")
+        fixture.provider.inspection = app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult.Editable(definition, "{}")
+
+        val inspected = fixture.controller.execute(NaviampCoreCommand.SmartPlaylist.Inspect(source))
+            as NaviampCoreCommandResult.SmartPlaylistInspected
+        val editable = inspected.editing as app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult.Editable
+        val duplicate = editable.definition.duplicateDraft("Smart Mix copy").toDefinition()
+        fixture.controller.execute(NaviampCoreCommand.SmartPlaylist.Save(duplicate))
+
+        assertEquals(listOf("Smart Mix copy"), fixture.provider.smartCreates)
+        assertTrue(fixture.provider.smartUpdates.isEmpty())
+        assertEquals(definition.rules, duplicate.rules)
+        assertTrue(fixture.store.state.value.shell.playlists.playlists.any { it.id == "smart-created" && it.isSmartPlaylist })
+    }
+
+    @Test
     fun newlyCreatedSmartPlaylistKeepsManagementActionsWhileServerListCatchesUp() = runTest {
         val fixture = fixture()
         fixture.provider.staleSmartCreationList = true
@@ -455,7 +475,7 @@ private class TransactionTestEffects :
         lastTracks = tracks
     }
 
-    override suspend fun download(playlist: Playlist, tracks: List<Track>, option: String?) {
+    override suspend fun download(playlist: Playlist, tracks: List<Track>, option: String?, onFinished: suspend (NaviampCoreDownloadOutcome) -> Unit) {
         downloads += "${playlist.id}:$option"
         lastTracks = tracks
     }

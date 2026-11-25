@@ -11,6 +11,7 @@ import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.network.SharedHttpClient
 import app.naviamp.domain.network.SharedHttpResponse
 import app.naviamp.domain.settings.CacheSettings
+import app.naviamp.domain.settings.SettingsSyncAudioPrefetch
 import app.naviamp.domain.settings.SettingsSyncDocument
 import app.naviamp.domain.settings.SettingsSyncPreferences
 import app.naviamp.domain.settings.SettingsSyncServerProfile
@@ -53,6 +54,33 @@ class NaviampStoredApplicationTest {
             assertContentEquals(byteArrayOf(1, 2, 3), app.loadProviderArtwork("https://fixture.invalid/art"))
             assertContentEquals(byteArrayOf(1, 2, 3), app.loadProviderArtwork("https://fixture.invalid/art"))
             assertEquals(listOf("https://fixture.invalid/missing", "https://fixture.invalid/art"), calls)
+            app.close()
+        } finally { driver.close() }
+    }
+
+    @Test fun singlePrefetchDepthMigratesToBothNetworksAndBothDepthsSyncThroughTheStoredApplication() = runTest {
+        val driver = storedApplicationTestDriver()
+        val values = TestValues().apply { write("naviamp.cache", """{"audioPrefetchDepth":10,"waveformsEnabled":false}""") }
+        try {
+            val app = application(driver, values)
+            val shownCache = app.environment.initialState.product.shell.cache.settings
+            assertEquals(10, shownCache.unmeteredAudioPrefetchDepth)
+            assertEquals(10, shownCache.meteredAudioPrefetchDepth)
+            assertFalse(shownCache.waveformsEnabled)
+            val sync = app.environment.services.settings.sync.controller
+
+            sync.applySyncedDocument(SettingsSyncDocument(updatedAtEpochMillis = 5))
+            val settings = naviampCoreSettingsValueCatalog(values).storedSettings
+            assertEquals(10, settings.loadCache().unmeteredAudioPrefetchDepth, "Older exports keep the migrated depth")
+            assertEquals(10, settings.loadCache().meteredAudioPrefetchDepth)
+
+            sync.applySyncedDocument(SettingsSyncDocument(updatedAtEpochMillis = 6, preferences = SettingsSyncPreferences(
+                audioPrefetch = SettingsSyncAudioPrefetch(unmeteredDepth = 15, meteredDepth = 99))))
+            assertEquals(15, settings.loadCache().unmeteredAudioPrefetchDepth)
+            assertEquals(25, settings.loadCache().meteredAudioPrefetchDepth)
+            assertFalse(settings.loadCache().waveformsEnabled, "Device-local cache settings are kept")
+            val exported = assertNotNull(sync.exportCurrent().documentToWrite)
+            assertEquals(SettingsSyncAudioPrefetch(unmeteredDepth = 15, meteredDepth = 25), exported.preferences.audioPrefetch)
             app.close()
         } finally { driver.close() }
     }
@@ -157,7 +185,8 @@ private object NoBassEffects : BassAudioBackend {
 }
 
 private fun directory(path: String) = StorageAudioDirectory(path, object : AudioByteStore {
-    override suspend fun writeAudioBytes(fileName: String, errorMessage: String, writeBytes: suspend (AudioByteWriter) -> Boolean): StoredAudioBytes = error("Unexpected audio write")
+    override fun audioFilePath(fileName: String): String = error("Unexpected audio path")
+    override suspend fun writeAudioBytes(temporaryFileName: String, errorMessage: String, writeBytes: suspend (AudioByteWriter) -> String): StoredAudioBytes = error("Unexpected audio write")
     override fun deleteAudioBytes(filePath: String) = error("Unexpected audio deletion")
 }, { false }, { error("Unexpected file deletion") }, { "file://$it" })
 

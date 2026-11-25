@@ -3,6 +3,10 @@ package app.naviamp.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.background
@@ -158,6 +162,7 @@ private fun radioNoticeText(result: RadioBuildDiagnostics): String {
         RadioBuildOutcome.Unsupported -> Res.string.settings_related_requires_support
         RadioBuildOutcome.Empty -> Res.string.similarity_radio_empty
         RadioBuildOutcome.Failed -> Res.string.similarity_failed
+        RadioBuildOutcome.Offline -> Res.string.radio_offline
     })
     val label = stringResource(if (result.autoplay) Res.string.settings_related_sonic_autoplay
         else Res.string.settings_experience_related_tracks_title)
@@ -165,8 +170,21 @@ private fun radioNoticeText(result: RadioBuildDiagnostics): String {
 }
 
 @Composable
-fun NaviampRadioNotice(colors: NaviampColors, result: RadioBuildDiagnostics, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
-    Row(modifier.background(colors.background).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+fun NaviampRadioNotice(
+    colors: NaviampColors,
+    result: RadioBuildDiagnostics,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    systemInsets: WindowInsets = WindowInsets.safeDrawing,
+    onLifetime: (NaviampTimedNoticeAction, Long?) -> Unit = { _, _ -> },
+) {
+    // Shown above the inset-aware shell at the bottom edge, so only the bottom and side bars can overlap it.
+    Row(
+        modifier.timedNotice(result, onLifetime).background(colors.background)
+            .naviampContentInsets(systemInsets.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         Text(radioNoticeText(result), color = colors.primaryText, modifier = Modifier.weight(1f))
         TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_close)) }
     }

@@ -32,7 +32,13 @@ fun interface NaviampCorePlaylistQueuePort {
 
 /** Common download-owner boundary; composition delegates this to Naviamp's shared coordinator. */
 fun interface NaviampCorePlaylistDownloadPort {
-    suspend fun download(playlist: Playlist, tracks: List<Track>, option: String?)
+    /** [onFinished] reports how the started download ended, or why none started. */
+    suspend fun download(
+        playlist: Playlist,
+        tracks: List<Track>,
+        option: String?,
+        onFinished: suspend (NaviampCoreDownloadOutcome) -> Unit,
+    )
 }
 
 fun interface NaviampCorePlaylistHistoryPort {
@@ -86,6 +92,7 @@ class NaviampCorePlaylistTransactionController(
     private val staleDraftMessage: suspend () -> String = ::playlistStaleDraftMessage,
     private val selfReferenceMessage: suspend () -> String = ::smartPlaylistSelfReferenceMessage,
     private val syncLibrary: app.naviamp.ui.NaviampSmartPlaylistSync = { error("Library sync is unavailable") },
+    private val messages: NaviampCorePlaylistMessages = NaviampCorePlaylistMessages(),
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.Playlists.Detail,
@@ -154,6 +161,10 @@ class NaviampCorePlaylistTransactionController(
     }
 
     private suspend fun executeDetail(request: NaviampPlaylistDetailActionRequest) {
+        if (browseController.isPresentedOffline(request.playlist.id)) {
+            executeOfflineDetail(browseController.resolvePlaylist(request.playlist), request.command)
+            return
+        }
         val provider = providerOrPublish() ?: return
         val playlist = browseController.resolvePlaylist(request.playlist)
         publishStatus("Loading ${playlist.name}...")
@@ -168,9 +179,22 @@ class NaviampCorePlaylistTransactionController(
                 NaviampPlaylistDetailCommand.AddToQueue ->
                     queue.addToQueue(playlist, provider.playlistTracks(playlist.id))
                 is NaviampPlaylistDetailCommand.Download -> {
-                    publishListStatus("Starting download for ${playlist.name}...")
-                    publishStatus("Download started.")
-                    downloads.download(playlist, provider.playlistTracks(playlist.id), command.value)
+                    // Read first so an unreachable playlist never leaves a starting status behind.
+                    val tracks = provider.playlistTracks(playlist.id)
+                    val listStatus = "Starting download for ${playlist.name}..."
+                    val detailStatus = "Download started."
+                    browseController.recordDownloadFailure(playlist.id, null)
+                    publishListStatus(listStatus)
+                    publishStatus(detailStatus)
+                    downloads.download(playlist, tracks, command.value) { outcome ->
+                        val result = when (outcome) {
+                            is NaviampCoreDownloadOutcome.Failed -> messages.downloadFailed(playlist.name, outcome.reason)
+                            NaviampCoreDownloadOutcome.AlreadyDownloaded -> messages.alreadyDownloaded(playlist.name)
+                            NaviampCoreDownloadOutcome.Completed, NaviampCoreDownloadOutcome.Cancelled -> null
+                        }
+                        browseController.recordDownloadFailure(playlist.id, result)
+                        replaceStatusesIfUnchanged(listStatus, detailStatus, result)
+                    }
                     return
                 }
                 is NaviampPlaylistDetailCommand.AddToPlaylist -> {
@@ -219,7 +243,46 @@ class NaviampCorePlaylistTransactionController(
         }
     }
 
+    /** A saved copy plays and queues only verified local audio; server changes wait for reconnection. */
+    private suspend fun executeOfflineDetail(playlist: Playlist, command: NaviampPlaylistDetailCommand) {
+        runCatching {
+            when (command) {
+                is NaviampPlaylistDetailCommand.Play -> {
+                    val tracks = browseController.offlinePlayableTracks(playlist.id)
+                    if (tracks.isEmpty()) return publishStatus(messages.offlineNothingPlayable())
+                    playback.play(playlist, tracks, command.shuffle)
+                    publishStatus(null)
+                    openNowPlaying()
+                    recordPlayed(playlist.id)
+                }
+                NaviampPlaylistDetailCommand.AddToQueue -> {
+                    val tracks = browseController.offlinePlayableTracks(playlist.id)
+                    if (tracks.isEmpty()) return publishStatus(messages.offlineNothingPlayable())
+                    queue.addToQueue(playlist, tracks)
+                    publishStatus(null)
+                }
+                is NaviampPlaylistDetailCommand.SavePlaybackProfile ->
+                    playbackProfiles.savePlaylistProfile(playlist.id, command.profile)
+                is NaviampPlaylistDetailCommand.Download,
+                is NaviampPlaylistDetailCommand.AddToPlaylist,
+                is NaviampPlaylistDetailCommand.CreatePlaylistAndAdd,
+                is NaviampPlaylistDetailCommand.Copy,
+                is NaviampPlaylistDetailCommand.Rename,
+                NaviampPlaylistDetailCommand.Delete,
+                -> publishStatus(messages.offlineActionUnavailable())
+            }
+        }.onFailure { cause ->
+            if (cause is CancellationException) throw cause
+            publishStatus(cause.message ?: "Playlist action failed.")
+        }
+    }
+
     private suspend fun updateTracks(item: SharedMediaItemUi, requestedTrackIds: List<TrackId>, expectedTrackIds: List<String>?) {
+        if (browseController.isPresentedOffline(item.id)) {
+            val message = messages.offlineActionUnavailable()
+            publishStatus(message)
+            throw IllegalStateException(message)
+        }
         val provider = providerOrPublish() ?: return
         val generation = browseController.sourceGeneration
         fun isCurrent() = generation == browseController.sourceGeneration && providerSource.isCurrent(provider)
@@ -390,6 +453,17 @@ class NaviampCorePlaylistTransactionController(
     private fun publishStatus(status: String?) {
         stateStore.updateShell { shell ->
             shell.copy(playlistDetail = shell.playlistDetail.copy(status = status))
+        }
+    }
+
+    private fun replaceStatusesIfUnchanged(listStatus: String, detailStatus: String, result: String?) {
+        stateStore.updateShell { shell ->
+            shell.copy(
+                playlists = if (shell.playlists.status == listStatus) shell.playlists.copy(status = result) else shell.playlists,
+                playlistDetail = if (shell.playlistDetail.status == detailStatus) {
+                    shell.playlistDetail.copy(status = result)
+                } else shell.playlistDetail,
+            )
         }
     }
 

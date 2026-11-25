@@ -63,6 +63,7 @@ import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.toSharedMediaItemUi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest as coroutineRunTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -378,7 +379,8 @@ class NaviampCoreTest {
         advanceUntilIdle()
 
         assertEquals(listOf(provider.track.id.value), transferredTrackIds)
-        assertEquals("Starting download for Core Playlist...", core.state.value.shell.playlists.status)
+        // The transfer completed, so the starting status must not remain.
+        assertEquals(null, core.state.value.shell.playlists.status)
     }
 
     @Test
@@ -489,6 +491,267 @@ class NaviampCoreTest {
         ))
         assertEquals(listOf("library"), persisted.map { it.id })
         assertEquals(app.naviamp.domain.radio.RadioBuildOutcome.Empty, core.state.value.overlays.radioNotice?.outcome)
+    }
+
+    @Test
+    fun homeMixTilePlaysAMultiTrackSimilarSongStationInsteadOfTheSeedAlbum() = runTest {
+        val similar = (1..5).map { coreTrack("similar-$it").copy(albumId = app.naviamp.domain.AlbumId("other-$it")) }
+        val fixture = homeMixFixture(similar)
+
+        fixture.playMix()
+
+        val seed = fixture.effects.selections.first().tracks.single()
+        assertEquals(fixture.album.id, seed.albumId)
+        val queue = fixture.effects.appliedQueues.last().tracks.map { it.id }
+        assertEquals(seed.id, queue.first())
+        assertEquals(similar.map { it.id }.toSet(), queue.drop(1).toSet())
+        assertEquals(listOf(seed.id), fixture.similarRequests)
+        assertEquals(emptyList(), fixture.albumRadioRequests)
+        assertEquals(listOf("track:${seed.id.value}"), fixture.persisted.map { it.id })
+    }
+
+    @Test
+    fun savedHomeMixRebuildsFromRecentRadioThroughSimilarSongsNeverAlbumRadio() = runTest {
+        val similar = (1..3).map { coreTrack("similar-$it").copy(albumId = app.naviamp.domain.AlbumId("other-$it")) }
+        val fixture = homeMixFixture(similar)
+        fixture.playMix()
+        val seed = fixture.effects.selections.first().tracks.single()
+        // Without saved session tracks, replay must regenerate the station from its identity.
+        fixture.persist(fixture.persisted.map { it.copy(sessionTracks = emptyList()) })
+
+        fixture.core.execute(NaviampCoreCommand.Home.SelectRecentRadio(
+            SharedMediaItemUi("track:${seed.id.value}", "Mix", "Radio")))
+        advanceUntilIdle()
+
+        // The rebuild asked for the seed's similar songs again and never touched album radio.
+        assertEquals(listOf(seed.id, seed.id), fixture.similarRequests)
+        assertEquals(emptyList(), fixture.albumRadioRequests)
+        val albumSiblings = (fixture.effects.selections + fixture.effects.appliedQueues).flatMap { it.tracks }
+            .filter { it.albumId == fixture.album.id && it.id != seed.id }
+        assertEquals(emptyList(), albumSiblings)
+        assertEquals(listOf("track:${seed.id.value}"), fixture.persisted.map { it.id })
+    }
+
+    @Test
+    fun homeMixWithoutSimilarSongsUsesTheRadioFailurePathAndNeverQueuesTheAlbum() = runTest {
+        val fixture = homeMixFixture(similar = emptyList())
+
+        fixture.playMix()
+
+        val seed = fixture.effects.selections.first().tracks.single()
+        val queued = (fixture.effects.selections + fixture.effects.appliedQueues).flatMap { it.tracks }.map { it.id }.toSet()
+        assertEquals(setOf(seed.id), queued)
+        assertEquals(app.naviamp.domain.radio.RadioBuildOutcome.Empty, fixture.core.state.value.overlays.radioNotice?.outcome)
+        assertEquals(emptyList(), fixture.persisted)
+        assertEquals(emptyList(), fixture.albumRadioRequests)
+    }
+
+    private class HomeMixFixture(
+        val core: NaviampCore,
+        val effects: FakeCorePlaybackEffects,
+        val album: Album,
+        val similarRequests: List<app.naviamp.domain.TrackId>,
+        val albumRadioRequests: List<app.naviamp.domain.AlbumId>,
+        private val persistedRadio: () -> List<app.naviamp.domain.settings.RecentRadioStream>,
+        val persist: (List<app.naviamp.domain.settings.RecentRadioStream>) -> Unit,
+        private val scope: kotlinx.coroutines.test.TestScope,
+    ) {
+        val persisted get() = persistedRadio()
+
+        suspend fun playMix() {
+            val item = album.toSharedMediaItemUi({ null })
+            core.execute(NaviampCoreCommand.Media.ItemAction(
+                NaviampMediaItemActionRequest(item, NaviampMediaItemCommand.Album(NaviampArtistAlbumCommand.Select))))
+            scope.advanceUntilIdle()
+            core.execute(NaviampCoreCommand.Media.ItemAction(
+                NaviampMediaItemActionRequest(item, NaviampMediaItemCommand.PlayAlbumMix)))
+            scope.advanceUntilIdle()
+        }
+    }
+
+    private fun kotlinx.coroutines.test.TestScope.homeMixFixture(similar: List<Track>): HomeMixFixture {
+        val original = FakeCoreMediaProvider()
+        val albumTracks = (1..3).map { original.track.copy(id = app.naviamp.domain.TrackId("album-$it")) }
+        val similarRequests = mutableListOf<app.naviamp.domain.TrackId>()
+        val albumRadioRequests = mutableListOf<app.naviamp.domain.AlbumId>()
+        val provider = object : MediaProvider by original {
+            override val capabilities = original.capabilities.copy(supportsTrackRadio = true, supportsAlbumRadio = true)
+            override suspend fun album(albumId: app.naviamp.domain.AlbumId) =
+                app.naviamp.domain.AlbumDetails(original.album, albumTracks)
+            override suspend fun albumRadio(albumId: app.naviamp.domain.AlbumId, count: Int): List<Track> =
+                emptyList<Track>().also { albumRadioRequests += albumId }
+            override suspend fun instantMixTracks(trackId: app.naviamp.domain.TrackId, count: Int): List<Track> {
+                similarRequests += trackId
+                return similar
+            }
+        }
+        val effects = FakeCorePlaybackEffects()
+        var persisted = emptyList<app.naviamp.domain.settings.RecentRadioStream>()
+        val defaults = fakeCoreServices(provider)
+        val core = createTrackedCore(this, defaults.copy(
+            playback = defaults.playback.copy(effects = effects),
+            radio = defaults.radio.copy(generatedRecents = NaviampCoreGeneratedRadioRecentsPort(
+                load = { persisted }, save = { persisted = it })),
+        ))
+        return HomeMixFixture(core, effects, original.album, similarRequests, albumRadioRequests, { persisted }, { persisted = it }, this)
+    }
+
+    @Test
+    fun playSomethingNewStartsRadioFromTheFirstUnplayedTrackInTheSelectedLibraries() = runTest {
+        val fixture = somethingNewFixture(
+            batches = listOf(listOf(coreTrack("played").copy(playCount = 3), coreTrack("pending"),
+                coreTrack("hidden").copy(musicFolderId = "2"), coreTrack("fresh").copy(musicFolderId = "1"))),
+            pendingListenIds = listOf("pending"),
+            selectedFolders = listOf("1"),
+        )
+
+        fixture.core.execute(NaviampCoreCommand.Home.SelectStation(
+            SharedHomeStationUi(app.naviamp.domain.home.HomeStationSomethingNew, "Play something new", "")))
+        advanceUntilIdle()
+
+        assertEquals("fresh", fixture.effects.selections.first().tracks.single().id.value)
+        assertEquals(listOf("fresh", "similar-1", "similar-2"), fixture.effects.appliedQueues.last().tracks.map { it.id.value })
+        assertEquals(listOf("fresh"), fixture.similarRequests.map { it.value })
+        assertEquals(null, fixture.core.state.value.overlays.somethingNewNotice)
+    }
+
+    @Test
+    fun playSomethingNewInAFullyPlayedLibraryStopsAtTheBoundAndPlaysNothing() = runTest {
+        val fixture = somethingNewFixture(batches = listOf(listOf(coreTrack("played").copy(playCount = 1))))
+
+        fixture.core.execute(NaviampCoreCommand.Home.PlaySomethingNew)
+        runCurrent()
+
+        assertEquals(app.naviamp.domain.radio.SomethingNewMaxBatches, fixture.randomRequests())
+        assertEquals(emptyList(), fixture.effects.selections)
+        assertEquals(app.naviamp.ui.NaviampSomethingNewNotice.NothingUnplayed,
+            fixture.core.state.value.overlays.somethingNewNotice)
+        fixture.core.dispatch(NaviampCoreCommand.Home.DismissSomethingNewNotice)
+        assertEquals(null, fixture.core.state.value.overlays.somethingNewNotice)
+    }
+
+    @Test
+    fun playSomethingNewOfflineChoosesOnlyAnUnplayedDownloadAndSaysSo() = runTest {
+        val fixture = somethingNewFixture(
+            batches = listOf(listOf(coreTrack("streamed"))),
+            downloads = listOf(coreTrack("downloaded-played").copy(playCount = 2), coreTrack("downloaded-new")),
+            offline = true,
+        )
+
+        fixture.core.execute(NaviampCoreCommand.Home.PlaySomethingNew)
+        runCurrent()
+
+        assertEquals(0, fixture.randomRequests())
+        assertEquals("downloaded-new", fixture.effects.selections.first().tracks.single().id.value)
+        assertEquals(app.naviamp.ui.NaviampSomethingNewNotice.PlayingFromDownloads,
+            fixture.core.state.value.overlays.somethingNewNotice)
+        // Offline the pick plays alone: no server Radio request, so no server-failure notice.
+        assertEquals(emptyList(), fixture.similarRequests)
+        assertEquals(null, fixture.core.state.value.overlays.radioNotice)
+        assertEquals(listOf("downloaded-new"), fixture.effects.selections.flatMap { it.tracks }.map { it.id.value })
+    }
+
+    @Test
+    fun radioThatCannotReachTheServerWhileOfflineSaysOfflineInsteadOfBlamingTheServer() = runTest {
+        val offline = somethingNewFixture(batches = listOf(emptyList()), offline = true)
+
+        offline.core.execute(NaviampCoreCommand.Home.StartSomethingNewRadio(coreTrack("seed")))
+        runCurrent()
+
+        assertEquals("seed", offline.effects.selections.first().tracks.single().id.value)
+        assertEquals(app.naviamp.domain.radio.RadioBuildOutcome.Offline,
+            offline.core.state.value.overlays.radioNotice?.outcome)
+    }
+
+    @Test
+    fun radioFailureWhileOnlineKeepsTheServerFailureNotice() = runTest {
+        val online = somethingNewFixture(batches = listOf(emptyList()), serverUnreachable = true)
+
+        online.core.execute(NaviampCoreCommand.Home.StartSomethingNewRadio(coreTrack("seed")))
+        advanceUntilIdle()
+
+        assertEquals(app.naviamp.domain.radio.RadioBuildOutcome.Failed,
+            online.core.state.value.overlays.radioNotice?.outcome)
+    }
+
+    @Test
+    fun startingSomethingElseAbandonsAnInFlightSomethingNewPick() = runTest {
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val fixture = somethingNewFixture(batches = listOf(listOf(coreTrack("fresh"))), randomGate = gate)
+
+        fixture.core.dispatch(NaviampCoreCommand.Home.PlaySomethingNew)
+        runCurrent()
+        fixture.core.execute(NaviampCoreCommand.Media.TrackAction(SharedTrackRowActionRequest(
+            SharedTrackRowUi("other", "Other", "Artist"), SharedTrackRowAction.Select)))
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(1, fixture.randomRequests())
+        assertTrue(fixture.effects.selections.none { queue -> queue.tracks.any { it.id.value == "fresh" } })
+        assertEquals(null, fixture.core.state.value.overlays.somethingNewNotice)
+    }
+
+    private class SomethingNewFixture(
+        val core: NaviampCore,
+        val effects: FakeCorePlaybackEffects,
+        val randomRequests: () -> Int,
+        val similarRequests: List<app.naviamp.domain.TrackId>,
+    )
+
+    private fun kotlinx.coroutines.test.TestScope.somethingNewFixture(
+        batches: List<List<Track>>,
+        pendingListenIds: List<String> = emptyList(),
+        downloads: List<Track> = emptyList(),
+        offline: Boolean = false,
+        selectedFolders: List<String> = emptyList(),
+        randomGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null,
+        serverUnreachable: Boolean = offline,
+    ): SomethingNewFixture {
+        val original = FakeCoreMediaProvider(supportsPlayReporting = true)
+        var randomCalls = 0
+        val similarRequests = mutableListOf<app.naviamp.domain.TrackId>()
+        val provider = object : MediaProvider by original {
+            override val capabilities = original.capabilities.copy(supportsTrackRadio = true)
+            override val selectedMusicFolderIds = selectedFolders
+            override fun tracksInSelectedLibraries(tracks: List<Track>) =
+                tracks.filter { it.musicFolderId == null || selectedFolders.isEmpty() || it.musicFolderId in selectedFolders }
+            override suspend fun randomSongs(limit: Int, genre: String?, fromYear: Int?, toYear: Int?): List<Track> {
+                randomGate?.await()
+                return batches[randomCalls++.coerceAtMost(batches.lastIndex)]
+            }
+            override suspend fun instantMixTracks(trackId: app.naviamp.domain.TrackId, count: Int): List<Track> {
+                similarRequests += trackId
+                if (serverUnreachable) throw IllegalStateException("Request failed")
+                return listOf(coreTrack("similar-1"), coreTrack("similar-2"))
+            }
+        }
+        val pending = object : PendingProviderActionRepository by EmptyCorePendingProviderActionRepository {
+            override fun pendingProviderActions(sourceId: String, limit: Int) = pendingListenIds.mapIndexed { index, id ->
+                PendingProviderAction(index.toLong(), sourceId, app.naviamp.domain.provider.PendingActionSubmitListen,
+                    id, longValue = 1L, createdAtEpochMillis = 1L)
+            }
+        }
+        val effects = FakeCorePlaybackEffects()
+        val defaults = fakeCoreServices(provider, playbackEffects = effects,
+            providerActions = NaviampProviderActionController(pending))
+        val services = defaults.copy(downloads = defaults.downloads.copy(
+            storage = object : NaviampCoreDownloadStoragePort by defaults.downloads.storage {
+                override suspend fun availableDownloads(sourceId: String) =
+                    downloads.map { NaviampCoreDownloadedTrack(it.id.value, it, 1_000) }
+            },
+        ))
+        val initial = NaviampCoreInitialState().let { state ->
+            state.copy(
+                connection = NaviampConnectionRuntimeState(sourceId = "source",
+                    phase = if (offline) NaviampConnectionPhase.Offline else NaviampConnectionPhase.Connected),
+                connectionInventory = NaviampCoreConnectionInventory(currentSourceId = "source"),
+                product = state.product.copy(shell = state.product.shell.copy(
+                    connectionSettings = state.product.shell.connectionSettings.copy(currentSourceId = "source"),
+                )),
+            )
+        }
+        val core = createTrackedCore(this, services, initialState = initial)
+        return SomethingNewFixture(core, effects, { randomCalls }, similarRequests)
     }
 
     @Test
@@ -810,6 +1073,7 @@ internal fun fakeCoreServices(
     ),
     playlists = NaviampCorePlaylistServices(
         history = NaviampCorePlaylistHistoryPort { current, _ -> current },
+        messages = englishPlaylistMessages,
     ),
     radio = NaviampCoreRadioServices(
         playback = NaviampCoreInternetRadioPlaybackPort {},
@@ -943,7 +1207,7 @@ private fun fakeCoreSettingsSyncServices(): NaviampCoreSettingsSyncServices {
     )
 }
 
-private class FakeCorePlaybackEffects : NaviampCorePlaybackEffectPort {
+internal class FakeCorePlaybackEffects : NaviampCorePlaybackEffectPort {
     override val capabilities = NaviampCorePlaybackCapabilities()
     override val playbackSource = PlaybackSource.ProviderStream
     val selections = mutableListOf<PlaybackQueue>()
@@ -992,4 +1256,20 @@ private fun coreTrack(id: String) = Track(
     coverArtId = id,
     audioInfo = null,
     replayGain = null,
+)
+
+/** English copies of the translated playlist notices; Android host tests cannot load Compose resources. */
+internal val englishPlaylistMessages = NaviampCorePlaylistMessages(
+    offlineActionUnavailable = { "Reconnect to your music server to use this action." },
+    offlineNothingPlayable = { "No tracks in this playlist are available offline." },
+    trackNotDownloaded = { "This track is not downloaded. Reconnect to play it." },
+    downloadFailed = { name, reason ->
+        when (reason) {
+            NaviampCoreDownloadFailure.StorageLimit -> "Could not download $name. The download storage limit was reached."
+            NaviampCoreDownloadFailure.MobileDataDisabled ->
+                "Could not download $name. Downloads over mobile data are turned off."
+            NaviampCoreDownloadFailure.Other -> "Could not download $name."
+        }
+    },
+    alreadyDownloaded = { name -> "All tracks in $name are already downloaded." },
 )

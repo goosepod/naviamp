@@ -377,7 +377,7 @@ private fun TelevisionHomeCard(
             TelevisionHomeCardWidth,
             Modifier.televisionMediaArtworkFocusEffect(focused, colors, artworkShape),
         )
-        TelevisionCardLabels(item.title, item.subtitle, colors)
+        TelevisionCardLabels(item.displayTitle(), item.displaySubtitle(), colors)
     }
 }
 
@@ -900,7 +900,8 @@ internal fun TelevisionPlaylists(
                     TelevisionMediaGridItem(
                         key = "playlist:${playlist.id}",
                         title = playlist.title,
-                        subtitle = playlist.trackCount?.let { televisionTrackCountLabel(it) } ?: playlist.subtitle,
+                        subtitle = playlist.offlineAvailability?.let { offlineAvailabilityLabel(it) }
+                            ?: playlist.trackCount?.let { televisionTrackCountLabel(it) } ?: playlist.subtitle,
                         coverArtUrl = playlist.coverArtUrl ?: playlist.coverArtUrls.firstOrNull(),
                         mediaKind = SharedMediaItemKind.Playlist,
                         action = {

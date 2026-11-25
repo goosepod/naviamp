@@ -38,6 +38,41 @@ class NavibeatHomeCardMapperTest {
     }
 
     @Test
+    fun mixesForYouTilesStartAnAlbumSeededMixInsteadOfPlayingTheAlbum() {
+        val home = HomeContent(
+            mixAlbums = listOf(app.naviamp.domain.Album(app.naviamp.domain.AlbumId("single"), "Single", "Seed Artist", null, null)),
+        )
+
+        val item = home.toSharedHomeUi(coverArtUrl = { null })
+            .collectionSections
+            .single { it.id == SharedHomeCollectionSectionIds.MixesForYou }
+            .items
+            .single()
+
+        assertEquals(SharedHomeCollectionItemAction.PlayAlbumMix, item.action)
+        assertEquals(SharedMediaItemKind.Album, item.mediaKind)
+        assertEquals("single", item.mediaItem.id)
+    }
+
+    @Test
+    fun mixTileDispatchRequestsTheSharedAlbumMixCommandForEveryHost() {
+        val requests = mutableListOf<NaviampMediaItemActionRequest>()
+        val item = SharedHomeCollectionItemUi(
+            mediaItem = SharedMediaItemUi("single", "Single", "Seed Artist"),
+            mediaKind = SharedMediaItemKind.Album,
+            action = SharedHomeCollectionItemAction.PlayAlbumMix,
+        )
+
+        dispatchHomeCollectionItem(
+            item,
+            NaviampHomeActions({}, {}, {}, {}, {}, {}, {}, {}, {}, { _, _ -> }),
+            NaviampMediaActions(onTrackAction = {}, onMediaItemAction = { requests += it }),
+        )
+
+        assertEquals(listOf(NaviampMediaItemActionRequest(item.mediaItem, NaviampMediaItemCommand.PlayAlbumMix)), requests)
+    }
+
+    @Test
     fun navibeatCardsPlayByDefaultAndRemainIdentifiableForTheirActionMenu() {
         val playlist = Playlist(id = "navibeat-1", name = "Afternoon", trackCount = 20)
         val home = HomeContent(
@@ -75,7 +110,7 @@ class NavibeatHomeCardMapperTest {
             .single { it.id == "stations" }
             .items
 
-        assertEquals(listOf("library", "random-album"), stations.map { it.artworkKey })
+        assertEquals(listOf("something-new", "library", "random-album"), stations.map { it.artworkKey })
         stations.forEach { station ->
             assertEquals(SharedHomeCollectionArtwork.StationGenerated, station.artwork)
             assertEquals(SharedHomeCollectionItemAction.SelectStation, station.action)
