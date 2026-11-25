@@ -189,6 +189,15 @@
     <string name="settings_related_radio_minimum">रेडियो बैच का आकार</string>
     <string name="settings_related_radio_minimum_subtitle">रेडियो शुरू करते समय माँगे जाने वाले संबंधित गाने। कम गाने लौट सकते हैं।</string>
     <string name="smart_playlist_inspection_title">स्मार्ट प्लेलिस्ट के नियम</string>
+    <string name="smart_playlist_field_category_common">सामान्य</string>
+    <string name="smart_playlist_field_category_track">ट्रैक</string>
+    <string name="smart_playlist_field_category_album_artist">एल्बम और कलाकार</string>
+    <string name="smart_playlist_field_category_activity">पसंदीदा, रेटिंग और प्ले</string>
+    <string name="smart_playlist_field_category_dates">तिथियाँ</string>
+    <string name="smart_playlist_field_category_audio_file">ऑडियो और फ़ाइल</string>
+    <string name="smart_playlist_field_category_identifiers">पहचानकर्ता</string>
+    <string name="smart_playlist_field_category_other">अन्य</string>
+    <string name="smart_playlist_field_no_matches">कोई मेल खाने वाला फ़ील्ड नहीं</string>
     <string name="smart_playlist_inspection_read_only">इस प्लेलिस्ट के नियम या सेटिंग को यह संपादक सुरक्षित रूप से नहीं बदल सकता। मूल परिभाषा केवल देखने के लिए दिखाई गई है।</string>
     <string name="smart_playlist_inspection_missing">सर्वर ने इस प्लेलिस्ट के नियम नहीं दिए।</string>
     <string name="smart_playlist_inspection_permission">आपको इस प्लेलिस्ट के नियम देखने की अनुमति नहीं है।</string>

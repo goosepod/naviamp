@@ -189,6 +189,15 @@
     <string name="settings_related_radio_minimum">Розмір добірки Радіо</string>
     <string name="settings_related_radio_minimum_subtitle">Схожі треки, запитані під час запуску Радіо. Сервер може повернути менше треків.</string>
     <string name="smart_playlist_inspection_title">Правила розумного списку відтворення</string>
+    <string name="smart_playlist_field_category_common">Часті</string>
+    <string name="smart_playlist_field_category_track">Трек</string>
+    <string name="smart_playlist_field_category_album_artist">Альбом і виконавець</string>
+    <string name="smart_playlist_field_category_activity">Улюблене, оцінки та прослуховування</string>
+    <string name="smart_playlist_field_category_dates">Дати</string>
+    <string name="smart_playlist_field_category_audio_file">Аудіо та файл</string>
+    <string name="smart_playlist_field_category_identifiers">Ідентифікатори</string>
+    <string name="smart_playlist_field_category_other">Інше</string>
+    <string name="smart_playlist_field_no_matches">Немає відповідних полів</string>
     <string name="smart_playlist_inspection_read_only">Цей список використовує правила або налаштування, які редактор не може безпечно змінити. Початкове визначення показано лише для перегляду.</string>
     <string name="smart_playlist_inspection_missing">Сервер не надав правил цього списку.</string>
     <string name="smart_playlist_inspection_permission">Ви не маєте дозволу переглядати правила цього списку.</string>

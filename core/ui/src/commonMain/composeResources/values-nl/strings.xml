@@ -189,6 +189,15 @@
     <string name="settings_related_radio_minimum">Aantal nummers per Radio-aanvraag</string>
     <string name="settings_related_radio_minimum_subtitle">Verwante nummers aangevraagd bij het starten van Radio. Er kunnen minder nummers worden teruggegeven.</string>
     <string name="smart_playlist_inspection_title">Regels van slimme afspeellijst</string>
+    <string name="smart_playlist_field_category_common">Veelgebruikt</string>
+    <string name="smart_playlist_field_category_track">Nummer</string>
+    <string name="smart_playlist_field_category_album_artist">Album en artiest</string>
+    <string name="smart_playlist_field_category_activity">Favorieten, beoordelingen en afspeelbeurten</string>
+    <string name="smart_playlist_field_category_dates">Datums</string>
+    <string name="smart_playlist_field_category_audio_file">Audio en bestand</string>
+    <string name="smart_playlist_field_category_identifiers">Identificatoren</string>
+    <string name="smart_playlist_field_category_other">Overig</string>
+    <string name="smart_playlist_field_no_matches">Geen overeenkomende velden</string>
     <string name="smart_playlist_inspection_read_only">Deze afspeellijst gebruikt regels of instellingen die deze editor niet veilig kan wijzigen. De oorspronkelijke definitie wordt alleen ter inzage getoond.</string>
     <string name="smart_playlist_inspection_missing">De server heeft de regels van deze afspeellijst niet verstrekt.</string>
     <string name="smart_playlist_inspection_permission">Je mag de regels van deze afspeellijst niet bekijken.</string>

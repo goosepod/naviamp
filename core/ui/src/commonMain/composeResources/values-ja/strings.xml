@@ -189,6 +189,15 @@
     <string name="settings_related_radio_minimum">ラジオのリクエスト曲数</string>
     <string name="settings_related_radio_minimum_subtitle">ラジオ開始時にリクエストする関連曲数。返される曲数は少ない場合があります。</string>
     <string name="smart_playlist_inspection_title">スマートプレイリストのルール</string>
+    <string name="smart_playlist_field_category_common">よく使う項目</string>
+    <string name="smart_playlist_field_category_track">トラック</string>
+    <string name="smart_playlist_field_category_album_artist">アルバムとアーティスト</string>
+    <string name="smart_playlist_field_category_activity">お気に入り・評価・再生</string>
+    <string name="smart_playlist_field_category_dates">日付</string>
+    <string name="smart_playlist_field_category_audio_file">オーディオとファイル</string>
+    <string name="smart_playlist_field_category_identifiers">識別子</string>
+    <string name="smart_playlist_field_category_other">その他</string>
+    <string name="smart_playlist_field_no_matches">一致する項目がありません</string>
     <string name="smart_playlist_inspection_read_only">このプレイリストには、このエディターでは安全に変更できないルールや設定があります。元の定義は確認用に表示されます。</string>
     <string name="smart_playlist_inspection_missing">サーバーからこのプレイリストのルールが提供されませんでした。</string>
     <string name="smart_playlist_inspection_permission">このプレイリストのルールを表示する権限がありません。</string>
