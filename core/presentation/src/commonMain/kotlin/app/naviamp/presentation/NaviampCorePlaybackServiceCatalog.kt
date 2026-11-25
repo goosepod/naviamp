@@ -112,6 +112,7 @@ fun naviampCorePlaybackServiceCatalog(
             )
         },
     )
+    settings.activeProfile = effects
     return NaviampCorePlaybackServices(
         samples = NaviampCoreEngineSamplePlayback(scope, engine, providerSource,
             verifyProviderNetworkCertificates, { settings.current().volumePercent }),
