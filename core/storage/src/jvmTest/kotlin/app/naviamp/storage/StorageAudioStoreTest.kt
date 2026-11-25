@@ -22,16 +22,8 @@ import kotlin.test.assertNull
 class StorageAudioStoreTest {
     @Test
     fun downloadedTracksRoundTripDiscMetadata() = runBlocking {
-        val bytes = object : AudioByteStore {
-            override suspend fun writeAudioBytes(fileName: String, errorMessage: String,
-                writeBytes: suspend (AudioByteWriter) -> Boolean): StoredAudioBytes {
-                var size = 0L
-                check(writeBytes(AudioByteWriter { _, count -> size += count }))
-                return StoredAudioBytes("/downloads/$fileName", size)
-            }
-            override fun deleteAudioBytes(filePath: String) = Unit
-        }
-        fixture(fileExists = { true }, byteStore = bytes).use { fixture ->
+        val bytes = MemoryAudioByteStore("/downloads")
+        fixture(fileExists = bytes::exists, byteStore = bytes).use { fixture ->
             val track = Track(id = TrackId("bonus"), title = "Bonus", artistName = "Artist", albumTitle = "Album",
                 durationSeconds = 120, coverArtId = null, audioInfo = null, replayGain = null,
                 discNumber = 2, trackNumber = 3, discTitle = "Bonus disc", discCoverArtId = "disc-cover")
@@ -48,9 +40,10 @@ class StorageAudioStoreTest {
     fun interruptedCacheUpgradePreservesTheExistingQualityAndFile() = runBlocking {
         var receivedBytes = 0
         val bytes = object : AudioByteStore {
-            override suspend fun writeAudioBytes(fileName: String, errorMessage: String,
-                writeBytes: suspend (AudioByteWriter) -> Boolean): StoredAudioBytes {
-                check(writeBytes(AudioByteWriter { _, count -> receivedBytes += count }))
+            override fun audioFilePath(fileName: String) = "/cache/$fileName"
+            override suspend fun writeAudioBytes(temporaryFileName: String, errorMessage: String,
+                writeBytes: suspend (AudioByteWriter) -> String): StoredAudioBytes {
+                val fileName = writeBytes(AudioByteWriter { _, count -> receivedBytes += count })
                 return StoredAudioBytes("/cache/$fileName", receivedBytes.toLong())
             }
             override fun deleteAudioBytes(filePath: String) = Unit
@@ -121,17 +114,8 @@ class StorageAudioStoreTest {
         val path = "/downloads/" + app.naviamp.domain.cache.stableAudioFileName("source", "track", "original") + ".flac"
         val original = ByteArray(24) { 7 }
         val files = mutableMapOf(path to original)
-        val bytes = object : AudioByteStore {
-            override suspend fun writeAudioBytes(fileName: String, errorMessage: String,
-                writeBytes: suspend (AudioByteWriter) -> Boolean): StoredAudioBytes {
-                var pending = byteArrayOf()
-                check(writeBytes(AudioByteWriter { chunk, count -> pending += chunk.copyOf(count) }))
-                files["/downloads/$fileName"] = pending
-                return StoredAudioBytes("/downloads/$fileName", pending.size.toLong())
-            }
-            override fun deleteAudioBytes(filePath: String) { files.remove(filePath) }
-        }
-        fixture(fileExists = { it in files }, byteStore = bytes).use { fixture ->
+        val bytes = MemoryAudioByteStore("/downloads", files)
+        fixture(fileExists = { it in files }, deleteDownload = bytes::delete, byteStore = bytes).use { fixture ->
             fixture.insertDownload(path)
             val before = fixture.store.downloadedTracks("source").single()
             for (failure in listOf("quota", "partial", "empty", "html", "xml", "json")) {
@@ -140,6 +124,7 @@ class StorageAudioStoreTest {
                         StreamQuality.Original, maxDownloadBytes = if (failure == "quota") 32 else Long.MAX_VALUE)
                 }
                 assertContentEquals(original, files[path])
+                assertEquals(setOf(path), files.keys)
                 assertEquals(before, fixture.store.downloadedTracks("source").single())
             }
         }
@@ -149,9 +134,10 @@ class StorageAudioStoreTest {
     fun configuredDownloadLimitRejectsNewBytesWithoutAllocatingTheReportedUsage() = runBlocking {
         val limit = app.naviamp.domain.settings.CacheSettings().maxDownloadBytes
         fixture(fileExists = { true }, byteStore = object : AudioByteStore {
-            override suspend fun writeAudioBytes(fileName: String, errorMessage: String,
-                writeBytes: suspend (AudioByteWriter) -> Boolean): StoredAudioBytes {
-                check(writeBytes(AudioByteWriter { _, _ -> error("Over-budget bytes reached the writer") }))
+            override fun audioFilePath(fileName: String) = "/downloads/$fileName"
+            override suspend fun writeAudioBytes(temporaryFileName: String, errorMessage: String,
+                writeBytes: suspend (AudioByteWriter) -> String): StoredAudioBytes {
+                writeBytes(AudioByteWriter { _, _ -> error("Over-budget bytes reached the writer") })
                 error("Over-budget download committed")
             }
             override fun deleteAudioBytes(filePath: String) = Unit
@@ -265,10 +251,12 @@ private class StorageAudioStoreFixture(
 }
 
 private object UnusedAudioByteStore : AudioByteStore {
+    override fun audioFilePath(fileName: String): String = "/unused/$fileName"
+
     override suspend fun writeAudioBytes(
-        fileName: String,
+        temporaryFileName: String,
         errorMessage: String,
-        writeBytes: suspend (AudioByteWriter) -> Boolean,
+        writeBytes: suspend (AudioByteWriter) -> String,
     ): StoredAudioBytes = error("Not used by repository metadata tests.")
 
     override fun deleteAudioBytes(filePath: String) = Unit

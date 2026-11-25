@@ -26,18 +26,19 @@ import platform.posix.rename
 class AppleAudioByteStore(
     private val directoryPath: String,
 ) : AudioByteStore {
+    override fun audioFilePath(fileName: String): String = childPath(fileName)
+
     override suspend fun writeAudioBytes(
-        fileName: String,
+        temporaryFileName: String,
         errorMessage: String,
-        writeBytes: suspend (AudioByteWriter) -> Boolean,
+        writeBytes: suspend (AudioByteWriter) -> String,
     ): StoredAudioBytes {
-        require('/' !in fileName) { "Audio file names must not contain path separators." }
+        require('/' !in temporaryFileName) { "Audio file names must not contain path separators." }
         val manager = NSFileManager.defaultManager
         check(manager.createDirectoryAtPath(directoryPath, true, null, null)) {
             "Could not create the audio storage directory."
         }
-        val targetPath = childPath(fileName)
-        val temporaryPath = "$targetPath.tmp"
+        val temporaryPath = childPath(temporaryFileName)
         manager.removeItemAtPath(temporaryPath, null)
         check(manager.createFileAtPath(temporaryPath, null, null)) { errorMessage }
         val handle = requireNotNull(fopen(temporaryPath, "wb")) { errorMessage }
@@ -52,11 +53,13 @@ class AppleAudioByteStore(
                     check(written.toLong() == count.toLong()) { errorMessage }
                 }
             }
-            if (!writeBytes(writer)) throw IllegalStateException(errorMessage)
+            val fileName = writeBytes(writer)
+            require('/' !in fileName) { "Audio file names must not contain path separators." }
             check(fflush(handle) == 0) { errorMessage }
             check(fsync(fileno(handle)) == 0) { errorMessage }
             check(fclose(handle) == 0) { errorMessage }
             handleOpen = false
+            val targetPath = childPath(fileName)
             if (rename(temporaryPath, targetPath) != 0) throw IllegalStateException(errorMessage)
             StoredAudioBytes(
                 filePath = targetPath,

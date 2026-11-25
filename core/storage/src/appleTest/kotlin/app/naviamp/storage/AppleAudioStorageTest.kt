@@ -28,17 +28,18 @@ class AppleAudioStorageTest {
     fun successfulWriteAtomicallyPublishesTheFinalFile() = withTestDirectory { directory ->
         val store = AppleAudioByteStore(directory)
         val stored = runBlocking {
-            store.writeAudioBytes("track.mp3", "write failed") { writer ->
+            store.writeAudioBytes("track.part", "write failed") { writer ->
                 writer.write(byteArrayOf(1, 2, 3), 3)
                 writer.write(byteArrayOf(4, 5), 2)
-                true
+                "track.mp3"
             }
         }
 
         assertEquals("$directory/track.mp3", stored.filePath)
+        assertEquals(store.audioFilePath("track.mp3"), stored.filePath)
         assertEquals(5L, stored.sizeBytes)
         assertTrue(AppleAudioFileSystem.isRegularFile(stored.filePath))
-        assertFalse(AppleAudioFileSystem.isRegularFile("${stored.filePath}.tmp"))
+        assertFalse(AppleAudioFileSystem.isRegularFile("$directory/track.part"))
     }
 
     @Test
@@ -47,15 +48,15 @@ class AppleAudioStorageTest {
 
         assertFailsWith<IllegalStateException> {
             runBlocking {
-                store.writeAudioBytes("track.flac", "write failed") { writer ->
+                store.writeAudioBytes("track.part", "write failed") { writer ->
                     writer.write(byteArrayOf(1, 2, 3), 3)
-                    false
+                    throw IllegalStateException("validation failed")
                 }
             }
         }
 
         assertFalse(AppleAudioFileSystem.isRegularFile("$directory/track.flac"))
-        assertFalse(AppleAudioFileSystem.isRegularFile("$directory/track.flac.tmp"))
+        assertFalse(AppleAudioFileSystem.isRegularFile("$directory/track.part"))
     }
 
     @Test
@@ -63,9 +64,9 @@ class AppleAudioStorageTest {
         val siblingDirectory = "${directory}-sibling"
         val siblingStore = AppleAudioByteStore(siblingDirectory)
         val siblingFile = runBlocking {
-            siblingStore.writeAudioBytes("keep.mp3", "write failed") { writer ->
+            siblingStore.writeAudioBytes("keep.part", "write failed") { writer ->
                 writer.write(byteArrayOf(1), 1)
-                true
+                "keep.mp3"
             }
         }
         try {
@@ -80,15 +81,15 @@ class AppleAudioStorageTest {
     fun deletionRequiresANaviampOwnedFileNameEvenInsideTheAudioDirectory() = withTestDirectory { directory ->
         val store = AppleAudioByteStore(directory)
         val unrelated = runBlocking {
-            store.writeAudioBytes("personal-recording.flac", "write failed") { writer ->
+            store.writeAudioBytes("personal-recording.part", "write failed") { writer ->
                 writer.write(byteArrayOf(1), 1)
-                true
+                "personal-recording.flac"
             }
         }
         val owned = runBlocking {
-            store.writeAudioBytes("0123456789abcdef0123456789abcdef.flac", "write failed") { writer ->
+            store.writeAudioBytes("0123456789abcdef0123456789abcdef.part", "write failed") { writer ->
                 writer.write(byteArrayOf(2), 1)
-                true
+                "0123456789abcdef0123456789abcdef.flac"
             }
         }
 

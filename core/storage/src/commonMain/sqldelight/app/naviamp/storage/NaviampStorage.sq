@@ -2108,3 +2108,28 @@ VALUES (?, ?, ?, ?, ?);
 
 updateAurralCompanion:
 UPDATE media_source SET aurral_companion = :payload WHERE id = :sourceId OR server_connection_key = :serverConnectionKey;
+
+-- A path that may hold an unfinished or superseded audio file. It is deleted unless a cache or
+-- download row references it, so a crash between file and database steps cannot leak or lose files.
+CREATE TABLE pending_audio_file (
+  file_path TEXT NOT NULL PRIMARY KEY,
+  store_kind TEXT NOT NULL,
+  created_at_epoch_millis INTEGER NOT NULL
+);
+
+insertPendingAudioFile:
+INSERT OR REPLACE INTO pending_audio_file(file_path, store_kind, created_at_epoch_millis)
+VALUES (?, ?, ?);
+
+selectPendingAudioFiles:
+SELECT * FROM pending_audio_file ORDER BY created_at_epoch_millis, file_path;
+
+selectPendingAudioFile:
+SELECT * FROM pending_audio_file WHERE file_path = ?;
+
+deletePendingAudioFile:
+DELETE FROM pending_audio_file WHERE file_path = ?;
+
+audioFileReferenceCount:
+SELECT (SELECT COUNT(*) FROM cached_audio WHERE cached_audio.file_path = :filePath) +
+  (SELECT COUNT(*) FROM downloaded_audio WHERE downloaded_audio.file_path = :filePath);

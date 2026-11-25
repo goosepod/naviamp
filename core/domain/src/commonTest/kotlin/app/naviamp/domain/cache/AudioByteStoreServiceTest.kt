@@ -57,7 +57,7 @@ class AudioByteStoreServiceTest {
     fun writeProviderAudioStreamsProviderBytesThroughStore() = runTest {
         val store = RecordingAudioByteStore()
         val provider = RecordingMediaProvider(downloaded = true)
-        val service = AudioByteStoreService(store, NoopHttpClient)
+        val service = AudioByteStoreService(store, NoopHttpClient, uniqueSuffix = { "0".repeat(32) })
 
         val stored = service.writeProviderAudio(
             sourceId = "source",
@@ -67,19 +67,40 @@ class AudioByteStoreServiceTest {
             provider = provider,
             streamUrl = "https://example.test/stream.flac",
             errorMessage = "failed",
+            recordPendingFile = { store.pendingPaths += it },
         )
 
-        assertEquals("e87fef48031de2bf17c06896156c8212.flac", store.fileName)
+        val stem = "e87fef48031de2bf17c06896156c8212" + "0".repeat(32)
+        assertEquals("$stem.part", store.temporaryFileName)
         assertEquals("https://example.test/stream.flac", provider.downloadedUrl)
         assertEquals("abcdef", store.bytes.decodeToString())
-        assertEquals("/audio/e87fef48031de2bf17c06896156c8212.flac", stored.filePath)
+        // Unrecognized bytes keep the neutral extension and do not claim the requested FLAC type.
+        assertEquals("/audio/$stem.audio", stored.filePath)
+        assertEquals(null, stored.contentType)
         assertEquals(6, stored.sizeBytes)
+        assertEquals(listOf("/audio/$stem.part", "/audio/$stem.audio"), store.pendingPaths)
+    }
+
+    @Test
+    fun everyWriteUsesANewOwnedFileNameSoAReplacementNeverOverwritesTheCurrentCopy() = runTest {
+        val store = RecordingAudioByteStore()
+        val service = AudioByteStoreService(store, NoopHttpClient)
+        suspend fun write() = service.writeProviderAudio("source", TrackId("track"), "original", "audio/flac",
+            RecordingMediaProvider(true), "https://example.test/audio", "failed")
+
+        val first = write().filePath.substringAfterLast('/')
+        val second = write().filePath.substringAfterLast('/')
+
+        assertTrue(first != second)
+        assertTrue(isNaviampOwnedAudioFileName(first))
+        assertTrue(isNaviampOwnedAudioFileName(second))
+        assertTrue(isNaviampOwnedAudioFileName(store.temporaryFileName!!))
     }
 
     @Test
     fun writeProviderAudioDeletesFailedZeroByteWrites() = runTest {
         val store = RecordingAudioByteStore(sizeBytes = 0)
-        val service = AudioByteStoreService(store, NoopHttpClient)
+        val service = AudioByteStoreService(store, NoopHttpClient, uniqueSuffix = { "0".repeat(32) })
 
         assertFailsWith<IllegalStateException> {
             service.writeProviderAudio(
@@ -93,7 +114,7 @@ class AudioByteStoreServiceTest {
             )
         }
 
-        assertEquals(listOf("/audio/e87fef48031de2bf17c06896156c8212.flac"), store.deleted)
+        assertEquals(listOf("/audio/e87fef48031de2bf17c06896156c8212" + "0".repeat(32) + ".audio"), store.deleted)
     }
 
     @Test
@@ -206,9 +227,10 @@ class AudioByteStoreServiceTest {
         for (body in listOf("", "  <!DOCTYPE html><html>Error</html>", "<?xml version=\"1.0\"?><error/>", "{\"error\":1}", "[1]")) {
             var committed = false
             val store = object : AudioByteStore {
-                override suspend fun writeAudioBytes(fileName: String, errorMessage: String,
-                    writeBytes: suspend (AudioByteWriter) -> Boolean): StoredAudioBytes {
-                    check(writeBytes(AudioByteWriter { _, _ -> }))
+                override fun audioFilePath(fileName: String) = "/audio/$fileName"
+                override suspend fun writeAudioBytes(temporaryFileName: String, errorMessage: String,
+                    writeBytes: suspend (AudioByteWriter) -> String): StoredAudioBytes {
+                    val fileName = writeBytes(AudioByteWriter { _, _ -> })
                     committed = true
                     return StoredAudioBytes(fileName, body.length.toLong())
                 }
@@ -233,23 +255,27 @@ class AudioByteStoreServiceTest {
         private val sizeBytes: Long? = null,
         private val writeDelayMillis: Long = 0,
     ) : AudioByteStore {
-        var fileName: String? = null
+        var temporaryFileName: String? = null
         var bytes: ByteArray = byteArrayOf()
         var writeCalls: Int = 0
         val deleted = mutableListOf<String>()
+        val pendingPaths = mutableListOf<String>()
+
+        override fun audioFilePath(fileName: String): String = "/audio/$fileName"
 
         override suspend fun writeAudioBytes(
-            fileName: String,
+            temporaryFileName: String,
             errorMessage: String,
-            writeBytes: suspend (AudioByteWriter) -> Boolean,
+            writeBytes: suspend (AudioByteWriter) -> String,
         ): StoredAudioBytes {
             writeCalls += 1
             if (writeDelayMillis > 0) delay(writeDelayMillis)
-            this.fileName = fileName
+            this.temporaryFileName = temporaryFileName
+            bytes = byteArrayOf()
             val writer = AudioByteWriter { chunk, count ->
                 bytes += chunk.copyOf(count)
             }
-            if (!writeBytes(writer)) throw IllegalStateException(errorMessage)
+            val fileName = writeBytes(writer)
             return StoredAudioBytes("/audio/$fileName", sizeBytes ?: bytes.size.toLong())
         }
 
