@@ -32,6 +32,7 @@ class NaviampTvosApplication(
 ) {
     private var driver: SqlDriver? = null
     private var playbackEngine: CoreBassPlaybackEngine? = null
+    private var networkMetering: AppleNetworkMeteringSource? = null
     private var contentViewController: UIViewController? = null
     private val controller = naviampRecoverableStoredHostController(
         open = { scope, onFailure ->
@@ -40,6 +41,7 @@ class NaviampTvosApplication(
             val recovery = StorageRecoveryState(document, protector, lock, files = AppleRecoveryFiles("$cacheDirectory/certificates"))
             val nativeDriver = NativeStorageDriverFactory(StorageDatabaseLocation(cacheDirectory)).createDriver().also { driver = it }
             val engine = createTvosBassPlaybackEngine().also { playbackEngine = it }
+            val metering = AppleNetworkMeteringSource().also { networkMetering = it }
             // Native media registration must succeed before the common host publishes this app.
             val facts = PlatformCapabilities().withStatus(PlatformCapability.SecureCredentialStorage, PlatformCapabilityStatus.Available)
                 .withStatus(PlatformCapability.InsecureServerVerification, PlatformCapabilityStatus.Available)
@@ -59,11 +61,13 @@ class NaviampTvosApplication(
                 providerDeviceId = "naviamp-tvos", providerDeviceName = "tvOS", settingsSyncDeviceId = "tvos",
                 downloadLocations = emptyList(), audioCacheLocations = emptyList(),
                 selectedDownloadLocationId = null, selectedAudioCacheLocationId = null,
+                networkMetering = metering,
                 onAsyncFailure = { _, cause -> onFailure(cause) },
             )
         },
         closeNative = {
             playbackEngine?.release(); playbackEngine = null
+            networkMetering?.close(); networkMetering = null
             driver?.close(); driver = null
         },
         erase = { resetStorageRecovery(document, secretBox, lock) },

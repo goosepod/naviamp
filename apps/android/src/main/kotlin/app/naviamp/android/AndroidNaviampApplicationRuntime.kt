@@ -5,6 +5,8 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
 import app.naviamp.android.playback.AndroidAudioWaveformAnalyzer
+import app.naviamp.domain.network.NetworkMetering
+import app.naviamp.domain.network.NetworkMeteringSource
 import app.naviamp.android.playback.AndroidBassAudioBackend
 import app.naviamp.android.playback.AndroidBassJni
 import app.naviamp.android.playback.AndroidFocusedBassPlaybackEngine
@@ -38,6 +40,7 @@ class AndroidNaviampApplicationRuntime private constructor(context: Context) {
         directoryPicker = AndroidCoreUriPickerRegistry.pickers.directory,
         documentPicker = AndroidCoreUriPickerRegistry.pickers.document,
         isMobileData = ::isMobileData,
+        networkMetering = NetworkMeteringSource(::networkMetering),
         prepareWaveformAnalysis = { bass.init().getOrThrow() },
         waveformWorkContext = Dispatchers.IO,
     )
@@ -57,6 +60,19 @@ class AndroidNaviampApplicationRuntime private constructor(context: Context) {
         val connectivity = appContext.getSystemService(ConnectivityManager::class.java)
         val capabilities = connectivity.getNetworkCapabilities(connectivity.activeNetwork) ?: return false
         return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+    }
+
+    /** Translates the ConnectivityManager billing capability of the active network for Core. */
+    private fun networkMetering(): NetworkMetering {
+        val connectivity = appContext.getSystemService(ConnectivityManager::class.java)
+            ?: return NetworkMetering.Unknown
+        val capabilities = connectivity.getNetworkCapabilities(connectivity.activeNetwork)
+            ?: return NetworkMetering.Unknown
+        return if (capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)) {
+            NetworkMetering.Unmetered
+        } else {
+            NetworkMetering.Metered
+        }
     }
 
     /** Android's HTTP proxy is an OS network boundary; BASS requires the same endpoint explicitly. */

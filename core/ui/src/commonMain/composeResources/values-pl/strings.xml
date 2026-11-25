@@ -303,6 +303,10 @@
     <string name="smart_playlist_field_category_identifiers">Identyfikatory</string>
     <string name="smart_playlist_field_category_other">Inne</string>
     <string name="smart_playlist_field_no_matches">Brak pasujących pól</string>
+    <string name="playlists_duplicate_smart">Duplikuj inteligentną playlistę</string>
+    <string name="smart_playlist_duplicate_name">%1$s kopia</string>
+    <string name="smart_playlist_duplicate_name_numbered">%1$s kopia %2$d</string>
+    <string name="smart_playlist_duplicate_password">Wpisz hasło do Navidrome, aby zduplikować tę inteligentną playlistę.</string>
     <string name="smart_playlist_inspection_read_only">Ta playlista używa reguł lub ustawień, których ten edytor nie może bezpiecznie zmienić. Oryginalna definicja jest wyświetlana tylko do wglądu.</string>
     <string name="smart_playlist_inspection_missing">Serwer nie udostępnił reguł tej playlisty.</string>
     <string name="smart_playlist_inspection_permission">Nie masz uprawnień do przeglądania reguł tej playlisty.</string>
@@ -672,4 +676,8 @@
     <string name="settings_sleep_timer_fade_subtitle">Stopniowo ścisza dźwięk, zanim wyłącznik czasowy wstrzyma odtwarzanie.</string>
     <string name="settings_sleep_timer_fade_off_subtitle">Zatrzymaj odtwarzanie po upływie czasu.</string>
     <string name="settings_minutes_short">%1$d min</string>
+    <string name="settings_audio_cache_prefetch_unmetered_title">Wstępne pobieranie przez Wi-Fi/Ethernet</string>
+    <string name="settings_audio_cache_prefetch_unmetered_subtitle">Liczba utworów z kolejki odtwarzania zapisywanych z wyprzedzeniem w pamięci podręcznej przez Wi-Fi lub Ethernet.</string>
+    <string name="settings_audio_cache_prefetch_metered_title">Wstępne pobieranie przez dane komórkowe</string>
+    <string name="settings_audio_cache_prefetch_metered_subtitle">Liczba utworów zapisywanych z wyprzedzeniem przez dane komórkowe i inne sieci taryfowe albo gdy typ sieci jest nieznany.</string>
 </resources>

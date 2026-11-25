@@ -2225,6 +2225,28 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun duplicatingAnInspectedSmartPlaylistCreatesTheSameRulesWithoutWritingTheSource() = runTest {
+        val rules = """{"all":[{"is":{"library_id":2}},{"any":[{"is":{"loved":true}},{"contains":{"genre":"Jazz"}}]}],"sort":"-rating,title","limitPercent":40,"refreshDelay":"2h"}"""
+        val http = RecordingNativeHttpClient(
+            """{"data":{"id":"smart-1","name":"Evening","comment":"Calm","public":true,"rules":$rules}}""",
+        )
+        val provider = NavidromeProvider(connection("https://music.example.test", nativeToken = "token"), http)
+
+        val source = kotlin.test.assertIs<app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult.Editable>(
+            provider.inspectSmartPlaylist("smart-1")).definition
+        provider.createSmartPlaylist(source.copy(name = "Evening copy"))
+
+        assertTrue(http.putUrls.isEmpty())
+        assertEquals("https://music.example.test/api/playlist", http.postUrls.single())
+        assertEquals(
+            kotlinx.serialization.json.Json.parseToJsonElement(
+                """{"name":"Evening copy","comment":"Calm","public":true,"rules":$rules}""",
+            ),
+            kotlinx.serialization.json.Json.parseToJsonElement(http.postBodies.single()),
+        )
+    }
+
+    @Test
     fun smartPlaylistDefinitionUsesNavidromeNativePlaylistApi() = runTest {
         val httpClient = RecordingNativeHttpClient(
             """

@@ -28,6 +28,7 @@ import app.naviamp.domain.settings.VisualizerSettings
 import app.naviamp.domain.waveform.AudioWaveformAnalyzer
 import app.naviamp.domain.waveform.AudioWaveformService
 import app.naviamp.ui.NaviampVisualizer
+import app.naviamp.domain.network.NetworkMeteringSource
 import kotlinx.coroutines.CoroutineScope
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
@@ -46,6 +47,7 @@ fun naviampCorePlaybackServiceCatalog(
     persistPlaybackSettings: (PlaybackSettings) -> Unit,
     cacheSettings: () -> CacheSettings,
     isMobileData: () -> Boolean = { false },
+    networkMetering: NetworkMeteringSource? = null,
     activeSourceId: () -> String?,
     verifyProviderNetworkCertificates: () -> Boolean = { true },
     audioAssets: PlaybackAudioAssetRepository,
@@ -91,6 +93,7 @@ fun naviampCorePlaybackServiceCatalog(
         providerSource = providerSource,
         settings = settings::current,
         isMobileData = isMobileData,
+        networkMetering = networkMetering,
         activeSourceId = activeSourceId,
         verifyProviderNetworkCertificates = verifyProviderNetworkCertificates,
         cacheSettings = cacheSettings,

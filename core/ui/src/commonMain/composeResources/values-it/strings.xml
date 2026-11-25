@@ -198,6 +198,10 @@
     <string name="smart_playlist_field_category_identifiers">Identificatori</string>
     <string name="smart_playlist_field_category_other">Altro</string>
     <string name="smart_playlist_field_no_matches">Nessun campo corrispondente</string>
+    <string name="playlists_duplicate_smart">Duplica playlist intelligente</string>
+    <string name="smart_playlist_duplicate_name">%1$s copia</string>
+    <string name="smart_playlist_duplicate_name_numbered">%1$s copia %2$d</string>
+    <string name="smart_playlist_duplicate_password">Inserisci la password di Navidrome per duplicare questa playlist intelligente.</string>
     <string name="smart_playlist_inspection_read_only">Questa playlist usa regole o impostazioni che questo editor non può modificare in modo sicuro. La definizione originale viene mostrata solo per consultazione.</string>
     <string name="smart_playlist_inspection_missing">Il server non ha fornito le regole di questa playlist.</string>
     <string name="smart_playlist_inspection_permission">Non hai il permesso di vedere le regole di questa playlist.</string>
@@ -575,4 +579,8 @@
     <string name="settings_sleep_timer_fade_subtitle">Abbassa gradualmente il volume prima che il timer di spegnimento metta in pausa la riproduzione.</string>
     <string name="settings_sleep_timer_fade_off_subtitle">Interrompi la riproduzione allo scadere del timer.</string>
     <string name="settings_minutes_short">%1$d min</string>
+    <string name="settings_audio_cache_prefetch_unmetered_title">Precaricamento su Wi-Fi/Ethernet</string>
+    <string name="settings_audio_cache_prefetch_unmetered_subtitle">Brani da memorizzare in anticipo nella coda di riproduzione su Wi-Fi o Ethernet.</string>
+    <string name="settings_audio_cache_prefetch_metered_title">Precaricamento su dati mobili</string>
+    <string name="settings_audio_cache_prefetch_metered_subtitle">Brani da memorizzare in anticipo con i dati mobili e altre reti a consumo, o quando il tipo di rete è sconosciuto.</string>
 </resources>

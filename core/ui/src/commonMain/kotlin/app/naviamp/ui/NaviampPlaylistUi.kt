@@ -25,7 +25,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,9 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult
-import app.naviamp.domain.smartplaylist.SmartPlaylistDraft
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
-import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -110,45 +107,13 @@ private fun PlaylistsContent(
     var playlistToRename by remember { mutableStateOf<SharedMediaItemUi?>(null) }
     var playlistToDelete by remember { mutableStateOf<SharedMediaItemUi?>(null) }
     var playlistToAddToPlaylist by remember { mutableStateOf<SharedMediaItemUi?>(null) }
-    var smartPlaylistBuilderOpen by remember { mutableStateOf(false) }
-    var smartPlaylistEditTarget by remember { mutableStateOf<SharedMediaItemUi?>(null) }
-    var smartPlaylistInspection by remember { mutableStateOf<SmartPlaylistEditingResult?>(null) }
-    var smartPlaylistInitialDraft by remember { mutableStateOf(SmartPlaylistDraft()) }
-    val unsupportedImportMessage = stringResource(Res.string.smart_playlist_unsupported_import)
-    var smartPlaylistLoadMessage by remember { mutableStateOf<String?>(null) }
-    var smartPlaylistPasswordTarget by remember { mutableStateOf<SharedMediaItemUi?>(null) }
-    val coroutineScope = rememberCoroutineScope()
+    val smartPlaylistEditor = rememberSmartPlaylistEditorLauncher(onSmartPlaylistLoad, playlists.map { it.title })
     val handlePlaylistAction: (NaviampMediaItemActionRequest) -> Unit = { request ->
-        when (request.command) {
-            is NaviampMediaItemCommand.Playlist -> when (request.command.command) {
-                NaviampPlaylistMediaCommand.EditSmartPlaylist -> {
-                    val playlist = request.item
-                    coroutineScope.launch {
-                        runCatching { onSmartPlaylistLoad(playlist) }
-                            .onSuccess { editing ->
-                                if (editing !is SmartPlaylistEditingResult.Editable) {
-                                    smartPlaylistInspection = editing
-                                    smartPlaylistLoadMessage = null
-                                    return@onSuccess
-                                }
-                                smartPlaylistInitialDraft = SmartPlaylistDraft.fromDefinition(editing.definition)
-                                smartPlaylistEditTarget = playlist
-                                smartPlaylistBuilderOpen = true
-                                smartPlaylistLoadMessage = null
-                            }
-                            .onFailure { error ->
-                                if (error.requiresSmartPlaylistPassword()) {
-                                    smartPlaylistPasswordTarget = playlist
-                                    smartPlaylistLoadMessage = "Enter your Navidrome password to edit this smart playlist."
-                                } else {
-                                    smartPlaylistLoadMessage = if (error is IllegalArgumentException) unsupportedImportMessage else error.message.orEmpty()
-                                }
-                        }
-                    }
-                }
-                else -> onPlaylistAction(request)
-            }
-            else -> onPlaylistAction(request)
+        val command = (request.command as? NaviampMediaItemCommand.Playlist)?.command
+        if (command == NaviampPlaylistMediaCommand.EditSmartPlaylist) {
+            smartPlaylistEditor.request(request.item, SmartPlaylistEditorMode.Edit)
+        } else {
+            onPlaylistAction(request)
         }
     }
     val sortedPlaylists = playlists.sortedForPlaylistScreen(sortMode, recentPlaylistIds)
@@ -165,7 +130,7 @@ private fun PlaylistsContent(
             NaviampPageTitle(stringResource(Res.string.playlists_title), colors)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 IconButton(
-                    onClick = { smartPlaylistBuilderOpen = true },
+                    onClick = smartPlaylistEditor::create,
                     modifier = Modifier.size(44.dp),
                 ) {
                     Icon(
@@ -201,13 +166,7 @@ private fun PlaylistsContent(
             status?.let {
                 Text(it, color = colors.secondaryText, fontSize = 12.sp)
             }
-            smartPlaylistLoadMessage?.let { message ->
-                Text(
-                    message.ifBlank { stringResource(Res.string.playlists_load_smart_failed) },
-                    color = colors.secondaryText,
-                    fontSize = 12.sp,
-                )
-            }
+            SmartPlaylistEditorLoadFailureText(smartPlaylistEditor.failure, colors)
             sortedPlaylists.forEach { playlist ->
                 PlaylistListRow(
                     playlist = playlist,
@@ -217,6 +176,7 @@ private fun PlaylistsContent(
                     onRename = { playlistToRename = playlist },
                     onDelete = { playlistToDelete = playlist },
                     onAddToPlaylist = { playlistToAddToPlaylist = playlist },
+                    onDuplicateSmartPlaylist = { smartPlaylistEditor.request(playlist, SmartPlaylistEditorMode.Duplicate) },
                 )
             }
         }
@@ -269,77 +229,24 @@ private fun PlaylistsContent(
             },
         )
     }
-    if (smartPlaylistBuilderOpen) {
-        val editTarget = smartPlaylistEditTarget
-        SmartPlaylistBuilderDialog(
-            colors = colors,
-            initialDraft = smartPlaylistInitialDraft,
-            currentPlaylistId = editTarget?.id,
-            title = if (editTarget == null) {
-                stringResource(Res.string.playlists_smart)
-            } else {
-                stringResource(Res.string.playlists_edit_smart)
-            },
-            saveLabel = if (editTarget == null) {
-                stringResource(Res.string.common_save)
-            } else {
-                stringResource(Res.string.playlists_update)
-            },
-            availableLibraries = availableLibraries,
-            selectedConnectionLibraryIds = selectedConnectionLibraryIds,
-            genreCatalog = genreCatalog,
-            onReferences = onSmartPlaylistReferences,
-            onPreview = onSmartPlaylistPreview,
-            onSyncLibrary = onSmartPlaylistSyncLibrary,
-            onDismissRequest = {
-                smartPlaylistBuilderOpen = false
-                smartPlaylistEditTarget = null
-                smartPlaylistInitialDraft = SmartPlaylistDraft()
-            },
-            onSave = { definition ->
-                if (editTarget == null) {
-                    onSmartPlaylistSave(definition)
-                } else {
-                    onSmartPlaylistUpdate(editTarget, definition)
-                }
-                smartPlaylistBuilderOpen = false
-                smartPlaylistEditTarget = null
-                smartPlaylistInitialDraft = SmartPlaylistDraft()
-            },
-            onSaveWithPassword = { definition, password ->
-                if (editTarget == null) {
-                    onSmartPlaylistSaveWithPassword(definition, password)
-                } else {
-                    onSmartPlaylistUpdateWithPassword(editTarget, definition, password)
-                }
-                smartPlaylistBuilderOpen = false
-                smartPlaylistEditTarget = null
-                smartPlaylistInitialDraft = SmartPlaylistDraft()
-            },
-        )
-    }
-    smartPlaylistInspection?.let { editing ->
-        SmartPlaylistInspectionDialog(editing, colors) { smartPlaylistInspection = null }
-    }
-    smartPlaylistPasswordTarget?.let { playlist ->
-        SmartPlaylistLoadPasswordDialog(
-            playlist = playlist,
-            colors = colors,
-            onDismissRequest = { smartPlaylistPasswordTarget = null },
-            onInspectWithPassword = onSmartPlaylistLoadWithPassword,
-            onReadOnly = { editing ->
-                smartPlaylistInspection = editing
-                smartPlaylistPasswordTarget = null
-            },
-            onLoaded = { definition ->
-                smartPlaylistPasswordTarget = null
-                smartPlaylistInitialDraft = SmartPlaylistDraft.fromDefinition(definition)
-                smartPlaylistEditTarget = playlist
-                smartPlaylistBuilderOpen = true
-                smartPlaylistLoadMessage = null
-            },
-        )
-    }
+    SmartPlaylistEditorHost(
+        launcher = smartPlaylistEditor,
+        colors = colors,
+        availableLibraries = availableLibraries,
+        selectedConnectionLibraryIds = selectedConnectionLibraryIds,
+        genreCatalog = genreCatalog,
+        onReferences = onSmartPlaylistReferences,
+        onPreview = onSmartPlaylistPreview,
+        onSyncLibrary = onSmartPlaylistSyncLibrary,
+        onInspectWithPassword = onSmartPlaylistLoadWithPassword,
+        onCreate = { definition, password ->
+            if (password == null) onSmartPlaylistSave(definition) else onSmartPlaylistSaveWithPassword(definition, password)
+        },
+        onUpdate = { playlist, definition, password ->
+            if (password == null) onSmartPlaylistUpdate(playlist, definition)
+            else onSmartPlaylistUpdateWithPassword(playlist, definition, password)
+        },
+    )
 }
 
 internal fun List<SharedMediaItemUi>.sortedForPlaylistScreen(
@@ -392,7 +299,9 @@ private fun PlaylistListRow(
     onRename: () -> Unit,
     onDelete: () -> Unit,
     onAddToPlaylist: () -> Unit,
+    onDuplicateSmartPlaylist: () -> Unit,
 ) {
+    val duplicateSmartPlaylistLabel = stringResource(Res.string.playlists_duplicate_smart)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -475,6 +384,8 @@ private fun PlaylistListRow(
                 canAddToPlaylist = capabilities.canAddToPlaylist,
                 canRename = capabilities.canRename && playlist.canEditPlaylist,
                 canEditSmartPlaylist = capabilities.canEditSmartPlaylist && playlist.isSmartPlaylist && playlist.canManagePlaylist,
+                canDuplicateSmartPlaylist = capabilities.canEditSmartPlaylist && playlist.isSmartPlaylist,
+                duplicateSmartPlaylistLabel = duplicateSmartPlaylistLabel,
                 canDelete = capabilities.canDelete && playlist.canManagePlaylist,
             ).mapNotNull { action ->
                 when (action.action) {
@@ -513,6 +424,8 @@ private fun PlaylistListRow(
                         },
                         action.enabled,
                     )
+                    NaviampAction.DuplicateSmartPlaylist ->
+                        NaviampRowMenuItem(action.label, action.icon, onDuplicateSmartPlaylist, action.enabled)
                     NaviampAction.DeletePlaylist -> NaviampRowMenuItem(action.label, action.icon, onDelete, action.enabled)
                     else -> null
                 }
@@ -646,6 +559,8 @@ fun NaviampPlaylistDetailContent(
         onSmartPlaylistReferences = playlistsActions.smartPlaylist.onReferences,
         onSmartPlaylistPreview = playlistsActions.smartPlaylist.onPreview,
         onSmartPlaylistSyncLibrary = playlistsActions.smartPlaylist.onSyncLibrary,
+        onSmartPlaylistSave = playlistsActions.smartPlaylist.onSave,
+        onSmartPlaylistSaveWithPassword = playlistsActions.smartPlaylist.onSaveWithPassword,
         onSmartPlaylistUpdate = playlistsActions.smartPlaylist.onUpdate,
         onSmartPlaylistUpdateWithPassword = playlistsActions.smartPlaylist.onUpdateWithPassword,
         onSmartPlaylistLoad = playlistsActions.smartPlaylist.onInspect,
@@ -683,6 +598,8 @@ private fun PlaylistDetailContent(
     onSmartPlaylistSyncLibrary: NaviampSmartPlaylistSync?,
     onSmartPlaylistReferences: suspend () -> List<app.naviamp.domain.smartplaylist.SmartPlaylistReference> = { emptyList() },
     onSmartPlaylistPreview: suspend (SmartPlaylistDefinition) -> app.naviamp.domain.smartplaylist.SmartPlaylistPreview,
+    onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
+    onSmartPlaylistSaveWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit,
     onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistUpdateWithPassword: suspend (SharedMediaItemUi, SmartPlaylistDefinition, String) -> Unit,
     onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistEditingResult,
@@ -700,43 +617,18 @@ private fun PlaylistDetailContent(
     var deleteOpen by remember { mutableStateOf(false) }
     var addToPlaylistOpen by remember { mutableStateOf(false) }
     var bulkToolsOpen by remember { mutableStateOf(false) }
-    var smartPlaylistEditorOpen by remember { mutableStateOf(false) }
-    var smartPlaylistInspection by remember { mutableStateOf<SmartPlaylistEditingResult?>(null) }
-    var smartPlaylistInitialDraft by remember { mutableStateOf(SmartPlaylistDraft()) }
-    val unsupportedImportMessage = stringResource(Res.string.smart_playlist_unsupported_import)
-    var smartPlaylistLoadMessage by remember { mutableStateOf<String?>(null) }
-    var smartPlaylistLoading by remember { mutableStateOf(false) }
-    var smartPlaylistPasswordPromptOpen by remember { mutableStateOf(false) }
     var playbackProfileOpen by remember(detail.playlist.id) { mutableStateOf(false) }
     var detailViewportBounds by remember { mutableStateOf(Rect.Zero) }
-    val coroutineScope = rememberCoroutineScope()
     val editSmartPlaylistLabel = stringResource(Res.string.playlists_edit_smart)
+    val smartPlaylistEditor = rememberSmartPlaylistEditorLauncher(
+        onSmartPlaylistLoad,
+        playlistChoices.map { it.name } + detail.playlist.title,
+    )
+    val smartPlaylistLoading = smartPlaylistEditor.loading
     val requestSmartPlaylistEdit: () -> Unit = {
-        if (!smartPlaylistLoading) {
-            smartPlaylistLoading = true
-            smartPlaylistLoadMessage = null
-            coroutineScope.launch {
-                runCatching { onSmartPlaylistLoad(detail.playlist) }
-                    .onSuccess { editing ->
-                        if (editing !is SmartPlaylistEditingResult.Editable) {
-                            smartPlaylistInspection = editing
-                            return@onSuccess
-                        }
-                        smartPlaylistInitialDraft = SmartPlaylistDraft.fromDefinition(editing.definition)
-                        smartPlaylistEditorOpen = true
-                    }
-                    .onFailure { error ->
-                        if (error.requiresSmartPlaylistPassword()) {
-                            smartPlaylistPasswordPromptOpen = true
-                            smartPlaylistLoadMessage = "Enter your Navidrome password to edit this smart playlist."
-                        } else {
-                            smartPlaylistLoadMessage = if (error is IllegalArgumentException) unsupportedImportMessage else error.message.orEmpty()
-                        }
-                    }
-                smartPlaylistLoading = false
-            }
-        }
+        smartPlaylistEditor.request(detail.playlist, SmartPlaylistEditorMode.Edit)
     }
+    val duplicateSmartPlaylistLabel = stringResource(Res.string.playlists_duplicate_smart)
 
     Column(
         modifier = Modifier
@@ -822,6 +714,16 @@ private fun PlaylistDetailContent(
                         } else if (detail.playlist.canEditPlaylist) {
                             add(NaviampDetailAction(stringResource(Res.string.playlists_rename_title), NaviampIcons.Edit, { renameOpen = true }))
                         }
+                        if (detail.playlist.isSmartPlaylist) {
+                            add(
+                                NaviampDetailAction(
+                                    duplicateSmartPlaylistLabel,
+                                    NaviampIcons.Duplicate,
+                                    { smartPlaylistEditor.request(detail.playlist, SmartPlaylistEditorMode.Duplicate) },
+                                    enabled = !smartPlaylistLoading,
+                                ),
+                            )
+                        }
                         add(NaviampDetailAction(stringResource(Res.string.playlists_add_to_queue), NaviampIcons.Queue, onAddPlaylistToQueue, detail.tracks.isNotEmpty()))
                         add(NaviampDetailAction(stringResource(Res.string.playlists_download), NaviampIcons.Downloads, onDownloadPlaylist, detail.tracks.isNotEmpty()))
                         add(NaviampDetailAction("Playback profile", NaviampIcons.Settings, { playbackProfileOpen = true }, detail.tracks.isNotEmpty()))
@@ -832,13 +734,7 @@ private fun PlaylistDetailContent(
                         if (detail.playlist.canManagePlaylist) add(NaviampDetailAction(stringResource(Res.string.playlists_delete_title), NaviampIcons.Trash, { deleteOpen = true }))
                     },
                 )
-                smartPlaylistLoadMessage?.let { message ->
-                    Text(
-                        message.ifBlank { stringResource(Res.string.playlists_load_smart_failed) },
-                        color = colors.secondaryText,
-                        fontSize = 12.sp,
-                    )
-                }
+                SmartPlaylistEditorLoadFailureText(smartPlaylistEditor.failure, colors)
                 playbackProfileStatus?.let { message ->
                     Text(message, color = colors.secondaryText, fontSize = 11.sp)
                 }
@@ -940,56 +836,24 @@ private fun PlaylistDetailContent(
             },
         )
     }
-    if (smartPlaylistEditorOpen) {
-        SmartPlaylistBuilderDialog(
-            colors = colors,
-            initialDraft = smartPlaylistInitialDraft,
-            currentPlaylistId = detail.playlist.id,
-            title = stringResource(Res.string.playlists_edit_smart),
-            saveLabel = stringResource(Res.string.playlists_update),
-            availableLibraries = availableLibraries,
-            selectedConnectionLibraryIds = selectedConnectionLibraryIds,
-            genreCatalog = genreCatalog,
-            onReferences = onSmartPlaylistReferences,
-            onPreview = onSmartPlaylistPreview,
-            onSyncLibrary = onSmartPlaylistSyncLibrary,
-            onDismissRequest = {
-                smartPlaylistEditorOpen = false
-                smartPlaylistInitialDraft = SmartPlaylistDraft()
-            },
-            onSave = { definition ->
-                onSmartPlaylistUpdate(detail.playlist, definition)
-                smartPlaylistEditorOpen = false
-                smartPlaylistInitialDraft = SmartPlaylistDraft()
-            },
-            onSaveWithPassword = { definition, password ->
-                onSmartPlaylistUpdateWithPassword(detail.playlist, definition, password)
-                smartPlaylistEditorOpen = false
-                smartPlaylistInitialDraft = SmartPlaylistDraft()
-            },
-        )
-    }
-    smartPlaylistInspection?.let { editing ->
-        SmartPlaylistInspectionDialog(editing, colors) { smartPlaylistInspection = null }
-    }
-    if (smartPlaylistPasswordPromptOpen) {
-        SmartPlaylistLoadPasswordDialog(
-            playlist = detail.playlist,
-            colors = colors,
-            onDismissRequest = { smartPlaylistPasswordPromptOpen = false },
-            onInspectWithPassword = onSmartPlaylistLoadWithPassword,
-            onReadOnly = { editing ->
-                smartPlaylistInspection = editing
-                smartPlaylistPasswordPromptOpen = false
-            },
-            onLoaded = { definition ->
-                smartPlaylistPasswordPromptOpen = false
-                smartPlaylistInitialDraft = SmartPlaylistDraft.fromDefinition(definition)
-                smartPlaylistEditorOpen = true
-                smartPlaylistLoadMessage = null
-            },
-        )
-    }
+    SmartPlaylistEditorHost(
+        launcher = smartPlaylistEditor,
+        colors = colors,
+        availableLibraries = availableLibraries,
+        selectedConnectionLibraryIds = selectedConnectionLibraryIds,
+        genreCatalog = genreCatalog,
+        onReferences = onSmartPlaylistReferences,
+        onPreview = onSmartPlaylistPreview,
+        onSyncLibrary = onSmartPlaylistSyncLibrary,
+        onInspectWithPassword = onSmartPlaylistLoadWithPassword,
+        onCreate = { definition, password ->
+            if (password == null) onSmartPlaylistSave(definition) else onSmartPlaylistSaveWithPassword(definition, password)
+        },
+        onUpdate = { playlist, definition, password ->
+            if (password == null) onSmartPlaylistUpdate(playlist, definition)
+            else onSmartPlaylistUpdateWithPassword(playlist, definition, password)
+        },
+    )
     if (playbackProfileOpen) {
         PlaybackProfileDialog(
             title = "${detail.playlist.title} playback profile",

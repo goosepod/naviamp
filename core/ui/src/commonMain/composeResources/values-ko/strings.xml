@@ -198,6 +198,10 @@
     <string name="smart_playlist_field_category_identifiers">식별자</string>
     <string name="smart_playlist_field_category_other">기타</string>
     <string name="smart_playlist_field_no_matches">일치하는 필드가 없습니다</string>
+    <string name="playlists_duplicate_smart">스마트 재생목록 복제</string>
+    <string name="smart_playlist_duplicate_name">%1$s 사본</string>
+    <string name="smart_playlist_duplicate_name_numbered">%1$s 사본 %2$d</string>
+    <string name="smart_playlist_duplicate_password">이 스마트 재생목록을 복제하려면 Navidrome 비밀번호를 입력하세요.</string>
     <string name="smart_playlist_inspection_read_only">이 재생목록에는 이 편집기에서 안전하게 변경할 수 없는 규칙이나 설정이 있습니다. 원래 정의는 확인용으로만 표시됩니다.</string>
     <string name="smart_playlist_inspection_missing">서버가 이 재생목록의 규칙을 제공하지 않았습니다.</string>
     <string name="smart_playlist_inspection_permission">이 재생목록의 규칙을 볼 권한이 없습니다.</string>
@@ -575,4 +579,8 @@
     <string name="settings_sleep_timer_fade_subtitle">취침 타이머가 재생을 일시 정지하기 전에 볼륨을 서서히 줄입니다.</string>
     <string name="settings_sleep_timer_fade_off_subtitle">타이머가 끝나면 재생을 중지합니다.</string>
     <string name="settings_minutes_short">%1$d분</string>
+    <string name="settings_audio_cache_prefetch_unmetered_title">Wi-Fi/이더넷에서 미리 가져오기</string>
+    <string name="settings_audio_cache_prefetch_unmetered_subtitle">Wi-Fi 또는 이더넷에서 재생 대기열의 트랙을 미리 캐시할 개수입니다.</string>
+    <string name="settings_audio_cache_prefetch_metered_title">모바일 데이터에서 미리 가져오기</string>
+    <string name="settings_audio_cache_prefetch_metered_subtitle">모바일 데이터 및 기타 데이터 제한 네트워크에서, 또는 네트워크 유형을 알 수 없을 때 미리 캐시할 트랙 수입니다.</string>
 </resources>
