@@ -1359,4 +1359,10 @@
     <string name="settings_sleep_timer_fade_subtitle">Lower the volume gradually before a timed sleep timer pauses playback.</string>
     <string name="settings_sleep_timer_fade_off_subtitle">Stop playback when the timer ends.</string>
     <string name="settings_minutes_short">%1$d min</string>
+    <string name="queue_undo_action">Undo</string>
+    <string name="queue_undo_action_description">Undo: %1$s</string>
+    <string name="queue_undo_removed_track">Removed %1$s from the queue.</string>
+    <string name="queue_undo_cleared">Cleared the queue.</string>
+    <string name="queue_undo_replaced_upcoming">Replaced the upcoming tracks.</string>
+    <string name="queue_undo_replaced_resumes">Replaced the queue. Undo returns to %1$s.</string>
 </resources>
