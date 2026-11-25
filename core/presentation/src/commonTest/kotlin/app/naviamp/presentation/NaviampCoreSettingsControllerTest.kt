@@ -1,6 +1,7 @@
 package app.naviamp.presentation
 
 import app.naviamp.domain.settings.CacheSettings
+import app.naviamp.domain.settings.DefaultAudioPrefetchDepth
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.AlbumArtworkPreference
 import app.naviamp.domain.settings.albumArtworkPreference
@@ -37,6 +38,21 @@ class NaviampCoreSettingsControllerTest {
         assertEquals(AlbumArtworkPreference.Inherit,
             fixture.savedInterface.last().albumArtworkPreference("source-a", "edition-1"))
         assertTrue(fixture.savedInterface.last().albumArtworkOverrides.isEmpty())
+    }
+
+    @Test
+    fun onlyPortablePrefetchDepthChangesMarkCacheSettingsForSync() {
+        val fixture = fixture()
+
+        fixture.controller.dispatch(NaviampCoreCommand.Settings.ChangeCache(CacheSettings(maxAudioCacheBytes = 1L shl 31)))
+        assertEquals(0, fixture.localChanges.size, "Storage budgets are device-local")
+        fixture.controller.dispatch(NaviampCoreCommand.Settings.ChangeCache(
+            fixture.store.state.value.shell.cache.settings.copy(meteredAudioPrefetchDepth = 0),
+        ))
+
+        assertEquals(1, fixture.localChanges.size)
+        assertEquals(0, fixture.store.state.value.shell.cache.settings.meteredAudioPrefetchDepth)
+        assertEquals(DefaultAudioPrefetchDepth, fixture.savedCache.last().unmeteredAudioPrefetchDepth)
     }
 
     @Test
@@ -220,7 +236,9 @@ class NaviampCoreSettingsControllerTest {
         val savedPlayback = mutableListOf<PlaybackSettings>()
         val savedCache = mutableListOf<CacheSettings>()
         val playbackChanges = mutableListOf<Pair<PlaybackSettings, PlaybackSettings>>()
+        val localChanges = mutableListOf<Unit>()
         return SettingsFixture(
+            localChanges = localChanges,
             store = store,
             savedInterface = savedInterface,
             savedPlayback = savedPlayback,
@@ -238,6 +256,7 @@ class NaviampCoreSettingsControllerTest {
                 maintenancePort = NaviampCoreMaintenancePort(maintenance),
                 refreshLibrary = refreshLibrary,
                 onDatabaseReset = onDatabaseReset,
+                onLocalSettingsChanged = { localChanges += Unit },
                 onPlaybackSettingsChanged = { previous, current ->
                     playbackChanges += previous to current
                 },
@@ -253,4 +272,5 @@ private data class SettingsFixture(
     val savedCache: List<CacheSettings>,
     val playbackChanges: List<Pair<PlaybackSettings, PlaybackSettings>>,
     val controller: NaviampCoreSettingsController,
+    val localChanges: List<Unit>,
 )

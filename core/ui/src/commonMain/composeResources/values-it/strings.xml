@@ -579,4 +579,8 @@
     <string name="settings_sleep_timer_fade_subtitle">Abbassa gradualmente il volume prima che il timer di spegnimento metta in pausa la riproduzione.</string>
     <string name="settings_sleep_timer_fade_off_subtitle">Interrompi la riproduzione allo scadere del timer.</string>
     <string name="settings_minutes_short">%1$d min</string>
+    <string name="settings_audio_cache_prefetch_unmetered_title">Precaricamento su Wi-Fi/Ethernet</string>
+    <string name="settings_audio_cache_prefetch_unmetered_subtitle">Brani da memorizzare in anticipo nella coda di riproduzione su Wi-Fi o Ethernet.</string>
+    <string name="settings_audio_cache_prefetch_metered_title">Precaricamento su dati mobili</string>
+    <string name="settings_audio_cache_prefetch_metered_subtitle">Brani da memorizzare in anticipo con i dati mobili e altre reti a consumo, o quando il tipo di rete è sconosciuto.</string>
 </resources>

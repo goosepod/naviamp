@@ -579,4 +579,8 @@
     <string name="settings_sleep_timer_fade_subtitle">在睡眠定时器暂停播放前逐渐降低音量。</string>
     <string name="settings_sleep_timer_fade_off_subtitle">定时器结束时停止播放。</string>
     <string name="settings_minutes_short">%1$d 分钟</string>
+    <string name="settings_audio_cache_prefetch_unmetered_title">Wi-Fi/以太网下预取</string>
+    <string name="settings_audio_cache_prefetch_unmetered_subtitle">使用 Wi-Fi 或以太网时，提前缓存播放队列中的曲目数量。</string>
+    <string name="settings_audio_cache_prefetch_metered_title">移动数据下预取</string>
+    <string name="settings_audio_cache_prefetch_metered_subtitle">使用移动数据和其他按流量计费的网络，或网络类型未知时，提前缓存的曲目数量。</string>
 </resources>

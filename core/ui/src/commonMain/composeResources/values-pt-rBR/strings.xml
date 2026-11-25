@@ -606,8 +606,10 @@
     <string name="settings_audio_cache_title">Cache de áudio</string>
     <string name="settings_audio_cache_enable">Ativar pré-carregamento de áudio</string>
     <string name="settings_audio_cache_enable_subtitle">Armazena em cache os próximos áudios para uma reprodução mais fluida.</string>
-    <string name="settings_audio_cache_prefetch_depth_title">Profundidade do pré-carregamento</string>
-    <string name="settings_audio_cache_prefetch_depth_subtitle">Faixas a armazenar em cache adiante na fila de reprodução.</string>
+    <string name="settings_audio_cache_prefetch_unmetered_title">Pré-carregamento no Wi-Fi/Ethernet</string>
+    <string name="settings_audio_cache_prefetch_unmetered_subtitle">Faixas a armazenar em cache adiante na fila de reprodução no Wi-Fi ou Ethernet.</string>
+    <string name="settings_audio_cache_prefetch_metered_title">Pré-carregamento nos dados móveis</string>
+    <string name="settings_audio_cache_prefetch_metered_subtitle">Faixas a armazenar em cache adiante nos dados móveis e em outras redes limitadas, ou quando o tipo de rede é desconhecido.</string>
     <string name="settings_audio_cache_budget_title">Limite do cache de áudio</string>
     <string name="settings_audio_cache_budget_subtitle">Espaço máximo para o áudio pré-carregado.</string>
     <string name="settings_tracks_count">%1$d faixas</string>
