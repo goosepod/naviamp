@@ -613,6 +613,7 @@
     <string name="offline_playlist_track_not_downloaded">यह ट्रैक डाउनलोड नहीं है। इसे चलाने के लिए फिर से कनेक्ट करें।</string>
 ||||||| parent of 4a7840640 (Return Library to the top after refresh and show newly added items (#707))
     <string name="library_new_items_show">दिखाएं</string>
+    <string name="library_new_items_dismiss">खारिज करें</string>
     <plurals name="library_new_albums">
         <item quantity="one">%1$d नया एल्बम</item>
         <item quantity="other">%1$d नए एल्बम</item>

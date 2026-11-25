@@ -613,6 +613,7 @@
     <string name="offline_playlist_track_not_downloaded">Dit nummer is niet gedownload. Maak opnieuw verbinding om het af te spelen.</string>
 ||||||| parent of 4a7840640 (Return Library to the top after refresh and show newly added items (#707))
     <string name="library_new_items_show">Tonen</string>
+    <string name="library_new_items_dismiss">Sluiten</string>
     <plurals name="library_new_albums">
         <item quantity="one">%1$d nieuw album</item>
         <item quantity="other">%1$d nieuwe albums</item>

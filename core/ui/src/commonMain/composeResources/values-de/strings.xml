@@ -460,6 +460,7 @@
     <string name="library_refresh">Aktualisieren</string>
     <string name="library_refreshing">Erfrischend...</string>
     <string name="library_new_items_show">Anzeigen</string>
+    <string name="library_new_items_dismiss">Ausblenden</string>
     <plurals name="library_new_albums">
         <item quantity="one">%1$d neues Album</item>
         <item quantity="other">%1$d neue Alben</item>

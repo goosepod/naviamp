@@ -612,6 +612,7 @@
     <string name="offline_playlist_track_not_downloaded">Lagu ini belum diunduh. Sambungkan kembali untuk memutarnya.</string>
 ||||||| parent of 4a7840640 (Return Library to the top after refresh and show newly added items (#707))
     <string name="library_new_items_show">Tampilkan</string>
+    <string name="library_new_items_dismiss">Tutup</string>
     <plurals name="library_new_albums">
         <item quantity="other">%1$d album baru</item>
     </plurals>

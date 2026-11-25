@@ -615,6 +615,7 @@
     <string name="offline_playlist_track_not_downloaded">Цей трек не завантажено. Підключіться знову, щоб відтворити його.</string>
 ||||||| parent of 4a7840640 (Return Library to the top after refresh and show newly added items (#707))
     <string name="library_new_items_show">Показати</string>
+    <string name="library_new_items_dismiss">Приховати</string>
     <plurals name="library_new_albums">
         <item quantity="one">%1$d новий альбом</item>
         <item quantity="few">%1$d нові альбоми</item>

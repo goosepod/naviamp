@@ -424,13 +424,29 @@ class NaviampCoreCatalogControllerTest {
         assertEquals(1L, library().addedItemsGeneration)
 
         // Opening Albums with a stale index syncs in the background; it reports but never scrolls.
+        // Bravo and Delta were never acknowledged, so the later sync keeps them in the report.
         titles = titles + "Echo"
         now += 60 * 60 * 1000L
         controller.dispatch(albums)
         controller.execute(albums)
-        assertEquals(listOf("echo"), library().addedItemIds)
+        assertEquals(listOf("bravo", "delta", "echo"), library().addedItemIds)
         assertEquals(2L, library().addedItemsGeneration)
         assertEquals(3L, library().refreshGeneration)
+
+        // Acknowledging an older report must not clear additions it never showed.
+        controller.dispatch(NaviampCoreCommand.Library.AcknowledgeAddedItems(NaviampLibraryView.Albums, 1L))
+        assertEquals(listOf("bravo", "delta", "echo"), library().addedItemIds)
+        controller.dispatch(NaviampCoreCommand.Library.AcknowledgeAddedItems(NaviampLibraryView.Albums, 2L))
+        assertEquals(emptyList(), library().addedItemIds)
+
+        // Seen additions and ones the server removed drop out of the next report.
+        titles = titles.minus("Bravo") + "Foxtrot"
+        controller.execute(NaviampCoreCommand.Library.Refresh)
+        assertEquals(listOf("foxtrot"), library().addedItemIds)
+        assertEquals(3L, library().addedItemsGeneration)
+        titles = titles.minus("Foxtrot") + "Golf"
+        controller.execute(NaviampCoreCommand.Library.Refresh)
+        assertEquals(listOf("golf"), library().addedItemIds)
     }
 
     @Test

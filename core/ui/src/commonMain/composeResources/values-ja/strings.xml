@@ -612,6 +612,7 @@
     <string name="offline_playlist_track_not_downloaded">この曲はダウンロードされていません。再生するには再接続してください。</string>
 ||||||| parent of 4a7840640 (Return Library to the top after refresh and show newly added items (#707))
     <string name="library_new_items_show">表示</string>
+    <string name="library_new_items_dismiss">閉じる</string>
     <plurals name="library_new_albums">
         <item quantity="other">新しいアルバム %1$d 件</item>
     </plurals>

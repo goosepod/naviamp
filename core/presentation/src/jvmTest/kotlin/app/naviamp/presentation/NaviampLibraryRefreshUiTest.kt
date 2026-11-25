@@ -10,6 +10,8 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
@@ -68,6 +70,9 @@ class NaviampLibraryRefreshUiTest {
                 NaviampLibraryContent(NaviampColors(), state.shell.library, NaviampLibraryActions(
                     onViewChanged = {}, onQueryChanged = {}, onRefresh = {}, onLoadMore = {},
                     onJumpToLetter = {}, onTrackAction = {},
+                    onAddedItemsSeen = { view, generation ->
+                        controller.dispatch(NaviampCoreCommand.Library.AcknowledgeAddedItems(view, generation))
+                    },
                 ), NaviampMediaActions({}, {}), viewport)
             }
         }
@@ -96,9 +101,22 @@ class NaviampLibraryRefreshUiTest {
         runOnIdle { assertEquals(0, list().firstVisibleItemIndex) }
         onNodeWithText("1 new album").assertDoesNotExist()
 
-        // Reopening Albums with a stale index syncs in the background without moving the list.
+        // Dismissing acknowledges the report without moving the list.
+        titles = titles + "Album 090 Bonus"
+        runBlocking { controller.execute(NaviampCoreCommand.Library.Refresh) }
+        waitForIdle()
+        onNodeWithContentDescription("Dismiss").performClick()
+        waitForIdle()
+        onNodeWithText("1 new album").assertDoesNotExist()
+        runOnIdle {
+            assertEquals(0, list().firstVisibleItemIndex)
+            assertEquals(emptyList(), store.state.value.shell.library.albums.addedItemIds)
+        }
+
+        // Reopening Albums with a stale index syncs in the background; the rows must not move at all.
         runOnIdle { list().requestScrollToItem(80) }
         waitForIdle()
+        val anchor = onNodeWithText("Album 079").getBoundsInRoot()
         titles = titles + "Album 020 Live"
         now += 60 * 60 * 1000L
         runBlocking {
@@ -106,10 +124,15 @@ class NaviampLibraryRefreshUiTest {
             controller.execute(albums)
         }
         waitForIdle()
+        onNodeWithText("1 new album").assertIsDisplayed()
         runOnIdle { assertEquals(81, list().firstVisibleItemIndex) }
-        onNodeWithText("1 new album").assertIsDisplayed().performClick()
+        assertEquals(anchor, onNodeWithText("Album 079").getBoundsInRoot())
+
+        // Scrolling the new album into view counts as seeing it.
+        runOnIdle { list().requestScrollToItem(19) }
         waitForIdle()
         onNodeWithText("Album 020 Live").assertIsDisplayed()
-        runOnIdle { assertEquals(21, list().firstVisibleItemIndex) }
+        onNodeWithText("1 new album").assertDoesNotExist()
+        runOnIdle { assertEquals(emptyList(), store.state.value.shell.library.albums.addedItemIds) }
     }
 }

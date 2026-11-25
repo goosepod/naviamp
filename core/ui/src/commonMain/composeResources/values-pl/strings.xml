@@ -712,6 +712,7 @@
     <string name="offline_playlist_track_not_downloaded">Ten utwór nie jest pobrany. Połącz się ponownie, aby go odtworzyć.</string>
 ||||||| parent of 4a7840640 (Return Library to the top after refresh and show newly added items (#707))
     <string name="library_new_items_show">Pokaż</string>
+    <string name="library_new_items_dismiss">Odrzuć</string>
     <plurals name="library_new_albums">
         <item quantity="one">%1$d nowy album</item>
         <item quantity="few">%1$d nowe albumy</item>

@@ -793,6 +793,7 @@
     <string name="library_refresh">Atualizar</string>
     <string name="library_refreshing">Atualizando...</string>
     <string name="library_new_items_show">Mostrar</string>
+    <string name="library_new_items_dismiss">Dispensar</string>
     <plurals name="library_new_albums">
         <item quantity="one">%1$d álbum novo</item>
         <item quantity="many">%1$d de álbuns novos</item>

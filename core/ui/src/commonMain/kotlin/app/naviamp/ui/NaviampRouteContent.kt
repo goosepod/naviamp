@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.offset
@@ -1437,11 +1438,13 @@ fun NaviampLibraryContent(
     val focusIds = if (screen.selectedView == NaviampLibraryView.Songs) filteredTracks.map { it.id } else filteredItems.map { it.id }
     val restoredIndex = focusIds.indexOfFirst { libraryItemFocusTarget(it) == restoredTarget }
     val targetExists = restoredIndex >= 0 || restoredTarget == LibrarySearchFocusTarget
-    val refreshAddedItems = libraryAddedItems(screen.selectedView, catalog, focusIds)
-    val addedItems = refreshAddedItems
-        ?.takeIf { viewportState.hasUnseenAddedItems(screen.selectedView, catalog.addedItemsGeneration) }
-    // Stays attached after the indicator hides so its own click can still move focus.
-    val addedItemFocusRequester = remember(screen.selectedView, refreshAddedItems?.firstId) { FocusRequester() }
+    val addedItems = libraryAddedItems(screen.selectedView, catalog, focusIds)
+    // Show acknowledges the report, so the row keeps its requester after the indicator hides.
+    var addedItemFocusId by remember(screen.selectedView) { mutableStateOf<String?>(null) }
+    val addedItemFocusRequester = remember(screen.selectedView, addedItemFocusId) { FocusRequester() }
+    AcknowledgeAddedItemsWhenVisible(screen.selectedView, catalog.addedItemsGeneration, addedItems,
+        visibleKeys = { activeListState.layoutInfo.visibleItemsInfo.map { it.key } },
+        onSeen = actions.onAddedItemsSeen)
     androidx.compose.runtime.LaunchedEffect(screen.selectedView, targetExists, catalog.refreshGeneration) {
         if (viewportState.hasPendingRefresh(screen.selectedView, catalog.refreshGeneration)) return@LaunchedEffect
         if (restoredTarget == null && (activeListState.firstVisibleItemIndex > 0 || activeListState.firstVisibleItemScrollOffset > 0)) return@LaunchedEffect
@@ -1648,23 +1651,14 @@ fun NaviampLibraryContent(
         }
         // Loading and refresh feedback must never displace the search controls.
         NaviampLibraryLoadingStatus(colors, screen.selectedView, catalog)
-        if (addedItems != null) {
-            NaviampLibraryNewItemsIndicator(colors, screen.selectedView, addedItems, onShow = {
-                viewportState.markAddedItemsShown(screen.selectedView, catalog.addedItemsGeneration)
-                libraryScope.launch {
-                    activeListState.scrollToItem(addedItems.firstIndex)
-                    withFrameNanos { }
-                    addedItemFocusRequester.requestFocus()
-                }
-            })
-        }
         Row(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
+          Box(Modifier.weight(1f).fillMaxHeight()) {
             LazyColumn(
                 state = activeListState,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
             if (filteredItems.isEmpty() && filteredTracks.isEmpty() &&
@@ -1788,7 +1782,7 @@ fun NaviampLibraryContent(
                                 },
                             )
                             .then(
-                                if (item.id == refreshAddedItems?.firstId) {
+                                if (item.id == addedItemFocusId) {
                                     Modifier.focusRequester(addedItemFocusRequester)
                                 } else {
                                     Modifier
@@ -1810,6 +1804,23 @@ fun NaviampLibraryContent(
                 }
             }
         }
+            if (addedItems != null) {
+                val generation = catalog.addedItemsGeneration
+                NaviampLibraryNewItemsIndicator(colors, screen.selectedView, addedItems,
+                    onShow = {
+                        addedItemFocusId = addedItems.firstId
+                        actions.onAddedItemsSeen(screen.selectedView, generation)
+                        libraryScope.launch {
+                            activeListState.scrollToItem(addedItems.firstIndex)
+                            withFrameNanos { }
+                            addedItemFocusRequester.requestFocus()
+                        }
+                    },
+                    onDismiss = { actions.onAddedItemsSeen(screen.selectedView, generation) },
+                    modifier = Modifier.align(Alignment.TopCenter),
+                )
+            }
+          }
             if (query.isBlank() && (
                 screen.selectedView != NaviampLibraryView.Albums ||
                     catalog.albumSortOrder == app.naviamp.domain.settings.LibraryAlbumSortOrder.Title

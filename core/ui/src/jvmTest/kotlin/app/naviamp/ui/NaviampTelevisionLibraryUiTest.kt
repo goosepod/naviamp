@@ -175,11 +175,14 @@ class NaviampTelevisionLibraryUiTest {
     @Test fun addedItemsIndicatorIsReachableFromRefreshAndFocusesTheFirstNewAlbum() = runDesktopComposeUiTest(1280, 720) {
         val screen = mutableStateOf(screen().copy(selectedView = NaviampLibraryView.Albums))
         setContent { LibraryFixture(screen, rememberNaviampTelevisionLibraryState()) }
+        val firstTile = onNodeWithTag(itemTag("album-0")).getBoundsInRoot()
         runOnIdle {
             screen.value = screen.value.copy(albums = screen.value.albums.copy(
                 addedItemsGeneration = 1L, addedItemIds = listOf("album-27", "album-24")))
         }
         waitForIdle()
+        // The button joins the control row, so the grid does not move.
+        assertEquals(firstTile, onNodeWithTag(itemTag("album-0")).getBoundsInRoot())
         onNodeWithTag(LibraryNewItemsIndicatorTestTag).assertTextEquals("2 new albums")
             .assert(SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.LiveRegion))
         onNodeWithText("Refresh").performSemanticsAction(SemanticsActions.RequestFocus)
@@ -242,6 +245,12 @@ class NaviampTelevisionLibraryUiTest {
                     NaviampLibraryView.Songs -> value.copy(songs = value.songs.copy(query = query))
                 }
             }, onRefresh = {}, onLoadMore = onLoadMore, onJumpToLetter = onJump, onTrackAction = onTrack,
+            onAddedItemsSeen = { view, generation ->
+                val albums = screen.value.albums
+                if (view == NaviampLibraryView.Albums && albums.addedItemsGeneration == generation) {
+                    screen.value = screen.value.copy(albums = albums.copy(addedItemIds = emptyList()))
+                }
+            },
         ), NaviampMediaActions({}, onMedia), viewport, FocusRequester())
         }
     }

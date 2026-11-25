@@ -87,6 +87,9 @@ class NaviampCoreCatalogController(
             NaviampCoreImmediateCommandResult.Deferred
         }
         is NaviampCoreCommand.Library.JumpToLetter -> NaviampCoreImmediateCommandResult.Deferred
+        is NaviampCoreCommand.Library.AcknowledgeAddedItems -> handled {
+            acknowledgeAddedItems(command.view, command.generation)
+        }
         is NaviampCoreCommand.Library.ChangeAlbumSortOrder -> handled {
             changeAlbumSortOrder(command.order)
         }
@@ -182,15 +185,28 @@ class NaviampCoreCatalogController(
             .takeIf { complete && it.query.isBlank() && it.items.isNotEmpty() }
             ?.items?.mapTo(mutableSetOf()) { it.id }
 
-    /** Automatic syncs report additions too, since they otherwise arrive silently off-screen. */
+    /**
+     * Automatic syncs report additions too, since they otherwise arrive silently off-screen.
+     * Additions not yet acknowledged stay in the report so a later sync cannot hide them.
+     */
     private fun publishAddedItems(view: NaviampLibraryView, before: Set<String>?) {
         if (before == null) return
         val catalog = stateStore.state.value.shell.library.catalog(view)
         if (catalog.query.isNotBlank()) return
-        val added = catalog.items.map { it.id }.filterNot(before::contains)
+        val current = catalog.items.map { it.id }
+        val added = current.filterNot(before::contains)
         if (added.isEmpty()) return
+        val unseen = catalog.addedItemIds.toSet()
+        val report = current.filter { it in unseen || it !in before }
         val generation = ++addedItemsGeneration
-        updateLibraryCatalog(view) { it.copy(addedItemIds = added, addedItemsGeneration = generation) }
+        updateLibraryCatalog(view) { it.copy(addedItemIds = report, addedItemsGeneration = generation) }
+    }
+
+    /** A newer report still holds additions the viewer has not seen, so only its own generation clears. */
+    private fun acknowledgeAddedItems(view: NaviampLibraryView, generation: Long) {
+        updateLibraryCatalog(view) {
+            if (it.addedItemsGeneration == generation) it.copy(addedItemIds = emptyList()) else it
+        }
     }
 
     /** Decorators are recreated per lookup, so compare the server and library identity. */

@@ -617,6 +617,7 @@
     <string name="offline_playlist_track_not_downloaded">هذا المقطع غير منزّل. أعد الاتصال لتشغيله.</string>
 ||||||| parent of 4a7840640 (Return Library to the top after refresh and show newly added items (#707))
     <string name="library_new_items_show">عرض</string>
+    <string name="library_new_items_dismiss">تجاهل</string>
     <plurals name="library_new_albums">
         <item quantity="zero">%1$d ألبوم جديد</item>
         <item quantity="one">%1$d ألبوم جديد</item>
