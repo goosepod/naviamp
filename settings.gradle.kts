@@ -1,8 +1,16 @@
 pluginManagement {
     repositories {
-        google()
-        gradlePluginPortal()
+        // Google hosts only the Android and Google plugins. Every other plugin marker resolves from
+        // Maven Central first, so the Plugin Portal is a fallback rather than a required hop.
+        google {
+            content {
+                includeGroupByRegex("com\\.android.*")
+                includeGroupByRegex("com\\.google.*")
+                includeGroupByRegex("androidx.*")
+            }
+        }
         mavenCentral()
+        gradlePluginPortal()
     }
 }
 

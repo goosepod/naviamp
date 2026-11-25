@@ -1,0 +1,99 @@
+name: Gradle cache population
+
+# Verify runs only for pull requests and reads Gradle caches without writing them. This workflow
+# is the trusted writer: only its main-branch runs save entries, which seed the plugin, dependency
+# and wrapper caches that Verify's Gradle jobs restore. Pull request runs only validate it. Job ids
+# match the Verify jobs on each runner OS so setup-gradle's same-OS, same-job fallback prefers these
+# entries over other workflows' caches. The iOS job keeps its own ios-cache policy.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/*.kts'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - '.github/gradle/**'
+      - '.github/workflows/gradle-cache.yml'
+  pull_request:
+    # Validates this workflow when it or the build changes; pull requests never write caches.
+    paths:
+      - '**/*.kts'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - '.github/gradle/**'
+      - '.github/workflows/gradle-cache.yml'
+      - 'scripts/install-android-sdk-packages.sh'
+  schedule:
+    # Refresh weekly so entries are not evicted while dependencies are unchanged.
+    - cron: '17 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gradle-cache-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g
+
+jobs:
+  # Linux: serves Shared and Android tests, Desktop native tests (Linux) and the Android emulator jobs.
+  shared-android:
+    name: Populate Gradle cache (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+      - name: Install Android build packages
+        run: scripts/install-android-sdk-packages.sh "platforms;android-37.0" "build-tools;36.0.0"
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
+      - name: Resolve plugins and dependencies
+        run: >
+          ./gradlew --continue -Pkotlin.native.enableKlibsCrossCompilation=false
+          --init-script .github/gradle/resolve-dependencies.init.gradle.kts ciResolveDependencies
+
+  # macOS: serves Desktop native tests (macOS).
+  desktop-macos:
+    name: Populate Gradle cache (macOS)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
+      - name: Resolve plugins and dependencies
+        run: >
+          ./gradlew --continue -Pnaviamp.bass.platform=macos-arm64
+          --init-script .github/gradle/resolve-dependencies.init.gradle.kts ciResolveDependencies
+
+  # Windows: serves Desktop native tests (Windows).
+  desktop-windows:
+    name: Populate Gradle cache (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/release-corretto
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
+      - name: Resolve plugins and dependencies
+        shell: powershell
+        run: .\gradlew.bat --continue "-Pkotlin.native.enableKlibsCrossCompilation=false" "-Pnaviamp.bass.platform=windows-x64" --init-script .github/gradle/resolve-dependencies.init.gradle.kts ciResolveDependencies
