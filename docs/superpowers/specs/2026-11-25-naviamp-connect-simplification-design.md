@@ -310,8 +310,10 @@ Each stage is its own GitHub issue, branch, and PR, and each issue is blocked by
 Stages are not separate releases: whichever stages are merged when a release is cut ship together
 (e.g. stages 1 and 2 in v2.14.0 if both are ready). Therefore **every stage must leave a coherent
 shipped experience on its own**: stage 1 alone keeps today's active-account-only setup behind the
-new post-connect sheet's "Sign it in" option; the protocol version bumps once, in stage 1, and later
-stages add negotiated capabilities rather than further version bumps.
+new post-connect sheet's "Sign it in" option. Stage 1 makes no wire-incompatible change (the new
+"showing a code" flag is an additive DNS-SD TXT key; consent and approval are target-local policy),
+so it keeps protocol version 1. The version bumps once, with the first wire-incompatible stage, and
+later stages add negotiated capabilities rather than further bumps.
 
 1. **One flow + new screens**: Devices IA, show code screen (code only at first), connect screen with
    auto-submit + nearby list, no background codes, consent = shown code, translatable strings,
