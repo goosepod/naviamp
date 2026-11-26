@@ -62,7 +62,28 @@ vectors exist.
 
 ### Protected assets and trust boundary
 
-September 10 consent update: explicitly choosing **Show pairing code** authorizes one live
+November 2026 one-flow update (#713) — supersedes the September 10 consent rules below:
+
+- **Presence vs. code offer.** A target with any trust record keeps its listener and DNS-SD
+  registration alive for trusted resumption without generating a code. A code exists only while the
+  user keeps the *Let another device connect* panel open (or the TV first-run screen is shown); it
+  regenerates on expiry and after each failed attempt, and five failures pause new codes for 30 s.
+  Trusted resumption validates against the presence advertisement and never consumes the code.
+- **Showing a code is the consent.** A pairing request can exist only while a code is shown, so it
+  is approved automatically; there is no approval prompt. Every authenticated session therefore came
+  from a displayed code or a trusted device, and the target applies its provisioning offers without
+  approval (validation and rollback are unchanged). `NaviampConnectInitialSetupAuthorization` was
+  removed.
+- **Discovery TXT `code`.** `"1"` while the device is showing a code, `"0"` for presence only; a
+  missing key (protocol-v1 targets) means showing a code. Controllers list only `code=1` devices as
+  *Nearby*, auto-select a single one when six digits are typed, and wait up to 5 s for one to appear.
+- **Additive Welcome fields.** `initialSetupAllowed` is now `true` whenever the target supports
+  provisioning (so v1 controllers still set up an empty target), and `hasSavedAccounts` (nullable)
+  tells the controller whether to preselect sign-in in its post-connect sheet. Controllers no longer
+  provision automatically; the user chooses *Sign it in*, *Play on …*, or *Done*.
+- The protocol version remains 1: these changes are additive and v1 peers keep pairing and resuming.
+
+September 10 consent update (historical): explicitly choosing **Show pairing code** authorizes one live
 code-authenticated peer to pair. On an empty target, that same action also authorizes initial
 source and portable-settings provisioning in the resulting authenticated session. The UI explains
 this before displaying the code. Background advertisements and trusted reconnects never create this
@@ -242,8 +263,9 @@ Hosts provide only the native effects that cannot live in common Kotlin:
   the simulator does not model it completely.
 - Desktop: the selected OS/JVM DNS-SD, socket, and secure-value implementations.
 
-Discovery does not imply trust. An unpaired target advertises only while its explicit pairing screen
-is active, and discovery alone never enables commands or connection provisioning.
+Discovery does not imply trust. A target advertises `code=1` only while its code is shown and
+otherwise only presence for already-trusted peers; discovery alone never enables commands or
+connection provisioning.
 
 ## Delivery sequence
 
