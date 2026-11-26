@@ -1642,6 +1642,74 @@ class NaviampCorePlaybackEngineAdapterTest {
     }
 
     @Test
+    fun changingGlobalCrossfadeInsideAProfileGroupKeepsTheNextTrackPrepared() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine().apply { emittedProgress = PlaybackProgress(173.0, 180.0) }
+        val settings = NaviampCorePlaybackEngineSettings(engine, PlaybackSettings(gaplessEnabled = false, crossfadeDurationSeconds = 6))
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = settings::current,
+        )
+        settings.activeProfile = adapter
+        val second = provider.track.copy(id = TrackId("second"), title = "Second")
+        val queue = PlaybackQueue(
+            tracks = listOf(provider.track, second),
+            currentIndex = 0,
+            groups = listOf(PlaybackQueueGroup(
+                id = "album",
+                target = PlaybackProfileTarget(PlaybackProfileTargetType.Album, "album"),
+                label = "Album",
+                startIndex = 0,
+                endIndexExclusive = 2,
+                profile = PlaybackProfile(transitionMode = PlaybackTransitionMode.Gapless),
+            )),
+        )
+        adapter.playQueueSelection(queue, 0)
+        advanceUntilIdle()
+        assertEquals("second", engine.preparedRequest?.mediaId)
+
+        settings.apply(settings.current().copy(crossfadeDurationSeconds = 10), redownload = false)
+        advanceUntilIdle()
+        engine.emitProgress(PlaybackProgress(174.0, 180.0))
+        advanceUntilIdle()
+
+        // The album's Gapless profile still decides this transition, so the next track must stay ready.
+        assertEquals("second", engine.preparedRequest?.mediaId)
+        assertEquals(0, engine.crossfadeSeconds)
+    }
+
+    @Test
+    fun changingGlobalCrossfadeMidTrackPreparesTheNextTrackAgainWithTheNewSetting() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine().apply { emittedProgress = PlaybackProgress(173.0, 180.0) }
+        val settings = NaviampCorePlaybackEngineSettings(engine, PlaybackSettings(gaplessEnabled = false, crossfadeDurationSeconds = 8))
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = settings::current,
+        )
+        settings.activeProfile = adapter
+        val next = provider.track.copy(id = TrackId("next"), title = "Next")
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track, next), 0), 0)
+        advanceUntilIdle()
+        assertEquals("next", engine.preparedRequest?.mediaId)
+        engine.events.clear()
+
+        settings.apply(settings.current().copy(crossfadeDurationSeconds = 10), redownload = false)
+        advanceUntilIdle()
+        assertEquals(null, engine.preparedRequest, "The stream prepared for the old crossfade is discarded")
+        engine.emitProgress(PlaybackProgress(174.0, 180.0))
+        advanceUntilIdle()
+
+        assertEquals("next", engine.preparedRequest?.mediaId)
+        assertEquals(10, engine.crossfadeSeconds)
+        assertEquals(listOf("clear", "prepare:next"), engine.events)
+    }
+
+    @Test
     fun changingTransitionSettingsImmediatelyInvalidatesPreparedNext() {
         val engine = RecordingPlaybackEngine()
         val settings = NaviampCorePlaybackEngineSettings(
