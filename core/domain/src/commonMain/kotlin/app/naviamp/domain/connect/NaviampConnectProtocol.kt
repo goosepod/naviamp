@@ -128,6 +128,8 @@ data class NaviampConnectAdvertisement(
     val port: Int,
     val identityFingerprint: String,
     val expiresAtEpochMillis: Long,
+    /** True while the device is showing a code that accepts new connections. */
+    val pairable: Boolean = true,
 ) {
     init {
         require(instanceId.isNotBlank()) { "A discovery instance ID is required." }
