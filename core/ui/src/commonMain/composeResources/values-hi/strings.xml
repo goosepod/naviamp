@@ -653,7 +653,6 @@
     <string name="connect_code_refreshes_in">नया कोड %1$s में</string>
     <string name="connect_cant_connect">कनेक्ट नहीं हो रहा?</string>
     <string name="connect_port">पोर्ट %1$d</string>
-    <string name="connect_connect_another_device">कोई और डिवाइस कनेक्ट करें</string>
     <string name="connect_a_device">डिवाइस कनेक्ट करें</string>
     <string name="connect_enter_code_instructions">दूसरे डिवाइस पर दिखाया गया कोड दर्ज करें।</string>
     <string name="connect_code_label">कोड</string>

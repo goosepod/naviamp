@@ -1460,6 +1460,64 @@ class NaviampCoreConnectControllerTest {
         fixture.controller.close()
     }
 
+    @Test
+    fun aRequestArrivingAfterExpiryKeepsAcceptingConnectionsAndShowsANewCode() = runTest {
+        var wallClock = 1_000L
+        val listener = QueuedListener(42425)
+        val store = NaviampCoreStateStore()
+        val codes = sequenceOf("111111", "222222").iterator()
+        val controller = targetController(
+            listener = listener,
+            store = store,
+            nowEpochMillis = { wallClock },
+            pairingHelloTimeoutMillis = 1_000L,
+            pairingLifetimeMillis = 10_000L,
+            newPairingCode = codes::next,
+        )
+        controller.actions.onStartPairingMode()
+        runCurrent()
+        assertEquals("111111", store.state.value.shell.connect.pairingCode)
+        wallClock = 20_000L // The wall clock jumped past expiry before the expiry job ran.
+        listener.connections.trySend(ScriptedConnection(app.naviamp.domain.connect.NaviampConnectEnvelope(
+            protocolVersion = 1,
+            sequence = 0,
+            message = app.naviamp.domain.connect.NaviampConnectHello(
+                device = NaviampConnectDevice("late", "Late phone", NaviampConnectDeviceRole.Controller),
+                identity = app.naviamp.domain.connect.NaviampConnectPublicIdentity("late", "late-fp", "late-key"),
+                protocolRange = NaviampConnectProtocolRange(),
+                capabilities = emptySet(),
+            ),
+        )))
+        runCurrent()
+        val next = ClosedConnection()
+        listener.connections.trySend(next)
+        runCurrent()
+        assertTrue(next.closed, "The listener must keep accepting after a late request")
+        assertEquals("222222", store.state.value.shell.connect.pairingCode)
+        controller.close()
+    }
+
+    @Test
+    fun typingACodeStopsAutomaticReconnectToAnotherDevice() = runTest {
+        val fixture = connectScreenFixture(trustedTv = true)
+        fixture.controller.actions.onTrustedDeviceSelected(fixture.store.state.value.shell.connect.trustedDevices.single())
+        fixture.resolve("Living Room", "192.0.2.10", "tv-fp", pairable = false)
+        runCurrent()
+        advanceTimeBy(100L)
+        runCurrent()
+        assertTrue(fixture.attempts.any { it.first == "192.0.2.10" }, "The selected TV is being reconnected")
+        fixture.controller.actions.onConnectScreenVisibilityChanged(true)
+        fixture.resolve("Bedroom", "192.0.2.12", "bedroom-fp", pairable = true)
+        runCurrent()
+        fixture.controller.actions.onPairingCodeChanged("123456")
+        runCurrent()
+        fixture.attempts.clear()
+        advanceTimeBy(6_000L)
+        runCurrent()
+        assertTrue(fixture.attempts.none { it.first == "192.0.2.10" }, "Entering a code for another device stops the old reconnect")
+        fixture.controller.close()
+    }
+
     private class ConnectScreenFixture(
         val controller: NaviampCoreConnectController,
         val store: NaviampCoreStateStore,

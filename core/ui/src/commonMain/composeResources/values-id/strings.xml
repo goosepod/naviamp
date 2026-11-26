@@ -650,7 +650,6 @@
     <string name="connect_code_refreshes_in">Kode baru dalam %1$s</string>
     <string name="connect_cant_connect">Tidak bisa terhubung?</string>
     <string name="connect_port">Port %1$d</string>
-    <string name="connect_connect_another_device">Hubungkan perangkat lain</string>
     <string name="connect_a_device">Hubungkan perangkat</string>
     <string name="connect_enter_code_instructions">Masukkan kode yang ditampilkan di perangkat lain.</string>
     <string name="connect_code_label">Kode</string>

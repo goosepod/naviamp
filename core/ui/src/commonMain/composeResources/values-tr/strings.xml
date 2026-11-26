@@ -653,7 +653,6 @@
     <string name="connect_code_refreshes_in">%1$s içinde yeni kod</string>
     <string name="connect_cant_connect">Bağlanamıyor musunuz?</string>
     <string name="connect_port">Bağlantı noktası %1$d</string>
-    <string name="connect_connect_another_device">Başka bir cihaz bağla</string>
     <string name="connect_a_device">Cihaz bağla</string>
     <string name="connect_enter_code_instructions">Diğer cihazda gösterilen kodu girin.</string>
     <string name="connect_code_label">Kod</string>

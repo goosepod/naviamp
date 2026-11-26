@@ -196,6 +196,8 @@ class NaviampCoreConnectController(
     private var codeRetryJob: Job? = null
     private var connectScreenVisible = false
     private var codeTargetWaitJob: Job? = null
+    /** An outgoing code handshake is running; a background trusted reconnect does not count. */
+    private var codePairingInFlight = false
     private var acceptedPairingConnection: NaviampConnectTransportConnection? = null
     private var pairingExpiryJob: Job? = null
     private var activePairingHandshake: NaviampConnectPendingTargetPairing? = null
@@ -252,6 +254,7 @@ class NaviampCoreConnectController(
     private var postConnectOpen = false
     private var postConnectSignIn = false
     private var postConnectDeviceHasAccounts = false
+    private var postConnectSignInFailed = false
     private var controllerTargetHasSavedAccounts = false
     /** Set while sheet-started sign-in runs: true = then play on the device, false = then stop. */
     private var postConnectPendingPlay: Boolean? = null
@@ -751,7 +754,11 @@ class NaviampCoreConnectController(
                     }
                     is NaviampConnectTargetPairingRequestResult.Rejected -> {
                         acceptedPairingConnection = null
-                        if (targetPairing.expireIfNeeded(services.nowEpochMillis())) return
+                        // This loop also serves trusted resume: an expired offer is replaced, never fatal.
+                        if (targetPairing.expireIfNeeded(services.nowEpochMillis())) {
+                            if (codeVisible) issueCode()
+                            continue
+                        }
                         phase = NaviampConnectPairingUiPhase.Advertising
                         status = "Pairing request rejected. Still waiting for a controller."
                         statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.PairingRequestRejectedStillWaitingForAController)
@@ -762,7 +769,10 @@ class NaviampCoreConnectController(
         } catch (failure: CancellationException) {
             throw failure
         } catch (failure: Exception) {
-            if (listener === boundListener) fail(NaviampConnectStatusText.RequestFailed)
+            if (listener === boundListener) {
+                fail(NaviampConnectStatusText.RequestFailed)
+                restorePresenceLater()
+            }
         } finally {
             acceptedPairingConnection?.close()
             acceptedPairingConnection = null
@@ -1217,7 +1227,8 @@ class NaviampCoreConnectController(
     }
 
     private fun submitPairingCode() {
-        if (phase == NaviampConnectPairingUiPhase.Handshaking) return
+        // Only an outgoing code handshake blocks entry; a background trusted reconnect does not.
+        if (codePairingInFlight) return
         val manualEndpoint = selectedManualEndpoint
         if (selectedTarget == null && manualEndpoint == null && enteredCode.length == 6) {
             val candidates = pairableTargets()
@@ -1239,6 +1250,8 @@ class NaviampCoreConnectController(
         }
         val target = selectedTarget
         if (target == null && manualEndpoint == null) return
+        // Entering a code chooses a new device: stop reconnecting to the previous one.
+        suspendAutomaticReconnectForManualPairing()
         codeTargetWaitJob?.cancel()
         codeTargetWaitJob = null
         if (identityState.value !is IdentityState.Ready) {
@@ -1259,6 +1272,7 @@ class NaviampCoreConnectController(
         val code = enteredCode.toCharArray()
         enteredCode = ""
         publish()
+        codePairingInFlight = true
         controllerScope.launch {
             val runtime = NaviampConnectControllerPairingRuntime(
                 localControllerDevice,
@@ -1298,6 +1312,7 @@ class NaviampCoreConnectController(
             if (manualEndpoint != null && result is NaviampConnectPairingRuntimeResult.Paired) {
                 selectedTarget = result.trust.toManualTarget(manualEndpoint, result.session.protocolVersion, services.nowEpochMillis())
             }
+            codePairingInFlight = false
             finishPairing(result, localRole = NaviampConnectDeviceRole.Controller)
             if (manualEndpoint != null && result is NaviampConnectPairingRuntimeResult.Failed &&
                 (result.code == NaviampConnectErrorCode.TargetUnavailable ||
@@ -1340,6 +1355,8 @@ class NaviampCoreConnectController(
                         discovery?.stop()
                         if (codeVisible) stopPairingMode()
                         ensureTrustedTargetListener()
+                        // One session at a time: a previous session (or a late reconnect) must not leak.
+                        if (authenticatedSession != null) closeAuthenticatedSession()
                         startControllerSession(result.session)
                     }
                 }
@@ -1349,8 +1366,13 @@ class NaviampCoreConnectController(
                         else NaviampConnectStatusText.ConnectedWithoutSecureReconnect, result.trust.displayName)
                     when (localRole) {
                         NaviampConnectDeviceRole.Target -> {
-                            // The offer is consumed; keep presence (and its registration) for trusted resume.
+                            // The used offer is replaced at once while the panel stays open, so the device never
+                            // advertises a code it no longer has; presence (and its registration) is kept for resume.
                             ensurePresence(pairable = codeVisible)
+                            replaceUsedCode()
+                            phase = NaviampConnectPairingUiPhase.Paired
+                            report(if (credentialSaved) NaviampConnectStatusText.ConnectedToDevice
+                                else NaviampConnectStatusText.ConnectedWithoutSecureReconnect, result.trust.displayName)
                         }
                         NaviampConnectDeviceRole.Controller -> openPostConnectSheet()
                     }
@@ -1360,6 +1382,10 @@ class NaviampCoreConnectController(
                     phase = NaviampConnectPairingUiPhase.Failed
                     status = "The paired device did not start a compatible control session."
                     statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ThePairedDeviceDidNotStartACompatibleControlSession)
+                    if (localRole == NaviampConnectDeviceRole.Target) {
+                        ensurePresence(pairable = codeVisible)
+                        replaceUsedCode()
+                    }
                 }
             }
             is NaviampConnectPairingRuntimeResult.Failed -> {
@@ -1373,6 +1399,7 @@ class NaviampCoreConnectController(
 
     /** The connecting device chooses sign-in, playback, or neither right after a code connection. */
     private fun openPostConnectSheet() {
+        postConnectSignInFailed = false
         val remote = controllerSession?.state?.value ?: return
         val hasAccounts = controllerTargetHasSavedAccounts
         postConnectDeviceHasAccounts = hasAccounts
@@ -1386,7 +1413,8 @@ class NaviampCoreConnectController(
 
     private fun finishPostConnect(playOnDevice: Boolean) {
         if (!postConnectOpen || controllerProvisioningBusy) return
-        if (postConnectSignIn && postConnectCanSignIn()) {
+        // After a failed attempt the choice finishes without retrying; the password prompt retries.
+        if (postConnectSignIn && postConnectCanSignIn() && !postConnectSignInFailed) {
             postConnectPendingPlay = playOnDevice
             provisionTarget()
             return
@@ -1407,10 +1435,12 @@ class NaviampCoreConnectController(
     /** Sign-in started from the sheet finishes the user's choice once the device confirms it. */
     private fun postConnectSignInFinished(succeeded: Boolean) {
         if (!postConnectOpen) return
-        if (succeeded) postConnectSignIn = false
+        postConnectSignInFailed = !succeeded
+        if (!succeeded) return // Keep the pending choice: a corrected password completes it.
+        postConnectSignIn = false
+        postConnectSignInFailed = false
         val pending = postConnectPendingPlay ?: return
-        postConnectPendingPlay = null
-        if (succeeded) completePostConnect(pending)
+        completePostConnect(pending)
     }
 
     private suspend fun startTargetSession(session: NaviampConnectAuthenticatedSession): Boolean {
@@ -1698,6 +1728,7 @@ class NaviampCoreConnectController(
             return
         }
         ensurePresence(pairable = codeVisible)
+        replaceUsedCode()
         publish()
     }
 
@@ -1748,6 +1779,7 @@ class NaviampCoreConnectController(
         postConnectOpen = false
         postConnectSignIn = false
         postConnectPendingPlay = null
+        postConnectSignInFailed = false
         controllerCompanionProvisioningSupported = false
         controllerSetupNeedsNewCode = false
         heartbeatJob?.cancel()
@@ -2167,6 +2199,21 @@ class NaviampCoreConnectController(
         publish()
     }
 
+    /** The listener failed: bring presence (and a visible code) back after a short pause. */
+    private fun restorePresenceLater() {
+        if (!canPlayRemotely) return
+        controllerScope.launch {
+            delay(AutomaticReconnectRetryMillis)
+            if (listener != null) return@launch
+            if (codeVisible) issueCode() else ensureTrustedTargetListener()
+        }
+    }
+
+    /** The offer is used or gone while the panel is still open: show the next code. */
+    private fun replaceUsedCode() {
+        if (codeVisible && targetPairing.displayCode() == null && codeRetryJob == null) issueCode()
+    }
+
     /**
      * A failed code attempt rotates the code while the panel stays open. After
      * [MaximumCodeFailures] failures new codes pause for [CodeFailureLockoutMillis].
@@ -2274,6 +2321,7 @@ class NaviampCoreConnectController(
                     listeningPort = listener?.port,
                     enteredPairingCode = enteredCode,
                     connectScreenVisible = connectScreenVisible,
+                    codeEntryBusy = codePairingInFlight,
                     manualEndpointAwaitingCode = selectedManualEndpoint != null &&
                         phase in setOf(NaviampConnectPairingUiPhase.AwaitingCode, NaviampConnectPairingUiPhase.Handshaking),
                     selectedTargetId = selectedTarget?.advertisement?.instanceId,

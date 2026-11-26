@@ -655,7 +655,6 @@
     <string name="connect_code_refreshes_in">Nouveau code dans %1$s</string>
     <string name="connect_cant_connect">Connexion impossible ?</string>
     <string name="connect_port">Port %1$d</string>
-    <string name="connect_connect_another_device">Connecter un autre appareil</string>
     <string name="connect_a_device">Connecter un appareil</string>
     <string name="connect_enter_code_instructions">Saisissez le code affiché sur l’autre appareil.</string>
     <string name="connect_code_label">Code</string>

@@ -45,12 +45,9 @@ internal fun NaviampConnectShowCodePanel(
         onDispose { stop() }
     }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = modifier.fillMaxWidth()) {
-        val controllerName = connect.connectedControllerName
-        if (controllerName != null && connect.pairingCode == null) {
+        // A used code is replaced at once, so the panel keeps showing the next one.
+        connect.connectedControllerName?.let { controllerName ->
             Text(stringResource(Res.string.connect_status_connected_to_device, controllerName), color = colors.primaryText)
-            PrimaryButton(stringResource(Res.string.connect_connect_another_device), colors,
-                onClick = actions.onStartPairingMode)
-            return@Column
         }
         Text(stringResource(Res.string.connect_show_code_instructions), color = colors.secondaryText)
         Text(connect.localDeviceName, color = colors.primaryText, fontWeight = FontWeight.Bold)
@@ -112,7 +109,7 @@ internal fun NaviampConnectEnterCodePanel(
             value = connect.enteredPairingCode,
             onValueChange = { actions.onPairingCodeChanged(it.filter(Char::isDigit).take(6)) },
             singleLine = true,
-            enabled = connect.pairingPhase != NaviampConnectPairingUiPhase.Handshaking,
+            enabled = !connect.codeEntryBusy,
             label = { Text(stringResource(Res.string.connect_code_label)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
             textStyle = androidx.compose.ui.text.TextStyle(fontFamily = FontFamily.Monospace, fontSize = 24.sp),

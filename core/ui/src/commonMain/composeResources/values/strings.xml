@@ -832,7 +832,6 @@
     <string name="connect_code_refreshes_in">New code in %1$s</string>
     <string name="connect_cant_connect">Can't connect?</string>
     <string name="connect_port">Port %1$d</string>
-    <string name="connect_connect_another_device">Connect another device</string>
     <string name="connect_a_device">Connect a device</string>
     <string name="connect_enter_code_instructions">Enter the code shown on the other device.</string>
     <string name="connect_code_label">Code</string>

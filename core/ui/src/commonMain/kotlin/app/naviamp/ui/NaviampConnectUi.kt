@@ -90,6 +90,8 @@ data class NaviampConnectSettingsUi(
     val enteredPairingCode: String = "",
     /** True while the "Connect a device" panel is open; discovery runs only then. */
     val connectScreenVisible: Boolean = false,
+    /** An outgoing code handshake is running; code entry waits for its result. */
+    val codeEntryBusy: Boolean = false,
     val selectedTargetId: String? = null,
     val statusMessage: NaviampConnectStatusMessage? = null,
     val notice: NaviampConnectStatusNotice? = null,

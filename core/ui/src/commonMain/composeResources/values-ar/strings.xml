@@ -665,7 +665,6 @@
     <string name="connect_code_refreshes_in">رمز جديد خلال %1$s</string>
     <string name="connect_cant_connect">تعذّر الاتصال؟</string>
     <string name="connect_port">المنفذ %1$d</string>
-    <string name="connect_connect_another_device">توصيل جهاز آخر</string>
     <string name="connect_a_device">توصيل جهاز</string>
     <string name="connect_enter_code_instructions">أدخل الرمز المعروض على الجهاز الآخر.</string>
     <string name="connect_code_label">الرمز</string>

@@ -653,7 +653,6 @@
     <string name="connect_code_refreshes_in">Nieuwe code over %1$s</string>
     <string name="connect_cant_connect">Lukt verbinden niet?</string>
     <string name="connect_port">Poort %1$d</string>
-    <string name="connect_connect_another_device">Ander apparaat verbinden</string>
     <string name="connect_a_device">Apparaat verbinden</string>
     <string name="connect_enter_code_instructions">Voer de code in die op het andere apparaat wordt getoond.</string>
     <string name="connect_code_label">Code</string>

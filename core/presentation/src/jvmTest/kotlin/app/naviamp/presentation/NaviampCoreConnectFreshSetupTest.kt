@@ -132,6 +132,53 @@ class NaviampCoreConnectFreshSetupTest {
     }
 
     @Test
+    fun aUsedCodeIsReplacedSoTheStillOpenPanelNeverAdvertisesAStaleCode() = runTest {
+        val network = ConnectTestNetwork()
+        val phone = connectPeer("phone", "mac", network, ConnectTestSource(configured = true), preTrusted = false, configure = realCrypto)
+        val secondPhone = connectPeer("phone-2", "mac", network, preTrusted = false, configure = realCrypto)
+        val mac = connectPeer("mac", "phone", network, ConnectTestSource(configured = false), preTrusted = false, configure = realCrypto)
+        try {
+            mac.actions.shell.connectActions!!.onStartPairingMode()
+            runCurrent()
+            val firstCode = assertNotNull(mac.state.value.shell.connect.pairingCode)
+            enterCode(phone, mac, "mac")
+            runCurrent()
+            assertEquals("mac", phone.state.value.shell.connect.connectedTargetName)
+            val nextCode = assertNotNull(mac.state.value.shell.connect.pairingCode, "The open panel shows a fresh code")
+            assertEquals(1, network.advertisingStarts["mac"], "Replacing the code must not re-register DNS-SD")
+            phone.actions.shell.connectActions!!.onPostConnectSignInChanged(false)
+            phone.actions.shell.connectActions!!.onPostConnectDone()
+            runCurrent()
+            enterCode(secondPhone, mac, "mac")
+            runCurrent()
+            assertEquals("mac", secondPhone.state.value.shell.connect.connectedTargetName,
+                "The replacement code connects without reopening the panel (first=$firstCode next=$nextCode)")
+        } finally { phone.close(); secondPhone.close(); mac.close() }
+    }
+
+    @Test
+    fun doneAfterAFailedSignInClosesTheSheet() = runTest {
+        val network = ConnectTestNetwork()
+        val destination = ConnectTestSource(configured = false, failValidation = true)
+        val phone = connectPeer("phone", "mac", network, ConnectTestSource(configured = true), preTrusted = false, configure = realCrypto)
+        val mac = connectPeer("mac", "phone", network, destination, preTrusted = false, configure = realCrypto)
+        try {
+            mac.actions.shell.connectActions!!.onStartPairingMode()
+            runCurrent()
+            enterCode(phone, mac, "mac")
+            runCurrent()
+            phone.actions.shell.connectActions!!.onPostConnectDone()
+            runCurrent()
+            assertEquals(1, destination.connects)
+            assertNotNull(phone.state.value.shell.connect.postConnect, "A failed sign-in keeps the sheet open")
+            phone.actions.shell.connectActions!!.onPostConnectDone()
+            runCurrent()
+            assertNull(phone.state.value.shell.connect.postConnect, "Done closes the sheet instead of retrying")
+            assertEquals(1, destination.connects)
+        } finally { phone.close(); mac.close() }
+    }
+
+    @Test
     fun secondPhoneConnectsToAnAlreadyTrustedTargetWithoutApproval() = runTest {
         val network = ConnectTestNetwork()
         val phoneA = connectPeer("phone-a", "mac", network, preTrusted = false, configure = realCrypto)
@@ -157,7 +204,9 @@ class NaviampCoreConnectFreshSetupTest {
         val network = ConnectTestNetwork()
         val phoneA = connectPeer("phone-a", "mac", network, preTrusted = false, configure = realCrypto)
         val phoneB = connectPeer("phone-b", "mac", network, preTrusted = false, configure = realCrypto)
-        val mac = connectPeer("mac", "phone-a", network, preTrusted = false, configure = realCrypto)
+        val codes = generateSequence(100_000) { it + 1 }.map(Int::toString).iterator()
+        val mac = connectPeer("mac", "phone-a", network, preTrusted = false,
+            configure = { realCrypto(it).copy(newPairingCode = codes::next) })
         try {
             mac.actions.shell.connectActions!!.onStartPairingMode()
             runCurrent()

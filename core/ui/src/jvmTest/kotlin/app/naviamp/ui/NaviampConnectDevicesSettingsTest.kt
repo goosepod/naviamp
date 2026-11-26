@@ -29,15 +29,15 @@ class NaviampConnectDevicesSettingsTest {
         assertEquals(listOf("start", "stop"), calls)
     }
 
-    @Test fun showCodePanelOffersAnotherCodeAfterAConnection() = runComposeUiTest {
+    @Test fun showCodePanelShowsWhoConnectedAlongsideTheNextCode() = runComposeUiTest {
         val calls = mutableListOf<String>()
         setContent {
-            NaviampConnectShowCodePanel(device().copy(codeVisible = true, connectedControllerName = "Pixel"),
-                NaviampColors.Dark, actions(calls))
+            NaviampConnectShowCodePanel(device().copy(codeVisible = true, pairingCode = "654321",
+                connectedControllerName = "Pixel"), NaviampColors.Dark, actions(calls))
         }
         onNodeWithText("Connected to Pixel.").assertExists()
-        onNodeWithText("Connect another device").performClick()
-        assertEquals(listOf("start", "start"), calls)
+        onNodeWithText("654 321").assertExists()
+        onNodeWithText("Connect another device").assertDoesNotExist()
     }
 
     @Test fun enterCodePanelReportsVisibilityAndListsOnlyNearbyDevices() = runComposeUiTest {

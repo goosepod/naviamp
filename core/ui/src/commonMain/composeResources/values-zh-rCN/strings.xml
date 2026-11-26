@@ -650,7 +650,6 @@
     <string name="connect_code_refreshes_in">%1$s 后更新代码</string>
     <string name="connect_cant_connect">无法连接？</string>
     <string name="connect_port">端口 %1$d</string>
-    <string name="connect_connect_another_device">连接其他设备</string>
     <string name="connect_a_device">连接设备</string>
     <string name="connect_enter_code_instructions">输入另一台设备上显示的代码。</string>
     <string name="connect_code_label">代码</string>

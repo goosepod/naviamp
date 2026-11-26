@@ -801,7 +801,6 @@
     <string name="connect_code_refreshes_in">Nuevo código en %1$s</string>
     <string name="connect_cant_connect">¿No se conecta?</string>
     <string name="connect_port">Puerto %1$d</string>
-    <string name="connect_connect_another_device">Conectar otro dispositivo</string>
     <string name="connect_a_device">Conectar un dispositivo</string>
     <string name="connect_enter_code_instructions">Introduce el código que aparece en el otro dispositivo.</string>
     <string name="connect_code_label">Código</string>

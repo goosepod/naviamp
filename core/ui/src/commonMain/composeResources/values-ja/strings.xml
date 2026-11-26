@@ -650,7 +650,6 @@
     <string name="connect_code_refreshes_in">%1$s後に新しいコード</string>
     <string name="connect_cant_connect">接続できない場合</string>
     <string name="connect_port">ポート %1$d</string>
-    <string name="connect_connect_another_device">別のデバイスを接続</string>
     <string name="connect_a_device">デバイスを接続</string>
     <string name="connect_enter_code_instructions">もう一方のデバイスに表示されたコードを入力してください。</string>
     <string name="connect_code_label">コード</string>

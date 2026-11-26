@@ -650,7 +650,6 @@
     <string name="connect_code_refreshes_in">%1$s 후 새 코드</string>
     <string name="connect_cant_connect">연결할 수 없나요?</string>
     <string name="connect_port">포트 %1$d</string>
-    <string name="connect_connect_another_device">다른 기기 연결</string>
     <string name="connect_a_device">기기 연결</string>
     <string name="connect_enter_code_instructions">다른 기기에 표시된 코드를 입력하세요.</string>
     <string name="connect_code_label">코드</string>
