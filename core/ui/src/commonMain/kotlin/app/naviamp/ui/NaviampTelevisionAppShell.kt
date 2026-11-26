@@ -61,6 +61,9 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.testTag
+import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -916,11 +919,20 @@ internal fun TelevisionFirstRunConnectSetup(
         start()
         onDispose { stop() }
     }
+    // The box takes the remote's first focus, so setup opens scrolled to the code and Up returns to it.
+    val codeBoxFocus = remember { FocusRequester() }
+    var codeBoxFocused by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { runCatching { codeBoxFocus.requestFocus() } }
     Column(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier
             .fillMaxWidth()
+            .testTag("tv-connect-code-box")
+            .focusRequester(codeBoxFocus)
+            .onFocusChanged { codeBoxFocused = it.isFocused }
+            .focusable()
             .background(colors.controlSurface.copy(alpha = 0.72f), RoundedCornerShape(14.dp))
+            .then(if (codeBoxFocused) Modifier.border(2.dp, colors.primaryText, RoundedCornerShape(14.dp)) else Modifier)
             .padding(16.dp),
     ) {
         Text(stringResource(Res.string.tv_set_up_from_a_phone_or_computer), color = colors.primaryText, fontSize = 21.sp, fontWeight = FontWeight.Bold)

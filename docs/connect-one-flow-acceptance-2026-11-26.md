@@ -73,3 +73,14 @@ the owner. Scenarios 1, 9 and 10 pass (see the table). New small findings:
    the phone/computer option it is the alternative to.
 10. After closing *Connect a device*, the phone keeps showing "Searching this local network…" although
     discovery has stopped.
+
+Retest of findings 8–10 (same devices, rebuilt and reinstalled):
+
+- Finding 8 — **fixed**: the TV says "Ready. Enter this code on your other device."; the remaining
+  "controller"/"pairing" status messages were replaced in all languages.
+- Finding 9 — **fixed**: "Or connect to your server directly from this TV." now follows the code box
+  (and is hidden when adding a second account).
+- Finding 10 — **fixed**: closing *Connect a device* clears "Searching this local network…".
+- Found and fixed while verifying 9: after the reorder the remote's first focus landed on the
+  provider tiles and scrolled the code off screen with no way back up. The code box now takes focus
+  (white outline), so the TV opens on the code and Up returns to it.

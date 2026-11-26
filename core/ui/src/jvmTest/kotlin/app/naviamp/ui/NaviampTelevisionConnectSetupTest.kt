@@ -53,6 +53,18 @@ class NaviampTelevisionConnectSetupTest {
         kotlin.test.assertTrue(directTop > phoneTop, "The 'Or …' option follows the code box")
     }
 
+    @Test fun theCodeBoxTakesInitialFocusSoTheTvShowsTheCode() = runComposeUiTest {
+        setContent {
+            androidx.compose.foundation.layout.Column {
+                TelevisionSetupIntro(addingAccount = false, connect = target().copy(pairingCode = "123456"),
+                    actions = actions(mutableListOf()), colors = NaviampColors.Dark)
+                androidx.compose.material3.Button(onClick = {}) { androidx.compose.material3.Text("Navidrome") }
+            }
+        }
+        waitForIdle()
+        onNodeWithTag("tv-connect-code-box").assertIsFocused()
+    }
+
     @Test fun addingAnAccountHasNoOrLine() = runComposeUiTest {
         setContent {
             TelevisionSetupIntro(addingAccount = true, connect = target(), actions = actions(mutableListOf()),
