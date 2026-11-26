@@ -13,6 +13,50 @@ import kotlin.test.assertTrue
 
 class PlaybackQueueGroupsTest {
     @Test
+    fun radioRegenerationKeepsTheGroupOnTheCurrentAndRetainedTracks() {
+        // History "one", current "two", album group over one..four; Radio replaces "three", "four".
+        val queue = PlaybackQueue(
+            tracks = listOf(track("one"), track("two"), track("three"), track("four")),
+            currentIndex = 1,
+            groups = listOf(albumGroup(start = 0, end = 4)),
+        )
+
+        val regenerated = queue.replaceUpcomingTracks(track("two"), listOf(track("radio-a"), track("radio-b")))
+
+        assertEquals(listOf("one", "two", "radio-a", "radio-b"), regenerated.tracks.map { it.id.value })
+        val group = regenerated.groupAt()
+        assertEquals("album", group?.id, "The current track keeps its album group")
+        assertEquals(PlaybackTransitionMode.Gapless, group?.profile?.transitionMode)
+        assertEquals(0 until 2, group!!.startIndex until group.endIndexExclusive, "Only retained tracks stay in it")
+        assertNull(regenerated.groupForTransition(toIndex = 2), "Radio tracks leave the album, so its profile ends")
+    }
+
+    @Test
+    fun radioRegenerationKeepsPlayNextGroupsAndPrunesHistoryLikeOtherEdits() {
+        val queue = PlaybackQueue(
+            tracks = listOf(track("old"), track("current"), track("next-1"), track("next-2"), track("ctx")),
+            currentIndex = 1,
+            playNextCount = 2,
+            groups = listOf(albumGroup(id = "queued", start = 2, end = 4), albumGroup(id = "context", start = 4, end = 5)),
+        )
+
+        val regenerated = queue.replaceUpcomingTracks(track("current"), listOf(track("radio")), maxHistory = 0)
+
+        assertEquals(listOf("current", "next-1", "next-2", "radio"), regenerated.tracks.map { it.id.value })
+        assertEquals(listOf("queued" to (1 until 3)),
+            regenerated.normalizedGroups().map { it.id to (it.startIndex until it.endIndexExclusive) },
+            "The play-next album survives; the replaced context track's group is dropped")
+    }
+
+    @Test
+    fun radioRegenerationOfAnUngroupedQueueStaysUngrouped() {
+        val queue = PlaybackQueue(listOf(track("one"), track("two"), track("three")), currentIndex = 0)
+        val regenerated = queue.replaceUpcomingTracks(track("one"), listOf(track("radio")))
+        assertEquals(listOf("one", "radio"), regenerated.tracks.map { it.id.value })
+        assertTrue(regenerated.groups.isEmpty())
+    }
+
+    @Test
     fun resolvesTheGroupContainingTheCurrentOccurrence() {
         val queue = PlaybackQueue(
             tracks = listOf(track("one"), track("two"), track("three")),
