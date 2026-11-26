@@ -47,6 +47,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -850,7 +852,7 @@ private fun TelevisionConnectionScreen(
             Text(stringResource(if (addingAccount) Res.string.tv_account_add else Res.string.tv_set_up_naviamp_tv),
                 color = colors.primaryText, fontSize = 36.sp, fontWeight = FontWeight.Black)
             Text(
-                stringResource(Res.string.tv_direct_setup_description),
+                stringResource(Res.string.tv_direct_setup_or),
                 color = colors.secondaryText,
                 fontSize = 18.sp,
             )
@@ -894,12 +896,19 @@ private fun TelevisionConnectionScreen(
 }
 
 @Composable
-private fun TelevisionFirstRunConnectSetup(
+internal fun TelevisionFirstRunConnectSetup(
     connect: NaviampConnectSettingsUi,
     actions: NaviampConnectSettingsActions?,
     colors: NaviampColors,
 ) {
     if (!connect.available || !connect.canAdvertise || actions == null) return
+    // A fresh TV shows its code as soon as setup is on screen; leaving setup ends the offer.
+    val start by rememberUpdatedState(actions.onStartPairingMode)
+    val stop by rememberUpdatedState(actions.onStopPairingMode)
+    DisposableEffect(Unit) {
+        start()
+        onDispose { stop() }
+    }
     Column(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier
@@ -909,26 +918,20 @@ private fun TelevisionFirstRunConnectSetup(
     ) {
         Text(stringResource(Res.string.tv_set_up_from_a_phone_or_computer), color = colors.primaryText, fontSize = 21.sp, fontWeight = FontWeight.Bold)
         Text(
-            stringResource(Res.string.connect_setup_code_consent),
+            stringResource(Res.string.connect_show_code_instructions),
             color = colors.secondaryText,
             fontSize = 15.sp,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            TelevisionTextButton(
-                label = if (connect.pairingActive) stringResource(Res.string.tv_stop_pairing) else stringResource(Res.string.tv_show_pairing_code),
-                colors = colors,
-                calmFocus = true,
-                onClick = if (connect.pairingActive) actions.onStopPairingMode else actions.onStartPairingMode,
+        connect.pairingCode?.let { code ->
+            Text(
+                formatNaviampConnectPairingCode(code),
+                color = colors.primaryText,
+                fontSize = 44.sp,
+                fontWeight = FontWeight.Black,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
             )
-            connect.pairingCode?.let { code ->
-                Text(
-                    formatNaviampConnectPairingCode(code),
-                    color = colors.primaryText,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Black,
-                )
-            }
         }
+        Text(connect.localDeviceName, color = colors.secondaryText, fontSize = 15.sp)
         connect.recovery?.let { recovery ->
             NaviampConnectRecoveryPanel(recovery, colors, actions.onRetryConnection,
                 actions.onOpenPermissionSettings, television = true)

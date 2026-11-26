@@ -873,6 +873,7 @@
     <string name="connect_post_sign_in">Sign it in with my accounts and settings</string>
     <string name="connect_post_play_on">Play on %1$s</string>
     <string name="connect_done">Done</string>
+    <string name="tv_direct_setup_or">Or connect to your server directly from this TV.</string>
     <string name="connect_status_pair_with_device_once_more_to_enable_secure_reconnect">Pair with %1$s once more to enable secure reconnect.</string>
     <string name="connect_status_looking_for_device_start_pairing_mode_on_the_tv_if_needed">Looking for %1$s… Start pairing mode on the device if needed.</string>
     <string name="connect_status_securely_reconnecting_to_device">Securely reconnecting to %1$s…</string>

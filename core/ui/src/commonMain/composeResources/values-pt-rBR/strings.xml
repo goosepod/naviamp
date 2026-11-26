@@ -1264,6 +1264,7 @@
     <string name="connect_post_sign_in">Entrar com minhas contas e configurações</string>
     <string name="connect_post_play_on">Tocar em %1$s</string>
     <string name="connect_done">Concluído</string>
+    <string name="tv_direct_setup_or">Ou conecte-se ao seu servidor diretamente por esta TV.</string>
     <string name="connect_status_pair_with_device_once_more_to_enable_secure_reconnect">Pareie com %1$s mais uma vez para ativar a reconexão segura.</string>
     <string name="connect_status_looking_for_device_start_pairing_mode_on_the_tv_if_needed">Procurando %1$s… Inicie o modo de pareamento no dispositivo, se necessário.</string>
     <string name="connect_status_securely_reconnecting_to_device">Reconectando a %1$s com segurança…</string>
