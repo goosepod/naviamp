@@ -6,7 +6,7 @@ Wi-Fi). The phone's test app had no music account, so sign-in scenarios are stil
 
 | # | Scenario | Expected | Result |
 | --- | --- | --- | --- |
-| 1 | Fresh Android TV + phone: open Naviamp on the TV, type the code on the phone, choose **Done** | TV signs in and lands on Home; no input on the TV after launch | Not run — phone has no account; TV test data not reset |
+| 1 | Fresh Android TV + phone: open Naviamp on the TV, type the code on the phone, choose **Done** | TV signs in and lands on Home; no input on the TV after launch | **Pass** (second pass) — code shown at launch; sign-in pre-ticked; TV on Home with the library ~5 s after Done |
 | 2 | Desktop → TV by code | Desktop connects by typing the code; post-connect sheet appears | Not run |
 | 3 | Phone → phone by code | Connects; both list each other under Your devices | Not run |
 | 4 | Already-trusted TV + phone by code | Phone connects with the shown code; no approval prompt | **Pass** — no TV interaction; sheet showed Play on / Done (no sign-in offered: phone had no account) |
@@ -14,8 +14,8 @@ Wi-Fi). The phone's test app had no music account, so sign-in scenarios are stil
 | 6 | Wrong code | Clear message; TV shows a new code | **Pass** (one attempt) — "That code didn't match…"; TV code changed. Five-failure pause not exercised |
 | 7 | Leave the code on screen past 5 minutes | A new code appears automatically | Not run |
 | 8 | Previous release on the phone, this build on the TV | Phone resumes and controls the TV | Not run |
-| 9 | Signed-in TV, new phone connects | Sign-in is not preselected; **Done** changes nothing on the TV | Partial — Done kept TV unchanged; sign-in option absent because the phone had no account |
-| 10 | **Play on …** with music playing on the phone | Queue continues on the TV at the current position | Not run |
+| 9 | Signed-in TV, new phone connects | Sign-in is not preselected; **Done** changes nothing on the TV | **Pass** (second pass) — sign-in unticked; TV source unchanged after Done |
+| 10 | **Play on …** with music playing on the phone | Queue continues on the TV at the current position | **Pass** (second pass) — TV continued "Check Yourself" at ~2:1x; phone became the remote (position in step). Phone audio silence not confirmed by ear (phone volume muted) |
 | 11 | Local-network permission denied on the phone | Recovery panel appears in *Connect a device* | Not run |
 | 12 | Spanish and one RTL language (Arabic) | Devices pages and TV setup are fully translated and laid out correctly | Not run |
 
@@ -62,3 +62,14 @@ Same devices, rebuilt and reinstalled.
 - Finding 6 — **fixed**: the post-connect sheet shows only "… is connected", **Play on …** and
   **Done**.
 - Finding 7 (sign-in form label) — unrelated to #713; not changed here.
+
+## Second pass with a signed-in phone (2026-11-26)
+
+Both test apps were reset (data cleared); the phone was signed in to the test Navidrome account by
+the owner. Scenarios 1, 9 and 10 pass (see the table). New small findings:
+
+8. The TV first-run status line still says "Ready for a **controller** on this local network."
+9. On the TV first-run screen, "**Or** connect to your server directly from this TV." appears above
+   the phone/computer option it is the alternative to.
+10. After closing *Connect a device*, the phone keeps showing "Searching this local network…" although
+    discovery has stopped.
