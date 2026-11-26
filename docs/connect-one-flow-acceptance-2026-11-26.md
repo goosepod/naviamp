@@ -44,3 +44,21 @@ Wi-Fi). The phone's test app had no music account, so sign-in scenarios are stil
 Verified along the way: TV *Devices* page and code row, phone *Devices* page layout, the TV closes
 Settings when a phone connects, the phone's mini player mirrors the TV, and the TV kept the same
 listener port across code changes, a connection, and a resume.
+
+## Retest after fixes (2026-11-26, commit after `ec74bc4e2`)
+
+Same devices, rebuilt and reinstalled.
+
+- Finding 1 — **fixed**: with three older Naviamp devices on the network, typing the TV's code alone
+  connected to the onn TV (the one device announcing a code).
+- Finding 2 — **fixed**: the keyboard closes after the sixth digit.
+- Finding 3 — **fixed**: the stale trusted entry now says "Connect onn 4K Pro Streaming Device again:
+  show a new code on it and enter it here."; Connect trust is excluded from Android backup so a
+  reinstall no longer restores dead entries (existing stale entries remain until forgotten).
+- Finding 4 — **fixed** in all languages: manual-address messages no longer mention Tailnet, targets
+  or pairing mode.
+- Finding 5 — **fixed**: *Your devices* → device → **Connect** reconnected to the TV with nothing
+  playing.
+- Finding 6 — **fixed**: the post-connect sheet shows only "… is connected", **Play on …** and
+  **Done**.
+- Finding 7 (sign-in form label) — unrelated to #713; not changed here.
