@@ -54,6 +54,18 @@ class NaviampCoreProviderSessionLifecycle(
 
 const val ProviderSessionRefreshIntervalMillis: Long = 30L * 60L * 1_000L
 
+/**
+ * When an offline-restored session retries its server. [networkPollMillis] bounds how soon a
+ * returning network is noticed; [backoffMillis] spaces attempts while the server stays unreachable,
+ * and its last entry is the cap.
+ */
+data class NaviampCoreReconnectSchedule(
+    val networkPollMillis: Long = 3_000L,
+    val backoffMillis: List<Long> = listOf(5_000L, 15_000L, 30_000L, 60_000L, 120_000L, 300_000L),
+) {
+    fun delayAfter(failures: Int): Long = backoffMillis[failures.coerceIn(0, backoffMillis.lastIndex)]
+}
+
 class NaviampCoreConnectionController(
     private val connection: NaviampConnectionController,
     private val stateStore: NaviampCoreStateStore,
@@ -66,12 +78,22 @@ class NaviampCoreConnectionController(
     private val certificateFiles: NaviampCoreCertificateFilePort? = null,
     private val onCompanionChanged: (String) -> Unit = {},
     private val onSavedSourceSelected: (String, Boolean) -> Unit = { id, _ -> onConnected(id) },
+    /** The host's network fact; null when the host cannot observe one, so Core never assumes "no network". */
+    private val networkMetering: app.naviamp.domain.network.NetworkMeteringSource? = null,
+    /** The user's explicit Offline Mode: no automatic connection attempts while it is on. */
+    private val offlineModeEnabled: () -> Boolean = { false },
+    /** A background reconnect from offline refreshes content but must not restart or replace playback. */
+    private val onReconnected: (String) -> Unit = {},
+    private val recoveryScope: CoroutineScope? = null,
+    private val reconnectSchedule: NaviampCoreReconnectSchedule = NaviampCoreReconnectSchedule(),
 ) : NaviampCoreCommandController {
     private var inventory = initialInventory
     private var editingConnectionId: String? = null
     private var originalEditingForm: ConnectionFormState? = null
     private var librarySourceConnection: NaviampCoreEditableConnection? = null
     private var accountAttempt: Job? = null
+    private var recovery: Job? = null
+    private var runtimeRecoveryScope: CoroutineScope? = null
     private var certificateSelectionGeneration = 0L
 
     init {
@@ -114,6 +136,8 @@ class NaviampCoreConnectionController(
         connect(NaviampCoreConnectionRequest.Saved(id))
 
     suspend fun resetAfterDatabaseClear() {
+        recovery?.cancel()
+        recovery = null
         certificateSelectionGeneration++
         accountAttempt?.cancel()
         accountAttempt?.join()
@@ -148,7 +172,74 @@ class NaviampCoreConnectionController(
             ?.let { currentId -> inventory.connections.firstOrNull { it.id == currentId } }
             ?: inventory.connections.firstOrNull()
             ?: return
+        // An attempt that cannot succeed only delays offline content behind the provider timeouts (#702).
+        if (offlineModeEnabled() || networkDisconnected()) {
+            enterOffline(saved.id, previousSourceId = stateStore.state.value.shell.connectionSettings.currentSourceId,
+                clearExistingPlayback = false)
+            return
+        }
         connect(NaviampCoreConnectionRequest.Saved(saved.id), userInitiated = false)
+    }
+
+    private fun networkDisconnected(): Boolean =
+        networkMetering?.current() == app.naviamp.domain.network.NetworkMetering.Disconnected
+
+    /**
+     * While an offline-restored session lasts, retries the saved source: at once when the network
+     * returns, otherwise on a capped backoff. Offline Mode and a known-missing network skip attempts.
+     * Any user connection, switch or disconnect leaves offline and ends the loop.
+     */
+    private fun startRecovery(sourceId: String) {
+        val scope = runtimeRecoveryScope ?: recoveryScope ?: return
+        recovery?.cancel()
+        recovery = scope.launch { recover(sourceId) }
+    }
+
+    /**
+     * Runtime-owned like provider-session renewal: the loop only runs once a host starts runtime
+     * services. Starting it while already offline begins recovering at once.
+     */
+    fun startRecovery(scope: CoroutineScope) {
+        if (runtimeRecoveryScope != null) return
+        runtimeRecoveryScope = scope
+        val runtime = connection.state.value
+        val sourceId = runtime.sourceId
+        if (runtime.offline && sourceId != null && recovery?.isActive != true) startRecovery(sourceId)
+    }
+
+    private suspend fun recover(sourceId: String) {
+        var failures = 0
+        var waitedMillis = 0L
+        var networkWasMissing = networkDisconnected()
+        while (currentCoroutineContext().isActive) {
+            val runtime = connection.state.value
+            if (!runtime.offline || runtime.sourceId != sourceId) return
+            val missing = networkDisconnected()
+            if (offlineModeEnabled() || missing || runtime.isConnecting) {
+                networkWasMissing = networkWasMissing || missing
+                delay(reconnectSchedule.networkPollMillis)
+                continue
+            }
+            val due = reconnectSchedule.delayAfter(failures)
+            if (!networkWasMissing && waitedMillis < due) {
+                val step = minOf(reconnectSchedule.networkPollMillis, due - waitedMillis)
+                delay(step)
+                waitedMillis += step
+                continue
+            }
+            networkWasMissing = false
+            waitedMillis = 0L
+            val reconnected = connect(
+                NaviampCoreConnectionRequest.Saved(sourceId),
+                preserveExistingSession = true,
+                userInitiated = false,
+                // A background success must not close a connection editor the user has open.
+                preserveEditor = true,
+                onSessionConnected = onReconnected,
+            )
+            if (reconnected) return
+            failures += 1
+        }
     }
 
     /** Validates a one-time setup password through the existing source, without clearing playback/cache. */
@@ -426,22 +517,25 @@ class NaviampCoreConnectionController(
                 }
                 val savedSourceId = (request as? NaviampCoreConnectionRequest.Saved)?.id
                 if (savedSourceId != null && connectionFailureAllowsOfflineRestoration(cause)) {
-                    if (previousSourceId != savedSourceId || plan.clearExistingPlayback) {
-                        onSourceChanging(previousSourceId, savedSourceId)
-                    }
-                    inventory = inventory.copy(currentSourceId = savedSourceId)
-                    connection.offline(
-                        sourceId = savedSourceId,
-                        status = "Offline. Downloaded music remains available.",
-                    )
-                    publishConnection()
-                    onOfflineRestored(savedSourceId)
+                    enterOffline(savedSourceId, previousSourceId, plan.clearExistingPlayback)
                 } else {
                     connection.failed(connectionFailureStatus(cause, "Could not connect to the music server."))
                     publishConnection()
                 }
             }
         return connected
+    }
+
+    private fun enterOffline(sourceId: String, previousSourceId: String?, clearExistingPlayback: Boolean) {
+        if (previousSourceId != sourceId || clearExistingPlayback) onSourceChanging(previousSourceId, sourceId)
+        inventory = inventory.copy(currentSourceId = sourceId)
+        connection.offline(
+            sourceId = sourceId,
+            status = "Offline. Downloaded music remains available.",
+        )
+        publishConnection()
+        onOfflineRestored(sourceId)
+        startRecovery(sourceId)
     }
 
     private fun accountSwitcher() = stateStore.state.value.shell.connectionSettings.accountSwitcher

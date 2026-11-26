@@ -105,6 +105,8 @@ class NaviampCore private constructor(
     private val nowPlayingController: NaviampCoreNowPlayingMediaController,
     private val nowPlayingPresenter: NaviampCoreNowPlayingPresenter,
     private val providerSessionLifecycle: NaviampCoreProviderSessionLifecycle,
+    /** Starts offline reconnection on the runtime scope; runtime-owned like provider-session renewal. */
+    private val startConnectionRecovery: (CoroutineScope) -> Unit = {},
     private val runtimeScope: CoroutineScope,
     private val homeController: NaviampCoreHomeController,
     private val providerSource: NaviampCoreMediaProviderSource,
@@ -263,12 +265,16 @@ class NaviampCore private constructor(
 
     /** Starts runtime-owned work once, including when an external surface launches without phone UI. */
     fun startRuntimeServices() {
-        if (!closed) providerSessionLifecycle.start(runtimeScope)
+        if (closed) return
+        providerSessionLifecycle.start(runtimeScope)
+        startConnectionRecovery(runtimeScope)
     }
 
     /** A mounted surface may await renewal without owning or cancelling the runtime's job. */
     suspend fun maintainProviderSession() {
-        if (!closed) providerSessionLifecycle.start(runtimeScope).join()
+        if (closed) return
+        startConnectionRecovery(runtimeScope)
+        providerSessionLifecycle.start(runtimeScope).join()
     }
     suspend fun maintainDiscoveryAcquisitions() = homeController.maintainDiscoveryAcquisitions()
 
@@ -781,6 +787,10 @@ class NaviampCore private constructor(
                     restoreLocalSession(sourceId, false)
                     scope.launch { playlistBrowse.refreshAfterConnection() }
                 },
+                networkMetering = services.networkMetering,
+                offlineModeEnabled = { stateStore.state.value.shell.cache.settings.offlineModeEnabled },
+                // Refresh what offline hid (library, playlists, Home, Keep downloaded) and keep playing.
+                onReconnected = { sourceId -> refreshConnectedSource(sourceId, false, false) },
             )
             if (initialState.connectionInventory.currentSourceId != null) {
                 scope.launch { providerSessionLifecycle.refreshNow() }
@@ -937,6 +947,7 @@ class NaviampCore private constructor(
                 nowPlayingController = nowPlaying,
                 nowPlayingPresenter = nowPlayingPresenter,
                 providerSessionLifecycle = providerSessionLifecycle,
+                startConnectionRecovery = connection::startRecovery,
                 runtimeScope = scope,
                 homeController = home,
                 providerSource = providerSource,

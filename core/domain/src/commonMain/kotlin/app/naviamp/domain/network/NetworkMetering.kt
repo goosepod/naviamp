@@ -8,6 +8,8 @@ enum class NetworkMetering {
     Unmetered,
     Metered,
     Unknown,
+    /** The OS reports no usable network at all, so connecting cannot succeed until one returns. */
+    Disconnected,
 }
 
 /** Host effect for the OS metering state of the active network; absent when a host cannot observe it. */

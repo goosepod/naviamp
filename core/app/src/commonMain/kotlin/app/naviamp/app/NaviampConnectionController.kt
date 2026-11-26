@@ -25,12 +25,14 @@ data class NaviampConnectionRuntimeState(
     val serverVersion: String? = null,
     val status: String? = null,
     val retainingExistingConnection: Boolean = false,
+    /** A retained attempt from offline stays offline until it succeeds, so offline browsing is never interrupted. */
+    val retainingOffline: Boolean = false,
 ) {
     val isConnecting: Boolean get() = phase == NaviampConnectionPhase.Connecting
     val connected: Boolean
         get() = phase == NaviampConnectionPhase.Connected || phase == NaviampConnectionPhase.Offline ||
             (isConnecting && retainingExistingConnection)
-    val offline: Boolean get() = phase == NaviampConnectionPhase.Offline
+    val offline: Boolean get() = phase == NaviampConnectionPhase.Offline || (isConnecting && retainingOffline)
     val restoringConnection: Boolean get() = isConnecting && restoringSavedSession && !retainingExistingConnection
 }
 
@@ -74,6 +76,7 @@ class NaviampConnectionController(
             sourceId = previous.sourceId.takeIf { retaining },
             serverVersion = previous.serverVersion.takeIf { retaining },
             retainingExistingConnection = retaining,
+            retainingOffline = retaining && previous.offline,
         )
         applicationStatus?.publish(
             area = NaviampApplicationStatusArea.Connection,

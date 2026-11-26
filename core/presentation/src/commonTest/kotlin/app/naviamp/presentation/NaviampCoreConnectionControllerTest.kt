@@ -602,6 +602,149 @@ class NaviampCoreConnectionControllerTest {
     }
 
     @Test
+    fun anAirplaneModeColdStartShowsOfflineContentWithoutWaitingForATimeout() = kotlinx.coroutines.test.runTest {
+        var offlineSourceId: String? = null
+        val fixture = fixture(
+            network = { app.naviamp.domain.network.NetworkMetering.Disconnected },
+            onOfflineRestored = { offlineSourceId = it },
+            recoveryScope = backgroundScope,
+        )
+
+        fixture.controller.restoreInitialConnection()
+
+        assertTrue(fixture.port.connectRequests.isEmpty(), "No attempt is made while the OS reports no network")
+        assertEquals(0L, testScheduler.currentTime)
+        val connection = fixture.store.state.value.shell.connectionSettings.connection
+        assertTrue(connection.offline)
+        assertEquals("source-1", offlineSourceId)
+    }
+
+    @Test
+    fun whenTheNetworkReturnsTheOfflineSessionReconnectsWithinThePollBoundAndKeepsPlaying() =
+        kotlinx.coroutines.test.runTest {
+            var network = app.naviamp.domain.network.NetworkMetering.Disconnected
+            val reconnected = mutableListOf<String>()
+            var playbackRestores = 0
+            var sourceResets = 0
+            val fixture = fixture(
+                network = { network },
+                onConnected = { playbackRestores++ },
+                onSourceChanging = { _, _ -> sourceResets++ },
+                onReconnected = { reconnected += it },
+                recoveryScope = backgroundScope,
+            )
+            fixture.controller.restoreInitialConnection()
+            advanceTimeBy(60_000); runCurrent()
+            assertTrue(fixture.port.connectRequests.isEmpty(), "Still no attempt while the network is missing")
+
+            network = app.naviamp.domain.network.NetworkMetering.Unmetered
+            advanceTimeBy(NaviampCoreReconnectSchedule().networkPollMillis + 1); runCurrent()
+
+            val (request, plan) = fixture.port.connectRequests.single()
+            assertEquals(NaviampCoreConnectionRequest.Saved("source-1"), request)
+            assertTrue(plan.restoreSavedSession)
+            assertFalse(plan.clearExistingPlayback, "Reconnecting never clears what is playing")
+            val connection = fixture.store.state.value.shell.connectionSettings.connection
+            assertTrue(connection.connected)
+            assertFalse(connection.offline)
+            assertEquals(listOf("source-1"), reconnected)
+            assertEquals(0, playbackRestores, "A background reconnect does not restore the saved session over playback")
+            assertEquals(0, sourceResets)
+        }
+
+    @Test
+    fun withTheNetworkUpButTheServerDownItRetriesOnBackoffAndStaysOfflineMeanwhile() =
+        kotlinx.coroutines.test.runTest {
+            val fixture = fixture(
+                network = { app.naviamp.domain.network.NetworkMetering.Unmetered },
+                connectFailure = IllegalStateException("Failed to connect to server"),
+                recoveryScope = backgroundScope,
+            )
+            fixture.controller.restoreInitialConnection()
+            assertEquals(1, fixture.port.connectRequests.size)
+            assertTrue(fixture.store.state.value.shell.connectionSettings.connection.offline)
+
+            val schedule = NaviampCoreReconnectSchedule()
+            advanceTimeBy(schedule.backoffMillis[0] - 1); runCurrent()
+            assertEquals(1, fixture.port.connectRequests.size)
+            advanceTimeBy(2); runCurrent()
+            assertEquals(2, fixture.port.connectRequests.size, "First retry after the first backoff step")
+            assertTrue(fixture.store.state.value.shell.connectionSettings.connection.offline)
+
+            // The server comes back; the next retry, after the second step, connects.
+            fixture.port.connectFailure = null
+            val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+            fixture.port.connectGate = gate
+            advanceTimeBy(schedule.backoffMillis[1] + 1); runCurrent()
+            assertEquals(3, fixture.port.connectRequests.size)
+            assertTrue(fixture.store.state.value.shell.connectionSettings.connection.offline,
+                "Offline browsing continues while the retry is in flight")
+            gate.complete(Unit); runCurrent()
+            assertFalse(fixture.store.state.value.shell.connectionSettings.connection.offline)
+            assertTrue(fixture.store.state.value.shell.connectionSettings.connection.connected)
+
+            advanceTimeBy(30 * 60_000L); runCurrent()
+            assertEquals(3, fixture.port.connectRequests.size, "The loop ends once connected")
+        }
+
+    @Test
+    fun recoveryWaitsForRuntimeServicesAndStartsAtOnceIfAlreadyOffline() = kotlinx.coroutines.test.runTest {
+        var network = app.naviamp.domain.network.NetworkMetering.Disconnected
+        val fixture = fixture(network = { network })
+        fixture.controller.restoreInitialConnection()
+        network = app.naviamp.domain.network.NetworkMetering.Unmetered
+        advanceTimeBy(30 * 60_000L); runCurrent()
+        assertTrue(fixture.port.connectRequests.isEmpty(), "No runtime loop before the host starts runtime services")
+
+        fixture.controller.startRecovery(backgroundScope)
+        advanceTimeBy(NaviampCoreReconnectSchedule().backoffMillis.first() + 1); runCurrent()
+        assertEquals(1, fixture.port.connectRequests.size)
+        assertFalse(fixture.store.state.value.shell.connectionSettings.connection.offline)
+    }
+
+    @Test
+    fun theBackoffIsCappedSoAnUnreachableServerIsStillRetried() {
+        val schedule = NaviampCoreReconnectSchedule()
+        assertEquals(schedule.backoffMillis.last(), schedule.delayAfter(50))
+        assertTrue(schedule.backoffMillis.zipWithNext().all { (a, b) -> a <= b })
+    }
+
+    @Test
+    fun offlineModeStartsOfflineAndNeverReconnectsUntilTurnedOff() = kotlinx.coroutines.test.runTest {
+        var offlineMode = true
+        val fixture = fixture(
+            network = { app.naviamp.domain.network.NetworkMetering.Unmetered },
+            offlineModeEnabled = { offlineMode },
+            recoveryScope = backgroundScope,
+        )
+        fixture.controller.restoreInitialConnection()
+        advanceTimeBy(30 * 60_000L); runCurrent()
+        assertTrue(fixture.port.connectRequests.isEmpty())
+        assertTrue(fixture.store.state.value.shell.connectionSettings.connection.offline)
+
+        offlineMode = false
+        // Noticed within one poll, then the first backoff step.
+        val schedule = NaviampCoreReconnectSchedule()
+        advanceTimeBy(schedule.networkPollMillis + schedule.backoffMillis.first() + 1); runCurrent()
+        assertEquals(1, fixture.port.connectRequests.size, "Turning Offline Mode off resumes reconnecting")
+    }
+
+    @Test
+    fun aReachableServerStillStartsStraightOnlineWithNoBackgroundRetries() = kotlinx.coroutines.test.runTest {
+        var connected = 0
+        val fixture = fixture(
+            network = { app.naviamp.domain.network.NetworkMetering.Unmetered },
+            onConnected = { connected++ },
+            recoveryScope = backgroundScope,
+        )
+        fixture.controller.restoreInitialConnection()
+        advanceTimeBy(30 * 60_000L); runCurrent()
+        assertEquals(1, fixture.port.connectRequests.size)
+        assertEquals(1, connected, "A normal start still restores the saved session")
+        assertFalse(fixture.store.state.value.shell.connectionSettings.connection.offline)
+    }
+
+    @Test
     fun unreachableSavedSourceSwitchMakesTheSelectedOfflineSourceAuthoritative() =
         kotlinx.coroutines.test.runTest {
             val records = listOf(
@@ -993,6 +1136,10 @@ class NaviampCoreConnectionControllerTest {
         selectedMusicFolderIds: List<String> = emptyList(),
         availableMusicFolders: List<ConnectionFormMusicFolder> = emptyList(),
         certificateFiles: NaviampCoreCertificateFilePort? = null,
+        network: () -> app.naviamp.domain.network.NetworkMetering? = { null },
+        offlineModeEnabled: () -> Boolean = { false },
+        onReconnected: (String) -> Unit = {},
+        recoveryScope: kotlinx.coroutines.CoroutineScope? = null,
     ): ConnectionFixture {
         val inventory = NaviampCoreConnectionInventory(
             connections = savedRecords.takeIf { hasSavedConnection }.orEmpty(),
@@ -1021,6 +1168,12 @@ class NaviampCoreConnectionControllerTest {
                 onUserConnected = onUserConnected,
                 onOfflineRestored = onOfflineRestored,
                 certificateFiles = certificateFiles,
+                networkMetering = app.naviamp.domain.network.NetworkMeteringSource {
+                    network() ?: app.naviamp.domain.network.NetworkMetering.Unknown
+                }.takeIf { network() != null },
+                offlineModeEnabled = offlineModeEnabled,
+                onReconnected = onReconnected,
+                recoveryScope = recoveryScope,
             ),
         )
     }

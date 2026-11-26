@@ -246,6 +246,7 @@ class NaviampStoredApplication(
         playbackEngine = playbackEngine,
         settingsSyncPort = settingsSyncPort,
         certificateFiles = certificateFiles,
+        networkMetering = networkMetering,
         settingsPersistenceTransaction = { block ->
             if (recoveryState == null) block() else recoveryState.transaction(database.naviampStorageQueries, block)
         },

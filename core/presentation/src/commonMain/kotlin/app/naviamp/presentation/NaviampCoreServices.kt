@@ -162,6 +162,8 @@ data class NaviampCoreServices(
     val connect: NaviampCoreConnectServices? = null,
     val cast: NaviampCoreCastServices? = null,
     val certificateFiles: NaviampCoreCertificateFilePort? = null,
+    /** The host's network fact; absent when it cannot observe one (Desktop). Core decides what it means. */
+    val networkMetering: app.naviamp.domain.network.NetworkMeteringSource? = null,
 )
 
 /** Shared authenticated artwork/cache dependencies; native hosts only supply initialized effects. */
