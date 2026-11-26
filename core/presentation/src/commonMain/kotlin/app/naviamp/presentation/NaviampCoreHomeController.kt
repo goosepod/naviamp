@@ -10,7 +10,7 @@ import app.naviamp.domain.home.HomeAlbumYear
 import app.naviamp.domain.home.HomeContentLoadRequest
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeLibraryRepository
-import app.naviamp.domain.home.homeLoadFailureStatus
+import app.naviamp.ui.NaviampStatusMessage
 import app.naviamp.domain.home.loadHomeContent
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.radio.sessionSubtitle
@@ -244,11 +244,11 @@ class NaviampCoreHomeController(
         val provider = providerSource.current()
         if (provider == null) {
             stateStore.updateShell { it.copy(home = it.home.copy(providerDiscovery = null)) }
-            publish(refreshing = false, status = "Connect to Navidrome to load Home.")
+            publish(refreshing = false)
             return@coroutineScope
         }
         val supplement = supplementSource.current()
-        publish(refreshing = true, status = "Loading home...")
+        publish(refreshing = true)
         launch { refreshProviderDiscovery(provider, generation) }
         runCatching {
             val content = loadHomeContent(
@@ -305,13 +305,13 @@ class NaviampCoreHomeController(
                             collectionPage = refreshedPage,
                         ),
                     ),
-                    overlays = state.overlays.copy(status = null),
+                    overlays = state.overlays.withoutStatus(NaviampStatusMessage.HomeFailed),
                 )
             }
         }.onFailure { cause ->
             if (cause is CancellationException) throw cause
             if (generation == refreshGeneration && providerSource.isCurrent(provider)) {
-                publish(refreshing = false, status = homeLoadFailureStatus(cause))
+                publish(refreshing = false, status = NaviampStatusMessage.HomeFailed)
             }
         }
     }
@@ -445,7 +445,7 @@ class NaviampCoreHomeController(
         if (section == null) {
             publish(
                 refreshing = stateStore.state.value.shell.home.refreshing,
-                status = "This Home section is no longer available.",
+                status = NaviampStatusMessage.HomeSectionUnavailable,
             )
             return
         }
@@ -467,23 +467,15 @@ class NaviampCoreHomeController(
             "genre" -> SharedRoute.GenreMix
             "sonic-path" -> SharedRoute.SonicPath
             "sonic-mix" -> SharedRoute.SonicMix
-            else -> {
-                publish(
-                    refreshing = stateStore.state.value.shell.home.refreshing,
-                    status = "Unknown mix builder.",
-                )
-                return
-            }
+            else -> return
         }
         navigationController.dispatch(NaviampCoreCommand.Navigation.SelectRoute(route))
     }
 
-    private fun publish(refreshing: Boolean, status: String?) {
+    private fun publish(refreshing: Boolean, status: NaviampStatusMessage? = null) {
         stateStore.update { state ->
-            state.copy(
-                shell = state.shell.copy(home = state.shell.home.copy(refreshing = refreshing)),
-                overlays = state.overlays.copy(status = status),
-            )
+            val updated = state.copy(shell = state.shell.copy(home = state.shell.home.copy(refreshing = refreshing)))
+            if (status == null) updated else updated.withStatus(status)
         }
     }
 }

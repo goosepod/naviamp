@@ -34,7 +34,7 @@ enum class NaviampSomethingNewNotice(internal val message: StringResource) {
 }
 
 /** Bottom notices whose lifetime Core owns. */
-enum class NaviampTimedNotice { SomethingNew, Radio }
+enum class NaviampTimedNotice { SomethingNew, Radio, Status }
 
 enum class NaviampTimedNoticeAction {
     /** Carries the presentation's accessibility-adjusted timeout. */
