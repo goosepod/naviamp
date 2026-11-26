@@ -25,7 +25,7 @@ class NaviampCoreConnectFreshSetupTest {
         try {
             val phoneActions = phone.actions.shell.connectActions!!
             mac.actions.shell.connectActions!!.onStartPairingMode()
-            phoneActions.onRefreshTargets()
+            phoneActions.onConnectScreenVisibilityChanged(true)
             runCurrent()
             val target = phone.state.value.shell.connect.discoveredTargets.single { it.displayName == "mac" }
             phoneActions.onTargetSelected(target)
@@ -64,7 +64,7 @@ class NaviampCoreConnectFreshSetupTest {
 
     private fun TestScope.enterCode(controller: NaviampCore, target: NaviampCore, targetName: String) {
         val actions = controller.actions.shell.connectActions!!
-        actions.onRefreshTargets()
+        actions.onConnectScreenVisibilityChanged(true)
         runCurrent()
         actions.onTargetSelected(controller.state.value.shell.connect.discoveredTargets.single { it.displayName == targetName })
         actions.onPairingCodeChanged(assertNotNull(target.state.value.shell.connect.pairingCode))
@@ -104,7 +104,7 @@ class NaviampCoreConnectFreshSetupTest {
             val code = assertNotNull(mac.state.value.shell.connect.pairingCode)
             listOf(phoneA, phoneB).forEach { phone ->
                 val actions = phone.actions.shell.connectActions!!
-                actions.onRefreshTargets()
+                actions.onConnectScreenVisibilityChanged(true)
                 runCurrent()
                 actions.onTargetSelected(phone.state.value.shell.connect.discoveredTargets.single { it.displayName == "mac" })
                 actions.onPairingCodeChanged(code)

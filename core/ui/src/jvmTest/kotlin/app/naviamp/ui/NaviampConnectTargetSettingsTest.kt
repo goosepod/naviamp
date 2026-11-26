@@ -68,7 +68,7 @@ class NaviampConnectTargetSettingsTest {
     private fun target() = NaviampConnectSettingsUi(available = true, role = NaviampConnectUiRole.ControllerAndTarget)
     private fun actions(calls: MutableList<String>) = NaviampConnectSettingsActions(
         onStartPairingMode = { calls += "start" }, onStopPairingMode = { calls += "stop" },
-        onRefreshTargets = {}, onTargetSelected = {}, onTrustedDeviceSelected = {},
+        onTargetSelected = {}, onTrustedDeviceSelected = {},
         onPlaybackDeviceSelected = {}, onLocalDeviceNameChanged = {}, onTrustedDeviceAliasChanged = { _, _ -> },
         onForgetTrustedDevice = {}, onPairingCodeChanged = {}, onSubmitPairingCode = {},
         onRemotePrevious = {}, onRemotePlayPause = {}, onRemoteNext = {}, onStopControlling = {},

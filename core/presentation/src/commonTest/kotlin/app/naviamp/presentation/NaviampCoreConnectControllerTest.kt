@@ -310,7 +310,7 @@ class NaviampCoreConnectControllerTest {
     fun unavailableDiscoveryHasRetryWithoutPermissionSettings() = runTest {
         val discovery = RecordingDiscoveryEffect()
         val (controller, store, _) = remoteFixture(discovery) { }
-        controller.actions.onRefreshTargets()
+        controller.actions.onConnectScreenVisibilityChanged(true)
         discovery.listener.onDiscoveryFailed("native detail")
         runCurrent()
         assertEquals(app.naviamp.ui.NaviampConnectRecoveryProblem.DiscoveryUnavailable, store.state.value.shell.connect.recovery?.problem)
@@ -594,9 +594,9 @@ class NaviampCoreConnectControllerTest {
         controller.actions.onPlaybackDeviceSelected("trusted-tv")
         assertEquals(1, discovery.startCount)
         assertTrue(store.state.value.shell.connect.status.orEmpty().contains("Looking for Living Room TV"))
-        controller.actions.onRefreshTargets()
-        assertEquals(1, discovery.stopCount)
-        assertEquals(2, discovery.startCount)
+        controller.actions.onConnectScreenVisibilityChanged(true)
+        assertEquals(0, discovery.stopCount, "Opening the connect panel must not restart a running discovery")
+        assertEquals(1, discovery.startCount)
         controller.close()
     }
 
@@ -678,10 +678,10 @@ class NaviampCoreConnectControllerTest {
         assertEquals(2, connectCount)
         advanceTimeBy(100L)
         runCurrent()
-        controller.actions.onRefreshTargets()
+        controller.actions.onConnectScreenVisibilityChanged(true)
         advanceTimeBy(2_000L)
         runCurrent()
-        assertEquals(2, connectCount)
+        assertEquals(3, connectCount, "Opening the connect panel must not cancel an automatic reconnect")
         controller.close()
     }
 
@@ -1079,7 +1079,7 @@ class NaviampCoreConnectControllerTest {
             ),
         )
 
-        controller.actions.onRefreshTargets()
+        controller.actions.onConnectScreenVisibilityChanged(true)
         discovery.listener.onServiceResolved(
             NaviampConnectResolvedService(
                 serviceName = "Living Room",
@@ -1361,7 +1361,7 @@ class NaviampCoreConnectControllerTest {
             newOpaqueId = { "unused" }, newPairingCode = { "123456" }, nowEpochMillis = { testScheduler.currentTime },
         ), providerSessions = providerSessions, sourceIdentity = sourceIdentity,
             trackSelectionContext = trackSelectionContext)
-        if (discovery != null) controller.actions.onRefreshTargets()
+        if (discovery != null) controller.actions.onConnectScreenVisibilityChanged(true)
         var next = 0
         val session = NaviampConnectControllerSession(NaviampConnectSessionTransport(send),
             NaviampConnectRequestIdFactory { "request-${++next}" })
@@ -1371,6 +1371,149 @@ class NaviampCoreConnectControllerTest {
             NaviampConnectTargetSnapshot(0, target, emptySet()))
         controller.adoptControllerSession(session, companionProvisioningSupported)
         return Triple(controller, store, session)
+    }
+
+    @Test
+    fun openingConnectScreenStartsAndClosingStopsDiscovery() = runTest {
+        val fixture = connectScreenFixture()
+        fixture.controller.actions.onConnectScreenVisibilityChanged(true)
+        assertEquals(1, fixture.discovery.startCount)
+        assertTrue(fixture.store.state.value.shell.connect.connectScreenVisible)
+        fixture.controller.actions.onConnectScreenVisibilityChanged(false)
+        assertTrue(fixture.discovery.stopCount >= 1)
+        assertFalse(fixture.store.state.value.shell.connect.connectScreenVisible)
+        fixture.controller.close()
+    }
+
+    @Test
+    fun closingConnectScreenKeepsDiscoveryForAPendingTrustedReconnect() = runTest {
+        val fixture = connectScreenFixture(trustedTv = true)
+        fixture.controller.actions.onTrustedDeviceSelected(fixture.store.state.value.shell.connect.trustedDevices.single())
+        fixture.controller.actions.onConnectScreenVisibilityChanged(true)
+        val stops = fixture.discovery.stopCount
+        fixture.controller.actions.onConnectScreenVisibilityChanged(false)
+        assertEquals(stops, fixture.discovery.stopCount, "A pending trusted reconnect still needs discovery")
+        fixture.controller.close()
+    }
+
+    @Test
+    fun sixthDigitSubmitsToTheOnlyDeviceShowingACode() = runTest {
+        val fixture = connectScreenFixture()
+        fixture.controller.actions.onConnectScreenVisibilityChanged(true)
+        fixture.resolve("Living Room", "192.0.2.10", "tv-fp", pairable = true)
+        fixture.resolve("Kitchen", "192.0.2.11", "kitchen-fp", pairable = false)
+        runCurrent()
+        assertEquals(listOf("Living Room"), fixture.store.state.value.shell.connect.discoveredTargets.map { it.displayName })
+        fixture.controller.actions.onPairingCodeChanged("12345")
+        runCurrent()
+        assertTrue(fixture.attempts.isEmpty())
+        fixture.controller.actions.onPairingCodeChanged("123456")
+        runCurrent()
+        assertEquals(listOf("192.0.2.10" to 42_425), fixture.attempts)
+        fixture.controller.close()
+    }
+
+    @Test
+    fun codeTypedBeforeDiscoveryWaitsForTheDevice() = runTest {
+        val fixture = connectScreenFixture()
+        fixture.controller.actions.onConnectScreenVisibilityChanged(true)
+        fixture.controller.actions.onPairingCodeChanged("123456")
+        advanceTimeBy(2_000L)
+        runCurrent()
+        assertTrue(fixture.attempts.isEmpty())
+        fixture.resolve("Living Room", "192.0.2.10", "tv-fp", pairable = true)
+        runCurrent()
+        assertEquals(listOf("192.0.2.10" to 42_425), fixture.attempts)
+        fixture.controller.close()
+    }
+
+    @Test
+    fun codeTypedWithNoDeviceShowingACodeReportsItAfterWaiting() = runTest {
+        val fixture = connectScreenFixture()
+        fixture.controller.actions.onConnectScreenVisibilityChanged(true)
+        fixture.controller.actions.onPairingCodeChanged("123456")
+        advanceTimeBy(5_001L)
+        runCurrent()
+        assertTrue(fixture.attempts.isEmpty())
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.NoDeviceShowingACode,
+            fixture.store.state.value.shell.connect.statusMessage?.text)
+        fixture.controller.close()
+    }
+
+    @Test
+    fun multipleDevicesShowingCodesRequireAChoice() = runTest {
+        val fixture = connectScreenFixture()
+        fixture.controller.actions.onConnectScreenVisibilityChanged(true)
+        fixture.resolve("Living Room", "192.0.2.10", "tv-fp", pairable = true)
+        fixture.resolve("Bedroom", "192.0.2.12", "bedroom-fp", pairable = true)
+        runCurrent()
+        fixture.controller.actions.onPairingCodeChanged("123456")
+        runCurrent()
+        assertTrue(fixture.attempts.isEmpty())
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.ChooseTheDeviceShowingThisCode,
+            fixture.store.state.value.shell.connect.statusMessage?.text)
+        assertEquals("123456", fixture.store.state.value.shell.connect.enteredPairingCode)
+        fixture.controller.actions.onTargetSelected(
+            fixture.store.state.value.shell.connect.discoveredTargets.single { it.displayName == "Bedroom" })
+        runCurrent()
+        assertEquals(listOf("192.0.2.12" to 42_425), fixture.attempts)
+        fixture.controller.close()
+    }
+
+    private class ConnectScreenFixture(
+        val controller: NaviampCoreConnectController,
+        val store: NaviampCoreStateStore,
+        val discovery: RecordingDiscoveryEffect,
+        val attempts: MutableList<Pair<String, Int>>,
+    ) {
+        fun resolve(name: String, address: String, fingerprint: String, pairable: Boolean) {
+            discovery.listener.onServiceResolved(NaviampConnectResolvedService(
+                serviceName = name, addresses = listOf(address), port = 42_425,
+                textAttributes = NaviampConnectDiscoveryMetadata.encode(NaviampConnectAdvertisement(
+                    instanceId = "$fingerprint-instance", displayName = name,
+                    protocolRange = NaviampConnectProtocolRange(), capabilities = emptySet(), port = 42_425,
+                    identityFingerprint = fingerprint, expiresAtEpochMillis = Long.MAX_VALUE, pairable = pairable,
+                )),
+            ))
+        }
+    }
+
+    private fun kotlinx.coroutines.test.TestScope.connectScreenFixture(trustedTv: Boolean = false): ConnectScreenFixture {
+        var storedTrust: String? = null
+        val trust = NaviampConnectTrustRepository(object : NaviampConnectTrustStorageEffect {
+            override fun read() = storedTrust
+            override fun write(value: String) { storedTrust = value }
+        })
+        if (trustedTv) trust.upsert(NaviampConnectTrustRecord("trusted-tv",
+            NaviampConnectDevice("tv", "Living Room", NaviampConnectDeviceRole.Target), "tv-fp", "tv-key", 1L))
+        val discovery = RecordingDiscoveryEffect()
+        val attempts = mutableListOf<Pair<String, Int>>()
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreConnectController(this, store, NaviampCoreConnectServices(
+            networkDispatcher = kotlinx.coroutines.Dispatchers.Unconfined,
+            deviceCapabilities = setOf(NaviampConnectDeviceCapability.ControlPlayback),
+            displayName = "Pixel", identity = FakeIdentity, identityVerifier = FakeIdentityVerifier,
+            transport = object : NaviampConnectTransportFactory {
+                override suspend fun connect(host: String, port: Int): NaviampConnectTransportConnection {
+                    attempts += host to port
+                    error("unreachable")
+                }
+                override fun listen(port: Int): NaviampConnectTransportListener = error("unused")
+            },
+            pake = UnusedPakeFactory, cipher = UnusedCipherFactory, trust = trust,
+            credentials = app.naviamp.app.NaviampConnectSessionCredentialRepository(
+                object : app.naviamp.app.NaviampConnectSessionCredentialStorageEffect {
+                    override fun read(peerDeviceId: String) = byteArrayOf(1, 2, 3)
+                    override fun write(peerDeviceId: String, value: ByteArray) = Unit
+                    override fun remove(peerDeviceId: String) = Unit
+                    override fun contains(peerDeviceId: String) = true
+                },
+            ),
+            discovery = discovery,
+            newOpaqueId = { "opaque" }, newPairingCode = { "123456" },
+            nowEpochMillis = { testScheduler.currentTime + 1_000L },
+        ))
+        return ConnectScreenFixture(controller, store, discovery, attempts)
     }
 
     private fun CoroutineScope.targetController(

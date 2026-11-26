@@ -194,6 +194,8 @@ class NaviampCoreConnectController(
     /** Failed code attempts while the panel stays open; each failure rotates the code. */
     private var codeFailures = 0
     private var codeRetryJob: Job? = null
+    private var connectScreenVisible = false
+    private var codeTargetWaitJob: Job? = null
     private var acceptedPairingConnection: NaviampConnectTransportConnection? = null
     private var pairingExpiryJob: Job? = null
     private var activePairingHandshake: NaviampConnectPendingTargetPairing? = null
@@ -287,7 +289,7 @@ class NaviampCoreConnectController(
         onRetryConnection = ::retryConnection,
         onOpenPermissionSettings = ::openPermissionSettings,
         onStopPairingMode = ::stopPairingMode,
-        onRefreshTargets = ::refreshTargets,
+        onConnectScreenVisibilityChanged = ::changeConnectScreenVisibility,
         onTargetSelected = ::selectTarget,
         onManualEndpointSelected = ::selectManualEndpoint,
         onManualTrustedEndpointSelected = ::reconnectTrustedDeviceAtAddress,
@@ -931,22 +933,58 @@ class NaviampCoreConnectController(
         publish()
     }
 
-    private fun refreshTargets() {
+    /** Discovery runs while the "Connect a device" panel is open (or a trusted reconnect needs it). */
+    private fun changeConnectScreenVisibility(visible: Boolean) {
         if (!canControl || discovery == null) return
-        // Browsing is independent of an authenticated session. Choosing another target owns
-        // replacement; refreshing discovery must not detach either an incoming or outgoing peer.
+        connectScreenVisible = visible
+        codeTargetWaitJob?.cancel()
+        codeTargetWaitJob = null
         if (authenticatedSession == null) {
-            suspendAutomaticReconnectForManualPairing()
-            playbackDestination.reconnecting()
             selectedTarget = null
             selectedManualEndpoint = null
             enteredCode = ""
+            if (phase == NaviampConnectPairingUiPhase.AwaitingCode) phase = NaviampConnectPairingUiPhase.Inactive
         }
+        if (visible) {
+            status = "Searching this local network…"
+            statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.SearchingThisLocalNetwork)
+            discovery.start()
+        } else if (pendingTrustedDeviceId == null && reconnectJob?.isActive != true) {
+            discovery.stop()
+        }
+        publish()
+    }
+
+    /** Devices that are showing a code right now, excluding this device. */
+    private fun pairableTargets(
+        targets: List<NaviampConnectDiscoveredTarget> = discovery?.state?.value?.targets.orEmpty(),
+    ): List<NaviampConnectDiscoveredTarget> {
+        val ownFingerprint = (identityState.value as? IdentityState.Ready)?.identity?.identityFingerprint
+        return targets.filter { it.advertisement.pairable && it.advertisement.identityFingerprint != ownFingerprint }
+    }
+
+    /** A code typed before discovery found its device waits briefly for one to appear. */
+    private fun awaitCodeTarget() {
+        val discoveryController = discovery ?: return
+        if (codeTargetWaitJob?.isActive == true) return
+        discoveryController.start()
         status = "Searching this local network…"
         statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.SearchingThisLocalNetwork)
-        discovery.stop()
-        discovery.start()
         publish()
+        codeTargetWaitJob = controllerScope.launch {
+            val found = withTimeoutOrNull(CodeTargetWaitMillis) {
+                discoveryController.state.first { pairableTargets(it.targets).isNotEmpty() }
+            }
+            codeTargetWaitJob = null
+            if (enteredCode.length != 6) return@launch
+            if (found == null) {
+                status = null
+                statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.NoDeviceShowingACode)
+                publish()
+            } else {
+                submitPairingCode()
+            }
+        }
     }
 
     private fun reconnectTrustedDevice(device: NaviampConnectTrustedDeviceUi) {
@@ -1119,7 +1157,11 @@ class NaviampCoreConnectController(
         }?.also { target ->
             recentlyResolvedTargets[target.advertisement.identityFingerprint] = target
         } ?: return
-        enteredCode = ""
+        // Digits typed before choosing a device are kept and submitted to the chosen one.
+        if (enteredCode.length == 6) {
+            submitPairingCode()
+            return
+        }
         phase = NaviampConnectPairingUiPhase.AwaitingCode
         status = "Enter the six-digit code shown on ${targetUi.displayName}."
         statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.EnterTheSixDigitCodeShownOnDevice, listOf(targetUi.displayName))
@@ -1162,13 +1204,35 @@ class NaviampCoreConnectController(
 
     private fun changePairingCode(value: String) {
         enteredCode = value.filter(Char::isDigit).take(6)
-        publish()
+        // The sixth digit submits; there is no separate confirmation step.
+        if (enteredCode.length == 6) submitPairingCode() else publish()
     }
 
     private fun submitPairingCode() {
-        val target = selectedTarget
+        if (phase == NaviampConnectPairingUiPhase.Handshaking) return
         val manualEndpoint = selectedManualEndpoint
+        if (selectedTarget == null && manualEndpoint == null && enteredCode.length == 6) {
+            val candidates = pairableTargets()
+            when {
+                candidates.size == 1 -> selectedTarget = candidates.single().also { target ->
+                    recentlyResolvedTargets[target.advertisement.identityFingerprint] = target
+                }
+                candidates.size > 1 -> {
+                    status = null
+                    statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ChooseTheDeviceShowingThisCode)
+                    publish()
+                    return
+                }
+                else -> {
+                    awaitCodeTarget()
+                    return
+                }
+            }
+        }
+        val target = selectedTarget
         if (target == null && manualEndpoint == null) return
+        codeTargetWaitJob?.cancel()
+        codeTargetWaitJob = null
         if (identityState.value !is IdentityState.Ready) {
             withIdentity(::submitPairingCode)
             return
@@ -2145,6 +2209,7 @@ class NaviampCoreConnectController(
                     },
                     listeningPort = listener?.port,
                     enteredPairingCode = enteredCode,
+                    connectScreenVisible = connectScreenVisible,
                     manualEndpointAwaitingCode = selectedManualEndpoint != null &&
                         phase in setOf(NaviampConnectPairingUiPhase.AwaitingCode, NaviampConnectPairingUiPhase.Handshaking),
                     selectedTargetId = selectedTarget?.advertisement?.instanceId,
@@ -2218,7 +2283,7 @@ class NaviampCoreConnectController(
                     },
                     needsProvisioningCredential = needsProvisioningCredential,
                     provisioningBusy = controllerProvisioningBusy,
-                    discoveredTargets = discovered?.targets.orEmpty().map { target ->
+                    discoveredTargets = pairableTargets(discovered?.targets.orEmpty()).map { target ->
                         NaviampConnectDiscoveredTargetUi(
                             instanceId = target.advertisement.instanceId,
                             displayName = target.advertisement.displayName,
@@ -2396,3 +2461,4 @@ private const val AutomaticReconnectDelayMillis = 750L
 private const val AutomaticReconnectRetryMillis = 2_000L
 private const val MaximumCodeFailures = 5
 private const val CodeFailureLockoutMillis = 30_000L
+private const val CodeTargetWaitMillis = 5_000L

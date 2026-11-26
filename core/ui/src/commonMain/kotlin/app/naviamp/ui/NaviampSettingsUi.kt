@@ -620,7 +620,7 @@ internal fun NaviampConnectSettingsSection(
             )
         }
         if (connect.canDiscover) {
-            PrimaryButton("Find Naviamp devices", colors, enabled = true, onClick = actions.onRefreshTargets)
+            PrimaryButton("Find Naviamp devices", colors, enabled = true, onClick = { actions.onConnectScreenVisibilityChanged(true) })
             Text(stringResource(Res.string.connect_manual_address_hint), color = colors.secondaryText, fontSize = 12.sp)
             OutlinedTextField(
                 colors = naviampOutlinedTextFieldColors(colors),

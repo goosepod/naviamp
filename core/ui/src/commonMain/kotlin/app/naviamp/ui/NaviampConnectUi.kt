@@ -78,6 +78,8 @@ data class NaviampConnectSettingsUi(
     val codeVisible: Boolean = false,
     val pairingCodeExpiresAtEpochMillis: Long? = null,
     val enteredPairingCode: String = "",
+    /** True while the "Connect a device" panel is open; discovery runs only then. */
+    val connectScreenVisible: Boolean = false,
     val selectedTargetId: String? = null,
     val status: String? = null,
     val statusMessage: NaviampConnectStatusMessage? = null,
@@ -126,7 +128,6 @@ data class NaviampConnectSettingsUi(
 data class NaviampConnectSettingsActions(
     val onStartPairingMode: () -> Unit,
     val onStopPairingMode: () -> Unit,
-    val onRefreshTargets: () -> Unit,
     val onTargetSelected: (NaviampConnectDiscoveredTargetUi) -> Unit,
     val onTrustedDeviceSelected: (NaviampConnectTrustedDeviceUi) -> Unit,
     val onPlaybackDeviceSelected: (String?) -> Unit,
@@ -150,6 +151,7 @@ data class NaviampConnectSettingsActions(
     val onOpenPermissionSettings: () -> Unit = {},
     val onManualEndpointSelected: (String) -> Unit = {},
     val onManualTrustedEndpointSelected: (NaviampConnectTrustedDeviceUi, String) -> Unit = { _, _ -> },
+    val onConnectScreenVisibilityChanged: (Boolean) -> Unit = {},
 )
 
 fun disambiguateNaviampConnectDeviceNames(names: List<String>): List<String> {

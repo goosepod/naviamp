@@ -72,7 +72,7 @@ class AndroidConnectInitialSetupInstrumentedTest {
         try {
             withContext(Dispatchers.Main) {
                 targetActions.onStartPairingMode()
-                controller.actions.onRefreshTargets()
+                controller.actions.onConnectScreenVisibilityChanged(true)
             }
             waitFor("discover target") { store.state.value.shell.connect.discoveredTargets.isNotEmpty() }
             val code = assertNotNull(target.state.value.shell.connect.pairingCode)

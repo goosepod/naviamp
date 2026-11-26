@@ -31,8 +31,8 @@ class NaviampCoreConnectPeerTest {
                     1 -> mac.actions.shell.connectActions!!.onStopPairingMode()
                     2 -> mac.actions.shell.connectActions!!.onStartPairingMode()
                 }
-                mac.actions.shell.connectActions!!.onRefreshTargets()
-                phone.actions.shell.connectActions!!.onRefreshTargets()
+                mac.actions.shell.connectActions!!.onConnectScreenVisibilityChanged(true)
+                phone.actions.shell.connectActions!!.onConnectScreenVisibilityChanged(true)
                 runCurrent()
                 advanceTimeBy(21_000)
                 runCurrent()

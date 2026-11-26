@@ -515,7 +515,7 @@ private fun TelevisionControllersSettings(
                     value = connect.discoveredTargets.size.takeIf { it > 0 }?.toString(),
                     icon = NaviampIcons.Refresh,
                     colors = colors,
-                    onClick = actions.onRefreshTargets,
+                    onClick = { actions.onConnectScreenVisibilityChanged(true) },
                 )
             }
             items(connect.discoveredTargets, key = { "target-${it.instanceId}" }) { target ->
