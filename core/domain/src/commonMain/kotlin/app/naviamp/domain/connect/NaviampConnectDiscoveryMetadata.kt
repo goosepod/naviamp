@@ -58,6 +58,7 @@ object NaviampConnectDiscoveryMetadata {
             expiresAtEpochMillis = expiresAtEpochMillis,
             // Protocol v1 targets predate the flag and only advertised while accepting connections.
             pairable = attributes[PairableKey] != "0",
+            codeFlagAdvertised = PairableKey in attributes,
         )
     }.getOrNull()
 }

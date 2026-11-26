@@ -54,7 +54,9 @@ internal fun NaviampConnectPostConnectDialog(
                         Text(stringResource(Res.string.connect_post_sign_in))
                     }
                 }
-                connect.displayStatus()?.let { Text(it, color = colors.secondaryText) }
+                // The title already says the device is connected; show only later progress or problems.
+                connect.displayStatus()?.takeIf { connect.statusMessage?.text != NaviampConnectStatusText.ConnectedToDevice }
+                    ?.let { Text(it, color = colors.secondaryText) }
                 if (connect.needsProvisioningCredential) {
                     var password by remember { mutableStateOf("") }
                     Text(stringResource(Res.string.connect_setup_password_required), color = colors.secondaryText)

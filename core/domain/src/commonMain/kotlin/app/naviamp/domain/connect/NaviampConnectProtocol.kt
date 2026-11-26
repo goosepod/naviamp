@@ -130,6 +130,8 @@ data class NaviampConnectAdvertisement(
     val expiresAtEpochMillis: Long,
     /** True while the device is showing a code that accepts new connections. */
     val pairable: Boolean = true,
+    /** True when the advertisement carried the flag; protocol-v1 targets omit it. */
+    val codeFlagAdvertised: Boolean = false,
 ) {
     init {
         require(instanceId.isNotBlank()) { "A discovery instance ID is required." }

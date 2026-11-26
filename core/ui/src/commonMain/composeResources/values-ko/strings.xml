@@ -87,10 +87,10 @@
     <string name="connection_api_key_guidance">서버에서 만든 플레이어 API 키를 입력하세요. 사용자 이름은 필요하지 않습니다.</string>
     <string name="connection_api_key">API 키</string>
     <string name="connect_manual_invalid">올바른 호스트 이름 또는 IP 주소와 포트를 입력하세요.</string>
-    <string name="connect_manual_enter_code">대상 기기에 표시된 6자리 코드를 입력하세요.</string>
-    <string name="connect_manual_authenticating">이 주소의 대상 기기를 인증하는 중…</string>
-    <string name="connect_manual_unreachable">이 주소에 연결할 수 없습니다. Tailnet, 포트 및 페어링 모드를 확인하세요.</string>
-    <string name="connect_manual_rejected">주소에는 연결했지만 신뢰할 수 있는 기기를 확인하지 못했습니다. 기기 ID를 확인하거나 다시 페어링하세요.</string>
+    <string name="connect_manual_enter_code">해당 기기에 표시된 6자리 코드를 입력하세요.</string>
+    <string name="connect_manual_authenticating">이 주소의 기기에 연결하는 중…</string>
+    <string name="connect_manual_unreachable">해당 주소에 연결할 수 없습니다. 다른 기기에 표시된 주소와 포트를 확인하고, 두 기기가 같은 네트워크에 있는지 확인하세요.</string>
+    <string name="connect_manual_rejected">해당 주소에 연결했지만 사용자의 기기인지 확인하지 못했습니다. 새 코드로 다시 연결하세요.</string>
     <string name="now_playing_cast_to_device">기기로 전송</string>
     <string name="album_artwork_preference">앨범 아트워크 설정</string>
     <string name="album_artwork_inherit">상속</string>
@@ -616,6 +616,7 @@
     <string name="connect_status_no_device_showing_a_code">코드를 표시하는 기기가 없습니다. 다른 기기에서 설정 → 기기 → 다른 기기 연결 허용을 여세요.</string>
     <string name="connect_status_choose_the_device_showing_this_code">이 코드를 표시하는 기기를 선택하세요.</string>
     <string name="connect_status_connected_to_device">%1$s에 연결되었습니다.</string>
+    <string name="connect_status_connect_again_with_a_new_code">%1$s에 다시 연결하세요: 해당 기기에 새 코드를 표시하고 여기에 입력하세요.</string>
     <string name="connect_status_request_failed">Naviamp Connect가 요청을 완료하지 못했습니다.</string>
     <string name="connect_status_incomplete_request_closed">연결 시도가 완료되기 전에 종료되었습니다. 이 기기는 계속 준비되어 있습니다.</string>
     <string name="connect_status_incomplete_request_timed_out">연결 시도 시간이 초과되었습니다. 이 기기는 계속 준비되어 있습니다.</string>

@@ -28,7 +28,7 @@ class NaviampConnectDiscoveryMetadataTest {
         val attributes = NaviampConnectDiscoveryMetadata.encode(advertisement)
         val decoded = NaviampConnectDiscoveryMetadata.decode(attributes, port = 43_434, expiresAtEpochMillis = 9_000)
 
-        assertEquals(advertisement.copy(port = 43_434, expiresAtEpochMillis = 9_000), decoded)
+        assertEquals(advertisement.copy(port = 43_434, expiresAtEpochMillis = 9_000, codeFlagAdvertised = true), decoded)
         assertEquals(setOf("id", "name", "pmin", "pmax", "modes", "caps", "fp", "code"), attributes.keys)
     }
 
@@ -91,12 +91,14 @@ class NaviampConnectDiscoveryMetadataTest {
         val txt = NaviampConnectDiscoveryMetadata.encode(presence)
         assertEquals("0", txt["code"])
         assertEquals(false, NaviampConnectDiscoveryMetadata.decode(txt, 42_424, 5_000)?.pairable)
+        assertEquals(true, NaviampConnectDiscoveryMetadata.decode(txt, 42_424, 5_000)?.codeFlagAdvertised)
         assertEquals("1", NaviampConnectDiscoveryMetadata.encode(presence.copy(pairable = true))["code"])
     }
 
     @Test
     fun legacyTxtWithoutCodeKeyIsPairable() {
         assertEquals(true, NaviampConnectDiscoveryMetadata.decode(validAttributes(), 42_424, 5_000)?.pairable)
+        assertEquals(false, NaviampConnectDiscoveryMetadata.decode(validAttributes(), 42_424, 5_000)?.codeFlagAdvertised)
     }
 
     private fun validAttributes() = mapOf(

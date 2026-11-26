@@ -87,10 +87,10 @@
     <string name="connection_api_key_guidance">أدخل مفتاح API الخاص بالمشغل من خادمك. لا يلزم اسم مستخدم.</string>
     <string name="connection_api_key">مفتاح API</string>
     <string name="connect_manual_invalid">أدخل اسم مضيف أو عنوان IP ومنفذًا صالحين.</string>
-    <string name="connect_manual_enter_code">أدخل الرمز المكون من ستة أرقام المعروض على الجهاز الهدف.</string>
-    <string name="connect_manual_authenticating">جارٍ مصادقة الجهاز الهدف عند هذا العنوان…</string>
-    <string name="connect_manual_unreachable">تعذر الوصول إلى هذا العنوان. تحقق من Tailnet والمنفذ ووضع الإقران.</string>
-    <string name="connect_manual_rejected">تم الوصول إلى العنوان، لكن تعذر التحقق من الجهاز الموثوق. تحقق من هويته أو أعد الإقران.</string>
+    <string name="connect_manual_enter_code">أدخل الرمز المكون من ستة أرقام المعروض على ذلك الجهاز.</string>
+    <string name="connect_manual_authenticating">جارٍ الاتصال بالجهاز عند هذا العنوان…</string>
+    <string name="connect_manual_unreachable">تعذر الوصول إلى هذا العنوان. تحقق من العنوان والمنفذ المعروضين على الجهاز الآخر، ومن أن الجهازين على الشبكة نفسها.</string>
+    <string name="connect_manual_rejected">تم الوصول إلى هذا العنوان، لكن تعذر التحقق من أنه جهازك. أعد توصيله باستخدام رمز جديد.</string>
     <string name="now_playing_cast_to_device">البث إلى جهاز</string>
     <string name="album_artwork_preference">تفضيل غلاف الألبوم</string>
     <string name="album_artwork_inherit">وراثة</string>
@@ -631,6 +631,7 @@
     <string name="connect_status_no_device_showing_a_code">لا يوجد جهاز يعرض رمزًا. على الجهاز الآخر، افتح الإعدادات → الأجهزة → السماح لجهاز آخر بالاتصال.</string>
     <string name="connect_status_choose_the_device_showing_this_code">اختر الجهاز الذي يعرض هذا الرمز.</string>
     <string name="connect_status_connected_to_device">تم الاتصال بـ %1$s.</string>
+    <string name="connect_status_connect_again_with_a_new_code">أعد توصيل %1$s: اعرض رمزًا جديدًا عليه وأدخله هنا.</string>
     <string name="connect_status_request_failed">تعذّر على Naviamp Connect إكمال الطلب.</string>
     <string name="connect_status_incomplete_request_closed">أُغلقت محاولة اتصال قبل اكتمالها. لا يزال هذا الجهاز جاهزًا.</string>
     <string name="connect_status_incomplete_request_timed_out">انتهت مهلة محاولة اتصال. لا يزال هذا الجهاز جاهزًا.</string>

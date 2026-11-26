@@ -1011,8 +1011,7 @@ class NaviampCoreConnectController(
         val discoveryController = discovery ?: return
         val trust = services.trust.load().firstOrNull { it.trustedDeviceId == device.deviceId } ?: return
         if (services.credentials?.contains(trust.peerDevice.deviceId) != true) {
-            status = "Pair with ${trust.displayName} once more to enable secure reconnect."
-            statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.PairWithDeviceOnceMoreToEnableSecureReconnect, listOf(trust.displayName))
+            report(NaviampConnectStatusText.ConnectAgainWithANewCode, trust.visibleDisplayName())
             publish()
             return
         }
@@ -1082,6 +1081,18 @@ class NaviampCoreConnectController(
             withIdentity { startTrustedReconnect(trust, target, manual) }
             return
         }
+        // A secret that exists but cannot be read (for example restored from a backup without its
+        // Keystore key) can never resume; ask for a new code instead of retrying an "unreachable" peer.
+        val storedSecret = services.credentials?.read(trust.peerDevice.deviceId)
+        if (storedSecret == null) {
+            pendingTrustedDeviceId = null
+            playbackDestination.unavailable()
+            phase = NaviampConnectPairingUiPhase.Failed
+            report(NaviampConnectStatusText.ConnectAgainWithANewCode, trust.visibleDisplayName())
+            publish()
+            return
+        }
+        storedSecret.fill(0)
         pendingTrustedDeviceId = null
         phase = NaviampConnectPairingUiPhase.Handshaking
         playbackDestination.connecting(trust.trustedDeviceId)
@@ -1231,7 +1242,9 @@ class NaviampCoreConnectController(
         if (codePairingInFlight) return
         val manualEndpoint = selectedManualEndpoint
         if (selectedTarget == null && manualEndpoint == null && enteredCode.length == 6) {
-            val candidates = pairableTargets()
+            // Older targets cannot say whether they show a code; one device that does is the clear choice.
+            val pairable = pairableTargets()
+            val candidates = pairable.filter { it.advertisement.codeFlagAdvertised }.takeIf { it.size == 1 } ?: pairable
             when {
                 candidates.size == 1 -> selectedTarget = candidates.single().also { target ->
                     recentlyResolvedTargets[target.advertisement.identityFingerprint] = target

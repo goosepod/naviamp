@@ -14,6 +14,16 @@ class NaviampConnectPostConnectDialogTest {
         assertEquals(listOf("sign-in:false"), calls)
     }
 
+    @Test fun theSheetDoesNotRepeatThatTheDeviceIsConnected() = runComposeUiTest {
+        setContent {
+            NaviampConnectPostConnectDialog(sheet(), NaviampColors.Dark, NaviampConnectSettingsUi(
+                statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ConnectedToDevice, listOf("Living Room"))),
+                actions(mutableListOf()))
+        }
+        onNodeWithText("Living Room is connected").assertExists()
+        onNodeWithText("Connected to Living Room.").assertDoesNotExist()
+    }
+
     @Test fun doneAndPlayDelegate() = runComposeUiTest {
         val calls = mutableListOf<String>()
         setContent { NaviampConnectPostConnectDialog(sheet(), NaviampColors.Dark, NaviampConnectSettingsUi(), actions(calls)) }

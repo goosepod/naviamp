@@ -65,6 +65,28 @@ class NaviampConnectDevicesSettingsTest {
         onNodeWithText("Pair securely").assertDoesNotExist()
     }
 
+    @Test fun sixthDigitClosesTheKeyboardSoTheResultIsVisible() = runComposeUiTest {
+        setContent { NaviampConnectEnterCodePanel(device(), NaviampColors.Dark, actions(mutableListOf())) }
+        onNodeWithTag("connect-code-entry").performClick().assertIsFocused()
+        onNodeWithTag("connect-code-entry").performTextInput("123456")
+        waitForIdle()
+        onNodeWithTag("connect-code-entry").assertIsNotFocused()
+    }
+
+    @Test fun trustedPlaybackDeviceCanBeConnectedFromItsRow() = runComposeUiTest {
+        val calls = mutableListOf<String>()
+        setContent {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                NaviampConnectSettingsSection(NaviampColors.Dark, device().copy(trustedDevices = listOf(
+                    NaviampConnectTrustedDeviceUi("trusted-tv", "Living Room", reconnectAvailable = true,
+                        playbackTarget = true))), actions(calls))
+            }
+        }
+        onNodeWithText("Living Room").performScrollTo().performClick()
+        onNodeWithTag("connect-trusted-trusted-tv").performScrollTo().performClick()
+        assertEquals("trusted:trusted-tv", calls.last())
+    }
+
     @Test fun permissionProblemShowsRecoveryInsteadOfEmptyNearby() = runComposeUiTest {
         setContent {
             NaviampConnectEnterCodePanel(device().copy(recovery = NaviampConnectRecoveryUi(
@@ -104,7 +126,7 @@ class NaviampConnectDevicesSettingsTest {
 
     private fun actions(calls: MutableList<String>) = NaviampConnectSettingsActions(
         onStartPairingMode = { calls += "start" }, onStopPairingMode = { calls += "stop" },
-        onTargetSelected = { calls += "select:${it.instanceId}" }, onTrustedDeviceSelected = {},
+        onTargetSelected = { calls += "select:${it.instanceId}" }, onTrustedDeviceSelected = { calls += "trusted:${it.deviceId}" },
         onPlaybackDeviceSelected = {}, onLocalDeviceNameChanged = {}, onTrustedDeviceAliasChanged = { _, _ -> },
         onForgetTrustedDevice = {}, onPairingCodeChanged = { calls += "code:$it" }, onSubmitPairingCode = {},
         onRemotePrevious = {}, onRemotePlayPause = {}, onRemoteNext = {}, onStopControlling = {},

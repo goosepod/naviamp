@@ -87,10 +87,10 @@
     <string name="connection_api_key_guidance">Saisissez une clé API de lecteur provenant de votre serveur. Aucun nom d’utilisateur n’est nécessaire.</string>
     <string name="connection_api_key">Clé API</string>
     <string name="connect_manual_invalid">Saisissez un nom d’hôte ou une adresse IP et un port valides.</string>
-    <string name="connect_manual_enter_code">Saisissez le code à six chiffres affiché sur la cible.</string>
-    <string name="connect_manual_authenticating">Authentification de la cible à cette adresse…</string>
-    <string name="connect_manual_unreachable">Adresse inaccessible. Vérifiez le Tailnet, le port et le mode d’association.</string>
-    <string name="connect_manual_rejected">Adresse atteinte, mais l’appareil de confiance n’a pas pu être vérifié. Vérifiez son identité ou associez-le à nouveau.</string>
+    <string name="connect_manual_enter_code">Saisissez le code à six chiffres affiché sur cet appareil.</string>
+    <string name="connect_manual_authenticating">Connexion à l’appareil à cette adresse…</string>
+    <string name="connect_manual_unreachable">Adresse inaccessible. Vérifiez l’adresse et le port affichés sur l’autre appareil, et que les deux appareils sont sur le même réseau.</string>
+    <string name="connect_manual_rejected">Adresse atteinte, mais impossible de vérifier qu’il s’agit de votre appareil. Reconnectez-le avec un nouveau code.</string>
     <string name="now_playing_cast_to_device">Caster sur un appareil</string>
     <string name="album_artwork_preference">Préférence de pochette de l’album</string>
     <string name="album_artwork_inherit">Hériter</string>
@@ -621,6 +621,7 @@
     <string name="connect_status_no_device_showing_a_code">Aucun appareil n’affiche de code. Sur l’autre appareil, ouvrez Paramètres → Appareils → Autoriser un autre appareil à se connecter.</string>
     <string name="connect_status_choose_the_device_showing_this_code">Choisissez l’appareil qui affiche ce code.</string>
     <string name="connect_status_connected_to_device">Connecté à %1$s.</string>
+    <string name="connect_status_connect_again_with_a_new_code">Reconnectez %1$s : affichez un nouveau code dessus et saisissez-le ici.</string>
     <string name="connect_status_request_failed">Naviamp Connect n’a pas pu terminer la demande.</string>
     <string name="connect_status_incomplete_request_closed">Une tentative de connexion s’est fermée avant la fin. Cet appareil est toujours prêt.</string>
     <string name="connect_status_incomplete_request_timed_out">Une tentative de connexion a expiré. Cet appareil est toujours prêt.</string>

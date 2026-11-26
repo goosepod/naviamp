@@ -87,10 +87,10 @@
     <string name="connection_api_key_guidance">Введите ключ API плеера с вашего сервера. Имя пользователя не требуется.</string>
     <string name="connection_api_key">Ключ API</string>
     <string name="connect_manual_invalid">Введите допустимое имя узла или IP-адрес и порт.</string>
-    <string name="connect_manual_enter_code">Введите шестизначный код с целевого устройства.</string>
-    <string name="connect_manual_authenticating">Проверка устройства по этому адресу…</string>
-    <string name="connect_manual_unreachable">Не удалось подключиться по этому адресу. Проверьте Tailnet, порт и режим сопряжения.</string>
-    <string name="connect_manual_rejected">Адрес доступен, но не удалось проверить доверенное устройство. Проверьте его идентификатор или выполните сопряжение снова.</string>
+    <string name="connect_manual_enter_code">Введите шестизначный код, показанный на том устройстве.</string>
+    <string name="connect_manual_authenticating">Подключение к устройству по этому адресу…</string>
+    <string name="connect_manual_unreachable">Не удалось подключиться по этому адресу. Проверьте адрес и порт, показанные на другом устройстве, и убедитесь, что оба устройства находятся в одной сети.</string>
+    <string name="connect_manual_rejected">Адрес доступен, но не удалось подтвердить, что это ваше устройство. Подключите его снова с новым кодом.</string>
     <string name="now_playing_cast_to_device">Трансляция на устройство</string>
     <string name="album_artwork_preference">Настройка обложки альбома</string>
     <string name="album_artwork_inherit">Наследовать</string>
@@ -625,6 +625,7 @@
     <string name="connect_status_no_device_showing_a_code">Ни одно устройство не показывает код. На другом устройстве откройте Настройки → Устройства → Разрешить подключение другого устройства.</string>
     <string name="connect_status_choose_the_device_showing_this_code">Выберите устройство, на котором показан этот код.</string>
     <string name="connect_status_connected_to_device">Подключено к %1$s.</string>
+    <string name="connect_status_connect_again_with_a_new_code">Подключите %1$s снова: покажите на нём новый код и введите его здесь.</string>
     <string name="connect_status_request_failed">Naviamp Connect не удалось выполнить запрос.</string>
     <string name="connect_status_incomplete_request_closed">Попытка подключения прервалась до завершения. Это устройство по-прежнему готово.</string>
     <string name="connect_status_incomplete_request_timed_out">Время попытки подключения истекло. Это устройство по-прежнему готово.</string>

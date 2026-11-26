@@ -87,10 +87,10 @@
     <string name="connection_api_key_guidance">Digite uma chave de API de player do seu servidor. Não é necessário informar o nome de usuário.</string>
     <string name="connection_api_key">Chave de API</string>
     <string name="connect_manual_invalid">Digite um nome de host ou endereço IP e uma porta válidos.</string>
-    <string name="connect_manual_enter_code">Digite o código de seis dígitos exibido no dispositivo de destino.</string>
-    <string name="connect_manual_authenticating">Autenticando o dispositivo neste endereço…</string>
-    <string name="connect_manual_unreachable">Não foi possível acessar este endereço. Verifique a Tailnet, a porta e o modo de pareamento.</string>
-    <string name="connect_manual_rejected">O endereço foi alcançado, mas não foi possível verificar o dispositivo confiável. Confira a identidade ou pareie novamente.</string>
+    <string name="connect_manual_enter_code">Digite o código de seis dígitos exibido nesse dispositivo.</string>
+    <string name="connect_manual_authenticating">Conectando ao dispositivo neste endereço…</string>
+    <string name="connect_manual_unreachable">Não foi possível acessar esse endereço. Verifique o endereço e a porta exibidos no outro dispositivo e se os dois dispositivos estão na mesma rede.</string>
+    <string name="connect_manual_rejected">O endereço foi alcançado, mas não foi possível confirmar que é o seu dispositivo. Conecte-o novamente com um novo código.</string>
     <string name="now_playing_cast_to_device">Transmitir para um dispositivo</string>
     <string name="album_artwork_preference">Preferência de capa do álbum</string>
     <string name="album_artwork_inherit">Herdar</string>
@@ -1183,6 +1183,7 @@
     <string name="connect_status_no_device_showing_a_code">Nenhum dispositivo está mostrando um código. No outro dispositivo, abra Configurações → Dispositivos → Permitir que outro dispositivo se conecte.</string>
     <string name="connect_status_choose_the_device_showing_this_code">Escolha o dispositivo que mostra este código.</string>
     <string name="connect_status_connected_to_device">Conectado a %1$s.</string>
+    <string name="connect_status_connect_again_with_a_new_code">Conecte %1$s novamente: mostre um novo código nele e digite-o aqui.</string>
     <string name="connect_status_request_failed">O Naviamp Connect não conseguiu concluir a solicitação.</string>
     <string name="connect_status_incomplete_request_closed">Uma tentativa de conexão foi encerrada antes de terminar. Este dispositivo continua pronto.</string>
     <string name="connect_status_incomplete_request_timed_out">Uma tentativa de conexão expirou. Este dispositivo continua pronto.</string>
@@ -1236,7 +1237,6 @@
     <string name="connect_post_play_on">Tocar em %1$s</string>
     <string name="connect_done">Concluído</string>
     <string name="tv_direct_setup_or">Ou conecte-se ao seu servidor diretamente por esta TV.</string>
-    <string name="connect_status_pair_with_device_once_more_to_enable_secure_reconnect">Pareie com %1$s mais uma vez para ativar a reconexão segura.</string>
     <string name="connect_status_looking_for_device_start_pairing_mode_on_the_tv_if_needed">Procurando %1$s… Inicie o modo de pareamento no dispositivo, se necessário.</string>
     <string name="connect_status_securely_reconnecting_to_device">Reconectando a %1$s com segurança…</string>
     <string name="connect_status_the_trusted_tv_did_not_start_a_compatible_control_session">A TV confiável não iniciou uma sessão de controle compatível.</string>

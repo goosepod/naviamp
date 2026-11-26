@@ -620,6 +620,11 @@ private fun NaviampConnectTrustedDeviceRow(
             }
         }
         if (!expanded) return@Column
+        if (device.reconnectAvailable && device.playbackTarget) {
+            PrimaryButton(stringResource(Res.string.common_connect), colors,
+                onClick = { actions.onTrustedDeviceSelected(device) },
+                modifier = Modifier.fillMaxWidth().testTag("connect-trusted-${device.deviceId}"))
+        }
         OutlinedTextField(
             colors = naviampOutlinedTextFieldColors(colors),
             value = alias,

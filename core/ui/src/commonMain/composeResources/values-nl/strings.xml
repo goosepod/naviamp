@@ -87,10 +87,10 @@
     <string name="connection_api_key_guidance">Voer een API-sleutel voor een speler van je server in. Een gebruikersnaam is niet nodig.</string>
     <string name="connection_api_key">API-sleutel</string>
     <string name="connect_manual_invalid">Voer een geldige hostnaam of IP-adres en poort in.</string>
-    <string name="connect_manual_enter_code">Voer de zescijferige code op het doelapparaat in.</string>
-    <string name="connect_manual_authenticating">Doelapparaat op dit adres wordt geverifieerd…</string>
-    <string name="connect_manual_unreachable">Dit adres is niet bereikbaar. Controleer Tailnet, poort en koppelmodus.</string>
-    <string name="connect_manual_rejected">Adres bereikt, maar het vertrouwde apparaat kon niet worden geverifieerd. Controleer de identiteit of koppel opnieuw.</string>
+    <string name="connect_manual_enter_code">Voer de zescijferige code in die op dat apparaat wordt getoond.</string>
+    <string name="connect_manual_authenticating">Verbinden met het apparaat op dit adres…</string>
+    <string name="connect_manual_unreachable">Dat adres is niet bereikbaar. Controleer het adres en de poort die op het andere apparaat worden getoond, en of beide apparaten op hetzelfde netwerk zitten.</string>
+    <string name="connect_manual_rejected">Dat adres is bereikt, maar kon niet worden geverifieerd als jouw apparaat. Verbind het opnieuw met een nieuwe code.</string>
     <string name="now_playing_cast_to_device">Casten naar apparaat</string>
     <string name="album_artwork_preference">Voorkeur voor albumhoes</string>
     <string name="album_artwork_inherit">Overnemen</string>
@@ -619,6 +619,7 @@
     <string name="connect_status_no_device_showing_a_code">Geen enkel apparaat toont een code. Open op het andere apparaat Instellingen → Apparaten → Ander apparaat laten verbinden.</string>
     <string name="connect_status_choose_the_device_showing_this_code">Kies het apparaat dat deze code toont.</string>
     <string name="connect_status_connected_to_device">Verbonden met %1$s.</string>
+    <string name="connect_status_connect_again_with_a_new_code">Verbind %1$s opnieuw: toon er een nieuwe code op en voer die hier in.</string>
     <string name="connect_status_request_failed">Naviamp Connect kon het verzoek niet voltooien.</string>
     <string name="connect_status_incomplete_request_closed">Een verbindingspoging werd gesloten voordat deze klaar was. Dit apparaat is nog steeds gereed.</string>
     <string name="connect_status_incomplete_request_timed_out">Er is een time-out opgetreden bij een verbindingspoging. Dit apparaat is nog steeds gereed.</string>

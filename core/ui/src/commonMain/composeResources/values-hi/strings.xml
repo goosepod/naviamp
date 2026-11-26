@@ -87,10 +87,10 @@
     <string name="connection_api_key_guidance">अपने सर्वर से प्लेयर API कुंजी दर्ज करें। उपयोगकर्ता नाम आवश्यक नहीं है।</string>
     <string name="connection_api_key">API कुंजी</string>
     <string name="connect_manual_invalid">मान्य होस्टनाम या IP पता और पोर्ट दर्ज करें।</string>
-    <string name="connect_manual_enter_code">लक्ष्य पर दिखाया गया छह अंकों का कोड दर्ज करें।</string>
-    <string name="connect_manual_authenticating">इस पते पर लक्ष्य का प्रमाणीकरण हो रहा है…</string>
-    <string name="connect_manual_unreachable">इस पते तक नहीं पहुँचा जा सका। Tailnet, पोर्ट और पेयरिंग मोड जाँचें।</string>
-    <string name="connect_manual_rejected">पते तक पहुँचे, लेकिन विश्वसनीय डिवाइस की पुष्टि नहीं हो सकी। उसकी पहचान जाँचें या फिर से पेयर करें।</string>
+    <string name="connect_manual_enter_code">उस डिवाइस पर दिखाया गया छह अंकों का कोड दर्ज करें।</string>
+    <string name="connect_manual_authenticating">इस पते पर मौजूद डिवाइस से कनेक्ट हो रहा है…</string>
+    <string name="connect_manual_unreachable">उस पते तक नहीं पहुँचा जा सका। दूसरे डिवाइस पर दिखाया गया पता और पोर्ट जाँचें, और यह भी कि दोनों डिवाइस एक ही नेटवर्क पर हैं।</string>
+    <string name="connect_manual_rejected">उस पते तक पहुँचे, लेकिन यह पुष्टि नहीं हो सकी कि यह आपका डिवाइस है। नए कोड के साथ इसे फिर से कनेक्ट करें।</string>
     <string name="now_playing_cast_to_device">डिवाइस पर कास्ट करें</string>
     <string name="album_artwork_preference">एल्बम कवर की प्राथमिकता</string>
     <string name="album_artwork_inherit">विरासत में लें</string>
@@ -619,6 +619,7 @@
     <string name="connect_status_no_device_showing_a_code">कोई भी डिवाइस कोड नहीं दिखा रहा है। दूसरे डिवाइस पर सेटिंग्स → डिवाइस → दूसरे डिवाइस को कनेक्ट होने दें खोलें।</string>
     <string name="connect_status_choose_the_device_showing_this_code">वह डिवाइस चुनें जो यह कोड दिखा रहा है।</string>
     <string name="connect_status_connected_to_device">%1$s से कनेक्ट हो गया।</string>
+    <string name="connect_status_connect_again_with_a_new_code">%1$s को फिर से कनेक्ट करें: उस पर नया कोड दिखाएँ और उसे यहाँ दर्ज करें।</string>
     <string name="connect_status_request_failed">Naviamp Connect अनुरोध पूरा नहीं कर सका।</string>
     <string name="connect_status_incomplete_request_closed">कनेक्शन का एक प्रयास पूरा होने से पहले बंद हो गया। यह डिवाइस अभी भी तैयार है।</string>
     <string name="connect_status_incomplete_request_timed_out">कनेक्शन के एक प्रयास का समय समाप्त हो गया। यह डिवाइस अभी भी तैयार है।</string>

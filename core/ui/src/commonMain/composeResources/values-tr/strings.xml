@@ -87,10 +87,10 @@
     <string name="connection_api_key_guidance">Sunucunuzdaki oynatıcı API anahtarını girin. Kullanıcı adı gerekli değildir.</string>
     <string name="connection_api_key">API anahtarı</string>
     <string name="connect_manual_invalid">Geçerli bir ana bilgisayar adı veya IP adresi ve bağlantı noktası girin.</string>
-    <string name="connect_manual_enter_code">Hedefte gösterilen altı haneli kodu girin.</string>
-    <string name="connect_manual_authenticating">Bu adresteki hedefin kimliği doğrulanıyor…</string>
-    <string name="connect_manual_unreachable">Bu adrese ulaşılamadı. Tailnet, bağlantı noktası ve eşleştirme modunu kontrol edin.</string>
-    <string name="connect_manual_rejected">Adrese ulaşıldı ancak güvenilir cihaz doğrulanamadı. Kimliğini kontrol edin veya yeniden eşleştirin.</string>
+    <string name="connect_manual_enter_code">O cihazda gösterilen altı haneli kodu girin.</string>
+    <string name="connect_manual_authenticating">Bu adresteki cihaza bağlanılıyor…</string>
+    <string name="connect_manual_unreachable">Bu adrese ulaşılamadı. Diğer cihazda gösterilen adresi ve bağlantı noktasını, ayrıca iki cihazın da aynı ağda olduğunu kontrol edin.</string>
+    <string name="connect_manual_rejected">Bu adrese ulaşıldı ancak sizin cihazınız olduğu doğrulanamadı. Yeni bir kodla yeniden bağlanın.</string>
     <string name="now_playing_cast_to_device">Cihaza yayınla</string>
     <string name="album_artwork_preference">Albüm kapağı tercihi</string>
     <string name="album_artwork_inherit">Devral</string>
@@ -619,6 +619,7 @@
     <string name="connect_status_no_device_showing_a_code">Kod gösteren bir cihaz yok. Diğer cihazda Ayarlar → Cihazlar → Başka bir cihazın bağlanmasına izin ver bölümünü açın.</string>
     <string name="connect_status_choose_the_device_showing_this_code">Bu kodu gösteren cihazı seçin.</string>
     <string name="connect_status_connected_to_device">%1$s cihazına bağlanıldı.</string>
+    <string name="connect_status_connect_again_with_a_new_code">%1$s cihazına yeniden bağlanın: Cihazda yeni bir kod gösterin ve buraya girin.</string>
     <string name="connect_status_request_failed">Naviamp Connect isteği tamamlayamadı.</string>
     <string name="connect_status_incomplete_request_closed">Bir bağlantı denemesi tamamlanmadan kapandı. Bu cihaz hâlâ hazır.</string>
     <string name="connect_status_incomplete_request_timed_out">Bir bağlantı denemesi zaman aşımına uğradı. Bu cihaz hâlâ hazır.</string>

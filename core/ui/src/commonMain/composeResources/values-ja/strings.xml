@@ -87,10 +87,10 @@
     <string name="connection_api_key_guidance">サーバーで作成したプレーヤーの API キーを入力してください。ユーザー名は不要です。</string>
     <string name="connection_api_key">API キー</string>
     <string name="connect_manual_invalid">有効なホスト名またはIPアドレスとポートを入力してください。</string>
-    <string name="connect_manual_enter_code">接続先に表示された6桁のコードを入力してください。</string>
-    <string name="connect_manual_authenticating">このアドレスの接続先を認証しています…</string>
-    <string name="connect_manual_unreachable">このアドレスに接続できません。Tailnet、ポート、ペアリングモードを確認してください。</string>
-    <string name="connect_manual_rejected">アドレスには接続できましたが、信頼済みデバイスを確認できませんでした。IDを確認するか、再度ペアリングしてください。</string>
+    <string name="connect_manual_enter_code">そのデバイスに表示された6桁のコードを入力してください。</string>
+    <string name="connect_manual_authenticating">このアドレスのデバイスに接続しています…</string>
+    <string name="connect_manual_unreachable">そのアドレスに接続できませんでした。もう一方のデバイスに表示されたアドレスとポートを確認し、両方のデバイスが同じネットワークにあることを確認してください。</string>
+    <string name="connect_manual_rejected">そのアドレスには接続できましたが、お使いのデバイスであることを確認できませんでした。新しいコードで再接続してください。</string>
     <string name="now_playing_cast_to_device">デバイスにキャスト</string>
     <string name="album_artwork_preference">アルバムアートワークの設定</string>
     <string name="album_artwork_inherit">引き継ぐ</string>
@@ -616,6 +616,7 @@
     <string name="connect_status_no_device_showing_a_code">コードを表示しているデバイスがありません。もう一方のデバイスで、設定 → デバイス → 別のデバイスからの接続を許可 を開いてください。</string>
     <string name="connect_status_choose_the_device_showing_this_code">このコードを表示しているデバイスを選択してください。</string>
     <string name="connect_status_connected_to_device">%1$sに接続しました。</string>
+    <string name="connect_status_connect_again_with_a_new_code">%1$sに再接続してください: そのデバイスに新しいコードを表示して、ここに入力します。</string>
     <string name="connect_status_request_failed">Naviamp Connectはリクエストを完了できませんでした。</string>
     <string name="connect_status_incomplete_request_closed">接続の試行が完了前に終了しました。このデバイスは引き続き接続を待っています。</string>
     <string name="connect_status_incomplete_request_timed_out">接続の試行がタイムアウトしました。このデバイスは引き続き接続を待っています。</string>

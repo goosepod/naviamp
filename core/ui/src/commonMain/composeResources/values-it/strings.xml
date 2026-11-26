@@ -87,10 +87,10 @@
     <string name="connection_api_key_guidance">Inserisci una chiave API del lettore dal tuo server. Il nome utente non è necessario.</string>
     <string name="connection_api_key">Chiave API</string>
     <string name="connect_manual_invalid">Inserisci un nome host o indirizzo IP e una porta validi.</string>
-    <string name="connect_manual_enter_code">Inserisci il codice a sei cifre mostrato sul dispositivo.</string>
-    <string name="connect_manual_authenticating">Autenticazione del dispositivo a questo indirizzo…</string>
-    <string name="connect_manual_unreachable">Impossibile raggiungere l’indirizzo. Controlla Tailnet, porta e modalità di associazione.</string>
-    <string name="connect_manual_rejected">Indirizzo raggiunto, ma non è stato possibile verificare il dispositivo attendibile. Controlla l’identità o associalo di nuovo.</string>
+    <string name="connect_manual_enter_code">Inserisci il codice a sei cifre mostrato su quel dispositivo.</string>
+    <string name="connect_manual_authenticating">Connessione al dispositivo a questo indirizzo…</string>
+    <string name="connect_manual_unreachable">Impossibile raggiungere quell’indirizzo. Controlla l’indirizzo e la porta mostrati sull’altro dispositivo e che entrambi i dispositivi siano sulla stessa rete.</string>
+    <string name="connect_manual_rejected">Indirizzo raggiunto, ma non è stato possibile verificare che sia il tuo dispositivo. Connettilo di nuovo con un nuovo codice.</string>
     <string name="now_playing_cast_to_device">Trasmetti a un dispositivo</string>
     <string name="album_artwork_preference">Preferenza copertina album</string>
     <string name="album_artwork_inherit">Eredita</string>
@@ -621,6 +621,7 @@
     <string name="connect_status_no_device_showing_a_code">Nessun dispositivo mostra un codice. Sull’altro dispositivo apri Impostazioni → Dispositivi → Consenti a un altro dispositivo di connettersi.</string>
     <string name="connect_status_choose_the_device_showing_this_code">Scegli il dispositivo che mostra questo codice.</string>
     <string name="connect_status_connected_to_device">Connesso a %1$s.</string>
+    <string name="connect_status_connect_again_with_a_new_code">Connetti di nuovo %1$s: mostra un nuovo codice sul dispositivo e inseriscilo qui.</string>
     <string name="connect_status_request_failed">Naviamp Connect non è riuscito a completare la richiesta.</string>
     <string name="connect_status_incomplete_request_closed">Un tentativo di connessione si è chiuso prima di terminare. Questo dispositivo è ancora pronto.</string>
     <string name="connect_status_incomplete_request_timed_out">Un tentativo di connessione è scaduto. Questo dispositivo è ancora pronto.</string>

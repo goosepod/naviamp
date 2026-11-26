@@ -98,6 +98,7 @@ internal fun NaviampConnectEnterCodePanel(
     modifier: Modifier = Modifier,
 ) {
     val visibility by rememberUpdatedState(actions.onConnectScreenVisibilityChanged)
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     DisposableEffect(Unit) {
         visibility(true)
         onDispose { visibility(false) }
@@ -107,7 +108,12 @@ internal fun NaviampConnectEnterCodePanel(
         OutlinedTextField(
             colors = naviampOutlinedTextFieldColors(colors),
             value = connect.enteredPairingCode,
-            onValueChange = { actions.onPairingCodeChanged(it.filter(Char::isDigit).take(6)) },
+            onValueChange = { value ->
+                val digits = value.filter(Char::isDigit).take(6)
+                actions.onPairingCodeChanged(digits)
+                // The sixth digit submits; close the keyboard so the result and Nearby stay visible.
+                if (digits.length == 6) focusManager.clearFocus()
+            },
             singleLine = true,
             enabled = !connect.codeEntryBusy,
             label = { Text(stringResource(Res.string.connect_code_label)) },

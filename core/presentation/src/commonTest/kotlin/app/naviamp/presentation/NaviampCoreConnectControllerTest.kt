@@ -1518,12 +1518,50 @@ class NaviampCoreConnectControllerTest {
         fixture.controller.close()
     }
 
+    @Test
+    fun theOneDeviceAnnouncingACodeIsChosenOverOlderDevices() = runTest {
+        val fixture = connectScreenFixture()
+        fixture.controller.actions.onConnectScreenVisibilityChanged(true)
+        fixture.resolve("Living Room", "192.0.2.10", "tv-fp", pairable = true)
+        fixture.resolveLegacy("Old Bedroom TV", "192.0.2.13", "old-fp")
+        runCurrent()
+        assertEquals(2, fixture.store.state.value.shell.connect.discoveredTargets.size)
+        fixture.controller.actions.onPairingCodeChanged("123456")
+        runCurrent()
+        assertEquals(listOf("192.0.2.10" to 42_425), fixture.attempts)
+        fixture.controller.close()
+    }
+
+    @Test
+    fun aTrustedDeviceWhoseSecretCannotBeReadAsksForANewCode() = runTest {
+        val fixture = connectScreenFixture(trustedTv = true, readableCredential = false)
+        val device = fixture.store.state.value.shell.connect.trustedDevices.single()
+        fixture.controller.actions.onManualTrustedEndpointSelected(device, "192.0.2.10:42425")
+        runCurrent()
+        assertTrue(fixture.attempts.isEmpty())
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.ConnectAgainWithANewCode,
+            fixture.store.state.value.shell.connect.statusMessage?.text)
+        fixture.controller.close()
+    }
+
     private class ConnectScreenFixture(
         val controller: NaviampCoreConnectController,
         val store: NaviampCoreStateStore,
         val discovery: RecordingDiscoveryEffect,
         val attempts: MutableList<Pair<String, Int>>,
     ) {
+        /** A protocol-v1 device: its TXT has no "showing a code" flag at all. */
+        fun resolveLegacy(name: String, address: String, fingerprint: String) {
+            discovery.listener.onServiceResolved(NaviampConnectResolvedService(
+                serviceName = name, addresses = listOf(address), port = 42_425,
+                textAttributes = NaviampConnectDiscoveryMetadata.encode(NaviampConnectAdvertisement(
+                    instanceId = "$fingerprint-instance", displayName = name,
+                    protocolRange = NaviampConnectProtocolRange(), capabilities = emptySet(), port = 42_425,
+                    identityFingerprint = fingerprint, expiresAtEpochMillis = Long.MAX_VALUE,
+                )) - "code",
+            ))
+        }
+
         fun resolve(name: String, address: String, fingerprint: String, pairable: Boolean) {
             discovery.listener.onServiceResolved(NaviampConnectResolvedService(
                 serviceName = name, addresses = listOf(address), port = 42_425,
@@ -1536,7 +1574,10 @@ class NaviampCoreConnectControllerTest {
         }
     }
 
-    private fun kotlinx.coroutines.test.TestScope.connectScreenFixture(trustedTv: Boolean = false): ConnectScreenFixture {
+    private fun kotlinx.coroutines.test.TestScope.connectScreenFixture(
+        trustedTv: Boolean = false,
+        readableCredential: Boolean = true,
+    ): ConnectScreenFixture {
         var storedTrust: String? = null
         val trust = NaviampConnectTrustRepository(object : NaviampConnectTrustStorageEffect {
             override fun read() = storedTrust
@@ -1561,7 +1602,7 @@ class NaviampCoreConnectControllerTest {
             pake = UnusedPakeFactory, cipher = UnusedCipherFactory, trust = trust,
             credentials = app.naviamp.app.NaviampConnectSessionCredentialRepository(
                 object : app.naviamp.app.NaviampConnectSessionCredentialStorageEffect {
-                    override fun read(peerDeviceId: String) = byteArrayOf(1, 2, 3)
+                    override fun read(peerDeviceId: String) = byteArrayOf(1, 2, 3).takeIf { readableCredential }
                     override fun write(peerDeviceId: String, value: ByteArray) = Unit
                     override fun remove(peerDeviceId: String) = Unit
                     override fun contains(peerDeviceId: String) = true

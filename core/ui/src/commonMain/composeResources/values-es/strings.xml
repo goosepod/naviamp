@@ -767,6 +767,7 @@
     <string name="connect_status_no_device_showing_a_code">Ningún dispositivo muestra un código. En el otro dispositivo, abre Ajustes → Dispositivos → Permitir que otro dispositivo se conecte.</string>
     <string name="connect_status_choose_the_device_showing_this_code">Elige el dispositivo que muestra este código.</string>
     <string name="connect_status_connected_to_device">Conectado a %1$s.</string>
+    <string name="connect_status_connect_again_with_a_new_code">Vuelve a conectar %1$s: muestra un código nuevo en él e introdúcelo aquí.</string>
     <string name="connect_status_request_failed">Naviamp Connect no pudo completar la solicitud.</string>
     <string name="connect_status_incomplete_request_closed">Un intento de conexión se cerró antes de terminar. Este dispositivo sigue listo.</string>
     <string name="connect_status_incomplete_request_timed_out">Un intento de conexión agotó el tiempo de espera. Este dispositivo sigue listo.</string>
@@ -820,7 +821,6 @@
     <string name="connect_post_play_on">Reproducir en %1$s</string>
     <string name="connect_done">Listo</string>
     <string name="tv_direct_setup_or">O conéctate a tu servidor directamente desde esta TV.</string>
-    <string name="connect_status_pair_with_device_once_more_to_enable_secure_reconnect">Vuelve a emparejarte con %1$s para habilitar la reconexión segura.</string>
     <string name="connect_status_looking_for_device_start_pairing_mode_on_the_tv_if_needed">Buscando %1$s… Inicia el modo de emparejamiento en el dispositivo si es necesario.</string>
     <string name="connect_status_securely_reconnecting_to_device">Reconectando de forma segura con %1$s…</string>
     <string name="connect_status_the_trusted_tv_did_not_start_a_compatible_control_session">El dispositivo de confianza no inició una sesión de control compatible.</string>
@@ -925,10 +925,10 @@
     <string name="connection_api_key_guidance">Introduce una clave de API de reproductor de tu servidor. No hace falta un nombre de usuario.</string>
     <string name="connection_api_key">Clave de API</string>
     <string name="connect_manual_invalid">Introduce un nombre de host o una dirección IP y un puerto válidos.</string>
-    <string name="connect_manual_enter_code">Introduce el código de seis dígitos que muestra el dispositivo de destino.</string>
-    <string name="connect_manual_authenticating">Autenticando el dispositivo de destino en esta dirección…</string>
-    <string name="connect_manual_unreachable">No se pudo acceder a esta dirección. Comprueba Tailnet, el puerto y el modo de vinculación.</string>
-    <string name="connect_manual_rejected">Se llegó a la dirección, pero no se pudo verificar el dispositivo de confianza. Comprueba su identidad o vuelve a vincularlo.</string>
+    <string name="connect_manual_enter_code">Introduce el código de seis dígitos que muestra ese dispositivo.</string>
+    <string name="connect_manual_authenticating">Conectando con el dispositivo en esta dirección…</string>
+    <string name="connect_manual_unreachable">No se pudo acceder a esa dirección. Comprueba la dirección y el puerto que muestra el otro dispositivo, y que ambos dispositivos estén en la misma red.</string>
+    <string name="connect_manual_rejected">Se llegó a esa dirección, pero no se pudo verificar que sea tu dispositivo. Vuelve a conectarlo con un código nuevo.</string>
     <string name="now_playing_cast_to_device">Enviar a un dispositivo</string>
     <string name="album_artwork_preference">Preferencia de carátula del álbum</string>
     <string name="album_artwork_inherit">Heredar</string>
