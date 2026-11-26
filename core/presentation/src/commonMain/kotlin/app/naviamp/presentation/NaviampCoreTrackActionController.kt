@@ -68,8 +68,9 @@ class NaviampCoreTrackActionController(
                 when {
                     albumContext != null -> media.playAlbum(albumContext.album, tracks, index = index)
                     // Like the playlist's Play button, so its saved profile applies (#666).
-                    playlistContext != null ->
-                        media.playPlaylist(playlistContext.id, playlistContext.name, tracks, index = index)
+                    // The refreshed list carries a rename before the open playlist's own copy does.
+                    playlistContext != null -> media.playPlaylist(playlistContext.id,
+                        registry.playlist(playlistContext.id)?.name ?: playlistContext.name, tracks, index = index)
                     else -> media.play(tracks, index)
                 }
             }

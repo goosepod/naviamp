@@ -34,7 +34,7 @@ class NaviampCoreConnectCatalogController(
                     val details = provider.album(AlbumId(command.mediaId))
                     if (command.startRadio) media.startAlbumRadio(details.album)
                     else media.playAlbum(details.album, details.tracks, shuffle = command.shuffle,
-                        profile = command.playbackProfile)
+                        profile = command.playbackProfile?.toPlaybackProfile())
                 }
                 NaviampConnectMediaType.Artist -> {
                     val details = provider.artist(ArtistId(command.mediaId))
@@ -52,7 +52,7 @@ class NaviampCoreConnectCatalogController(
                     playlistName = playlistName(command.mediaId),
                     tracks = provider.playlistTracks(command.mediaId),
                     shuffle = command.shuffle,
-                    profile = command.playbackProfile,
+                    profile = command.playbackProfile?.toPlaybackProfile(),
                 )
                 NaviampConnectMediaType.InternetRadioStation -> error("Handled above")
             }
@@ -77,7 +77,7 @@ class NaviampCoreConnectCatalogController(
                 val index = tracks.indexOfFirst { it.id.value == command.mediaId }
                 if (index < 0) return false
                 media.playAlbum(details.album, tracks, shuffle = command.shuffle, index = index,
-                    profile = command.playbackProfile)
+                    profile = command.playbackProfile?.toPlaybackProfile())
                 true
             }
             NaviampConnectMediaType.Playlist -> {
@@ -85,7 +85,7 @@ class NaviampCoreConnectCatalogController(
                 val index = tracks.indexOfFirst { it.id.value == command.mediaId }
                 if (index < 0) return false
                 media.playPlaylist(context.mediaId, playlistName(context.mediaId), tracks,
-                    shuffle = command.shuffle, index = index, profile = command.playbackProfile)
+                    shuffle = command.shuffle, index = index, profile = command.playbackProfile?.toPlaybackProfile())
                 true
             }
             else -> false
@@ -103,7 +103,8 @@ class NaviampCoreConnectCatalogController(
                     NaviampConnectMediaType.Album -> {
                         val details = provider.album(AlbumId(command.mediaId))
                         if (details.tracks.isEmpty()) return false
-                        media.addAlbumToQueue(details.album, details.tracks)
+                        media.addAlbumToQueue(details.album, details.tracks,
+                            profile = command.playbackProfile?.toPlaybackProfile())
                         return true
                     }
                     NaviampConnectMediaType.Playlist -> {
@@ -113,6 +114,7 @@ class NaviampCoreConnectCatalogController(
                             playlistId = command.mediaId,
                             playlistName = registry.playlist(command.mediaId)?.name ?: "Playlist",
                             tracks = tracks,
+                            profile = command.playbackProfile?.toPlaybackProfile(),
                         )
                         return true
                     }

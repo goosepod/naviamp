@@ -30,8 +30,8 @@ class NaviampConnectProtocolTest {
             mediaType = NaviampConnectMediaType.Playlist,
             mediaId = "mix",
             sourceIdentity = sourceIdentity(),
-            playbackProfile = app.naviamp.domain.playback.PlaybackProfile(
-                app.naviamp.domain.playback.PlaybackTransitionMode.Crossfade, crossfadeDurationSeconds = 4),
+            playbackProfile = NaviampConnectPlaybackProfile.from(app.naviamp.domain.playback.PlaybackProfile(
+                app.naviamp.domain.playback.PlaybackTransitionMode.Crossfade, crossfadeDurationSeconds = 4)),
         )
         val envelope = NaviampConnectEnvelope(1, "session", 1, message = NaviampConnectCommandRequest(start))
         val encoded = NaviampConnectWireCodec.encode(envelope)
@@ -44,6 +44,34 @@ class NaviampConnectProtocolTest {
         val legacy = (NaviampConnectWireCodec.decode(withoutProfile).message as NaviampConnectCommandRequest)
             .command as NaviampConnectStartMedia
         assertNull(legacy.playbackProfile)
+    }
+
+    @Test
+    fun aProfileWithAModeFromANewerReleaseDecodesAndIsIgnoredInsteadOfRejectingTheFrame() {
+        val current = NaviampConnectEnvelope(1, "session", 1, message = NaviampConnectCommandRequest(NaviampConnectStartMedia(
+            mediaType = NaviampConnectMediaType.Album,
+            mediaId = "album",
+            sourceIdentity = sourceIdentity(),
+            playbackProfile = NaviampConnectPlaybackProfile.from(app.naviamp.domain.playback.PlaybackProfile(
+                app.naviamp.domain.playback.PlaybackTransitionMode.Gapless)),
+        )))
+        val encoded = NaviampConnectWireCodec.encode(current)
+        assertTrue("\"transitionMode\":\"Gapless\"" in encoded)
+        val future = encoded.replace("\"transitionMode\":\"Gapless\"", "\"transitionMode\":\"Smart\"")
+
+        val start = (NaviampConnectWireCodec.decode(future).message as NaviampConnectCommandRequest)
+            .command as NaviampConnectStartMedia
+        assertEquals("album", start.mediaId, "The start itself still decodes")
+        assertNull(start.playbackProfile?.toPlaybackProfile(), "An unknown mode means no profile, so the target uses its own")
+        assertNull(NaviampConnectPlaybackProfile("Gapless", null, "Loudness").toPlaybackProfile())
+    }
+
+    @Test
+    fun aSentProfileIsNormalizedLikeASavedOne() {
+        val profile = NaviampConnectPlaybackProfile("Crossfade", 30, "Album").toPlaybackProfile()
+        assertEquals(app.naviamp.domain.playback.MaxPlaybackProfileCrossfadeSeconds, profile?.crossfadeDurationSeconds)
+        assertNull(NaviampConnectPlaybackProfile("Gapless", 8, "Inherit").toPlaybackProfile()?.crossfadeDurationSeconds,
+            "A crossfade length only applies to Crossfade")
     }
 
     @Test

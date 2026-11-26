@@ -453,8 +453,36 @@ data class NaviampConnectStartMedia(
      * on the phone follows the music. Optional for backward compatibility: older targets ignore the
      * key, and commands without it fall back to the target's own profile.
      */
-    val playbackProfile: app.naviamp.domain.playback.PlaybackProfile? = null,
+    val playbackProfile: NaviampConnectPlaybackProfile? = null,
 ) : NaviampConnectCommand
+
+/**
+ * Wire form of a playback profile. Modes travel as plain strings so that a mode added by a newer
+ * controller can never fail to decode: a failed decode would reject the frame and close the secure
+ * session. An unrecognized value makes [toPlaybackProfile] null, and the target uses its own profile.
+ */
+@Serializable
+data class NaviampConnectPlaybackProfile(
+    val transitionMode: String,
+    val crossfadeDurationSeconds: Int? = null,
+    val replayGainMode: String,
+) {
+    fun toPlaybackProfile(): app.naviamp.domain.playback.PlaybackProfile? {
+        val transition = app.naviamp.domain.playback.PlaybackTransitionMode.entries
+            .firstOrNull { it.name == transitionMode } ?: return null
+        val replayGain = app.naviamp.domain.playback.PlaybackReplayGainMode.entries
+            .firstOrNull { it.name == replayGainMode } ?: return null
+        return app.naviamp.domain.playback.PlaybackProfile(transition, crossfadeDurationSeconds, replayGain)
+            .normalized()
+    }
+
+    companion object {
+        fun from(profile: app.naviamp.domain.playback.PlaybackProfile): NaviampConnectPlaybackProfile =
+            profile.normalized().let {
+                NaviampConnectPlaybackProfile(it.transitionMode.name, it.crossfadeDurationSeconds, it.replayGainMode.name)
+            }
+    }
+}
 
 /**
  * A provider catalog list that a target resolves by ID; controller metadata is never trusted.
@@ -474,6 +502,8 @@ data class NaviampConnectQueueMedia(
     val mediaId: String,
     val placement: NaviampConnectQueuePlacement,
     val sourceIdentity: NaviampConnectSourceIdentity,
+    /** As [NaviampConnectStartMedia.playbackProfile], for an album or playlist added to the queue. */
+    val playbackProfile: NaviampConnectPlaybackProfile? = null,
 ) : NaviampConnectCommand {
     init {
         require(mediaType != NaviampConnectMediaType.InternetRadioStation) {

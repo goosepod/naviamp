@@ -1132,9 +1132,34 @@ class NaviampCoreConnectControllerTest {
         runCurrent()
 
         val (album, radio, playlist) = starts()
-        assertEquals(gapless, album.playbackProfile)
+        assertEquals(gapless, album.playbackProfile?.toPlaybackProfile())
         assertEquals(null, radio.playbackProfile, "Radio has no collection profile")
         assertEquals(null, playlist.playbackProfile, "An inherited profile is not sent, so the target keeps its own")
+        controller.close()
+    }
+
+    @Test
+    fun remoteTracksChosenInsideAnAlbumCarryTheAlbumsProfile() = runTest {
+        val sent = mutableListOf<app.naviamp.domain.connect.NaviampConnectEnvelope>()
+        val gapless = app.naviamp.domain.playback.PlaybackProfile(app.naviamp.domain.playback.PlaybackTransitionMode.Gapless)
+        val album = app.naviamp.domain.playback.PlaybackProfileTarget(app.naviamp.domain.playback.PlaybackProfileTargetType.Album, "album")
+        val identity = app.naviamp.domain.connect.NaviampConnectSourceIdentity("navidrome", "https://music.example", "listener")
+        val (controller, _, _) = remoteFixture(
+            sourceIdentity = { identity },
+            trackSelectionContext = { app.naviamp.domain.connect.NaviampConnectPlaybackContext(
+                app.naviamp.domain.connect.NaviampConnectMediaType.Album, "album") },
+            savedPlaybackProfile = { gapless.takeIf { _ -> it == album } },
+        ) { sent += it }
+        fun commands() = sent.map { it.message }.filterIsInstance<app.naviamp.domain.connect.NaviampConnectCommandRequest>()
+            .map { it.command }
+
+        assertTrue(controller.routeProductCommand(NaviampCoreCommand.Detail.AlbumTrack(
+            app.naviamp.ui.SharedTrackRowActionRequest(app.naviamp.ui.SharedTrackRowUi("album-3", "Track 3", "Artist"),
+                app.naviamp.ui.SharedTrackRowAction.Select))))
+        runCurrent()
+
+        val start = commands().filterIsInstance<app.naviamp.domain.connect.NaviampConnectStartMedia>().single()
+        assertEquals(gapless, start.playbackProfile?.toPlaybackProfile(), "A track chosen in the album carries the album's profile")
         controller.close()
     }
 

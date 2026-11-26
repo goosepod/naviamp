@@ -545,7 +545,7 @@ class NaviampCoreConnectController(
                 publish()
                 return true
             }
-            sendRemoteCommand(queued.toCommand(identity))
+            sendRemoteCommand(queued.toCommand(identity, queued.playbackProfileTarget()?.let(::sendableProfile)))
             return true
         }
         val selection = command.connectMediaSelectionOrNull()
@@ -558,11 +558,14 @@ class NaviampCoreConnectController(
             publish()
             return true
         }
-        val profile = selection.playbackProfileTarget()?.let(savedPlaybackProfile)?.normalized()
-            ?.takeUnless { it.isInherited }
+        val profile = selection.playbackProfileTarget()?.let(::sendableProfile)
         sendRemoteCommand(selection.toCommand(identity, profile), activatesPlaybackAuthority = true)
         return true
     }
+
+    /** An inherited profile is not sent, so the target keeps its own saved one. */
+    private fun sendableProfile(target: app.naviamp.domain.playback.PlaybackProfileTarget) =
+        savedPlaybackProfile(target)?.normalized()?.takeUnless { it.isInherited }
 
     private fun startPairingMode(explicitCodeConsent: Boolean = false, preserveAdvertisement: Boolean = false) {
         if (!canPlayRemotely || advertising == null) return

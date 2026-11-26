@@ -120,10 +120,11 @@ class NaviampCoreQueuePlaybackController(
         tracks: List<Track>,
         groupTarget: PlaybackProfileTarget,
         groupLabel: String,
+        groupProfile: PlaybackProfile? = null,
     ) = queue.appendTracks(
         tracksToAdd = tracks,
         label = "tracks",
-        group = savedProfileGroup(groupTarget, groupLabel),
+        group = savedProfileGroup(groupTarget, groupLabel, groupProfile),
     )
 
     fun playNext(
@@ -139,8 +140,9 @@ class NaviampCoreQueuePlaybackController(
     private fun savedProfileGroup(
         target: PlaybackProfileTarget,
         label: String,
+        override: PlaybackProfile? = null,
     ): PlaybackQueueGroup? {
-        val profile = activeSourceId()?.let { profiles.playbackProfile(it, target) }
+        val profile = override?.normalized() ?: activeSourceId()?.let { profiles.playbackProfile(it, target) }
         return PlaybackQueueGroup(
             id = "${target.type}:${target.id}",
             target = target,
@@ -237,19 +239,26 @@ class NaviampCoreMediaTransactions(
     fun playNextTrack(track: Track) = apply(queue.playNextTrack(track))
     fun addToQueue(tracks: List<Track>) = apply(queue.appendTracks(tracks, "tracks"))
 
-    fun addAlbumToQueue(album: Album, tracks: List<Track>) = apply(
+    fun addAlbumToQueue(album: Album, tracks: List<Track>, profile: PlaybackProfile? = null) = apply(
         queuePlayback.addToQueue(
             tracks = tracks,
             groupTarget = PlaybackProfileTarget(PlaybackProfileTargetType.Album, album.id.value),
             groupLabel = album.title,
+            groupProfile = profile,
         ),
     )
 
-    fun addPlaylistToQueue(playlistId: String, playlistName: String, tracks: List<Track>) = apply(
+    fun addPlaylistToQueue(
+        playlistId: String,
+        playlistName: String,
+        tracks: List<Track>,
+        profile: PlaybackProfile? = null,
+    ) = apply(
         queuePlayback.addToQueue(
             tracks = tracks,
             groupTarget = PlaybackProfileTarget(PlaybackProfileTargetType.Playlist, playlistId),
             groupLabel = playlistName,
+            groupProfile = profile,
         ),
     )
 

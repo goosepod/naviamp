@@ -1452,9 +1452,9 @@ class NaviampCoreConnectTrackSelectionTargetTest {
     fun remotePlaylistStartsPlayAsAPlaylistGroupWithTheControllersProfile() = runTest {
         val gapless = PlaybackProfile(PlaybackTransitionMode.Gapless)
         for (command in listOf(
-            NaviampConnectStartMedia(NaviampConnectMediaType.Playlist, "mix", sourceIdentity = identity, playbackProfile = gapless),
+            NaviampConnectStartMedia(NaviampConnectMediaType.Playlist, "mix", sourceIdentity = identity, playbackProfile = wire(gapless)),
             trackSelection("p-2", NaviampConnectPlaybackContext(NaviampConnectMediaType.Playlist, "mix"))
-                .copy(playbackProfile = gapless),
+                .copy(playbackProfile = wire(gapless)),
         )) {
             val remote = targetFixture(this)
             assertTrue(remote.catalog.start(command))
@@ -1462,7 +1462,7 @@ class NaviampCoreConnectTrackSelectionTargetTest {
             val group = remote.fixture.live.state.value.queue.groups.single()
             assertEquals(PlaybackProfileTarget(PlaybackProfileTargetType.Playlist, "mix"), group.target, command.toString())
             assertEquals(gapless, group.profile, command.toString())
-            // The album's Gapless profile wins over global crossfade, as it does for local starts.
+            // The playlist's Gapless profile wins over global crossfade, as it does for local starts.
             val resolved = group.profile.resolveAgainst(PlaybackSettings(gaplessEnabled = false, crossfadeDurationSeconds = 8))
             assertEquals(0, resolved.crossfadeDurationSeconds)
             assertTrue(resolved.gaplessEnabled)
@@ -1479,7 +1479,7 @@ class NaviampCoreConnectTrackSelectionTargetTest {
         val gapless = PlaybackProfile(PlaybackTransitionMode.Gapless)
         val sent = targetFixture(this, targetsOwn)
         assertTrue(sent.catalog.start(NaviampConnectStartMedia(NaviampConnectMediaType.Album, "album",
-            sourceIdentity = identity, playbackProfile = gapless)))
+            sourceIdentity = identity, playbackProfile = wire(gapless))))
         advanceUntilIdle()
         assertEquals(gapless, sent.fixture.live.state.value.queue.groups.single().profile,
             "A profile sent by the controller replaces the target's saved one")
@@ -1493,6 +1493,30 @@ class NaviampCoreConnectTrackSelectionTargetTest {
             advanceUntilIdle()
             assertEquals(crossfade, legacy.fixture.live.state.value.queue.groups.single().profile,
                 "Without a sent profile the target's own saved profile applies: $command")
+        }
+    }
+
+    @Test
+    fun remoteQueueAddsApplyTheControllersProfileAndAnUnknownModeFallsBackToTheTargetsOwn() = runTest {
+        val crossfade = PlaybackProfile(PlaybackTransitionMode.Crossfade, crossfadeDurationSeconds = 4)
+        val targetsOwn = object : PlaybackProfileRepository by EmptyPlaybackProfileRepository {
+            override fun playbackProfile(sourceId: String, target: PlaybackProfileTarget) = crossfade
+        }
+        val gapless = PlaybackProfile(PlaybackTransitionMode.Gapless)
+        for ((sent, expected) in listOf(
+            wire(gapless) to gapless,
+            app.naviamp.domain.connect.NaviampConnectPlaybackProfile("Smart", null, "Inherit") to crossfade,
+            null to crossfade,
+        )) {
+            for (type in listOf(NaviampConnectMediaType.Album, NaviampConnectMediaType.Playlist)) {
+                val remote = targetFixture(this, targetsOwn)
+                assertTrue(remote.catalog.queue(app.naviamp.domain.connect.NaviampConnectQueueMedia(
+                    type, if (type == NaviampConnectMediaType.Album) "album" else "mix",
+                    app.naviamp.domain.connect.NaviampConnectQueuePlacement.AddToQueue, identity, playbackProfile = sent)))
+                advanceUntilIdle()
+                val group = remote.fixture.live.state.value.queue.groups.last()
+                assertEquals(expected, group.profile, "$type with $sent")
+            }
         }
     }
 
@@ -1535,6 +1559,8 @@ class NaviampCoreConnectTrackSelectionTargetTest {
     }
 
     private val identity = NaviampConnectSourceIdentity("navidrome", "https://music.example", "listener")
+
+    private fun wire(profile: PlaybackProfile) = app.naviamp.domain.connect.NaviampConnectPlaybackProfile.from(profile)
 
     private fun trackSelection(trackId: String, context: NaviampConnectPlaybackContext?) = NaviampConnectStartMedia(
         mediaType = NaviampConnectMediaType.Track,
