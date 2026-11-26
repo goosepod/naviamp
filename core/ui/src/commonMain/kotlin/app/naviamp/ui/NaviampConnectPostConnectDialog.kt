@@ -34,7 +34,8 @@ internal fun NaviampConnectPostConnectDialog(
 ) {
     val enabled = !postConnect.busy
     NaviampAlertDialog(
-        onDismissRequest = { if (enabled) actions.onPostConnectDone() },
+        // Back, Escape or tapping outside closes without submitting the ticked options.
+        onDismissRequest = { if (enabled) actions.onPostConnectDismiss() },
         title = { Text(stringResource(Res.string.connect_post_title, postConnect.deviceName)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -91,6 +92,55 @@ internal fun NaviampConnectPostConnectDialog(
         dismissButton = {
             TextButton(onClick = actions.onPostConnectDone, enabled = enabled) {
                 Text(stringResource(Res.string.connect_done))
+            }
+        },
+    )
+}
+
+/** A missing or rejected password outside the post-connect sheet (for example after a trusted reconnect). */
+internal fun shouldShowConnectCredentialPrompt(connect: NaviampConnectSettingsUi): Boolean =
+    connect.needsProvisioningCredential && connect.postConnect == null
+
+@Composable
+internal fun NaviampConnectCredentialDialog(
+    connect: NaviampConnectSettingsUi,
+    colors: NaviampColors,
+    actions: NaviampConnectSettingsActions,
+) {
+    var password by remember { mutableStateOf("") }
+    val enabled = !connect.provisioningBusy
+    NaviampAlertDialog(
+        onDismissRequest = { password = ""; actions.onCancelProvisioningCredential() },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(stringResource(Res.string.connect_setup_password_required), color = colors.secondaryText)
+                OutlinedTextField(
+                    colors = naviampOutlinedTextFieldColors(colors),
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text(stringResource(Res.string.connection_password)) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Password),
+                    singleLine = true,
+                    enabled = enabled,
+                    modifier = Modifier.fillMaxWidth().testTag("connect-credential-password"),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val submitted = password
+                    password = ""
+                    actions.onSubmitProvisioningCredential(submitted)
+                },
+                enabled = enabled && password.isNotBlank(),
+                modifier = Modifier.testTag("connect-credential-submit"),
+            ) { Text(stringResource(Res.string.common_connect)) }
+        },
+        dismissButton = {
+            TextButton(onClick = { password = ""; actions.onCancelProvisioningCredential() }) {
+                Text(stringResource(Res.string.common_cancel))
             }
         },
     )

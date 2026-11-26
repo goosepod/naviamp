@@ -1555,6 +1555,119 @@ class NaviampCoreConnectControllerTest {
         fixture.controller.close()
     }
 
+    @Test
+    fun closingThePanelWhileTheIdentityLoadsStartsNoOffer() = runTest {
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val identity = object : NaviampConnectDeviceIdentityEffect {
+            override fun loadOrCreate(): NaviampConnectDeviceIdentity {
+                kotlinx.coroutines.runBlocking { gate.await() }
+                return FakeIdentity.loadOrCreate()
+            }
+            override fun sign(payload: ByteArray) = byteArrayOf(1)
+        }
+        val store = NaviampCoreStateStore()
+        val listeners = mutableListOf<WaitingListener>()
+        val identityDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
+        val controller = secureStorageFixture(this, store, identity, identityDispatcher, listeners) { testScheduler.currentTime }
+        controller.actions.onStartPairingMode()
+        controller.actions.onStopPairingMode()
+        gate.complete(Unit)
+        runCurrent()
+        assertTrue(listeners.isEmpty(), "A panel closed before the identity loaded must not start an offer")
+        assertNull(store.state.value.shell.connect.pairingCode)
+        controller.close()
+    }
+
+    @Test
+    fun retryingSecureStorageShowsTheCodeForTheStillOpenPanel() = runTest {
+        var locked = true
+        val identity = object : NaviampConnectDeviceIdentityEffect {
+            override fun loadOrCreate(): NaviampConnectDeviceIdentity {
+                if (locked) throw IllegalStateException("locked")
+                return FakeIdentity.loadOrCreate()
+            }
+            override fun sign(payload: ByteArray) = byteArrayOf(1)
+        }
+        val store = NaviampCoreStateStore()
+        val listeners = mutableListOf<WaitingListener>()
+        val controller = secureStorageFixture(this, store, identity, kotlinx.coroutines.Dispatchers.Unconfined, listeners) {
+            testScheduler.currentTime
+        }
+        runCurrent()
+        controller.actions.onStartPairingMode()
+        runCurrent()
+        locked = false
+        controller.actions.onRetryConnection()
+        runCurrent()
+        assertEquals("123456", store.state.value.shell.connect.pairingCode)
+        controller.close()
+    }
+
+    @Test
+    fun aValidRequestJustAfterExpiryStillLeavesANewCode() = runTest {
+        var wallClock = 1_000L
+        val listener = QueuedListener(42425)
+        val store = NaviampCoreStateStore()
+        val codes = sequenceOf("111111", "222222").iterator()
+        val controller = targetController(
+            listener = listener, store = store, nowEpochMillis = { wallClock },
+            pairingHelloTimeoutMillis = 1_000L, pairingLifetimeMillis = 10_000L, newPairingCode = codes::next,
+        )
+        controller.actions.onStartPairingMode()
+        runCurrent()
+        wallClock = 20_000L
+        listener.connections.trySend(ScriptedConnection(app.naviamp.domain.connect.NaviampConnectEnvelope(
+            protocolVersion = 1, sequence = 0,
+            message = app.naviamp.domain.connect.NaviampConnectHello(
+                device = NaviampConnectDevice("late", "Late phone", NaviampConnectDeviceRole.Controller),
+                // FakeIdentityVerifier fingerprints every key as "fingerprint": this hello is valid.
+                identity = app.naviamp.domain.connect.NaviampConnectPublicIdentity("late", "fingerprint", "late-key"),
+                protocolRange = NaviampConnectProtocolRange(),
+                capabilities = emptySet(),
+            ),
+        )))
+        runCurrent()
+        assertEquals("222222", store.state.value.shell.connect.pairingCode)
+        controller.close()
+    }
+
+    @Test
+    fun aStalledHandshakeReleasesCodeEntry() = runTest {
+        val stalled = StalledConnection()
+        val discovery = RecordingDiscoveryEffect()
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreConnectController(this, store, NaviampCoreConnectServices(
+            networkDispatcher = kotlinx.coroutines.Dispatchers.Unconfined,
+            deviceCapabilities = setOf(NaviampConnectDeviceCapability.ControlPlayback),
+            displayName = "Pixel", identity = FakeIdentity, identityVerifier = FakeIdentityVerifier,
+            transport = object : NaviampConnectTransportFactory {
+                override suspend fun connect(host: String, port: Int): NaviampConnectTransportConnection = stalled
+                override fun listen(port: Int): NaviampConnectTransportListener = error("unused")
+            },
+            pake = UnusedPakeFactory, cipher = UnusedCipherFactory,
+            trust = NaviampConnectTrustRepository(NaviampConnectTrustStorageEffect {}), discovery = discovery,
+            newOpaqueId = { "opaque" }, newPairingCode = { "123456" },
+            nowEpochMillis = { testScheduler.currentTime + 1_000L }, pairingHandshakeTimeoutMillis = 1_000L,
+        ))
+        controller.actions.onConnectScreenVisibilityChanged(true)
+        discovery.listener.onServiceResolved(NaviampConnectResolvedService(
+            serviceName = "Living Room", addresses = listOf("192.0.2.10"), port = 42_425,
+            textAttributes = NaviampConnectDiscoveryMetadata.encode(NaviampConnectAdvertisement(
+                instanceId = "tv-instance", displayName = "Living Room", protocolRange = NaviampConnectProtocolRange(),
+                capabilities = emptySet(), port = 42_425, identityFingerprint = "tv-fp", expiresAtEpochMillis = Long.MAX_VALUE,
+            )),
+        ))
+        runCurrent()
+        controller.actions.onPairingCodeChanged("123456")
+        runCurrent()
+        assertTrue(store.state.value.shell.connect.codeEntryBusy)
+        advanceTimeBy(1_001L)
+        runCurrent()
+        assertFalse(store.state.value.shell.connect.codeEntryBusy, "A peer that stops responding must not block code entry")
+        assertTrue(stalled.closed)
+        controller.close()
+    }
+
     private class ConnectScreenFixture(
         val controller: NaviampCoreConnectController,
         val store: NaviampCoreStateStore,

@@ -29,6 +29,28 @@ class NaviampConnectDevicesSettingsTest {
         assertEquals(listOf("start", "stop"), calls)
     }
 
+    @Test fun hidingTheAppEndsTheOfferAndReturningShowsAFreshCode() = runComposeUiTest {
+        val calls = mutableListOf<String>()
+        val owner = object : androidx.lifecycle.LifecycleOwner {
+            val registry = androidx.lifecycle.LifecycleRegistry.createUnsafe(this)
+            override val lifecycle: androidx.lifecycle.Lifecycle get() = registry
+        }
+        runOnIdle { owner.registry.currentState = androidx.lifecycle.Lifecycle.State.RESUMED }
+        setContent {
+            androidx.compose.runtime.CompositionLocalProvider(androidx.lifecycle.compose.LocalLifecycleOwner provides owner) {
+                NaviampConnectShowCodePanel(device(), NaviampColors.Dark, actions(calls))
+            }
+        }
+        waitForIdle()
+        assertEquals(listOf("start"), calls)
+        runOnIdle { owner.registry.currentState = androidx.lifecycle.Lifecycle.State.CREATED }
+        waitForIdle()
+        assertEquals(listOf("start", "stop"), calls, "A hidden app must not keep offering a code")
+        runOnIdle { owner.registry.currentState = androidx.lifecycle.Lifecycle.State.RESUMED }
+        waitForIdle()
+        assertEquals(listOf("start", "stop", "start"), calls)
+    }
+
     @Test fun showCodePanelShowsWhoConnectedAlongsideTheNextCode() = runComposeUiTest {
         val calls = mutableListOf<String>()
         setContent {

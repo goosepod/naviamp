@@ -179,6 +179,109 @@ class NaviampCoreConnectFreshSetupTest {
     }
 
     @Test
+    fun aConfiguredButDisconnectedTvIsNotAutoSetUpByOlderControllers() = runTest {
+        val network = ConnectTestNetwork()
+        val events = mutableListOf<NaviampCoreConnectTraceEvent>()
+        val withTrace: (NaviampCoreConnectServices) -> NaviampCoreConnectServices = { realCrypto(it).copy(trace = events::add) }
+        val phone = connectPeer("phone", "mac", network, ConnectTestSource(configured = true), preTrusted = false, configure = withTrace)
+        val mac = connectPeer("mac", "phone", network, ConnectTestSource(configured = true, sourceId = "existing"),
+            preTrusted = false, configure = realCrypto)
+        try {
+            mac.actions.shell.connectActions!!.onStartPairingMode()
+            runCurrent()
+            enterCode(phone, mac, "mac")
+            runCurrent()
+            assertEquals("mac", phone.state.value.shell.connect.connectedTargetName)
+            assertTrue(events.none { it.kind == NaviampCoreConnectTraceKind.InitialSetupAuthorized },
+                "Protocol-v1 controllers set up a device only when it has no accounts at all")
+        } finally { phone.close(); mac.close() }
+    }
+
+    @Test
+    fun dismissingTheSheetSendsNothingEvenWhenSignInIsTicked() = runTest {
+        val network = ConnectTestNetwork()
+        val destination = ConnectTestSource(configured = false)
+        val phone = connectPeer("phone", "mac", network, ConnectTestSource(configured = true), preTrusted = false, configure = realCrypto)
+        val mac = connectPeer("mac", "phone", network, destination, preTrusted = false, configure = realCrypto)
+        try {
+            mac.actions.shell.connectActions!!.onStartPairingMode()
+            runCurrent()
+            enterCode(phone, mac, "mac")
+            runCurrent()
+            assertTrue(assertNotNull(phone.state.value.shell.connect.postConnect).signInSelected)
+            phone.actions.shell.connectActions!!.onPostConnectDismiss()
+            runCurrent()
+            assertNull(phone.state.value.shell.connect.postConnect)
+            assertEquals(0, destination.connects, "Back, Escape or tapping outside must not send credentials")
+        } finally { phone.close(); mac.close() }
+    }
+
+    @Test
+    fun playOnPausesThisDeviceOnceTheTargetHasTheQueue() = runTest {
+            val track = app.naviamp.domain.Track(id = app.naviamp.domain.TrackId("local"), title = "Local track",
+                artistName = "Artist", albumTitle = "Album", durationSeconds = 180, coverArtId = null, audioInfo = null, replayGain = null)
+        val network = ConnectTestNetwork()
+        val effects = FakeCorePlaybackEffects()
+        val phone = connectPeer("phone", "mac", network, ConnectTestSource(configured = true), preTrusted = false,
+            configure = realCrypto, playbackEffects = effects, provider = FakeCoreMediaProvider())
+        val mac = connectPeer("mac", "phone", network, ConnectTestSource(configured = true), preTrusted = false,
+            configure = realCrypto, provider = FakeCoreMediaProvider(additionalLibraryTracks = listOf(track)))
+        try {
+            listOf(phone, mac).forEach(::connectToTheSameSource)
+            mac.actions.shell.connectActions!!.onStartPairingMode()
+            runCurrent()
+            enterCode(phone, mac, "mac")
+            runCurrent()
+            phone.updateLivePlayback { it.copy(currentTrack = track, queue = app.naviamp.domain.queue.PlaybackQueue(listOf(track), 0),
+                // Paused keeps the fake target from starting audio; the sender's pause call is what is checked.
+                playbackState = app.naviamp.domain.playback.PlaybackState.Paused) }
+            val pausesBefore = effects.pauseCount
+            phone.actions.shell.connectActions!!.onPostConnectPlayOnDevice()
+            runCurrent()
+            advanceTimeBy(1_000)
+            runCurrent()
+            assertEquals(NaviampConnectStatusText.QueueSentToDevice, phone.state.value.shell.connect.statusMessage?.text)
+            assertEquals(pausesBefore + 1, effects.pauseCount, "The sender stops its own audio after the handoff")
+        } finally { phone.close(); mac.close() }
+    }
+
+    private fun connectToTheSameSource(core: NaviampCore) {
+        core.stateStore.updateShell { shell ->
+            shell.copy(connectionSettings = shell.connectionSettings.copy(connection = shell.connectionSettings.connection.copy(
+                connected = true,
+                savedConnections = listOf(app.naviamp.ui.NaviampSavedConnectionUi(
+                    id = "fixture", displayName = "Fixture source", serverUrl = "https://fixture.example.invalid",
+                    username = "fixture-user", current = true)),
+            )))
+        }
+    }
+
+    @Test
+    fun aSecondCodeInTheStillOpenPanelGoesToTheNewDevice() = runTest {
+        val network = ConnectTestNetwork()
+        val phone = connectPeer("phone", "mac", network, ConnectTestSource(configured = true), preTrusted = false, configure = realCrypto)
+        val mac = connectPeer("mac", "phone", network, ConnectTestSource(configured = true, sourceId = "existing"),
+            preTrusted = false, configure = realCrypto)
+        val den = connectPeer("den", "phone", network, ConnectTestSource(configured = true, sourceId = "existing"),
+            preTrusted = false, configure = realCrypto)
+        try {
+            mac.actions.shell.connectActions!!.onStartPairingMode()
+            runCurrent()
+            enterCode(phone, mac, "mac")
+            runCurrent()
+            phone.actions.shell.connectActions!!.onPostConnectDone()
+            runCurrent()
+            mac.actions.shell.connectActions!!.onStopPairingMode()
+            den.actions.shell.connectActions!!.onStartPairingMode()
+            runCurrent()
+            // The panel is still open: type the next device's code without reopening it.
+            phone.actions.shell.connectActions!!.onPairingCodeChanged(assertNotNull(den.state.value.shell.connect.pairingCode))
+            runCurrent()
+            assertEquals("den", phone.state.value.shell.connect.connectedTargetName)
+        } finally { phone.close(); mac.close(); den.close() }
+    }
+
+    @Test
     fun secondPhoneConnectsToAnAlreadyTrustedTargetWithoutApproval() = runTest {
         val network = ConnectTestNetwork()
         val phoneA = connectPeer("phone-a", "mac", network, preTrusted = false, configure = realCrypto)

@@ -42,6 +42,29 @@ class NaviampConnectPostConnectDialogTest {
         onNodeWithTag("connect-post-sign-in").assertDoesNotExist()
     }
 
+    @Test fun dismissingTheSheetIsNotDone() = runComposeUiTest {
+        val calls = mutableListOf<String>()
+        val dispatcher = NaviampSystemBackDispatcher()
+        setContent {
+            androidx.compose.runtime.CompositionLocalProvider(LocalNaviampSystemBackDispatcher provides dispatcher) {
+                NaviampConnectPostConnectDialog(sheet(), NaviampColors.Dark, NaviampConnectSettingsUi(), actions(calls))
+            }
+        }
+        runOnIdle { kotlin.test.assertNotNull(dispatcher.currentHandler).invoke() }
+        assertEquals(listOf("dismiss"), calls, "Back closes without submitting the ticked sign-in")
+    }
+
+    @Test fun aMissingPasswordOutsideTheSheetHasItsOwnPrompt() = runComposeUiTest {
+        kotlin.test.assertTrue(shouldShowConnectCredentialPrompt(NaviampConnectSettingsUi(needsProvisioningCredential = true)))
+        kotlin.test.assertFalse(shouldShowConnectCredentialPrompt(NaviampConnectSettingsUi(needsProvisioningCredential = true,
+            postConnect = sheet())))
+        val calls = mutableListOf<String>()
+        setContent { NaviampConnectCredentialDialog(NaviampConnectSettingsUi(needsProvisioningCredential = true), NaviampColors.Dark, actions(calls)) }
+        onNodeWithTag("connect-credential-password").performTextInput("secret")
+        onNodeWithTag("connect-credential-submit").performClick()
+        assertEquals(listOf("password"), calls)
+    }
+
     private fun sheet() = NaviampConnectPostConnectUi(deviceName = "Living Room", canSignIn = true,
         signInSelected = true, deviceHasAccounts = false, canPlayOn = true)
 
@@ -56,5 +79,7 @@ class NaviampConnectPostConnectDialogTest {
         onPostConnectSignInChanged = { calls += "sign-in:$it" },
         onPostConnectPlayOnDevice = { calls += "play" },
         onPostConnectDone = { calls += "done" },
+        onPostConnectDismiss = { calls += "dismiss" },
+        onSubmitProvisioningCredential = { calls += "password" },
     )
 }

@@ -167,6 +167,8 @@ data class NaviampConnectSettingsActions(
     val onPostConnectSignInChanged: (Boolean) -> Unit = {},
     val onPostConnectPlayOnDevice: () -> Unit = {},
     val onPostConnectDone: () -> Unit = {},
+    /** Back, Escape or tapping outside: close the sheet without sending anything. */
+    val onPostConnectDismiss: () -> Unit = {},
 )
 
 fun disambiguateNaviampConnectDeviceNames(names: List<String>): List<String> {

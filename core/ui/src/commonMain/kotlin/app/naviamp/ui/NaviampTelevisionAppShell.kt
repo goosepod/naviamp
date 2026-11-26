@@ -915,10 +915,7 @@ internal fun TelevisionFirstRunConnectSetup(
     // A fresh TV shows its code as soon as setup is on screen; leaving setup ends the offer.
     val start by rememberUpdatedState(actions.onStartPairingMode)
     val stop by rememberUpdatedState(actions.onStopPairingMode)
-    DisposableEffect(Unit) {
-        start()
-        onDispose { stop() }
-    }
+    NaviampWhileVisibleEffect(onVisible = { start() }, onHidden = { stop() })
     // The box takes the remote's first focus, so setup opens scrolled to the code and Up returns to it.
     val codeBoxFocus = remember { FocusRequester() }
     var codeBoxFocused by remember { mutableStateOf(false) }

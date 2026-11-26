@@ -9,6 +9,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,10 +43,9 @@ internal fun NaviampConnectShowCodePanel(
 ) {
     val start by rememberUpdatedState(actions.onStartPairingMode)
     val stop by rememberUpdatedState(actions.onStopPairingMode)
-    DisposableEffect(Unit) {
-        start()
-        onDispose { stop() }
-    }
+    // The offer lives only while the panel is shown in a visible app: Home or a hidden window ends it,
+    // and returning starts a fresh code.
+    NaviampWhileVisibleEffect(onVisible = { start() }, onHidden = { stop() })
     Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = modifier.fillMaxWidth()) {
         // A used code is replaced at once, so the panel keeps showing the next one.
         connect.connectedControllerName?.let { controllerName ->
@@ -159,6 +161,35 @@ internal fun NaviampConnectEnterCodePanel(
             PrimaryButton(stringResource(Res.string.common_connect), colors,
                 enabled = manualAddress.isNotBlank(),
                 onClick = { actions.onManualEndpointSelected(manualAddress) })
+        }
+    }
+}
+
+/**
+ * Runs [onVisible] while this composition is on screen in a started (visible) app and [onHidden]
+ * when the app stops or the composition leaves. Built from the lifecycle APIs allowed in common code.
+ */
+@Composable
+internal fun NaviampWhileVisibleEffect(onVisible: () -> Unit, onHidden: () -> Unit) {
+    val visible by rememberUpdatedState(onVisible)
+    val hidden by rememberUpdatedState(onHidden)
+    val owner = LocalLifecycleOwner.current
+    DisposableEffect(owner) {
+        var active = false
+        fun show() { if (!active) { active = true; visible() } }
+        fun hide() { if (active) { active = false; hidden() } }
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> show()
+                Lifecycle.Event.ON_STOP -> hide()
+                else -> Unit
+            }
+        }
+        if (owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) show()
+        owner.lifecycle.addObserver(observer)
+        onDispose {
+            owner.lifecycle.removeObserver(observer)
+            hide()
         }
     }
 }

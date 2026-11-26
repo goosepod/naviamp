@@ -123,6 +123,8 @@ internal fun TestScope.connectPeer(
     id: String, peerId: String, network: ConnectTestNetwork,
     source: NaviampCoreProviderSessionPort? = null,
     preTrusted: Boolean = true,
+    playbackEffects: NaviampCorePlaybackEffectPort = FakeCorePlaybackEffects(),
+    provider: app.naviamp.domain.provider.MediaProvider? = null,
     configure: (NaviampCoreConnectServices) -> NaviampCoreConnectServices = { it },
 ): NaviampCore {
     var storedTrust: String? = null
@@ -141,7 +143,7 @@ internal fun TestScope.connectPeer(
         override fun remove(peerDeviceId: String) { secrets.remove(peerDeviceId)?.fill(0) }
     })
     var opaqueId = 0
-    val base = fakeCoreServices()
+    val base = fakeCoreServices(provider = provider, playbackEffects = playbackEffects)
     return NaviampCore.create(this, base.copy(connection = source ?: base.connection,
         connect = configure(NaviampCoreConnectServices(
         networkDispatcher = StandardTestDispatcher(testScheduler),

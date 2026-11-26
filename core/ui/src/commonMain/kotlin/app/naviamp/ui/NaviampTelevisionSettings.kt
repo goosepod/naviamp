@@ -439,10 +439,7 @@ internal fun TelevisionControllersSettings(
     if (codeShown) {
         val start by rememberUpdatedState(actions.onStartPairingMode)
         val stop by rememberUpdatedState(actions.onStopPairingMode)
-        DisposableEffect(Unit) {
-            start()
-            onDispose { stop() }
-        }
+        NaviampWhileVisibleEffect(onVisible = { start() }, onHidden = { stop() })
     }
     var renameOpen by remember { mutableStateOf(false) }
     var deviceName by remember(connect.localDeviceName) { mutableStateOf(connect.localDeviceName) }
