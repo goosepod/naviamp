@@ -73,12 +73,15 @@ class NaviampCoreQueuePlaybackController(
         groupTarget: PlaybackProfileTarget? = null,
         groupLabel: String = "",
         downloadedOnly: Boolean = false,
+        /** A profile chosen elsewhere (a Connect controller's) that replaces this device's saved one. */
+        groupProfile: PlaybackProfile? = null,
     ): Boolean {
         if (downloadedOnly && !effects.capabilities.supportsDownloadedOnly) return false
         val selected = if (shuffle) tracks.shuffled() else tracks
         if (selected.isEmpty()) return false
         val profile = groupTarget?.let { target ->
-            activeSourceId()?.let { sourceId -> profiles.playbackProfile(sourceId, target) }
+            groupProfile?.normalized()
+                ?: activeSourceId()?.let { sourceId -> profiles.playbackProfile(sourceId, target) }
         }
         val group = if (groupTarget != null) {
             PlaybackQueueGroup(
@@ -188,13 +191,42 @@ class NaviampCoreMediaTransactions(
         publishRecentRadio(recentRadioStreams.remember(stream))
     }
 
-    fun playAlbum(album: Album, tracks: List<Track>, shuffle: Boolean = false, index: Int = 0) {
+    fun playAlbum(
+        album: Album,
+        tracks: List<Track>,
+        shuffle: Boolean = false,
+        index: Int = 0,
+        profile: PlaybackProfile? = null,
+    ) {
         if (!queuePlayback.play(
                 tracks = tracks,
                 index = index,
                 shuffle = shuffle,
                 groupTarget = PlaybackProfileTarget(PlaybackProfileTargetType.Album, album.id.value),
                 groupLabel = album.title,
+                groupProfile = profile,
+            )
+        ) {
+            publish(NaviampStatusMessage.NoTracksAvailable)
+        }
+    }
+
+    /** Plays a playlist as one profile group, like [playAlbum]; the same path serves local and Connect starts. */
+    fun playPlaylist(
+        playlistId: String,
+        playlistName: String,
+        tracks: List<Track>,
+        shuffle: Boolean = false,
+        index: Int = 0,
+        profile: PlaybackProfile? = null,
+    ) {
+        if (!queuePlayback.play(
+                tracks = tracks,
+                index = index,
+                shuffle = shuffle,
+                groupTarget = PlaybackProfileTarget(PlaybackProfileTargetType.Playlist, playlistId),
+                groupLabel = playlistName,
+                groupProfile = profile,
             )
         ) {
             publish(NaviampStatusMessage.NoTracksAvailable)

@@ -447,6 +447,13 @@ data class NaviampConnectStartMedia(
      * commands from older controllers omit it and keep single-track behavior.
      */
     val context: NaviampConnectPlaybackContext? = null,
+    /**
+     * The controller's saved playback profile for the album or playlist being started (directly or
+     * as [context]). The target applies it in preference to its own saved profile, so a profile set
+     * on the phone follows the music. Optional for backward compatibility: older targets ignore the
+     * key, and commands without it fall back to the target's own profile.
+     */
+    val playbackProfile: app.naviamp.domain.playback.PlaybackProfile? = null,
 ) : NaviampConnectCommand
 
 /**

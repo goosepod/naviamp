@@ -27,6 +27,14 @@ import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.home.HomeAlbumYear
 import app.naviamp.domain.home.HomeLibraryRepository
 import app.naviamp.domain.media.RelatedTracksSource
+import app.naviamp.domain.playback.EmptyPlaybackProfileRepository
+import app.naviamp.domain.playback.PlaybackProfile
+import app.naviamp.domain.playback.PlaybackProfileRepository
+import app.naviamp.domain.playback.PlaybackProfileTarget
+import app.naviamp.domain.playback.PlaybackProfileTargetType
+import app.naviamp.domain.playback.PlaybackTransitionMode
+import app.naviamp.domain.playback.resolveAgainst
+import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.PlaybackProgress
@@ -1068,7 +1076,10 @@ private data class MediaFixture(
     val artistActivity: RecordingFavoriteArtistActivity,
 )
 
-private fun mediaFixture(scope: kotlinx.coroutines.CoroutineScope): MediaFixture {
+private fun mediaFixture(
+    scope: kotlinx.coroutines.CoroutineScope,
+    profiles: app.naviamp.domain.playback.PlaybackProfileRepository = app.naviamp.domain.playback.EmptyPlaybackProfileRepository,
+): MediaFixture {
     val provider = NowPlayingTestProvider()
     val store = NaviampCoreStateStore()
     store.updateShell { shell ->
@@ -1160,7 +1171,8 @@ private fun mediaFixture(scope: kotlinx.coroutines.CoroutineScope): MediaFixture
         playback = live,
         queue = queue,
         effects = effects,
-        queuePlayback = NaviampCoreQueuePlaybackController(live, queue, effects, { presenter.publish() }, {}),
+        queuePlayback = NaviampCoreQueuePlaybackController(live, queue, effects, { presenter.publish() }, {},
+            activeSourceId = { "source" }, profiles = profiles),
         downloads = downloads,
         mediaDetails = mediaDetails,
         recentRadioStreams = NaviampRecentRadioStreamController(
@@ -1437,6 +1449,76 @@ class NaviampCoreConnectTrackSelectionTargetTest {
     }
 
     @Test
+    fun remotePlaylistStartsPlayAsAPlaylistGroupWithTheControllersProfile() = runTest {
+        val gapless = PlaybackProfile(PlaybackTransitionMode.Gapless)
+        for (command in listOf(
+            NaviampConnectStartMedia(NaviampConnectMediaType.Playlist, "mix", sourceIdentity = identity, playbackProfile = gapless),
+            trackSelection("p-2", NaviampConnectPlaybackContext(NaviampConnectMediaType.Playlist, "mix"))
+                .copy(playbackProfile = gapless),
+        )) {
+            val remote = targetFixture(this)
+            assertTrue(remote.catalog.start(command))
+            advanceUntilIdle()
+            val group = remote.fixture.live.state.value.queue.groups.single()
+            assertEquals(PlaybackProfileTarget(PlaybackProfileTargetType.Playlist, "mix"), group.target, command.toString())
+            assertEquals(gapless, group.profile, command.toString())
+            // The album's Gapless profile wins over global crossfade, as it does for local starts.
+            val resolved = group.profile.resolveAgainst(PlaybackSettings(gaplessEnabled = false, crossfadeDurationSeconds = 8))
+            assertEquals(0, resolved.crossfadeDurationSeconds)
+            assertTrue(resolved.gaplessEnabled)
+        }
+    }
+
+    @Test
+    fun remoteAlbumStartsApplyTheControllersProfileAndOtherwiseTheTargetsOwn() = runTest {
+        val crossfade = PlaybackProfile(PlaybackTransitionMode.Crossfade, crossfadeDurationSeconds = 4)
+        val targetsOwn = object : PlaybackProfileRepository by EmptyPlaybackProfileRepository {
+            override fun playbackProfile(sourceId: String, target: PlaybackProfileTarget) =
+                crossfade.takeIf { sourceId == "source" && target.id in setOf("album", "mix") }
+        }
+        val gapless = PlaybackProfile(PlaybackTransitionMode.Gapless)
+        val sent = targetFixture(this, targetsOwn)
+        assertTrue(sent.catalog.start(NaviampConnectStartMedia(NaviampConnectMediaType.Album, "album",
+            sourceIdentity = identity, playbackProfile = gapless)))
+        advanceUntilIdle()
+        assertEquals(gapless, sent.fixture.live.state.value.queue.groups.single().profile,
+            "A profile sent by the controller replaces the target's saved one")
+
+        for (command in listOf(
+            NaviampConnectStartMedia(NaviampConnectMediaType.Album, "album", sourceIdentity = identity),
+            NaviampConnectStartMedia(NaviampConnectMediaType.Playlist, "mix", sourceIdentity = identity),
+        )) {
+            val legacy = targetFixture(this, targetsOwn)
+            assertTrue(legacy.catalog.start(command))
+            advanceUntilIdle()
+            assertEquals(crossfade, legacy.fixture.live.state.value.queue.groups.single().profile,
+                "Without a sent profile the target's own saved profile applies: $command")
+        }
+    }
+
+    @Test
+    fun localTrackSelectionInsideAPlaylistAppliesThePlaylistGroupLikeItsPlayButton() = runTest {
+        val gapless = PlaybackProfile(PlaybackTransitionMode.Gapless)
+        val saved = object : PlaybackProfileRepository by EmptyPlaybackProfileRepository {
+            override fun playbackProfile(sourceId: String, target: PlaybackProfileTarget) =
+                gapless.takeIf { target == PlaybackProfileTarget(PlaybackProfileTargetType.Playlist, "mix") }
+        }
+        val local = targetFixture(this, saved)
+        local.registry.updateSelectedPlaylist(app.naviamp.domain.Playlist("mix", "Mix", playlistTracks.size), playlistTracks)
+        NaviampCoreTrackActionController(local.registry, local.fixture.transactions) {}.execute(
+            NaviampCoreCommand.Detail.PlaylistTrack(app.naviamp.ui.SharedTrackRowActionRequest(
+                app.naviamp.ui.SharedTrackRowUi("p-2", "p-2", "Artist"), app.naviamp.ui.SharedTrackRowAction.Select)))
+        advanceUntilIdle()
+
+        val queue = local.fixture.live.state.value.queue
+        assertEquals(1, queue.currentIndex)
+        val group = queue.groups.single()
+        assertEquals(PlaybackProfileTarget(PlaybackProfileTargetType.Playlist, "mix"), group.target)
+        assertEquals("Mix", group.label)
+        assertEquals(gapless, group.profile)
+    }
+
+    @Test
     fun legacyOrUnresolvableSelectionsStillPlayTheSingleTrack() = runTest {
         for (context in listOf(
             null,
@@ -1452,10 +1534,12 @@ class NaviampCoreConnectTrackSelectionTargetTest {
         }
     }
 
+    private val identity = NaviampConnectSourceIdentity("navidrome", "https://music.example", "listener")
+
     private fun trackSelection(trackId: String, context: NaviampConnectPlaybackContext?) = NaviampConnectStartMedia(
         mediaType = NaviampConnectMediaType.Track,
         mediaId = trackId,
-        sourceIdentity = NaviampConnectSourceIdentity("navidrome", "https://music.example", "listener"),
+        sourceIdentity = identity,
         context = context,
     )
 
@@ -1466,8 +1550,11 @@ class NaviampCoreConnectTrackSelectionTargetTest {
         val catalog: NaviampCoreConnectCatalogController,
     )
 
-    private fun targetFixture(scope: kotlinx.coroutines.CoroutineScope): TargetFixture {
-        val fixture = mediaFixture(scope)
+    private fun targetFixture(
+        scope: kotlinx.coroutines.CoroutineScope,
+        profiles: app.naviamp.domain.playback.PlaybackProfileRepository = app.naviamp.domain.playback.EmptyPlaybackProfileRepository,
+    ): TargetFixture {
+        val fixture = mediaFixture(scope, profiles)
         val provider = object : MediaProvider by fixture.provider {
             override suspend fun album(albumId: AlbumId) = AlbumDetails(
                 Album(albumId, "Album", "Artist", coverArtId = null, recentlyAddedAtIso8601 = null),

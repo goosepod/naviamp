@@ -1110,6 +1110,35 @@ class NaviampCoreConnectControllerTest {
     }
 
     @Test
+    fun remoteAlbumAndPlaylistStartsCarryTheControllersSavedPlaybackProfile() = runTest {
+        val sent = mutableListOf<app.naviamp.domain.connect.NaviampConnectEnvelope>()
+        val gapless = app.naviamp.domain.playback.PlaybackProfile(app.naviamp.domain.playback.PlaybackTransitionMode.Gapless)
+        val saved = mapOf(
+            app.naviamp.domain.playback.PlaybackProfileTarget(app.naviamp.domain.playback.PlaybackProfileTargetType.Album, "album") to gapless,
+            app.naviamp.domain.playback.PlaybackProfileTarget(app.naviamp.domain.playback.PlaybackProfileTargetType.Playlist, "inherited") to
+                app.naviamp.domain.playback.PlaybackProfile(),
+        )
+        val identity = app.naviamp.domain.connect.NaviampConnectSourceIdentity("navidrome", "https://music.example", "listener")
+        val (controller, _, _) = remoteFixture(sourceIdentity = { identity }, savedPlaybackProfile = { saved[it] }) { sent += it }
+        fun starts() = sent.map { it.message }.filterIsInstance<app.naviamp.domain.connect.NaviampConnectCommandRequest>()
+            .map { it.command }.filterIsInstance<app.naviamp.domain.connect.NaviampConnectStartMedia>()
+
+        assertTrue(controller.routeProductCommand(NaviampCoreCommand.Detail.Album(app.naviamp.ui.NaviampAlbumDetailActionRequest(
+            app.naviamp.ui.SharedMediaItemUi("album", "Album", "Artist"), app.naviamp.ui.NaviampAlbumDetailCommand.Play(shuffle = false)))))
+        assertTrue(controller.routeProductCommand(NaviampCoreCommand.Detail.Album(app.naviamp.ui.NaviampAlbumDetailActionRequest(
+            app.naviamp.ui.SharedMediaItemUi("album", "Album", "Artist"), app.naviamp.ui.NaviampAlbumDetailCommand.StartRadio))))
+        assertTrue(controller.routeProductCommand(NaviampCoreCommand.Playlists.Detail(app.naviamp.ui.NaviampPlaylistDetailActionRequest(
+            app.naviamp.ui.SharedMediaItemUi("inherited", "Inherited", ""), app.naviamp.ui.NaviampPlaylistDetailCommand.Play(shuffle = false)))))
+        runCurrent()
+
+        val (album, radio, playlist) = starts()
+        assertEquals(gapless, album.playbackProfile)
+        assertEquals(null, radio.playbackProfile, "Radio has no collection profile")
+        assertEquals(null, playlist.playbackProfile, "An inherited profile is not sent, so the target keeps its own")
+        controller.close()
+    }
+
+    @Test
     fun homeMixOnARemoteTargetIsSentAsSeedTrackRadioAndNeverAsTheAlbum() = runTest {
         val sent = mutableListOf<app.naviamp.domain.connect.NaviampConnectEnvelope>()
         val identity = app.naviamp.domain.connect.NaviampConnectSourceIdentity("navidrome", "https://music.test", "me")
@@ -1290,6 +1319,7 @@ class NaviampCoreConnectControllerTest {
         companionProvisioningSupported: Boolean = false,
         sourceIdentity: () -> app.naviamp.domain.connect.NaviampConnectSourceIdentity? = { null },
         trackSelectionContext: (NaviampCoreCommand) -> app.naviamp.domain.connect.NaviampConnectPlaybackContext? = { null },
+        savedPlaybackProfile: (app.naviamp.domain.playback.PlaybackProfileTarget) -> app.naviamp.domain.playback.PlaybackProfile? = { null },
         extraCapabilities: Set<app.naviamp.domain.connect.NaviampConnectCapability> = emptySet(),
         send: suspend (app.naviamp.domain.connect.NaviampConnectEnvelope) -> Unit,
     ): Triple<NaviampCoreConnectController, NaviampCoreStateStore, NaviampConnectControllerSession> {
@@ -1309,7 +1339,7 @@ class NaviampCoreConnectControllerTest {
             discovery = discovery, permissionSettings = permissionSettings,
             newOpaqueId = { "unused" }, newPairingCode = { "123456" }, nowEpochMillis = { testScheduler.currentTime },
         ), providerSessions = providerSessions, sourceIdentity = sourceIdentity,
-            trackSelectionContext = trackSelectionContext)
+            trackSelectionContext = trackSelectionContext, savedPlaybackProfile = savedPlaybackProfile)
         if (discovery != null) controller.actions.onRefreshTargets()
         var next = 0
         val session = NaviampConnectControllerSession(NaviampConnectSessionTransport(send),

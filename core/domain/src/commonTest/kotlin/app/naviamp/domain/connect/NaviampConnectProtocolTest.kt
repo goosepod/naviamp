@@ -25,6 +25,28 @@ class NaviampConnectProtocolTest {
     }
 
     @Test
+    fun startPlaybackProfileIsAdditiveAndOptional() {
+        val start = NaviampConnectStartMedia(
+            mediaType = NaviampConnectMediaType.Playlist,
+            mediaId = "mix",
+            sourceIdentity = sourceIdentity(),
+            playbackProfile = app.naviamp.domain.playback.PlaybackProfile(
+                app.naviamp.domain.playback.PlaybackTransitionMode.Crossfade, crossfadeDurationSeconds = 4),
+        )
+        val envelope = NaviampConnectEnvelope(1, "session", 1, message = NaviampConnectCommandRequest(start))
+        val encoded = NaviampConnectWireCodec.encode(envelope)
+        assertEquals(envelope, NaviampConnectWireCodec.decode(encoded))
+
+        // Commands from controllers that predate the field decode with no profile.
+        val withoutProfile = NaviampConnectWireCodec.encode(
+            NaviampConnectEnvelope(1, "session", 1, message = NaviampConnectCommandRequest(start.copy(playbackProfile = null))))
+        assertFalse("playbackProfile" in withoutProfile)
+        val legacy = (NaviampConnectWireCodec.decode(withoutProfile).message as NaviampConnectCommandRequest)
+            .command as NaviampConnectStartMedia
+        assertNull(legacy.playbackProfile)
+    }
+
+    @Test
     fun trackSelectionContextIsAdditiveAndLegacyCommandsStaySingleTrack() {
         val selected = NaviampConnectStartMedia(
             mediaType = NaviampConnectMediaType.Track,

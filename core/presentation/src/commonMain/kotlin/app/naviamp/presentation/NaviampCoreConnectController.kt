@@ -150,6 +150,9 @@ class NaviampCoreConnectController(
     private val playbackOutputs: NaviampPlaybackOutputSelectionController = NaviampPlaybackOutputSelectionController(),
     private val trackSelectionContext: (NaviampCoreCommand) -> app.naviamp.domain.connect.NaviampConnectPlaybackContext? =
         { null },
+    /** This device's saved profile for an album or playlist, sent with remote starts (#666). */
+    private val savedPlaybackProfile: (app.naviamp.domain.playback.PlaybackProfileTarget) -> app.naviamp.domain.playback.PlaybackProfile? =
+        { null },
 ) {
     private val controllerScope = CoroutineScope(
         scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]),
@@ -555,7 +558,9 @@ class NaviampCoreConnectController(
             publish()
             return true
         }
-        sendRemoteCommand(selection.toCommand(identity), activatesPlaybackAuthority = true)
+        val profile = selection.playbackProfileTarget()?.let(savedPlaybackProfile)?.normalized()
+            ?.takeUnless { it.isInherited }
+        sendRemoteCommand(selection.toCommand(identity, profile), activatesPlaybackAuthority = true)
         return true
     }
 
