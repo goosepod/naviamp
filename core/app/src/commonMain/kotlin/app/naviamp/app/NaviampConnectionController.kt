@@ -27,6 +27,8 @@ data class NaviampConnectionRuntimeState(
     val retainingExistingConnection: Boolean = false,
     /** A retained attempt from offline stays offline until it succeeds, so offline browsing is never interrupted. */
     val retainingOffline: Boolean = false,
+    /** An offline session whose server rejected it (credentials, certificate): downloads stay, the cause shows. */
+    val statusIsError: Boolean = false,
 ) {
     val isConnecting: Boolean get() = phase == NaviampConnectionPhase.Connecting
     val connected: Boolean
@@ -34,6 +36,9 @@ data class NaviampConnectionRuntimeState(
             (isConnecting && retainingExistingConnection)
     val offline: Boolean get() = phase == NaviampConnectionPhase.Offline || (isConnecting && retainingOffline)
     val restoringConnection: Boolean get() = isConnecting && restoringSavedSession && !retainingExistingConnection
+
+    /** A retry from offline runs in the background; to the rest of the app the session is simply offline. */
+    val backgroundRecovery: Boolean get() = isConnecting && retainingOffline
 }
 
 data class NaviampConnectionAttemptPlan(
@@ -105,15 +110,16 @@ class NaviampConnectionController(
         )
     }
 
-    fun offline(sourceId: String, status: String) {
+    fun offline(sourceId: String, status: String, statusIsError: Boolean = false) {
         mutableState.value = NaviampConnectionRuntimeState(
             phase = NaviampConnectionPhase.Offline,
             sourceId = sourceId,
             status = status,
+            statusIsError = statusIsError,
         )
         applicationStatus?.publish(
             area = NaviampApplicationStatusArea.Connection,
-            level = NaviampApplicationStatusLevel.Warning,
+            level = if (statusIsError) NaviampApplicationStatusLevel.Error else NaviampApplicationStatusLevel.Warning,
             message = status,
         )
     }

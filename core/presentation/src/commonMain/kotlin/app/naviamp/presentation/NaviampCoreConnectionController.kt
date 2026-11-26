@@ -17,6 +17,9 @@ import app.naviamp.ui.NaviampAccountSwitcherUi
 import app.naviamp.ui.NaviampAccountSwitcherError
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.currentCoroutineContext
@@ -136,7 +139,9 @@ class NaviampCoreConnectionController(
         connect(NaviampCoreConnectionRequest.Saved(id))
 
     suspend fun resetAfterDatabaseClear() {
-        recovery?.cancel()
+        // Join first: a cancelled retry restores its pre-attempt state as it unwinds, which must not
+        // land after the reset and revive the deleted source.
+        recovery?.cancelAndJoin()
         recovery = null
         certificateSelectionGeneration++
         accountAttempt?.cancel()
@@ -229,16 +234,62 @@ class NaviampCoreConnectionController(
             }
             networkWasMissing = false
             waitedMillis = 0L
-            val reconnected = connect(
+            when (retry(sourceId)) {
+                RecoveryOutcome.Connected, RecoveryOutcome.Rejected -> return
+                RecoveryOutcome.Unreachable -> failures += 1
+                // Offline Mode cancelled the attempt; the loop now idles until it is turned off.
+                RecoveryOutcome.Interrupted -> Unit
+            }
+        }
+    }
+
+    private enum class RecoveryOutcome { Connected, Unreachable, Rejected, Interrupted }
+
+    /**
+     * One background attempt. Offline Mode turned on mid-attempt cancels it, and a late success is
+     * still refused at commit, so the session never goes online against the user's choice. A server
+     * that rejects the saved account or certificate is not retried: the session stays offline with
+     * downloads available and shows why.
+     */
+    private suspend fun retry(sourceId: String): RecoveryOutcome = kotlinx.coroutines.coroutineScope {
+        var cause: Throwable? = null
+        val attempt = async {
+            connect(
                 NaviampCoreConnectionRequest.Saved(sourceId),
                 preserveExistingSession = true,
                 userInitiated = false,
+                onPreservedFailure = { cause = it },
+                commitIf = { !offlineModeEnabled() },
                 // A background success must not close a connection editor the user has open.
                 preserveEditor = true,
                 onSessionConnected = onReconnected,
             )
-            if (reconnected) return
-            failures += 1
+        }
+        val offlineModeWatch = launch {
+            stateStore.state.first { offlineModeEnabled() }
+            attempt.cancel()
+        }
+        val connected = try {
+            attempt.await()
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            currentCoroutineContext().ensureActive()
+            return@coroutineScope RecoveryOutcome.Interrupted
+        } finally {
+            offlineModeWatch.cancel()
+        }
+        val failure = cause
+        when {
+            connected -> RecoveryOutcome.Connected
+            failure != null && !connectionFailureAllowsOfflineRestoration(failure) -> {
+                connection.offline(
+                    sourceId = sourceId,
+                    status = connectionFailureStatus(failure, "Could not connect to the music server."),
+                    statusIsError = true,
+                )
+                publishConnection()
+                RecoveryOutcome.Rejected
+            }
+            else -> RecoveryOutcome.Unreachable
         }
     }
 
@@ -445,7 +496,9 @@ class NaviampCoreConnectionController(
         preserveExistingSession: Boolean = false,
         userInitiated: Boolean = true,
         forceSourceRefresh: Boolean = false,
-        onPreservedFailure: () -> Unit = {},
+        onPreservedFailure: (Throwable?) -> Unit = {},
+        /** Checked just before a success commits; false discards it and restores the previous state. */
+        commitIf: () -> Boolean = { true },
         preserveEditor: Boolean = false,
         onSessionConnected: (String) -> Unit = onConnected,
     ): Boolean {
@@ -458,7 +511,7 @@ class NaviampCoreConnectionController(
                     connection.failed(error)
                     publishConnection()
                 } else {
-                    onPreservedFailure()
+                    onPreservedFailure(null)
                 }
                 return false
             }
@@ -476,6 +529,13 @@ class NaviampCoreConnectionController(
         runCatching {
             sessionPort.connect(request, plan).also { kotlinx.coroutines.currentCoroutineContext().ensureActive() }
         }.onSuccess { session ->
+                if (!commitIf()) {
+                    connection.restore(previousConnection)
+                    publishConnection()
+                    stateStore.updateShell { shell -> shell.copy(connectionSettings = shell.connectionSettings.copy(
+                        connection = shell.connectionSettings.connection.copy(status = previousStatus))) }
+                    return@onSuccess
+                }
                 if (previousSourceId != session.sourceId || plan.clearExistingPlayback || forceSourceRefresh) {
                     onSourceChanging(previousSourceId, session.sourceId)
                 }
@@ -512,7 +572,7 @@ class NaviampCoreConnectionController(
                     stateStore.updateShell { shell -> shell.copy(connectionSettings = shell.connectionSettings.copy(
                         connection = shell.connectionSettings.connection.copy(status = previousStatus))) }
                     if (cause is kotlinx.coroutines.CancellationException) throw cause
-                    onPreservedFailure()
+                    onPreservedFailure(cause)
                     return@onFailure
                 }
                 val savedSourceId = (request as? NaviampCoreConnectionRequest.Saved)?.id
@@ -792,12 +852,13 @@ class NaviampCoreConnectionController(
                     currentSourceId = currentId,
                     connection = shell.connectionSettings.connection.copy(
                         status = runtime.status ?: shell.connectionSettings.connection.status,
-                        statusIsError = runtime.phase == NaviampConnectionPhase.Failed,
+                        statusIsError = runtime.phase == NaviampConnectionPhase.Failed || runtime.statusIsError,
                         serverVersion = runtime.serverVersion,
                         connected = runtime.connected,
                         offline = runtime.offline,
                         restoringConnection = runtime.restoringConnection,
-                        isConnecting = runtime.isConnecting,
+                        // Background recovery leaves offline browsing, Android Auto and CarPlay fully usable.
+                        isConnecting = runtime.isConnecting && !runtime.backgroundRecovery,
                         savedConnections = savedConnections,
                         hasSavedConnection = savedConnections.isNotEmpty(),
                     ),

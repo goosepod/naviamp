@@ -110,7 +110,6 @@ fun naviampCoreStoredServiceCatalog(
     favoritedAtIso8601: () -> String,
     diagnostics: NaviampCoreDiagnosticsPort = emptyNaviampCoreDiagnosticsPort(),
     certificateFiles: NaviampCoreCertificateFilePort? = null,
-    networkMetering: app.naviamp.domain.network.NetworkMeteringSource? = null,
     settingsPersistenceTransaction: (() -> Unit) -> Unit = { it() },
     persistImportedPlayback: ((PlaybackSettings) -> Unit)? = null,
 ): NaviampCoreStoredServiceCatalog {
@@ -181,7 +180,6 @@ fun naviampCoreStoredServiceCatalog(
     )
     val services = defaults.copy(
         certificateFiles = certificateFiles,
-        networkMetering = networkMetering,
         content = defaults.content.copy(
             discoveryAcquisitions = repositories.discoveryAcquisitions,
             libraryGenreRefresh = NaviampCoreLibraryGenreRefreshPort {

@@ -787,7 +787,7 @@ class NaviampCore private constructor(
                     restoreLocalSession(sourceId, false)
                     scope.launch { playlistBrowse.refreshAfterConnection() }
                 },
-                networkMetering = services.networkMetering,
+                networkMetering = services.playback.networkMetering,
                 offlineModeEnabled = { stateStore.state.value.shell.cache.settings.offlineModeEnabled },
                 // Refresh what offline hid (library, playlists, Home, Keep downloaded) and keep playing.
                 onReconnected = { sourceId -> refreshConnectedSource(sourceId, false, false) },

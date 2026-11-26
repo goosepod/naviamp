@@ -703,6 +703,94 @@ class NaviampCoreConnectionControllerTest {
     }
 
     @Test
+    fun aDatabaseResetDuringARetryCannotReviveTheDeletedSource() = kotlinx.coroutines.test.runTest {
+        val fixture = offlineWithRetryInFlight()
+
+        fixture.controller.resetAfterDatabaseClear()
+        runCurrent()
+
+        val settings = fixture.store.state.value.shell.connectionSettings
+        assertTrue(settings.connection.savedConnections.isEmpty())
+        assertFalse(settings.connection.offline, "The cancelled retry must not restore its pre-attempt offline state")
+        assertEquals(null, settings.currentSourceId)
+    }
+
+    @Test
+    fun turningOfflineModeOnDuringARetryCancelsItAndALateSuccessNeverCommits() = kotlinx.coroutines.test.runTest {
+        val reconnected = mutableListOf<String>()
+        // Read from the store like Core does; the loop reads it before the helper returns.
+        var holder: ConnectionFixture? = null
+        val fixture = offlineWithRetryInFlight(
+            offlineModeEnabled = { holder?.store?.state?.value?.shell?.cache?.settings?.offlineModeEnabled == true },
+            onReconnected = { reconnected += it },
+        ).also { holder = it }
+
+        fixture.store.updateShell { shell -> shell.copy(cache = shell.cache.copy(
+            settings = shell.cache.settings.copy(offlineModeEnabled = true))) }
+        runCurrent()
+        fixture.port.connectGate?.complete(Unit)
+        runCurrent()
+
+        val connection = fixture.store.state.value.shell.connectionSettings.connection
+        assertTrue(connection.offline, "Offline Mode keeps the session offline")
+        assertTrue(reconnected.isEmpty(), "No library or download refresh against the user's choice")
+        advanceTimeBy(30 * 60_000L); runCurrent()
+        assertEquals(2, fixture.port.connectRequests.size, "No further attempts while Offline Mode is on")
+    }
+
+    @Test
+    fun aRejectedAccountIsNotRetriedAndItsErrorIsShownWhileDownloadsStayAvailable() =
+        kotlinx.coroutines.test.runTest {
+            val fixture = fixture(
+                network = { app.naviamp.domain.network.NetworkMetering.Unmetered },
+                connectFailure = IllegalStateException("Failed to connect to server"),
+                recoveryScope = backgroundScope,
+            )
+            fixture.controller.restoreInitialConnection()
+            fixture.port.connectFailure = IllegalStateException("HTTP 401")
+
+            advanceTimeBy(NaviampCoreReconnectSchedule().backoffMillis.first() + 1); runCurrent()
+            assertEquals(2, fixture.port.connectRequests.size)
+            advanceTimeBy(30 * 60_000L); runCurrent()
+            assertEquals(2, fixture.port.connectRequests.size, "Rejected credentials are not retried")
+
+            val connection = fixture.store.state.value.shell.connectionSettings.connection
+            assertTrue(connection.offline, "Downloads stay available")
+            assertTrue(connection.statusIsError, "The user is told why, so they can fix the account")
+            assertFalse(connection.status.orEmpty().startsWith("Offline."))
+        }
+
+    @Test
+    fun aBackgroundRetryLeavesVehicleSurfacesUsable() = kotlinx.coroutines.test.runTest {
+        val fixture = offlineWithRetryInFlight()
+        val connection = fixture.store.state.value.shell.connectionSettings.connection
+        // NaviampVehicleDownloadsAccess and NaviampVehicleBrowseController treat these as "busy".
+        assertTrue(connection.offline)
+        assertFalse(connection.isConnecting)
+        assertFalse(connection.restoringConnection)
+    }
+
+    /** An offline-restored session whose first background retry is suspended inside the provider. */
+    private suspend fun kotlinx.coroutines.test.TestScope.offlineWithRetryInFlight(
+        offlineModeEnabled: () -> Boolean = { false },
+        onReconnected: (String) -> Unit = {},
+    ): ConnectionFixture {
+        val fixture = fixture(
+            network = { app.naviamp.domain.network.NetworkMetering.Unmetered },
+            connectFailure = IllegalStateException("Failed to connect to server"),
+            offlineModeEnabled = offlineModeEnabled,
+            onReconnected = onReconnected,
+            recoveryScope = backgroundScope,
+        )
+        fixture.controller.restoreInitialConnection()
+        fixture.port.connectFailure = null
+        fixture.port.connectGate = CompletableDeferred()
+        advanceTimeBy(NaviampCoreReconnectSchedule().backoffMillis.first() + 1); runCurrent()
+        assertEquals(2, fixture.port.connectRequests.size, "The retry is in flight")
+        return fixture
+    }
+
+    @Test
     fun theBackoffIsCappedSoAnUnreachableServerIsStillRetried() {
         val schedule = NaviampCoreReconnectSchedule()
         assertEquals(schedule.backoffMillis.last(), schedule.delayAfter(50))
