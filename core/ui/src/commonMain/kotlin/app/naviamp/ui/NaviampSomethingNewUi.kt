@@ -34,7 +34,7 @@ enum class NaviampSomethingNewNotice(internal val message: StringResource) {
 }
 
 /** Bottom notices whose lifetime Core owns. */
-enum class NaviampTimedNotice { SomethingNew, Radio }
+enum class NaviampTimedNotice { SomethingNew, Radio, Status }
 
 enum class NaviampTimedNoticeAction {
     /** Carries the presentation's accessibility-adjusted timeout. */
@@ -60,7 +60,9 @@ const val NaviampNoticeBaseTimeoutMillis = 10_000L
 internal fun Modifier.timedNotice(key: Any, onLifetime: (NaviampTimedNoticeAction, Long?) -> Unit): Modifier {
     val current = rememberUpdatedState(onLifetime)
     val accessibility = LocalAccessibilityManager.current
-    val focused = remember(key) { mutableStateOf(false) }
+    // Not keyed: when a new notice replaces one in the same bar, focus can stay on its controls
+    // without a new focus event, so the new notice must inherit the focus pause.
+    val focused = remember { mutableStateOf(false) }
     LaunchedEffect(key, accessibility) {
         val timeout = accessibility?.calculateRecommendedTimeoutMillis(
             NaviampNoticeBaseTimeoutMillis,
@@ -69,6 +71,7 @@ internal fun Modifier.timedNotice(key: Any, onLifetime: (NaviampTimedNoticeActio
             containsControls = true,
         ) ?: NaviampNoticeBaseTimeoutMillis
         current.value(NaviampTimedNoticeAction.Presented, timeout)
+        if (focused.value) current.value(NaviampTimedNoticeAction.FocusGained, null)
     }
     return onFocusChanged { state ->
         if (state.hasFocus == focused.value) return@onFocusChanged

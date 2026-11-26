@@ -79,17 +79,17 @@ class NaviampCoreCollectionActionController(
             is RecentRadioAction.PlayArtist -> transactions.startArtistRadio(action.artist)
             is RecentRadioAction.PlayAlbum -> transactions.startAlbumRadio(action.album)
             is RecentRadioAction.PlayTrack -> transactions.startTrackRadio(action.track)
-            null -> transactions.publish("Home station is no longer available.")
+            null -> transactions.publish(app.naviamp.ui.NaviampStatusMessage.ItemUnavailable)
         }
     }
 
     private suspend fun executeAlbum(id: String, command: NaviampAlbumDetailCommand) {
-        val album = registry.album(id) ?: return transactions.publish("Album not found.")
+        val album = registry.album(id) ?: return transactions.publish(app.naviamp.ui.NaviampStatusMessage.ItemUnavailable)
         executeAlbum(album, command)
     }
 
     private suspend fun executeAlbum(id: String, command: NaviampArtistAlbumCommand) {
-        val album = registry.album(id) ?: return transactions.publish("Album not found.")
+        val album = registry.album(id) ?: return transactions.publish(app.naviamp.ui.NaviampStatusMessage.ItemUnavailable)
         when (command) {
             NaviampArtistAlbumCommand.Select -> Unit
             NaviampArtistAlbumCommand.StartRadio -> transactions.startAlbumRadio(album)
@@ -102,12 +102,12 @@ class NaviampCoreCollectionActionController(
     }
 
     private suspend fun playAlbum(id: String) {
-        val album = registry.album(id) ?: return transactions.publish("Album not found.")
+        val album = registry.album(id) ?: return transactions.publish(app.naviamp.ui.NaviampStatusMessage.ItemUnavailable)
         transactions.playAlbum(album, albumTracks(album))
     }
 
     private suspend fun playAlbumMix(id: String) {
-        val album = registry.album(id) ?: return transactions.publish("Album not found.")
+        val album = registry.album(id) ?: return transactions.publish(app.naviamp.ui.NaviampStatusMessage.ItemUnavailable)
         val seed = transactions.albumMixSeed(album) ?: return
         val resolved = NaviampCoreCommand.Home.StartAlbumMix(album, seed)
         val issue = issueResolvedCommand
@@ -131,7 +131,7 @@ class NaviampCoreCollectionActionController(
     }
 
     private suspend fun executeArtist(id: String, item: SharedMediaItemUi, command: NaviampArtistDetailCommand) {
-        val artist = registry.artist(id) ?: return transactions.publish("Artist not found.")
+        val artist = registry.artist(id) ?: return transactions.publish(app.naviamp.ui.NaviampStatusMessage.ItemUnavailable)
         when (command) {
             is NaviampArtistDetailCommand.PlayCatalog -> transactions.play(catalogTracks(command.albums), shuffle = command.shuffle)
             NaviampArtistDetailCommand.StartRadio -> transactions.startArtistRadio(artist)
@@ -153,7 +153,7 @@ class NaviampCoreCollectionActionController(
                 when {
                     localArtist != null -> mediaDetails.selectArtist(localArtist.toItem())
                     resolvedExternalUrl != null -> transactions.openExternal(resolvedExternalUrl)
-                    else -> transactions.publish("Artist is not available.")
+                    else -> transactions.publish(app.naviamp.ui.NaviampStatusMessage.ItemUnavailable)
                 }
             }
             is NaviampArtistDetailCommand.OpenSimilarExternal -> transactions.openExternal(command.url)
@@ -161,7 +161,7 @@ class NaviampCoreCollectionActionController(
     }
 
     private suspend fun executeArtistMedia(id: String, item: SharedMediaItemUi, command: NaviampArtistMediaCommand) {
-        val artist = registry.artist(id) ?: return transactions.publish("Artist not found.")
+        val artist = registry.artist(id) ?: return transactions.publish(app.naviamp.ui.NaviampStatusMessage.ItemUnavailable)
         when (command) {
             NaviampArtistMediaCommand.Select -> Unit
             NaviampArtistMediaCommand.StartRadio -> transactions.startArtistRadio(artist)

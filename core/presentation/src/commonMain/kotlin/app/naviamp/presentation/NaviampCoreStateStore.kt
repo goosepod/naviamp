@@ -21,7 +21,9 @@ data class NaviampCoreState(
 
 data class NaviampCoreOverlayState(
     val statsForNerdsVisible: Boolean = false,
-    val status: String? = null,
+    /** The one owner of transient status messages; rendered by the shared bottom notice stack. */
+    val status: app.naviamp.ui.NaviampStatusNotice? = null,
+    val statusSequence: Long = 0L,
     val busyMessage: String? = null,
     val radioNotice: app.naviamp.domain.radio.RadioBuildDiagnostics? = null,
     val queueUndo: app.naviamp.ui.NaviampQueueUndoUi? = null,

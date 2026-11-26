@@ -7,7 +7,29 @@ data class PlaybackQueueUpdate(
     val queue: PlaybackQueue,
     val tracksChanged: Boolean,
     val status: String,
+    /** What an add to the queue did, for the user-facing notice; null for other queue changes. */
+    val outcome: PlaybackQueueAddOutcome? = null,
 )
+
+enum class PlaybackQueueAddOutcome {
+    AddedToQueue,
+    AddedToPlayNext,
+    /** Every requested track was already queued and deduplication skipped it. */
+    AlreadyQueued,
+    NothingFound,
+}
+
+internal fun playbackQueueAddOutcome(
+    originalTracks: List<Track>,
+    tracksToAdd: List<Track>,
+    deduplicateExisting: Boolean,
+    playNext: Boolean,
+): PlaybackQueueAddOutcome = when {
+    tracksToAdd.isNotEmpty() ->
+        if (playNext) PlaybackQueueAddOutcome.AddedToPlayNext else PlaybackQueueAddOutcome.AddedToQueue
+    deduplicateExisting && originalTracks.isNotEmpty() -> PlaybackQueueAddOutcome.AlreadyQueued
+    else -> PlaybackQueueAddOutcome.NothingFound
+}
 
 fun applyPlaybackQueueUpdate(
     update: PlaybackQueueUpdate,

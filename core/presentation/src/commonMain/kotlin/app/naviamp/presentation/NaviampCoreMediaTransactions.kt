@@ -44,6 +44,7 @@ import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.effectiveSonicSimilarityEnabled
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampQueueUndoKind
+import app.naviamp.ui.NaviampStatusMessage
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.withRecentRadioStreams
 import kotlinx.coroutines.CancellationException
@@ -178,7 +179,7 @@ class NaviampCoreMediaTransactions(
 ) : NaviampCoreTrackRadioTransactions {
     private val trackRadioBuild = Mutex()
     fun play(tracks: List<Track>, index: Int = 0, shuffle: Boolean = false) {
-        if (!queuePlayback.play(tracks, index, shuffle)) publish("No tracks are available.")
+        if (!queuePlayback.play(tracks, index, shuffle)) publish(NaviampStatusMessage.NoTracksAvailable)
     }
 
     suspend fun replayRecentRadio(stream: RecentRadioStream) {
@@ -196,7 +197,7 @@ class NaviampCoreMediaTransactions(
                 groupLabel = album.title,
             )
         ) {
-            publish("No tracks are available.")
+            publish(NaviampStatusMessage.NoTracksAvailable)
         }
     }
 
@@ -243,7 +244,7 @@ class NaviampCoreMediaTransactions(
                     onSimilarityResult = { recordRadioDiagnostics(it.radioDiagnostics()) })
                     .trackRadio(seed, settings.effectiveSonicSimilarityEnabled())
             }.onSuccess { if (playNext) playNext(it) else addToQueue(it) }
-                .onFailure { publish(it.message ?: "Could not load track radio.") }
+                .onFailure { publish(NaviampStatusMessage.RadioFailed) }
         }
     }
 
@@ -277,12 +278,11 @@ class NaviampCoreMediaTransactions(
             cachedTracks
         } else {
             val provider = providerOrPublish() ?: return null
-            publish("Finding a track from ${album.title}…")
             runCatching { provider.album(album.id).tracks }
-                .getOrElse { publish(it.message ?: "Could not load ${album.title}."); return null }
+                .getOrElse { publish(NaviampStatusMessage.RadioFailed); return null }
         }
         val seed = selectRadioSeed(loadedTracks)
-        if (seed == null) publish("${album.title} has no tracks to play.")
+        if (seed == null) publish(NaviampStatusMessage.NoTracksToPlay(album.title))
         return seed?.let { it to loadedTracks }
     }
 
@@ -294,27 +294,25 @@ class NaviampCoreMediaTransactions(
             cachedPopularTracks
         } else {
             val provider = providerOrPublish() ?: return
-            publish("Finding a track by ${artist.name}…")
             runCatching {
                 val albums = provider.artist(artist.id).albums
                 val album = albums.randomOrNull() ?: return@runCatching emptyList()
                 provider.album(album.id).tracks
-            }.getOrElse { return publish(it.message ?: "Could not load tracks by ${artist.name}.") }
+            }.getOrElse { return publish(NaviampStatusMessage.RadioFailed) }
         }
         val seed = selectRadioSeed(popularTracks)
         if (seed != null) {
             startSeededMix(artistSeededRadioRequest(artist, seed)) { recordArtistRadioPlayed(artist) }
         } else {
-            publish("${artist.name} has no tracks to play.")
+            publish(NaviampStatusMessage.NoTracksToPlay(artist.name))
         }
     }
 
     suspend fun startLibraryRadio() {
         val provider = providerOrPublish() ?: return
-        publish("Finding something to play…")
         val seed = runCatching { selectRadioSeed(provider.tracks(limit = 50)) }
-            .getOrElse { return publish(it.message ?: "Could not load Library Radio.") }
-            ?: return publish("No library tracks are available.")
+            .getOrElse { return publish(NaviampStatusMessage.RadioFailed) }
+            ?: return publish(NaviampStatusMessage.NoTracksAvailable)
         startSeededMix(
             SeededRadioRequest(
                 label = "Library Radio",
@@ -327,13 +325,12 @@ class NaviampCoreMediaTransactions(
 
     suspend fun startGenreRadio(genre: String) {
         val provider = providerOrPublish() ?: return
-        publish("Finding a $genre track…")
         val seed = runCatching {
             val album = provider.albumsByGenre(genre, limit = 10).randomOrNull()
                 ?: return@runCatching null
             selectRadioSeed(provider.album(album.id).tracks)
-        }.getOrElse { return publish(it.message ?: "Could not load $genre radio.") }
-            ?: return publish("No $genre tracks are available.")
+        }.getOrElse { return publish(NaviampStatusMessage.RadioFailed) }
+            ?: return publish(NaviampStatusMessage.NoTracksAvailable)
         startSeededMix(
             SeededRadioRequest(
                 label = "$genre radio",
@@ -347,13 +344,12 @@ class NaviampCoreMediaTransactions(
     suspend fun startDecadeRadio(fromYear: Int, toYear: Int) {
         val provider = providerOrPublish() ?: return
         val label = "$fromYear–$toYear radio"
-        publish("Finding something from $fromYear–$toYear…")
         val seed = runCatching {
             val album = provider.albumsByYear(fromYear, toYear, limit = 10).randomOrNull()
                 ?: return@runCatching null
             selectRadioSeed(provider.album(album.id).tracks)
-        }.getOrElse { return publish(it.message ?: "Could not load $label.") }
-            ?: return publish("No tracks from $fromYear–$toYear are available.")
+        }.getOrElse { return publish(NaviampStatusMessage.RadioFailed) }
+            ?: return publish(NaviampStatusMessage.NoTracksAvailable)
         startSeededMix(
             SeededRadioRequest(
                 label = label,
@@ -365,7 +361,7 @@ class NaviampCoreMediaTransactions(
     }
 
     suspend fun startArtistMix(artists: List<Artist>, seedTracks: List<Track>) {
-        val seed = seedTracks.firstOrNull() ?: return publish("Select artists with matched songs first.")
+        val seed = seedTracks.firstOrNull() ?: return publish(NaviampStatusMessage.MatchedSeedsRequired)
         startSeededMix(artistMixSeededRadioRequest(artists, seed, seedTracks))
     }
 
@@ -375,26 +371,25 @@ class NaviampCoreMediaTransactions(
         val orderedTracks = selectedSeed?.let { seed -> listOf(seed) + distinctTracks.filterNot { it.id == seed.id } }
             ?: distinctTracks
         val request = popularTracksRadioRequest(orderedTracks)
-            ?: return publish("No popular tracks are available.")
+            ?: return publish(NaviampStatusMessage.NoTracksAvailable)
         startSeededMix(request)
     }
 
     suspend fun startAlbumMix(albums: List<Album>, seedTracks: List<Track>) {
-        val seed = seedTracks.firstOrNull() ?: return publish("Select albums with matched songs first.")
+        val seed = seedTracks.firstOrNull() ?: return publish(NaviampStatusMessage.MatchedSeedsRequired)
         startSeededMix(albumMixSeededRadioRequest(albums, seed, seedTracks))
     }
 
     suspend fun startGenreMix(genres: List<Genre>) {
         val provider = providerOrPublish() ?: return
         val request = genreMixRadioRequest(genres)
-        publish("Finding a track for ${request.label}…")
         val seed = runCatching {
             val genre = genres.randomOrNull()?.name ?: return@runCatching null
             val album = provider.albumsByGenre(genre, limit = 10).randomOrNull()
                 ?: return@runCatching null
             selectRadioSeed(provider.album(album.id).tracks)
-        }.getOrElse { return publish(it.message ?: "Could not build ${request.label}.") }
-            ?: return publish("${request.label} did not return any tracks.")
+        }.getOrElse { return publish(NaviampStatusMessage.RadioFailed) }
+            ?: return publish(NaviampStatusMessage.NoTracksAvailable)
         startSeededMix(
             SeededRadioRequest(
                 label = request.label,
@@ -407,15 +402,14 @@ class NaviampCoreMediaTransactions(
 
     suspend fun startRandomAlbumRadio() {
         val provider = providerOrPublish() ?: return
-        publish("Finding a random album…")
         val albumAndTracks = runCatching {
             val album = provider.albumList(app.naviamp.domain.provider.AlbumListType.Random, 1).firstOrNull()
                 ?: return@runCatching null
             album to provider.album(album.id).tracks
-        }.getOrElse { return publish(it.message ?: "Could not start random album radio.") }
-            ?: return publish("No random album is available.")
+        }.getOrElse { return publish(NaviampStatusMessage.RadioFailed) }
+            ?: return publish(NaviampStatusMessage.NoTracksAvailable)
         val (album, tracks) = albumAndTracks
-        val seed = selectRadioSeed(tracks) ?: return publish("${album.title} has no tracks to play.")
+        val seed = selectRadioSeed(tracks) ?: return publish(NaviampStatusMessage.NoTracksToPlay(album.title))
         startSeededMix(app.naviamp.domain.radio.randomAlbumSeededRadioRequest(album, seed))
     }
 
@@ -428,23 +422,23 @@ class NaviampCoreMediaTransactions(
         runCatching { provider.addTracksToPlaylist(choice.id, tracks.map(Track::id)) }
             .onSuccess {
                 downloads.playlistTracksChanged(choice.id)
-                publish("Added ${tracks.size} tracks to ${choice.name}.")
+                publish(NaviampStatusMessage.AddedToPlaylist(choice.name))
             }
-            .onFailure { publish(it.message ?: "Could not add tracks to playlist.") }
+            .onFailure { publish(NaviampStatusMessage.PlaylistFailed) }
     }
 
     suspend fun createPlaylist(tracks: List<Track>, requestedName: String) {
         val provider = providerOrPublish() ?: return
         val name = requestedName.trim()
-        if (name.isEmpty()) return publish("Playlist name cannot be blank.")
+        if (name.isEmpty()) return publish(NaviampStatusMessage.PlaylistNameBlank)
         runCatching { provider.createPlaylist(name, tracks.map(Track::id)) }
-            .onSuccess { publish("Created $name.") }
-            .onFailure { publish(it.message ?: "Could not create playlist.") }
+            .onSuccess { publish(NaviampStatusMessage.PlaylistCreated(name)) }
+            .onFailure { publish(NaviampStatusMessage.PlaylistFailed) }
     }
 
     suspend fun toggleFavorite(track: Track) {
         val provider = providerOrPublish() ?: return
-        mutate("Track favorites are not supported.", { favoriteTrackUpdate(provider, track, favoritedAtIso8601()) }) {
+        mutate(NaviampStatusMessage.FavoritesUnsupported, { favoriteTrackUpdate(provider, track, favoritedAtIso8601()) }) {
             registry.updateTrack(it)
             val update = queue.updateTrack(it)
             if (update.changed) effects.applyQueue(update.queue, update.clearPreparedNext)
@@ -457,7 +451,7 @@ class NaviampCoreMediaTransactions(
     suspend fun toggleFavorite(album: Album) {
         val provider = providerOrPublish() ?: return
         val sourceId = activeSourceId()
-        mutate("Album favorites are not supported.", { favoriteAlbumUpdate(provider, album, favoritedAtIso8601()) }) {
+        mutate(NaviampStatusMessage.FavoritesUnsupported, { favoriteAlbumUpdate(provider, album, favoritedAtIso8601()) }) {
             if (sourceId != activeSourceId()) return@mutate
             registry.updateAlbum(it)
             updateAlbumFavoriteUi(it.id.value, it.favoritedAtIso8601 != null)
@@ -468,7 +462,7 @@ class NaviampCoreMediaTransactions(
     suspend fun toggleFavorite(artist: Artist) {
         val provider = providerOrPublish() ?: return
         val sourceId = activeSourceId()
-        mutate("Artist favorites are not supported.", { favoriteArtistUpdate(provider, artist, favoritedAtIso8601()) }) {
+        mutate(NaviampStatusMessage.FavoritesUnsupported, { favoriteArtistUpdate(provider, artist, favoritedAtIso8601()) }) {
             if (sourceId != activeSourceId()) return@mutate
             registry.updateArtist(it)
             activeSourceId()?.let { sourceId ->
@@ -486,7 +480,7 @@ class NaviampCoreMediaTransactions(
     }
 
     suspend fun openAlbum(track: Track) {
-        val id = track.albumId ?: return publish("Album is not available for this track.")
+        val id = track.albumId ?: return publish(NaviampStatusMessage.AlbumUnavailable)
         mediaDetails.execute(
             NaviampCoreCommand.Media.ItemAction(
                 app.naviamp.ui.NaviampMediaItemActionRequest(
@@ -500,7 +494,7 @@ class NaviampCoreMediaTransactions(
     suspend fun openArtist(track: Track, artistId: String?, artistName: String?) {
         val artist = resolveTrackArtistNavigation(track, artistId, artistName) { query, limit ->
             providerSource.current()?.search(query, limit)?.artists.orEmpty()
-        } ?: return publish("Artist is not available for this track.")
+        } ?: return publish(NaviampStatusMessage.ArtistUnavailable)
         mediaDetails.execute(
             NaviampCoreCommand.Media.ItemAction(
                 app.naviamp.ui.NaviampMediaItemActionRequest(
@@ -512,7 +506,7 @@ class NaviampCoreMediaTransactions(
     }
 
     fun openExternal(uri: String) {
-        if (uri.isBlank()) publish("Artist link is missing.") else externalUri.open(uri)
+        if (uri.isBlank()) publish(NaviampStatusMessage.ItemUnavailable) else externalUri.open(uri)
     }
 
     private fun recordArtistRadioPlayed(artist: Artist) {
@@ -564,7 +558,6 @@ class NaviampCoreMediaTransactions(
         val priorUndoId = queueUndo?.pendingId()
         if (!retainCurrent) play(listOf(request.seedTrack))
         val seedUndoId = queueUndo?.pendingId()?.takeIf { !retainCurrent && it != priorUndoId }
-        publish("Playing ${request.label} while the queue builds.")
         var diagnostics: app.naviamp.domain.radio.RadioBuildDiagnostics? = null
         val radioSettings = stateStore.state.value.shell.playback.settings
         val radioService = RadioService(
@@ -616,7 +609,6 @@ class NaviampCoreMediaTransactions(
                 ), result.queue, sourceId)
                 onStarted()
                 recordRadioDiagnostics(diagnostics?.takeUnless { it.outcome == app.naviamp.domain.radio.RadioBuildOutcome.Empty })
-                publish("Playing ${request.label}.")
                 return true
             }
             is SeededRadioBuildResult.Failed -> {
@@ -627,7 +619,6 @@ class NaviampCoreMediaTransactions(
                     recordRadioDiagnostics(diagnostics ?: app.naviamp.domain.radio.RadioBuildDiagnostics(
                         app.naviamp.domain.radio.RadioBuildOutcome.Failed,
                     ))
-                    publish("Playing ${request.label}; the rest of the queue could not be built.")
                 }
             }
         }
@@ -684,13 +675,13 @@ class NaviampCoreMediaTransactions(
         }
     }
 
-    private suspend fun <T> mutate(unsupported: String, mutation: suspend () -> T?, apply: (T) -> Unit) {
+    private suspend fun <T> mutate(unsupported: NaviampStatusMessage, mutation: suspend () -> T?, apply: (T) -> Unit) {
         runCatching { mutation() }.onSuccess { if (it == null) publish(unsupported) else apply(it) }
-            .onFailure { publish(it.message ?: "Could not update favorite.") }
+            .onFailure { publish(NaviampStatusMessage.FavoriteFailed) }
     }
 
     private fun apply(update: app.naviamp.domain.playback.PlaybackQueueUpdate) {
-        publish(update.status)
+        update.outcome?.let { publish(it.statusMessage()) }
         if (update.tracksChanged) {
             effects.applyQueue(update.queue, clearPreparedNext = true)
             publishNowPlaying()
@@ -698,12 +689,10 @@ class NaviampCoreMediaTransactions(
     }
 
     private fun providerOrPublish() = providerSource.current().also {
-        if (it == null) publish("Connect to Navidrome to use this action.")
+        if (it == null) publish(NaviampStatusMessage.ConnectionRequired)
     }
 
-    fun publish(message: String) {
-        stateStore.update { it.copy(overlays = it.overlays.copy(status = message)) }
-    }
+    fun publish(message: NaviampStatusMessage) = stateStore.publishStatus(message)
 
     private fun updateAlbumFavoriteUi(id: String, active: Boolean) {
         fun List<SharedMediaItemUi>.updated() = map { if (it.id == id) it.copy(favoriteActive = active) else it }

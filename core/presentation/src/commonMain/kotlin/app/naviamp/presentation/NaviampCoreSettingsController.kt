@@ -6,7 +6,6 @@ import app.naviamp.domain.app.libraryIndexClearedStatus
 import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.StorageCacheStats
-import app.naviamp.domain.library.librarySyncCompletedStatus
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.AlbumArtworkPreference
@@ -179,7 +178,7 @@ class NaviampCoreSettingsController(
         if (command == NaviampCoreCommand.Settings.RefreshLibrary) {
             refreshLibrary()
             stateStore.update { state ->
-                state.copy(overlays = state.overlays.copy(status = librarySyncCompletedStatus()))
+                state.withStatus(app.naviamp.ui.NaviampStatusMessage.LibraryRefreshed)
             }
             return NaviampCoreCommandResult.Completed
         }
@@ -246,10 +245,7 @@ class NaviampCoreSettingsController(
             } else {
                 shell
             }
-            state.copy(
-                shell = reconciledShell,
-                overlays = state.overlays.copy(status = result.status),
-            )
+            state.copy(shell = reconciledShell).withStatus(operation.statusMessage())
         }
         return NaviampCoreCommandResult.Completed
     }

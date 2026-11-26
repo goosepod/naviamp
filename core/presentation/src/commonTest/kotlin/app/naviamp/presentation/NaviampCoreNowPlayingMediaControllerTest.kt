@@ -731,7 +731,7 @@ class NaviampCoreNowPlayingMediaControllerTest {
         assertEquals("current", fixture.live.state.value.queue.current?.id?.value)
         assertTrue(fixture.live.state.value.queue.tracks.any { it.id.value == "radio" })
         assertTrue(fixture.effects.selections.isEmpty())
-        assertEquals("Playing current radio.", fixture.store.state.value.overlays.status)
+        assertEquals(null, fixture.store.state.value.overlays.status)
         val recentSection = fixture.store.state.value.shell.home.content.collectionSections
             .single { it.id == app.naviamp.domain.settings.HomeSectionIds.RecentRadio }
         assertEquals("track:current", recentSection.items.single().mediaItem.id)
@@ -781,7 +781,7 @@ class NaviampCoreNowPlayingMediaControllerTest {
 
         assertEquals(listOf("past", "current", "next"), fixture.live.state.value.queue.tracks.map { it.id.value })
         assertTrue(fixture.effects.selections.isEmpty())
-        assertEquals("Playing current radio while the queue builds.", fixture.store.state.value.overlays.status)
+        assertEquals(null, fixture.store.state.value.overlays.status)
 
         buildGate.complete(Unit)
         request.await()
@@ -907,7 +907,7 @@ class NaviampCoreNowPlayingMediaControllerTest {
         assertEquals(before, fixture.live.state.value)
         assertTrue(fixture.effects.appliedQueues.isEmpty())
         assertEquals(app.naviamp.domain.radio.RadioBuildOutcome.Empty, fixture.store.state.value.overlays.radioNotice?.outcome)
-        assertEquals("Playing current radio while the queue builds.", fixture.store.state.value.overlays.status)
+        assertEquals(null, fixture.store.state.value.overlays.status)
     }
 
     @Test
@@ -968,7 +968,7 @@ class NaviampCoreNowPlayingMediaControllerTest {
 
         assertEquals("current", fixture.live.state.value.queue.current?.id?.value)
         assertTrue(fixture.live.state.value.queue.tracks.any { it.id.value == "radio" })
-        assertEquals("Playing current radio.", fixture.store.state.value.overlays.status)
+        assertEquals(null, fixture.store.state.value.overlays.status)
     }
 
     @Test
@@ -1047,10 +1047,10 @@ class NaviampCoreNowPlayingMediaControllerTest {
                 ),
             ),
         )
-        assertEquals("Queue item is no longer available.", fixture.store.state.value.overlays.status)
+        assertEquals(app.naviamp.ui.NaviampStatusMessage.TrackUnavailable, fixture.store.state.value.overlays.status?.message)
 
         fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.CreatePlaylistAndAdd))
-        assertEquals("Playlist name cannot be blank.", fixture.store.state.value.overlays.status)
+        assertEquals(app.naviamp.ui.NaviampStatusMessage.PlaylistNameBlank, fixture.store.state.value.overlays.status?.message)
     }
 }
 

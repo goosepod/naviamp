@@ -4,6 +4,7 @@ import app.naviamp.domain.radio.RadioBuildDiagnostics
 import app.naviamp.domain.radio.RadioBuildOutcome
 import app.naviamp.ui.NaviampNoticeBaseTimeoutMillis
 import app.naviamp.ui.NaviampSomethingNewNotice
+import app.naviamp.ui.NaviampStatusMessage
 import app.naviamp.ui.NaviampTimedNotice
 import app.naviamp.ui.NaviampTimedNoticeAction
 import app.naviamp.ui.NaviampTimedNoticeRequest
@@ -14,6 +15,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreNoticeLifetimeControllerTest {
@@ -107,8 +109,54 @@ class NaviampCoreNoticeLifetimeControllerTest {
         assertEquals(NaviampSomethingNewNotice.Failed, fixture.somethingNew())
     }
 
+    @Test
+    fun aStatusNoticeDismissesItselfAfterItsAccessibilityAdjustedWindow() = runTest {
+        val fixture = fixture()
+        fixture.store.publishStatus(NaviampStatusMessage.LibraryRefreshed)
+        runCurrent()
+        fixture.lifetime(NaviampTimedNotice.Status, NaviampTimedNoticeAction.Presented, 20_000)
+
+        advanceTimeBy(19_999)
+        runCurrent()
+        assertEquals(NaviampStatusMessage.LibraryRefreshed, fixture.status()?.message)
+        advanceTimeBy(2)
+        runCurrent()
+        assertEquals(null, fixture.status())
+    }
+
+    @Test
+    fun closingAnOlderStatusLeavesTheNewerOneAndARepeatGetsItsOwnWindow() = runTest {
+        val fixture = fixture()
+        fixture.store.publishStatus(NaviampStatusMessage.TrackUnavailable)
+        runCurrent()
+        val first = fixture.status()!!
+        advanceTimeBy(NaviampNoticeBaseTimeoutMillis - 1_000)
+        fixture.store.publishStatus(NaviampStatusMessage.TrackUnavailable)
+        runCurrent()
+        val repeat = fixture.status()!!
+        assertNotEquals(first.id, repeat.id)
+
+        fixture.controller.dispatch(NaviampCoreCommand.Home.DismissStatusNotice(first.id))
+        assertEquals(repeat, fixture.status())
+        advanceTimeBy(NaviampNoticeBaseTimeoutMillis - 1)
+        runCurrent()
+        assertEquals(repeat, fixture.status())
+
+        fixture.controller.dispatch(NaviampCoreCommand.Home.DismissStatusNotice(repeat.id))
+        assertEquals(null, fixture.status())
+    }
+
+    @Test
+    fun clearingOneStatusKindNeverRemovesADifferentNewerStatus() {
+        val overlays = NaviampCoreOverlayState().withStatus(NaviampStatusMessage.HomeFailed)
+        assertEquals(null, overlays.withoutStatus(NaviampStatusMessage.HomeFailed).status)
+        val newer = overlays.withStatus(NaviampStatusMessage.AddedToQueue)
+        assertEquals(newer, newer.withoutStatus(NaviampStatusMessage.HomeFailed))
+    }
+
     private class Fixture(val store: NaviampCoreStateStore, val controller: NaviampCoreNoticeLifetimeController, val scope: TestScope) {
         fun somethingNew() = store.state.value.overlays.somethingNewNotice
+        fun status() = store.state.value.overlays.status
         fun show(notice: NaviampSomethingNewNotice) {
             store.update { it.copy(overlays = it.overlays.copy(somethingNewNotice = notice)) }
             scope.runCurrent()
