@@ -46,7 +46,31 @@ class NaviampCoreConnectPeerTest {
                 assertEquals("Track $pass", phone.state.value.shell.connect.remoteTrackTitle)
                 assertEquals(1, network.connectCount, "Pairing lifecycle must not require a reconnect")
             }
-            assertTrue(network.advertisingStarts.getValue("mac") >= 5, "Expiry must exercise advertisement renewal")
+            // Presence is registered once; only showing or hiding the code changes its TXT record.
+            assertEquals(4, network.advertisingStarts.getValue("mac"), "Code rotation must not re-register DNS-SD")
+        } finally { phone.close(); mac.close(); runCurrent() }
+    }
+
+    @Test
+    fun trustedResumeWorksWhileCodeHiddenAndWhileCodeVisible() = runTest {
+        val network = ConnectTestNetwork()
+        val phone = connectPeer("phone", "mac", network)
+        val mac = connectPeer("mac", "phone", network)
+        try {
+            runCurrent()
+            val actions = phone.actions.shell.connectActions!!
+            assertNull(mac.state.value.shell.connect.pairingCode)
+            actions.onTrustedDeviceSelected(phone.state.value.shell.connect.trustedDevices.single())
+            runCurrent()
+            assertEquals("mac", phone.state.value.shell.connect.connectedTargetName)
+            actions.onStopControlling()
+            runCurrent()
+            mac.actions.shell.connectActions!!.onStartPairingMode()
+            runCurrent()
+            actions.onTrustedDeviceSelected(phone.state.value.shell.connect.trustedDevices.single())
+            runCurrent()
+            assertEquals("mac", phone.state.value.shell.connect.connectedTargetName)
+            assertNotNull(mac.state.value.shell.connect.pairingCode, "A trusted resume must not consume the visible code")
         } finally { phone.close(); mac.close(); runCurrent() }
     }
 

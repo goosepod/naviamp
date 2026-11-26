@@ -480,7 +480,7 @@ class NaviampCoreConnectControllerTest {
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     @Test
-    fun trustedTargetAdvertisesAutomatically() = runTest {
+    fun trustedTargetListensWithoutShowingACode() = runTest {
         var storedTrust: String? = null
         val trust = NaviampConnectTrustRepository(object : NaviampConnectTrustStorageEffect {
             override fun read() = storedTrust
@@ -530,13 +530,16 @@ class NaviampCoreConnectControllerTest {
 
         runCurrent()
 
-        assertNotNull(advertising.service)
-        assertEquals(NaviampConnectPairingUiPhase.Advertising, store.state.value.shell.connect.pairingPhase)
+        val service = assertNotNull(advertising.service)
+        assertEquals("0", service.textAttributes["code"], "Trusted presence must not offer a code")
+        assertNull(store.state.value.shell.connect.pairingCode)
+        assertFalse(store.state.value.shell.connect.codeVisible)
         controller.ensureTrustedTargetListener()
         assertEquals(1, listenCount)
         advanceTimeBy(1_000L)
         runCurrent()
         assertEquals(1, listenCount)
+        assertNull(store.state.value.shell.connect.pairingCode, "No background code after the old lifetime")
         assertTrue(!listener.closed)
         controller.close()
     }
@@ -981,25 +984,73 @@ class NaviampCoreConnectControllerTest {
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     @Test
-    fun pairingLifetimeStopsAdvertisingAndListenerWithoutAnotherRequest() = runTest {
+    fun visibleCodeRegeneratesOnExpiry() = runTest {
         val listener = WaitingListener(42425)
         val store = NaviampCoreStateStore()
+        val codes = sequenceOf("111111", "222222").iterator()
         val controller = targetController(
             listener = listener,
             store = store,
             nowEpochMillis = { testScheduler.currentTime + 1_000L },
             pairingHelloTimeoutMillis = 10_000L,
             pairingLifetimeMillis = 1_000L,
+            newPairingCode = codes::next,
         )
 
         controller.actions.onStartPairingMode()
         runCurrent()
+        assertEquals("111111", store.state.value.shell.connect.pairingCode)
+        assertTrue(store.state.value.shell.connect.codeVisible)
+        assertEquals(2_000L, store.state.value.shell.connect.pairingCodeExpiresAtEpochMillis)
         advanceTimeBy(1_000L)
         runCurrent()
 
-        assertTrue(listener.closed)
-        assertEquals(NaviampConnectPairingUiPhase.Failed, store.state.value.shell.connect.pairingPhase)
-        assertTrue(store.state.value.shell.connect.status.orEmpty().contains("expired"))
+        assertEquals("222222", store.state.value.shell.connect.pairingCode)
+        assertFalse(listener.closed)
+        controller.actions.onStopPairingMode()
+        assertNull(store.state.value.shell.connect.pairingCode)
+        assertFalse(store.state.value.shell.connect.codeVisible)
+        assertTrue(listener.closed, "Without trust, hiding the code closes the listener")
+        controller.close()
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun pairingRequestWithoutVisibleCodeIsClosed() = runTest {
+        var storedTrust: String? = null
+        val trust = NaviampConnectTrustRepository(object : NaviampConnectTrustStorageEffect {
+            override fun read() = storedTrust
+            override fun write(value: String) { storedTrust = value }
+        })
+        trust.upsert(NaviampConnectTrustRecord("trusted-phone",
+            NaviampConnectDevice("phone", "Pixel", NaviampConnectDeviceRole.Controller), "phone-fp", "phone-key", 1L))
+        val listener = QueuedListener(42425)
+        val stranger = ScriptedConnection(app.naviamp.domain.connect.NaviampConnectEnvelope(
+            protocolVersion = 1,
+            sequence = 0,
+            message = app.naviamp.domain.connect.NaviampConnectHello(
+                device = NaviampConnectDevice("stranger", "Stranger", NaviampConnectDeviceRole.Controller),
+                identity = app.naviamp.domain.connect.NaviampConnectPublicIdentity("stranger", "stranger-fp", "stranger-key"),
+                protocolRange = NaviampConnectProtocolRange(),
+                capabilities = emptySet(),
+            ),
+        ))
+        listener.connections.trySend(stranger)
+        val store = NaviampCoreStateStore()
+        val controller = targetController(
+            listener = listener,
+            store = store,
+            nowEpochMillis = { testScheduler.currentTime + 1_000L },
+            pairingHelloTimeoutMillis = 1_000L,
+            pairingLifetimeMillis = 10_000L,
+            trust = trust,
+        )
+        runCurrent()
+
+        assertTrue(stranger.closed)
+        assertEquals(2, listener.acceptCount)
+        assertFalse(listener.closed)
+        assertEquals(NaviampConnectPairingUiPhase.Inactive, store.state.value.shell.connect.pairingPhase)
         controller.close()
     }
 
@@ -1328,6 +1379,9 @@ class NaviampCoreConnectControllerTest {
         nowEpochMillis: () -> Long,
         pairingHelloTimeoutMillis: Long,
         pairingLifetimeMillis: Long,
+        newPairingCode: () -> String = { "123456" },
+        trust: NaviampConnectTrustRepository = NaviampConnectTrustRepository(NaviampConnectTrustStorageEffect {}),
+        advertising: NaviampConnectAdvertisingEffect = RecordingAdvertisingEffect(),
     ) = NaviampCoreConnectController(
         scope = this,
         stateStore = store,
@@ -1343,10 +1397,10 @@ class NaviampCoreConnectControllerTest {
             },
             pake = UnusedPakeFactory,
             cipher = UnusedCipherFactory,
-            trust = NaviampConnectTrustRepository(NaviampConnectTrustStorageEffect {}),
-            advertising = RecordingAdvertisingEffect(),
-            newOpaqueId = sequenceOf("instance", "session").iterator()::next,
-            newPairingCode = { "123456" },
+            trust = trust,
+            advertising = advertising,
+            newOpaqueId = generateSequence(0) { it + 1 }.map { "opaque-$it" }.iterator()::next,
+            newPairingCode = newPairingCode,
             nowEpochMillis = nowEpochMillis,
             pairingLifetimeMillis = pairingLifetimeMillis,
             pairingHelloTimeoutMillis = pairingHelloTimeoutMillis,
@@ -1397,6 +1451,17 @@ private class StalledConnection : NaviampConnectTransportConnection {
 
     override suspend fun send(frame: ByteArray) = Unit
     override suspend fun receive(): ByteArray? = awaitCancellation()
+    override fun close() { closed = true }
+}
+
+private class ScriptedConnection(envelope: app.naviamp.domain.connect.NaviampConnectEnvelope) : NaviampConnectTransportConnection {
+    override val remoteAddress = "scripted.test"
+    var closed = false
+    private val frames = ArrayDeque(listOf(app.naviamp.app.NaviampConnectTransportPacketCodec.encode(
+        app.naviamp.app.NaviampConnectTransportPacket.Plaintext(envelope))))
+
+    override suspend fun send(frame: ByteArray) = Unit
+    override suspend fun receive(): ByteArray? = if (closed) null else frames.removeFirstOrNull() ?: awaitCancellation()
     override fun close() { closed = true }
 }
 

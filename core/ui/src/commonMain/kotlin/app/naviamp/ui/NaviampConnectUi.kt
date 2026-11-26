@@ -75,6 +75,9 @@ data class NaviampConnectSettingsUi(
     val role: NaviampConnectUiRole = NaviampConnectUiRole.Controller,
     val pairingPhase: NaviampConnectPairingUiPhase = NaviampConnectPairingUiPhase.Inactive,
     val pairingCode: String? = null,
+    /** True while this device's "Let another device connect" panel is open. */
+    val codeVisible: Boolean = false,
+    val pairingCodeExpiresAtEpochMillis: Long? = null,
     val enteredPairingCode: String = "",
     val pendingControllerName: String? = null,
     val selectedTargetId: String? = null,
