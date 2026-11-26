@@ -506,7 +506,7 @@ class NaviampCoreMediaTransactions(
     }
 
     fun openExternal(uri: String) {
-        if (uri.isBlank()) publish(NaviampStatusMessage.ArtistUnavailable) else externalUri.open(uri)
+        if (uri.isBlank()) publish(NaviampStatusMessage.ItemUnavailable) else externalUri.open(uri)
     }
 
     private fun recordArtistRadioPlayed(artist: Artist) {

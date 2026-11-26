@@ -12,7 +12,10 @@ internal fun NaviampCoreStateStore.publishStatus(message: NaviampStatusMessage) 
 internal fun NaviampCoreState.withStatus(message: NaviampStatusMessage): NaviampCoreState =
     copy(overlays = overlays.withStatus(message))
 
-/** Each publication gets a fresh id so a repeated message is shown, announced and timed again. */
+/**
+ * Each publication gets a fresh id so a repeated message is shown and timed again. The bar keeps its
+ * node (and any focus on Close), so a screen reader may not announce an identical repeat a second time.
+ */
 internal fun NaviampCoreOverlayState.withStatus(message: NaviampStatusMessage): NaviampCoreOverlayState {
     val id = statusSequence + 1
     return copy(status = NaviampStatusNotice(id, message), statusSequence = id)

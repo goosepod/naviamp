@@ -17,6 +17,10 @@ import app.naviamp.app.NaviampConnectionPhase
 import app.naviamp.app.NaviampConnectionRuntimeState
 import app.naviamp.domain.settings.InterfaceLanguage
 import app.naviamp.ui.NaviampApplicationSurface
+import app.naviamp.ui.NaviampArtistAlbumCommand
+import app.naviamp.ui.NaviampMediaItemActionRequest
+import app.naviamp.ui.NaviampMediaItemCommand
+import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedTrackRowAction
 import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.SharedTrackRowUi
@@ -84,9 +88,30 @@ class NaviampStatusNoticeUiTest {
         }
     }
 
-    private fun connectedCore(): Pair<CoroutineScope, NaviampCore> {
+    @Test
+    fun addingAnAlbumToTheQueueConfirmsItInTheNoticeStack() = withEnglishDefault {
+        runDesktopComposeUiTest(1000, 740) {
+            val provider = FakeCoreMediaProvider()
+            val (scope, core) = connectedCore(provider)
+            try {
+                setContent { NaviampCoreApp(core) }
+                waitForIdle()
+                val album = SharedMediaItemUi(provider.album.id.value, provider.album.title, provider.artist.name)
+                core.actions.shell.mediaActions.onMediaItemAction(
+                    NaviampMediaItemActionRequest(album, NaviampMediaItemCommand.Album(NaviampArtistAlbumCommand.Select)))
+                waitForIdle()
+                onNodeWithTag("status-notice").assertDoesNotExist()
+
+                core.actions.shell.mediaActions.onMediaItemAction(
+                    NaviampMediaItemActionRequest(album, NaviampMediaItemCommand.Album(NaviampArtistAlbumCommand.AddToQueue)))
+                waitForIdle()
+                onNode(hasText("Added to the queue.") and hasAnyAncestor(hasTestTag("status-notice"))).assertIsDisplayed()
+            } finally { scope.cancel() }
+        }
+    }
+
+    private fun connectedCore(provider: FakeCoreMediaProvider = FakeCoreMediaProvider()): Pair<CoroutineScope, NaviampCore> {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
-        val provider = FakeCoreMediaProvider()
         return scope to NaviampCore.create(scope, fakeCoreServices(provider), initialState = NaviampCoreInitialState(
             connection = NaviampConnectionRuntimeState(phase = NaviampConnectionPhase.Connected, sourceId = provider.id.value),
         ))

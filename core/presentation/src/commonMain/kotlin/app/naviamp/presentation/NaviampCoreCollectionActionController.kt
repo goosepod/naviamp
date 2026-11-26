@@ -153,7 +153,7 @@ class NaviampCoreCollectionActionController(
                 when {
                     localArtist != null -> mediaDetails.selectArtist(localArtist.toItem())
                     resolvedExternalUrl != null -> transactions.openExternal(resolvedExternalUrl)
-                    else -> transactions.publish(app.naviamp.ui.NaviampStatusMessage.ArtistUnavailable)
+                    else -> transactions.publish(app.naviamp.ui.NaviampStatusMessage.ItemUnavailable)
                 }
             }
             is NaviampArtistDetailCommand.OpenSimilarExternal -> transactions.openExternal(command.url)
