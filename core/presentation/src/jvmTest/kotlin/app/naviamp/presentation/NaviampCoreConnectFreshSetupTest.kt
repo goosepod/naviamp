@@ -30,29 +30,35 @@ class NaviampCoreConnectFreshSetupTest {
             val target = phone.state.value.shell.connect.discoveredTargets.single { it.displayName == "mac" }
             phoneActions.onTargetSelected(target)
             phoneActions.onPairingCodeChanged(assertNotNull(mac.state.value.shell.connect.pairingCode))
-            phoneActions.onSubmitPairingCode()
             runCurrent()
             assertEquals("mac", phone.state.value.shell.connect.connectedTargetName)
+            val sheet = assertNotNull(phone.state.value.shell.connect.postConnect)
+            assertTrue(sheet.canSignIn)
+            assertTrue(sheet.signInSelected, "A device without accounts preselects sign-in")
+            assertEquals(0, destination.connects, "Nothing is sent before the user finishes the sheet")
+            assertEquals(NaviampConnectStatusText.ConnectedToDevice, mac.state.value.shell.connect.statusMessage?.text)
+            phoneActions.onPostConnectDone()
+            runCurrent()
             assertTrue(phone.state.value.shell.connect.provisioningBusy)
             advanceTimeBy(16_000)
             runCurrent()
             assertEquals("mac", phone.state.value.shell.connect.connectedTargetName)
             advanceTimeBy(4_001)
             runCurrent()
-            assertEquals(NaviampConnectStatusText.TvSetupCompletedSecurely, phone.state.value.shell.connect.statusMessage?.text)
             assertEquals("fixture", destination.currentSourceId())
             assertEquals(1, source.exports)
             assertEquals(1, destination.connects)
             assertEquals(1, network.advertisingStarts["mac"], "Fresh pairing must keep the advertised endpoint registered")
             assertNull(network.advertisingStops["mac"], "DNS teardown must not block the live session after Welcome")
-            assertTrue(events.any { it.kind == NaviampCoreConnectTraceKind.InitialSetupAuthorized })
             assertTrue(events.none { it.kind == NaviampCoreConnectTraceKind.HeartbeatOrWriteTimedOut })
-            phoneActions.onStopControlling()
-            runCurrent()
+            assertNull(phone.state.value.shell.connect.postConnect)
+            assertNull(phone.state.value.shell.connect.connectedTargetName, "Done keeps playback on this device")
+            assertEquals(1, phone.state.value.shell.connect.trustedDevices.size)
             phoneActions.onTrustedDeviceSelected(phone.state.value.shell.connect.trustedDevices.single())
             runCurrent()
             assertEquals("mac", phone.state.value.shell.connect.connectedTargetName)
             assertEquals(1, source.exports)
+            assertNull(phone.state.value.shell.connect.postConnect, "A trusted resume shows no post-connect sheet")
             assertEquals(1, destination.connects)
         } finally { phone.close(); mac.close() }
     }
@@ -68,7 +74,61 @@ class NaviampCoreConnectFreshSetupTest {
         runCurrent()
         actions.onTargetSelected(controller.state.value.shell.connect.discoveredTargets.single { it.displayName == targetName })
         actions.onPairingCodeChanged(assertNotNull(target.state.value.shell.connect.pairingCode))
-        actions.onSubmitPairingCode()
+    }
+
+    @Test
+    fun signedInDeviceDoesNotPreselectSignIn() = runTest {
+        val network = ConnectTestNetwork()
+        val source = ConnectTestSource(configured = true)
+        val destination = ConnectTestSource(configured = false)
+        val phone = connectPeer("phone", "mac", network, source, preTrusted = false, configure = realCrypto)
+        val secondPhone = connectPeer("phone-2", "mac", network, ConnectTestSource(configured = true),
+            preTrusted = false, configure = realCrypto)
+        val mac = connectPeer("mac", "phone", network, destination, preTrusted = false, configure = realCrypto)
+        try {
+            mac.actions.shell.connectActions!!.onStartPairingMode()
+            runCurrent()
+            enterCode(phone, mac, "mac")
+            runCurrent()
+            phone.actions.shell.connectActions!!.onPostConnectDone()
+            runCurrent()
+            assertEquals("fixture", destination.currentSourceId())
+            mac.actions.shell.connectActions!!.onStartPairingMode()
+            runCurrent()
+            enterCode(secondPhone, mac, "mac")
+            runCurrent()
+            val sheet = assertNotNull(secondPhone.state.value.shell.connect.postConnect)
+            assertTrue(sheet.deviceHasAccounts)
+            assertFalse(sheet.signInSelected)
+            secondPhone.actions.shell.connectActions!!.onPostConnectDone()
+            runCurrent()
+            assertEquals(1, destination.connects, "Done without sign-in sends nothing")
+            assertNull(secondPhone.state.value.shell.connect.postConnect)
+        } finally { phone.close(); secondPhone.close(); mac.close() }
+    }
+
+    @Test
+    fun playOnDeviceSignsInAndKeepsTheRemoteOutput() = runTest {
+        val network = ConnectTestNetwork()
+        val source = ConnectTestSource(configured = true)
+        val destination = ConnectTestSource(configured = false)
+        val phone = connectPeer("phone", "mac", network, source, preTrusted = false, configure = realCrypto)
+        val mac = connectPeer("mac", "phone", network, destination, preTrusted = false, configure = realCrypto)
+        try {
+            mac.actions.shell.connectActions!!.onStartPairingMode()
+            runCurrent()
+            enterCode(phone, mac, "mac")
+            runCurrent()
+            phone.actions.shell.connectActions!!.onPostConnectPlayOnDevice()
+            runCurrent()
+            advanceTimeBy(1_000)
+            runCurrent()
+            assertEquals("fixture", destination.currentSourceId())
+            assertEquals("mac", phone.state.value.shell.connect.connectedTargetName)
+            assertNotEquals(app.naviamp.ui.NaviampConnectPlaybackDestinationUiStatus.Local,
+                phone.state.value.shell.connect.playbackDestinationStatus)
+            assertNull(phone.state.value.shell.connect.postConnect)
+        } finally { phone.close(); mac.close() }
     }
 
     @Test

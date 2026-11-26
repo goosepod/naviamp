@@ -64,6 +64,17 @@ data class NaviampConnectTrustedDeviceUi(
     val playbackTarget: Boolean = false,
 )
 
+/** Shown on the connecting device right after a code connection. */
+data class NaviampConnectPostConnectUi(
+    val deviceName: String,
+    /** The other device can be set up and this device has a current account to send. */
+    val canSignIn: Boolean,
+    val signInSelected: Boolean,
+    val deviceHasAccounts: Boolean,
+    val canPlayOn: Boolean,
+    val busy: Boolean = false,
+)
+
 data class NaviampConnectSourceMismatchUi(
     val targetName: String?,
     val canProvisionTarget: Boolean,
@@ -104,6 +115,7 @@ data class NaviampConnectSettingsUi(
     val canReceiveRemoteQueue: Boolean = false,
     val canProvisionTarget: Boolean = false,
     val sourceMismatchRecovery: NaviampConnectSourceMismatchUi? = null,
+    val postConnect: NaviampConnectPostConnectUi? = null,
     val needsProvisioningCredential: Boolean = false,
     val provisioningBusy: Boolean = false,
     val discoveredTargets: List<NaviampConnectDiscoveredTargetUi> = emptyList(),
@@ -152,6 +164,9 @@ data class NaviampConnectSettingsActions(
     val onManualEndpointSelected: (String) -> Unit = {},
     val onManualTrustedEndpointSelected: (NaviampConnectTrustedDeviceUi, String) -> Unit = { _, _ -> },
     val onConnectScreenVisibilityChanged: (Boolean) -> Unit = {},
+    val onPostConnectSignInChanged: (Boolean) -> Unit = {},
+    val onPostConnectPlayOnDevice: () -> Unit = {},
+    val onPostConnectDone: () -> Unit = {},
 )
 
 fun disambiguateNaviampConnectDeviceNames(names: List<String>): List<String> {

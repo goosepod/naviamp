@@ -32,6 +32,7 @@ enum class NaviampConnectStatusText(val resource: StringResource) {
     AuthenticatingDevice(Res.string.connect_status_authenticating_device),
     PairingRequestRejected(Res.string.connect_status_pairing_request_rejected),
     SearchingThisLocalNetwork(Res.string.connect_status_searching_this_local_network),
+    ConnectedToDevice(Res.string.connect_status_connected_to_device),
     NoDeviceShowingACode(Res.string.connect_status_no_device_showing_a_code),
     ChooseTheDeviceShowingThisCode(Res.string.connect_status_choose_the_device_showing_this_code),
     PairWithDeviceOnceMoreToEnableSecureReconnect(Res.string.connect_status_pair_with_device_once_more_to_enable_secure_reconnect),

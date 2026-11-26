@@ -249,6 +249,12 @@ class NaviampCoreConnectController(
     private var needsProvisioningCredential = false
     private var provisioningCredentialSourceId: String? = null
     private var controllerInitialSetupAllowed = false
+    private var postConnectOpen = false
+    private var postConnectSignIn = false
+    private var postConnectDeviceHasAccounts = false
+    private var controllerTargetHasSavedAccounts = false
+    /** Set while sheet-started sign-in runs: true = then play on the device, false = then stop. */
+    private var postConnectPendingPlay: Boolean? = null
     private var controllerCompanionProvisioningSupported = false
     private var controllerSetupNeedsNewCode = false
     private var controllerProvisioningBusy = false
@@ -290,6 +296,9 @@ class NaviampCoreConnectController(
         onOpenPermissionSettings = ::openPermissionSettings,
         onStopPairingMode = ::stopPairingMode,
         onConnectScreenVisibilityChanged = ::changeConnectScreenVisibility,
+        onPostConnectSignInChanged = { selected -> postConnectSignIn = selected && postConnectCanSignIn(); publish() },
+        onPostConnectPlayOnDevice = { finishPostConnect(playOnDevice = true) },
+        onPostConnectDone = { finishPostConnect(playOnDevice = false) },
         onTargetSelected = ::selectTarget,
         onManualEndpointSelected = ::selectManualEndpoint,
         onManualTrustedEndpointSelected = ::reconnectTrustedDeviceAtAddress,
@@ -1342,8 +1351,15 @@ class NaviampCoreConnectController(
                     } else {
                         "Connected to ${result.trust.displayName}, but secure reconnect could not be saved."
                     }
-                    // The offer is consumed; keep presence (and its registration) for trusted resume.
-                    if (localRole == NaviampConnectDeviceRole.Target) ensurePresence(pairable = codeVisible)
+                    when (localRole) {
+                        NaviampConnectDeviceRole.Target -> {
+                            // The offer is consumed; keep presence (and its registration) for trusted resume.
+                            ensurePresence(pairable = codeVisible)
+                            statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ConnectedToDevice,
+                                listOf(result.trust.displayName))
+                        }
+                        NaviampConnectDeviceRole.Controller -> openPostConnectSheet()
+                    }
                 } else {
                     result.session.close()
                     if (localRole == NaviampConnectDeviceRole.Controller) playbackDestination.incompatible()
@@ -1359,10 +1375,48 @@ class NaviampCoreConnectController(
             }
         }
         publish()
-        if (localRole == NaviampConnectDeviceRole.Controller &&
-            result is NaviampConnectPairingRuntimeResult.Paired && controllerInitialSetupAllowed) {
+    }
+
+    /** The connecting device chooses sign-in, playback, or neither right after a code connection. */
+    private fun openPostConnectSheet() {
+        val remote = controllerSession?.state?.value ?: return
+        val hasAccounts = controllerTargetHasSavedAccounts
+        postConnectDeviceHasAccounts = hasAccounts
+        postConnectSignIn = postConnectCanSignIn() && !hasAccounts
+        postConnectOpen = true
+    }
+
+    private fun postConnectCanSignIn(): Boolean =
+        controllerSession?.state?.value?.capabilities?.contains(NaviampConnectCapability.ConnectionProvisioning) == true &&
+            providerSessions?.currentSourceId() != null
+
+    private fun finishPostConnect(playOnDevice: Boolean) {
+        if (!postConnectOpen || controllerProvisioningBusy) return
+        if (postConnectSignIn && postConnectCanSignIn()) {
+            postConnectPendingPlay = playOnDevice
             provisionTarget()
+            return
         }
+        completePostConnect(playOnDevice)
+    }
+
+    private fun completePostConnect(playOnDevice: Boolean) {
+        postConnectOpen = false
+        postConnectPendingPlay = null
+        if (playOnDevice) {
+            if (localPlayback?.connectLiveState()?.queue?.current != null) handoffLocalQueue() else publish()
+        } else {
+            stopControlling()
+        }
+    }
+
+    /** Sign-in started from the sheet finishes the user's choice once the device confirms it. */
+    private fun postConnectSignInFinished(succeeded: Boolean) {
+        if (!postConnectOpen) return
+        if (succeeded) postConnectSignIn = false
+        val pending = postConnectPendingPlay ?: return
+        postConnectPendingPlay = null
+        if (succeeded) completePostConnect(pending)
     }
 
     private suspend fun startTargetSession(session: NaviampConnectAuthenticatedSession): Boolean {
@@ -1390,6 +1444,7 @@ class NaviampCoreConnectController(
                 companionProvisioningSupported = NaviampConnectCapability.ConnectionProvisioning in supportedTargetCapabilities,
                 // Protocol v1 controllers set up an empty target only when this is true.
                 initialSetupAllowed = NaviampConnectCapability.ConnectionProvisioning in supportedTargetCapabilities,
+                hasSavedAccounts = stateStore.state.value.shell.connectionSettings.connection.savedConnections.isNotEmpty(),
             ),
         )
         // An authenticated incoming controller makes this device the playback owner. Retaining an
@@ -1471,6 +1526,7 @@ class NaviampCoreConnectController(
             lastReceivedSequence = welcomeEnvelope.sequence,
         )
         authenticatedSession = session
+        controllerTargetHasSavedAccounts = welcome.hasSavedAccounts ?: (welcome.snapshot.sourceIdentity != null)
         controllerInitialSetupAllowed = welcome.initialSetupAllowed &&
             NaviampConnectCapability.ConnectionProvisioning in welcome.capabilities && welcome.snapshot.sourceIdentity == null
         adoptControllerSession(connectedController, welcome.companionProvisioningSupported)
@@ -1695,6 +1751,9 @@ class NaviampCoreConnectController(
         needsProvisioningCredential = false
         provisioningCredentialSourceId = null
         controllerInitialSetupAllowed = false
+        postConnectOpen = false
+        postConnectSignIn = false
+        postConnectPendingPlay = null
         controllerCompanionProvisioningSupported = false
         controllerSetupNeedsNewCode = false
         heartbeatJob?.cancel()
@@ -1833,6 +1892,7 @@ class NaviampCoreConnectController(
         statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.PreparingThisConnectionForSecureTvSetup)
         publish()
         controllerProvisioningJob = controllerScope.launch {
+            var signedIn = false
             val pending = services.newOpaqueId() to kotlinx.coroutines.CompletableDeferred<app.naviamp.domain.connect.NaviampConnectConnectionProvisioningResult>()
             try {
                 if (password != null && localConnection?.updateProvisioningCredential(sourceId, password) != true) {
@@ -1878,6 +1938,7 @@ class NaviampCoreConnectController(
                                 val result = withTimeoutOrNull(60_000L) { pending.second.await() }
                                 if (controllerSession !== connected) return@launch
                                 if (result?.succeeded == true) {
+                                    signedIn = true
                                     controllerInitialSetupAllowed = false
                                     statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.TvSetupCompletedSecurely)
                                 } else if (controllerSetupNeedsNewCode) {
@@ -1912,6 +1973,7 @@ class NaviampCoreConnectController(
                 if (controllerSession === connected && controllerProvisioningAttemptId == attemptId) {
                     controllerProvisioningAttemptId = null
                     controllerProvisioningBusy = false
+                    postConnectSignInFinished(signedIn)
                     publish()
                 }
             }
@@ -2280,6 +2342,16 @@ class NaviampCoreConnectController(
                         )
                     } else {
                         null
+                    },
+                    postConnect = remote?.target?.takeIf { postConnectOpen }?.let { target ->
+                        app.naviamp.ui.NaviampConnectPostConnectUi(
+                            deviceName = target.displayName,
+                            canSignIn = postConnectCanSignIn(),
+                            signInSelected = postConnectSignIn,
+                            deviceHasAccounts = postConnectDeviceHasAccounts,
+                            canPlayOn = target.canActAs(NaviampConnectDeviceRole.Target),
+                            busy = controllerProvisioningBusy,
+                        )
                     },
                     needsProvisioningCredential = needsProvisioningCredential,
                     provisioningBusy = controllerProvisioningBusy,
