@@ -50,14 +50,12 @@ class NaviampConnectNowPlayingActionsTest {
                 NaviampConnectTrustedDeviceUi(
                     deviceId = "living-room-trust",
                     displayName = "Living room",
-                    detail = "Paired television",
                     reconnectAvailable = true,
                     playbackTarget = true,
                 ),
                 NaviampConnectTrustedDeviceUi(
                     deviceId = "controller-only",
                     displayName = "Remote",
-                    detail = "Paired controller",
                 ),
             ),
         )
@@ -88,7 +86,6 @@ class NaviampConnectNowPlayingActionsTest {
                         NaviampConnectTrustedDeviceUi(
                             deviceId = "living-room-trust",
                             displayName = "Living room",
-                            detail = "Paired television",
                             reconnectAvailable = true,
                             playbackTarget = true,
                         ),

@@ -593,7 +593,7 @@ class NaviampCoreConnectControllerTest {
         )
         controller.actions.onPlaybackDeviceSelected("trusted-tv")
         assertEquals(1, discovery.startCount)
-        assertTrue(store.state.value.shell.connect.status.orEmpty().contains("Looking for Living Room TV"))
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.LookingForDeviceStartPairingModeOnTheTvIfNeeded, store.state.value.shell.connect.statusMessage?.text)
         controller.actions.onConnectScreenVisibilityChanged(true)
         assertEquals(0, discovery.stopCount, "Opening the connect panel must not restart a running discovery")
         assertEquals(1, discovery.startCount)
@@ -727,8 +727,8 @@ class NaviampCoreConnectControllerTest {
         assertEquals(listOf(record), trust.load())
         assertNull(store.state.value.shell.connect.connectedTargetName)
         assertEquals(
-            "Stopped controlling Living Room TV. The TV will keep playing.",
-            store.state.value.shell.connect.status,
+            app.naviamp.ui.NaviampConnectStatusText.StoppedControllingDeviceTheTvWillKeepPlaying,
+            store.state.value.shell.connect.statusMessage?.text,
         )
         controller.close()
     }
@@ -783,7 +783,7 @@ class NaviampCoreConnectControllerTest {
             app.naviamp.ui.NaviampConnectPlaybackDestinationUiStatus.Reconnecting,
             store.state.value.shell.connect.playbackDestinationStatus,
         )
-        assertTrue(store.state.value.shell.connect.status.orEmpty().contains("Reconnecting"))
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.Reconnecting, store.state.value.shell.connect.statusMessage?.text)
         controller.close()
     }
 
@@ -824,7 +824,7 @@ class NaviampCoreConnectControllerTest {
     @Test
     fun queueHandoffExplainsWhyAnEmptyLocalQueueCannotBeSent() {
         assertEquals(
-            "Start something on this device before sending its queue.",
+            app.naviamp.ui.NaviampConnectStatusText.StartSomethingBeforeSendingQueue,
             naviampCoreConnectQueueHandoffProblem(
                 hasPlayback = true,
                 hasCurrentQueueItem = false,
@@ -929,7 +929,7 @@ class NaviampCoreConnectControllerTest {
         assertTrue(stalled.closed)
         assertEquals(2, listener.acceptCount)
         assertEquals(NaviampConnectPairingUiPhase.Advertising, store.state.value.shell.connect.pairingPhase)
-        assertTrue(store.state.value.shell.connect.status.orEmpty().contains("timed out"))
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.IncompleteConnectionRequestTimedOut, store.state.value.shell.connect.statusMessage?.text)
         controller.close()
     }
 

@@ -19,7 +19,7 @@ internal fun NaviampConnectSettingsUi.displayStatus(): String? = recovery?.descr
         app.naviamp.ui.generated.resources.Res.string.connect_remote_unavailable)
     NaviampConnectStatusNotice.ConnectionTimedOut -> org.jetbrains.compose.resources.stringResource(
         app.naviamp.ui.generated.resources.Res.string.connect_connection_timed_out)
-    null -> statusMessage?.localized() ?: status
+    null -> statusMessage?.localized()
 }
 
 enum class NaviampConnectUiRole {
@@ -59,7 +59,6 @@ data class NaviampConnectTrustedDeviceUi(
     val deviceId: String,
     val displayName: String,
     val localAlias: String? = null,
-    val detail: String,
     val reconnectAvailable: Boolean = false,
     val playbackTarget: Boolean = false,
 )
@@ -92,7 +91,6 @@ data class NaviampConnectSettingsUi(
     /** True while the "Connect a device" panel is open; discovery runs only then. */
     val connectScreenVisible: Boolean = false,
     val selectedTargetId: String? = null,
-    val status: String? = null,
     val statusMessage: NaviampConnectStatusMessage? = null,
     val notice: NaviampConnectStatusNotice? = null,
     val recovery: NaviampConnectRecoveryUi? = null,
