@@ -34,7 +34,6 @@ class NaviampCoreConnectFreshSetupTest {
             runCurrent()
             assertEquals("mac", phone.state.value.shell.connect.connectedTargetName)
             assertTrue(phone.state.value.shell.connect.provisioningBusy)
-            assertNull(mac.state.value.shell.connect.pendingProvisioningConnectionName, "Code consent allows initial setup without another approval")
             advanceTimeBy(16_000)
             runCurrent()
             assertEquals("mac", phone.state.value.shell.connect.connectedTargetName)
@@ -55,6 +54,89 @@ class NaviampCoreConnectFreshSetupTest {
             assertEquals("mac", phone.state.value.shell.connect.connectedTargetName)
             assertEquals(1, source.exports)
             assertEquals(1, destination.connects)
+        } finally { phone.close(); mac.close() }
+    }
+
+    private val realCrypto: (NaviampCoreConnectServices) -> NaviampCoreConnectServices = { it.copy(
+        pake = BouncyCastleNaviampConnectPakeFactory,
+        cipher = JvmNaviampConnectAuthenticatedCipherFactory,
+    ) }
+
+    private fun TestScope.enterCode(controller: NaviampCore, target: NaviampCore, targetName: String) {
+        val actions = controller.actions.shell.connectActions!!
+        actions.onRefreshTargets()
+        runCurrent()
+        actions.onTargetSelected(controller.state.value.shell.connect.discoveredTargets.single { it.displayName == targetName })
+        actions.onPairingCodeChanged(assertNotNull(target.state.value.shell.connect.pairingCode))
+        actions.onSubmitPairingCode()
+    }
+
+    @Test
+    fun secondPhoneConnectsToAnAlreadyTrustedTargetWithoutApproval() = runTest {
+        val network = ConnectTestNetwork()
+        val phoneA = connectPeer("phone-a", "mac", network, preTrusted = false, configure = realCrypto)
+        val phoneB = connectPeer("phone-b", "mac", network, preTrusted = false, configure = realCrypto)
+        val mac = connectPeer("mac", "phone-a", network, preTrusted = false, configure = realCrypto)
+        try {
+            mac.actions.shell.connectActions!!.onStartPairingMode()
+            runCurrent()
+            enterCode(phoneA, mac, "mac")
+            runCurrent()
+            assertEquals("mac", phoneA.state.value.shell.connect.connectedTargetName)
+            mac.actions.shell.connectActions!!.onStartPairingMode()
+            runCurrent()
+            enterCode(phoneB, mac, "mac")
+            runCurrent()
+            assertEquals("mac", phoneB.state.value.shell.connect.connectedTargetName, "The displayed code is the consent")
+            assertEquals(2, mac.state.value.shell.connect.trustedDevices.size)
+        } finally { phoneA.close(); phoneB.close(); mac.close() }
+    }
+
+    @Test
+    fun simultaneousCodeEntryConnectsExactlyOnePeer() = runTest {
+        val network = ConnectTestNetwork()
+        val phoneA = connectPeer("phone-a", "mac", network, preTrusted = false, configure = realCrypto)
+        val phoneB = connectPeer("phone-b", "mac", network, preTrusted = false, configure = realCrypto)
+        val mac = connectPeer("mac", "phone-a", network, preTrusted = false, configure = realCrypto)
+        try {
+            mac.actions.shell.connectActions!!.onStartPairingMode()
+            runCurrent()
+            val code = assertNotNull(mac.state.value.shell.connect.pairingCode)
+            listOf(phoneA, phoneB).forEach { phone ->
+                val actions = phone.actions.shell.connectActions!!
+                actions.onRefreshTargets()
+                runCurrent()
+                actions.onTargetSelected(phone.state.value.shell.connect.discoveredTargets.single { it.displayName == "mac" })
+                actions.onPairingCodeChanged(code)
+            }
+            phoneA.actions.shell.connectActions!!.onSubmitPairingCode()
+            phoneB.actions.shell.connectActions!!.onSubmitPairingCode()
+            runCurrent()
+            advanceTimeBy(60_000)
+            runCurrent()
+            val connected = listOf(phoneA, phoneB).count { it.state.value.shell.connect.connectedTargetName == "mac" }
+            assertEquals(1, connected)
+            assertEquals(1, mac.state.value.shell.connect.trustedDevices.size)
+        } finally { phoneA.close(); phoneB.close(); mac.close() }
+    }
+
+    @Test
+    fun reenteringACodeReplacesExistingTrust() = runTest {
+        val network = ConnectTestNetwork()
+        val phone = connectPeer("phone", "mac", network, preTrusted = false, configure = realCrypto)
+        val mac = connectPeer("mac", "phone", network, preTrusted = false, configure = realCrypto)
+        try {
+            repeat(2) {
+                mac.actions.shell.connectActions!!.onStartPairingMode()
+                runCurrent()
+                enterCode(phone, mac, "mac")
+                runCurrent()
+                assertEquals("mac", phone.state.value.shell.connect.connectedTargetName)
+                phone.actions.shell.connectActions!!.onStopControlling()
+                runCurrent()
+            }
+            assertEquals(1, phone.state.value.shell.connect.trustedDevices.size)
+            assertEquals(1, mac.state.value.shell.connect.trustedDevices.size)
         } finally { phone.close(); mac.close() }
     }
 }

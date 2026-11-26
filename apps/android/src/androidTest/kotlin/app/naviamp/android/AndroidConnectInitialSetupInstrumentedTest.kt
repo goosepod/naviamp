@@ -82,7 +82,6 @@ class AndroidConnectInitialSetupInstrumentedTest {
                 controller.actions.onSubmitPairingCode()
             }
             waitFor("automatic pairing and missing-password prompt") { store.state.value.shell.connect.needsProvisioningCredential }
-            assertNull(target.state.value.shell.connect.pendingProvisioningConnectionName)
             assertNull(target.state.value.shell.connectionSettings.currentSourceId)
             withContext(Dispatchers.Main) { controller.actions.onSubmitProvisioningCredential("invalid") }
             waitFor("failed password validation") { !store.state.value.shell.connect.provisioningBusy }
@@ -113,7 +112,6 @@ class AndroidConnectInitialSetupInstrumentedTest {
                 target.state.value.shell.general.interfaceSettings.albumSortOrder,
             )
             assertEquals("fixture", source.password)
-            assertNull(target.state.value.shell.connect.pendingProvisioningConnectionName)
             val sourceId = assertNotNull(target.state.value.shell.connectionSettings.currentSourceId)
             val exportCount = source.exports
             withContext(Dispatchers.Main) { controller.actions.onStopControlling() }
@@ -131,11 +129,9 @@ class AndroidConnectInitialSetupInstrumentedTest {
                     interfaceSettings = shell.general.interfaceSettings.copy(groupAlbumsByReleaseType = true))) }
                 controller.actions.onProvisionTarget()
             }
-            waitFor("later setup requires target approval") { target.state.value.shell.connect.pendingProvisioningConnectionName != null }
-            assertFalse(target.state.value.shell.general.interfaceSettings.groupAlbumsByReleaseType)
-            withContext(Dispatchers.Main) { targetActions.onRejectProvisioning() }
-            waitFor("rejected later setup finishes") { !store.state.value.shell.connect.provisioningBusy }
-            assertFalse(target.state.value.shell.general.interfaceSettings.groupAlbumsByReleaseType)
+            waitFor("later trusted setup applies without target approval") {
+                target.state.value.shell.general.interfaceSettings.groupAlbumsByReleaseType
+            }
             assertEquals(sourceId, target.state.value.shell.connectionSettings.currentSourceId)
         } finally {
             withContext(Dispatchers.Main) { controller.close(); targetActions.onStopPairingMode() }

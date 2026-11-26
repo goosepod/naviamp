@@ -117,39 +117,10 @@ class NaviampApplicationSurfaceTest {
     }
 
     @Test
-    fun televisionSettingsDismissalIsLimitedToControllerOrSetupTransitions() {
-        assertTrue(
-            televisionSettingsShouldDismissForControllerActivity(
-                previousControllerDeviceId = null,
-                controllerDeviceId = "phone",
-                previousProvisioningController = null,
-                provisioningController = null,
-            ),
-        )
-        assertFalse(
-            televisionSettingsShouldDismissForControllerActivity(
-                previousControllerDeviceId = "phone",
-                controllerDeviceId = "phone",
-                previousProvisioningController = null,
-                provisioningController = null,
-            ),
-        )
-        assertTrue(
-            televisionSettingsShouldDismissForControllerActivity(
-                previousControllerDeviceId = "phone",
-                controllerDeviceId = "phone",
-                previousProvisioningController = "Pixel",
-                provisioningController = null,
-            ),
-        )
-        assertFalse(
-            televisionSettingsShouldDismissForControllerActivity(
-                previousControllerDeviceId = "phone",
-                controllerDeviceId = "phone",
-                previousProvisioningController = null,
-                provisioningController = null,
-            ),
-        )
+    fun televisionSettingsDismissalIsLimitedToANewlyConnectedController() {
+        assertTrue(televisionSettingsShouldDismissForControllerActivity(previousControllerDeviceId = null, controllerDeviceId = "phone"))
+        assertFalse(televisionSettingsShouldDismissForControllerActivity(previousControllerDeviceId = "phone", controllerDeviceId = "phone"))
+        assertFalse(televisionSettingsShouldDismissForControllerActivity(previousControllerDeviceId = "phone", controllerDeviceId = null))
     }
 
     @Test

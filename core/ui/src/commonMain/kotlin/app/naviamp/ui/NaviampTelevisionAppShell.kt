@@ -170,9 +170,6 @@ private fun NaviampTelevisionAppShellContent(
     var observedControllerDeviceId by remember {
         mutableStateOf(uiState.connect.connectedControllerDeviceId)
     }
-    var observedProvisioningController by remember {
-        mutableStateOf(uiState.connect.pendingProvisioningControllerName)
-    }
     var observedConnected by remember { mutableStateOf(connection.connected) }
     LaunchedEffect(nowPlaying?.id) {
         if (nowPlaying == null) nowPlayingPreview = false
@@ -237,20 +234,13 @@ private fun NaviampTelevisionAppShellContent(
         }
     }
     // Playback and media-identity changes must leave the active settings page and focus intact.
-    LaunchedEffect(
-        uiState.connect.connectedControllerDeviceId,
-        uiState.connect.pendingProvisioningControllerName,
-    ) {
+    LaunchedEffect(uiState.connect.connectedControllerDeviceId) {
         val connectedControllerDeviceId = uiState.connect.connectedControllerDeviceId
-        val provisioningController = uiState.connect.pendingProvisioningControllerName
         val dismiss = televisionSettingsShouldDismissForControllerActivity(
             previousControllerDeviceId = observedControllerDeviceId,
             controllerDeviceId = connectedControllerDeviceId,
-            previousProvisioningController = observedProvisioningController,
-            provisioningController = provisioningController,
         )
         observedControllerDeviceId = connectedControllerDeviceId
-        observedProvisioningController = provisioningController
         if (settingsOpen && dismiss) {
             settingsOpen = false
             restoreSettingsFocus = false
@@ -528,11 +518,7 @@ internal fun televisionNavigationFocusChangesRoute(
 internal fun televisionSettingsShouldDismissForControllerActivity(
     previousControllerDeviceId: String?,
     controllerDeviceId: String?,
-    previousProvisioningController: String?,
-    provisioningController: String?,
-): Boolean =
-    (controllerDeviceId != null && controllerDeviceId != previousControllerDeviceId) ||
-        (previousProvisioningController != null && provisioningController == null)
+): Boolean = controllerDeviceId != null && controllerDeviceId != previousControllerDeviceId
 
 @Composable
 private fun TelevisionNavigationBar(
@@ -948,29 +934,6 @@ private fun TelevisionFirstRunConnectSetup(
                 actions.onOpenPermissionSettings, television = true)
         } ?: run {
             connect.displayStatus()?.let { Text(it, color = colors.secondaryText, fontSize = 14.sp) }
-        }
-        if (connect.pairingPhase == NaviampConnectPairingUiPhase.AwaitingApproval) {
-            Text(
-                stringResource(Res.string.tv_controller_asking_to_pair, connect.pendingControllerName ?: stringResource(Res.string.tv_controller_fallback)),
-                color = colors.primaryText,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                TelevisionTextButton(stringResource(Res.string.tv_approve_controller), colors, calmFocus = true, onClick = actions.onApproveController)
-                TelevisionTextButton(stringResource(Res.string.tv_reject), colors, calmFocus = true, onClick = actions.onRejectController)
-            }
-        }
-        connect.pendingProvisioningConnectionName?.let { connectionName ->
-            Text(
-                stringResource(Res.string.tv_controller_can_set_up, connect.pendingProvisioningControllerName ?: stringResource(Res.string.tv_paired_controller_fallback), connectionName),
-                color = colors.primaryText,
-                fontSize = 16.sp,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                TelevisionTextButton(stringResource(Res.string.tv_set_up_server), colors, calmFocus = true, onClick = actions.onApproveProvisioning)
-                TelevisionTextButton(stringResource(Res.string.tv_reject), colors, calmFocus = true, onClick = actions.onRejectProvisioning)
-            }
         }
     }
 }

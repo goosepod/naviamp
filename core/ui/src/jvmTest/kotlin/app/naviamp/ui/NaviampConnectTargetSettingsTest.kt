@@ -43,37 +43,6 @@ class NaviampConnectTargetSettingsTest {
         assertEquals(listOf("start"), calls)
     }
 
-    @Test fun incomingApprovalAndRejectionDelegateToCoreAndDisappearWithTheRequest() = runComposeUiTest {
-        val calls = mutableListOf<String>()
-        val state = mutableStateOf(target().copy(
-            pairingPhase = NaviampConnectPairingUiPhase.AwaitingApproval, pendingControllerName = "Pixel",
-        ))
-        setContent { NaviampConnectTargetSettings(state.value, NaviampColors.Dark, actions(calls)) }
-        onNodeWithText("Approve Pixel").performClick()
-        onNodeWithTag("connect-target-reject").performClick()
-        assertEquals(listOf("approve", "reject"), calls)
-        runOnIdle { state.value = target().copy(pairingPhase = NaviampConnectPairingUiPhase.Paired) }
-        onNodeWithTag("connect-target-approve").assertDoesNotExist()
-        onNodeWithTag("connect-target-reject").assertDoesNotExist()
-        onNodeWithText("Show pairing code").assertExists()
-    }
-
-    @Test fun sourceSetupNamesTheOfferAndKeepsTargetActionsIndependentOfOutgoingSetup() = runComposeUiTest {
-        val calls = mutableListOf<String>()
-        val state = mutableStateOf(target().copy(
-            pendingProvisioningConnectionName = "Music", pendingProvisioningControllerName = "Pixel",
-        ))
-        setContent { NaviampConnectTargetSettings(state.value, NaviampColors.Dark, actions(calls)) }
-        onNodeWithTag("connect-target-approve-setup").assertTextEquals("Set up Music").performClick()
-        onNodeWithTag("connect-target-reject-setup").performClick()
-        assertEquals(listOf("approve-setup", "reject-setup"), calls)
-        runOnIdle { state.value = state.value.copy(provisioningBusy = true) }
-        onNodeWithTag("connect-target-approve-setup").assertIsEnabled()
-        onNodeWithTag("connect-target-reject-setup").assertIsEnabled()
-        runOnIdle { state.value = target() }
-        onNodeWithTag("connect-target-approve-setup").assertDoesNotExist()
-    }
-
     @Test fun controllerOnlyDevicesKeepDiscoveryWithoutTargetControls() = runComposeUiTest {
         setContent {
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -102,10 +71,8 @@ class NaviampConnectTargetSettingsTest {
         onRefreshTargets = {}, onTargetSelected = {}, onTrustedDeviceSelected = {},
         onPlaybackDeviceSelected = {}, onLocalDeviceNameChanged = {}, onTrustedDeviceAliasChanged = { _, _ -> },
         onForgetTrustedDevice = {}, onPairingCodeChanged = {}, onSubmitPairingCode = {},
-        onApproveController = { calls += "approve" }, onRejectController = { calls += "reject" },
         onRemotePrevious = {}, onRemotePlayPause = {}, onRemoteNext = {}, onStopControlling = {},
         onRemoteHandoffQueue = {}, onReceiveRemoteQueue = {}, onProvisionTarget = {},
-        onApproveProvisioning = { calls += "approve-setup" }, onRejectProvisioning = { calls += "reject-setup" },
         onDismissSourceMismatchRecovery = {},
         remoteNowPlayingActions = NaviampNowPlayingActions({}, {}, {}, {}, {}, {}, {}),
     )

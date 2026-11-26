@@ -494,29 +494,6 @@ private fun TelevisionControllersSettings(
                     onClick = if (connect.pairingActive) actions.onStopPairingMode else actions.onStartPairingMode,
                 )
             }
-            if (connect.pairingPhase == NaviampConnectPairingUiPhase.AwaitingApproval) {
-                item(key = "approve-controller") {
-                    TelevisionSettingsRow(
-                        title = stringResource(Res.string.tv_approve_named_controller, connect.pendingControllerName ?: stringResource(Res.string.tv_controller_fallback)),
-                        subtitle = stringResource(Res.string.tv_only_approve_if_you_started_pairing_on_this_device),
-                        value = stringResource(Res.string.tv_approve),
-                        icon = NaviampIcons.Player,
-                        disclosure = true,
-                        colors = colors,
-                        onClick = actions.onApproveController,
-                    )
-                }
-                item(key = "reject-controller") {
-                    TelevisionSettingsRow(
-                        title = stringResource(Res.string.tv_reject_request),
-                        subtitle = stringResource(Res.string.tv_close_this_connection_without_creating_trust),
-                        value = stringResource(Res.string.tv_reject),
-                        icon = NaviampIcons.Close,
-                        colors = colors,
-                        onClick = actions.onRejectController,
-                    )
-                }
-            }
         }
         if (connect.canDiscover) {
             connect.connectedTargetName?.let { targetName ->
@@ -551,29 +528,6 @@ private fun TelevisionControllersSettings(
                     enabled = target.compatible,
                     colors = colors,
                     onClick = { actions.onTargetSelected(target) },
-                )
-            }
-        }
-        if (connect.pendingProvisioningConnectionName != null) {
-            item(key = "approve-provisioning") {
-                TelevisionSettingsRow(
-                    title = stringResource(Res.string.tv_set_up_named_source, connect.pendingProvisioningConnectionName.orEmpty()),
-                    subtitle = stringResource(Res.string.tv_provisioning_requested_by, connect.pendingProvisioningControllerName ?: stringResource(Res.string.tv_paired_controller_fallback)),
-                    value = stringResource(Res.string.tv_approve),
-                    icon = NaviampIcons.Library,
-                    disclosure = true,
-                    colors = colors,
-                    onClick = actions.onApproveProvisioning,
-                )
-            }
-            item(key = "reject-provisioning") {
-                TelevisionSettingsRow(
-                    title = stringResource(Res.string.tv_reject_server_setup),
-                    subtitle = stringResource(Res.string.tv_discard_the_transferred_credential_without_saving_a_connection),
-                    value = stringResource(Res.string.tv_reject),
-                    icon = NaviampIcons.Close,
-                    colors = colors,
-                    onClick = actions.onRejectProvisioning,
                 )
             }
         }
