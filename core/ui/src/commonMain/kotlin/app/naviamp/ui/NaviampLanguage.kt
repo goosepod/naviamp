@@ -2,6 +2,8 @@ package app.naviamp.ui
 
 import app.naviamp.domain.settings.InterfaceLanguage
 import app.naviamp.ui.generated.resources.Res
+import app.naviamp.ui.generated.resources.settings_devices_subtitle
+import app.naviamp.ui.generated.resources.settings_devices_title
 import app.naviamp.ui.generated.resources.settings_category_about_subtitle
 import app.naviamp.ui.generated.resources.settings_category_about_title
 import app.naviamp.ui.generated.resources.settings_category_audio_cache_subtitle
@@ -156,6 +158,10 @@ private val NaviampResourceLanguagePack = NaviampLanguagePack(
         NaviampSettingsCategory.AudioCache to NaviampSettingsCategoryText(
             Res.string.settings_category_audio_cache_title,
             Res.string.settings_category_audio_cache_subtitle,
+        ),
+        NaviampSettingsCategory.Devices to NaviampSettingsCategoryText(
+            Res.string.settings_devices_title,
+            Res.string.settings_devices_subtitle,
         ),
         NaviampSettingsCategory.Debugging to NaviampSettingsCategoryText(
             Res.string.settings_category_debugging_title,
