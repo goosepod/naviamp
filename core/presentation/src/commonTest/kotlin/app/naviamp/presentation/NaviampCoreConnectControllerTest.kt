@@ -192,7 +192,7 @@ class NaviampCoreConnectControllerTest {
         runCurrent()
         assertNull(store.state.value.shell.connect.recovery)
         assertEquals(NaviampConnectPairingUiPhase.Advertising, store.state.value.shell.connect.pairingPhase)
-        assertEquals(app.naviamp.ui.NaviampConnectStatusText.ReadyForAControllerOnThisLocalNetwork,
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.ReadyEnterThisCode,
             store.state.value.shell.connect.statusMessage?.text)
         assertEquals(2, listeners.size)
         assertEquals(42424, store.state.value.shell.connect.listeningPort)
@@ -1541,6 +1541,17 @@ class NaviampCoreConnectControllerTest {
         assertTrue(fixture.attempts.isEmpty())
         assertEquals(app.naviamp.ui.NaviampConnectStatusText.ConnectAgainWithANewCode,
             fixture.store.state.value.shell.connect.statusMessage?.text)
+        fixture.controller.close()
+    }
+
+    @Test
+    fun closingTheConnectPanelClearsTheSearchingStatus() = runTest {
+        val fixture = connectScreenFixture()
+        fixture.controller.actions.onConnectScreenVisibilityChanged(true)
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.SearchingThisLocalNetwork,
+            fixture.store.state.value.shell.connect.statusMessage?.text)
+        fixture.controller.actions.onConnectScreenVisibilityChanged(false)
+        assertNull(fixture.store.state.value.shell.connect.statusMessage)
         fixture.controller.close()
     }
 

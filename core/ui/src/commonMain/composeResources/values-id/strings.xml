@@ -616,6 +616,9 @@
     <string name="connect_status_no_device_showing_a_code">Tidak ada perangkat yang menampilkan kode. Di perangkat lain, buka Pengaturan → Perangkat → Izinkan perangkat lain terhubung.</string>
     <string name="connect_status_choose_the_device_showing_this_code">Pilih perangkat yang menampilkan kode ini.</string>
     <string name="connect_status_connected_to_device">Terhubung ke %1$s.</string>
+    <string name="connect_status_ready_enter_this_code">Siap. Masukkan kode ini di perangkat Anda yang lain.</string>
+    <string name="connect_status_known_device_could_not_reconnect">Sebuah perangkat tidak dapat terhubung kembali. Perangkat ini masih siap.</string>
+    <string name="connect_status_connection_attempt_declined">Upaya koneksi ditolak. Perangkat ini masih siap.</string>
     <string name="connect_status_connect_again_with_a_new_code">Hubungkan %1$s lagi: tampilkan kode baru di perangkat itu dan masukkan di sini.</string>
     <string name="connect_status_request_failed">Naviamp Connect tidak dapat menyelesaikan permintaan.</string>
     <string name="connect_status_incomplete_request_closed">Upaya koneksi tertutup sebelum selesai. Perangkat ini masih siap.</string>

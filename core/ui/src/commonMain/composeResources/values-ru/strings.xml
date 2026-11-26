@@ -625,6 +625,9 @@
     <string name="connect_status_no_device_showing_a_code">Ни одно устройство не показывает код. На другом устройстве откройте Настройки → Устройства → Разрешить подключение другого устройства.</string>
     <string name="connect_status_choose_the_device_showing_this_code">Выберите устройство, на котором показан этот код.</string>
     <string name="connect_status_connected_to_device">Подключено к %1$s.</string>
+    <string name="connect_status_ready_enter_this_code">Готово. Введите этот код на другом устройстве.</string>
+    <string name="connect_status_known_device_could_not_reconnect">Устройству не удалось переподключиться. Это устройство по-прежнему готово.</string>
+    <string name="connect_status_connection_attempt_declined">Попытка подключения отклонена. Это устройство по-прежнему готово.</string>
     <string name="connect_status_connect_again_with_a_new_code">Подключите %1$s снова: покажите на нём новый код и введите его здесь.</string>
     <string name="connect_status_request_failed">Naviamp Connect не удалось выполнить запрос.</string>
     <string name="connect_status_incomplete_request_closed">Попытка подключения прервалась до завершения. Это устройство по-прежнему готово.</string>

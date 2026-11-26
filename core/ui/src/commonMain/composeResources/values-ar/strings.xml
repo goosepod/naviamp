@@ -631,6 +631,9 @@
     <string name="connect_status_no_device_showing_a_code">لا يوجد جهاز يعرض رمزًا. على الجهاز الآخر، افتح الإعدادات → الأجهزة → السماح لجهاز آخر بالاتصال.</string>
     <string name="connect_status_choose_the_device_showing_this_code">اختر الجهاز الذي يعرض هذا الرمز.</string>
     <string name="connect_status_connected_to_device">تم الاتصال بـ %1$s.</string>
+    <string name="connect_status_ready_enter_this_code">جاهز. أدخل هذا الرمز على جهازك الآخر.</string>
+    <string name="connect_status_known_device_could_not_reconnect">تعذّر على أحد الأجهزة إعادة الاتصال. لا يزال هذا الجهاز جاهزًا.</string>
+    <string name="connect_status_connection_attempt_declined">تم رفض محاولة اتصال. لا يزال هذا الجهاز جاهزًا.</string>
     <string name="connect_status_connect_again_with_a_new_code">أعد توصيل %1$s: اعرض رمزًا جديدًا عليه وأدخله هنا.</string>
     <string name="connect_status_request_failed">تعذّر على Naviamp Connect إكمال الطلب.</string>
     <string name="connect_status_incomplete_request_closed">أُغلقت محاولة اتصال قبل اكتمالها. لا يزال هذا الجهاز جاهزًا.</string>

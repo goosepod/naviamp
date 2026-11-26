@@ -41,6 +41,27 @@ class NaviampTelevisionConnectSetupTest {
         assertEquals(listOf("start", "stop"), calls, "Leaving the page ends the offer")
     }
 
+    @Test fun setupIntroPutsTheDirectOptionBelowTheCode() = runComposeUiTest {
+        setContent {
+            androidx.compose.foundation.layout.Column {
+                TelevisionSetupIntro(addingAccount = false, connect = target().copy(pairingCode = "123456"),
+                    actions = actions(mutableListOf()), colors = NaviampColors.Dark)
+            }
+        }
+        val phoneTop = onNodeWithText("Set up from a phone or computer").fetchSemanticsNode().boundsInRoot.top
+        val directTop = onNodeWithText("Or connect to your server directly from this TV.").fetchSemanticsNode().boundsInRoot.top
+        kotlin.test.assertTrue(directTop > phoneTop, "The 'Or …' option follows the code box")
+    }
+
+    @Test fun addingAnAccountHasNoOrLine() = runComposeUiTest {
+        setContent {
+            TelevisionSetupIntro(addingAccount = true, connect = target(), actions = actions(mutableListOf()),
+                colors = NaviampColors.Dark)
+        }
+        onNodeWithText("Or connect to your server directly from this TV.").assertDoesNotExist()
+        onNodeWithText("Set up from a phone or computer").assertDoesNotExist()
+    }
+
     private fun target() = NaviampConnectSettingsUi(available = true, role = NaviampConnectUiRole.Target,
         localDeviceName = "Living Room TV")
 

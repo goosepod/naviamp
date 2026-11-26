@@ -619,6 +619,9 @@
     <string name="connect_status_no_device_showing_a_code">Kod gösteren bir cihaz yok. Diğer cihazda Ayarlar → Cihazlar → Başka bir cihazın bağlanmasına izin ver bölümünü açın.</string>
     <string name="connect_status_choose_the_device_showing_this_code">Bu kodu gösteren cihazı seçin.</string>
     <string name="connect_status_connected_to_device">%1$s cihazına bağlanıldı.</string>
+    <string name="connect_status_ready_enter_this_code">Hazır. Bu kodu diğer cihazınıza girin.</string>
+    <string name="connect_status_known_device_could_not_reconnect">Bir cihaz yeniden bağlanamadı. Bu cihaz hâlâ hazır.</string>
+    <string name="connect_status_connection_attempt_declined">Bir bağlantı denemesi reddedildi. Bu cihaz hâlâ hazır.</string>
     <string name="connect_status_connect_again_with_a_new_code">%1$s cihazına yeniden bağlanın: Cihazda yeni bir kod gösterin ve buraya girin.</string>
     <string name="connect_status_request_failed">Naviamp Connect isteği tamamlayamadı.</string>
     <string name="connect_status_incomplete_request_closed">Bir bağlantı denemesi tamamlanmadan kapandı. Bu cihaz hâlâ hazır.</string>

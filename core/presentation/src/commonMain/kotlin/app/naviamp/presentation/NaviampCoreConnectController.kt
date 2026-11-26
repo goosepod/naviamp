@@ -425,7 +425,7 @@ class NaviampCoreConnectController(
                             is NaviampConnectAdvertisingStatus.Advertising -> {
                                 phase = NaviampConnectPairingUiPhase.Advertising
                                 status = "Ready for a controller on this local network."
-                                statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ReadyForAControllerOnThisLocalNetwork)
+                                statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ReadyEnterThisCode)
                             }
                             is NaviampConnectAdvertisingStatus.Failed -> {
                                 handleAdvertisingFailure(value)
@@ -617,7 +617,7 @@ class NaviampCoreConnectController(
         if (advertisingController.state.value is NaviampConnectAdvertisingStatus.Advertising) {
             phase = NaviampConnectPairingUiPhase.Advertising
             status = "Ready for a controller on this local network."
-            statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ReadyForAControllerOnThisLocalNetwork)
+            statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ReadyEnterThisCode)
         } else {
             phase = NaviampConnectPairingUiPhase.Starting
             status = "Starting secure pairing…"
@@ -713,7 +713,7 @@ class NaviampCoreConnectController(
                     if (resumed) continue
                     phase = NaviampConnectPairingUiPhase.Advertising
                     status = "A trusted reconnect could not be authenticated. Still waiting for a controller."
-                    statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ATrustedReconnectCouldNotBeAuthenticatedStillWaitingForAController)
+                    statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.KnownDeviceCouldNotReconnect)
                     publish()
                     continue
                 }
@@ -739,7 +739,7 @@ class NaviampCoreConnectController(
                     if (listener !== boundListener) return
                     phase = NaviampConnectPairingUiPhase.Advertising
                     status = "An incomplete pairing request timed out. Still waiting for a controller."
-                    statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.AnIncompletePairingRequestTimedOutStillWaitingForAController)
+                    statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.IncompleteConnectionRequestTimedOut)
                     publish()
                     continue
                 }
@@ -761,7 +761,7 @@ class NaviampCoreConnectController(
                         }
                         phase = NaviampConnectPairingUiPhase.Advertising
                         status = "Pairing request rejected. Still waiting for a controller."
-                        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.PairingRequestRejectedStillWaitingForAController)
+                        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ConnectionAttemptDeclined)
                         publish()
                     }
                 }
@@ -967,8 +967,10 @@ class NaviampCoreConnectController(
             status = "Searching this local network…"
             statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.SearchingThisLocalNetwork)
             discovery.start()
-        } else if (pendingTrustedDeviceId == null && reconnectJob?.isActive != true) {
-            discovery.stop()
+        } else {
+            // Panel-only messages must not outlive the panel.
+            if (statusMessage?.text in ConnectPanelStatuses) report(null)
+            if (pendingTrustedDeviceId == null && reconnectJob?.isActive != true) discovery.stop()
         }
         publish()
     }
@@ -2595,3 +2597,8 @@ private const val AutomaticReconnectRetryMillis = 2_000L
 private const val MaximumCodeFailures = 5
 private const val CodeFailureLockoutMillis = 30_000L
 private const val CodeTargetWaitMillis = 5_000L
+private val ConnectPanelStatuses = setOf(
+    NaviampConnectStatusText.SearchingThisLocalNetwork,
+    NaviampConnectStatusText.NoDeviceShowingACode,
+    NaviampConnectStatusText.ChooseTheDeviceShowingThisCode,
+)

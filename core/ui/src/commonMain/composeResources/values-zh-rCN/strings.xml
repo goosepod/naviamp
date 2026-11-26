@@ -616,6 +616,9 @@
     <string name="connect_status_no_device_showing_a_code">没有设备正在显示代码。请在另一台设备上打开“设置”→“设备”→“允许其他设备连接”。</string>
     <string name="connect_status_choose_the_device_showing_this_code">请选择显示此代码的设备。</string>
     <string name="connect_status_connected_to_device">已连接到 %1$s。</string>
+    <string name="connect_status_ready_enter_this_code">已就绪。请在你的另一台设备上输入此代码。</string>
+    <string name="connect_status_known_device_could_not_reconnect">有设备无法重新连接。此设备仍处于就绪状态。</string>
+    <string name="connect_status_connection_attempt_declined">一次连接尝试被拒绝。此设备仍处于就绪状态。</string>
     <string name="connect_status_connect_again_with_a_new_code">重新连接 %1$s：在该设备上显示新代码，然后在此处输入。</string>
     <string name="connect_status_request_failed">Naviamp Connect 无法完成请求。</string>
     <string name="connect_status_incomplete_request_closed">连接尝试在完成前已关闭。此设备仍处于就绪状态。</string>

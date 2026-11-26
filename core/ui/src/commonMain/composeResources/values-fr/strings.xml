@@ -621,6 +621,9 @@
     <string name="connect_status_no_device_showing_a_code">Aucun appareil n’affiche de code. Sur l’autre appareil, ouvrez Paramètres → Appareils → Autoriser un autre appareil à se connecter.</string>
     <string name="connect_status_choose_the_device_showing_this_code">Choisissez l’appareil qui affiche ce code.</string>
     <string name="connect_status_connected_to_device">Connecté à %1$s.</string>
+    <string name="connect_status_ready_enter_this_code">Prêt. Saisissez ce code sur votre autre appareil.</string>
+    <string name="connect_status_known_device_could_not_reconnect">Un appareil n’a pas pu se reconnecter. Cet appareil est toujours prêt.</string>
+    <string name="connect_status_connection_attempt_declined">Une tentative de connexion a été refusée. Cet appareil est toujours prêt.</string>
     <string name="connect_status_connect_again_with_a_new_code">Reconnectez %1$s : affichez un nouveau code dessus et saisissez-le ici.</string>
     <string name="connect_status_request_failed">Naviamp Connect n’a pas pu terminer la demande.</string>
     <string name="connect_status_incomplete_request_closed">Une tentative de connexion s’est fermée avant la fin. Cet appareil est toujours prêt.</string>

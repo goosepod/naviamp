@@ -849,19 +849,8 @@ private fun TelevisionConnectionScreen(
                 .widthIn(max = 820.dp)
                 .align(Alignment.CenterHorizontally),
         ) {
-            Text(stringResource(if (addingAccount) Res.string.tv_account_add else Res.string.tv_set_up_naviamp_tv),
-                color = colors.primaryText, fontSize = 36.sp, fontWeight = FontWeight.Black)
-            Text(
-                stringResource(Res.string.tv_direct_setup_or),
-                color = colors.secondaryText,
-                fontSize = 18.sp,
-            )
-            Text(
-                stringResource(Res.string.tv_keyboard_navigation_hint),
-                color = colors.mutedText,
-                fontSize = 14.sp,
-            )
-            if (!addingAccount) TelevisionFirstRunConnectSetup(
+            TelevisionSetupIntro(
+                addingAccount = addingAccount,
                 connect = uiState.connect,
                 actions = actions.connectActions,
                 colors = colors,
@@ -893,6 +882,24 @@ private fun TelevisionConnectionScreen(
             )
         }
     }
+}
+
+/** Title, the phone/computer code box, then the direct-setup alternative and keyboard hint. */
+@Composable
+internal fun TelevisionSetupIntro(
+    addingAccount: Boolean,
+    connect: NaviampConnectSettingsUi,
+    actions: NaviampConnectSettingsActions?,
+    colors: NaviampColors,
+) {
+    Text(stringResource(if (addingAccount) Res.string.tv_account_add else Res.string.tv_set_up_naviamp_tv),
+        color = colors.primaryText, fontSize = 36.sp, fontWeight = FontWeight.Black)
+    if (!addingAccount) {
+        TelevisionFirstRunConnectSetup(connect = connect, actions = actions, colors = colors)
+        // "Or …" names the alternative, so it follows the code box it is an alternative to.
+        Text(stringResource(Res.string.tv_direct_setup_or), color = colors.secondaryText, fontSize = 18.sp)
+    }
+    Text(stringResource(Res.string.tv_keyboard_navigation_hint), color = colors.mutedText, fontSize = 14.sp)
 }
 
 @Composable

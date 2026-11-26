@@ -621,6 +621,9 @@
     <string name="connect_status_no_device_showing_a_code">Nessun dispositivo mostra un codice. Sull’altro dispositivo apri Impostazioni → Dispositivi → Consenti a un altro dispositivo di connettersi.</string>
     <string name="connect_status_choose_the_device_showing_this_code">Scegli il dispositivo che mostra questo codice.</string>
     <string name="connect_status_connected_to_device">Connesso a %1$s.</string>
+    <string name="connect_status_ready_enter_this_code">Pronto. Inserisci questo codice sull’altro dispositivo.</string>
+    <string name="connect_status_known_device_could_not_reconnect">Un dispositivo non è riuscito a riconnettersi. Questo dispositivo è ancora pronto.</string>
+    <string name="connect_status_connection_attempt_declined">Un tentativo di connessione è stato rifiutato. Questo dispositivo è ancora pronto.</string>
     <string name="connect_status_connect_again_with_a_new_code">Connetti di nuovo %1$s: mostra un nuovo codice sul dispositivo e inseriscilo qui.</string>
     <string name="connect_status_request_failed">Naviamp Connect non è riuscito a completare la richiesta.</string>
     <string name="connect_status_incomplete_request_closed">Un tentativo di connessione si è chiuso prima di terminare. Questo dispositivo è ancora pronto.</string>

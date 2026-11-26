@@ -722,6 +722,9 @@
     <string name="connect_status_no_device_showing_a_code">Żadne urządzenie nie wyświetla kodu. Na drugim urządzeniu otwórz Ustawienia → Urządzenia → Pozwól połączyć się innemu urządzeniu.</string>
     <string name="connect_status_choose_the_device_showing_this_code">Wybierz urządzenie, które wyświetla ten kod.</string>
     <string name="connect_status_connected_to_device">Połączono z: %1$s.</string>
+    <string name="connect_status_ready_enter_this_code">Gotowe. Wpisz ten kod na drugim urządzeniu.</string>
+    <string name="connect_status_known_device_could_not_reconnect">Urządzenie nie mogło ponownie się połączyć. To urządzenie nadal jest gotowe.</string>
+    <string name="connect_status_connection_attempt_declined">Odrzucono próbę połączenia. To urządzenie nadal jest gotowe.</string>
     <string name="connect_status_connect_again_with_a_new_code">Połącz ponownie z %1$s: wyświetl na nim nowy kod i wpisz go tutaj.</string>
     <string name="connect_status_request_failed">Naviamp Connect nie może wykonać żądania.</string>
     <string name="connect_status_incomplete_request_closed">Próba połączenia została przerwana przed zakończeniem. To urządzenie jest nadal gotowe.</string>

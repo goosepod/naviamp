@@ -616,6 +616,9 @@
     <string name="connect_status_no_device_showing_a_code">코드를 표시하는 기기가 없습니다. 다른 기기에서 설정 → 기기 → 다른 기기 연결 허용을 여세요.</string>
     <string name="connect_status_choose_the_device_showing_this_code">이 코드를 표시하는 기기를 선택하세요.</string>
     <string name="connect_status_connected_to_device">%1$s에 연결되었습니다.</string>
+    <string name="connect_status_ready_enter_this_code">준비되었습니다. 다른 기기에서 이 코드를 입력하세요.</string>
+    <string name="connect_status_known_device_could_not_reconnect">기기가 다시 연결하지 못했습니다. 이 기기는 계속 준비된 상태입니다.</string>
+    <string name="connect_status_connection_attempt_declined">연결 시도가 거부되었습니다. 이 기기는 계속 준비된 상태입니다.</string>
     <string name="connect_status_connect_again_with_a_new_code">%1$s에 다시 연결하세요: 해당 기기에 새 코드를 표시하고 여기에 입력하세요.</string>
     <string name="connect_status_request_failed">Naviamp Connect가 요청을 완료하지 못했습니다.</string>
     <string name="connect_status_incomplete_request_closed">연결 시도가 완료되기 전에 종료되었습니다. 이 기기는 계속 준비되어 있습니다.</string>

@@ -619,6 +619,9 @@
     <string name="connect_status_no_device_showing_a_code">कोई भी डिवाइस कोड नहीं दिखा रहा है। दूसरे डिवाइस पर सेटिंग्स → डिवाइस → दूसरे डिवाइस को कनेक्ट होने दें खोलें।</string>
     <string name="connect_status_choose_the_device_showing_this_code">वह डिवाइस चुनें जो यह कोड दिखा रहा है।</string>
     <string name="connect_status_connected_to_device">%1$s से कनेक्ट हो गया।</string>
+    <string name="connect_status_ready_enter_this_code">तैयार। यह कोड अपने दूसरे डिवाइस पर दर्ज करें।</string>
+    <string name="connect_status_known_device_could_not_reconnect">एक डिवाइस फिर से कनेक्ट नहीं हो सका। यह डिवाइस अब भी तैयार है।</string>
+    <string name="connect_status_connection_attempt_declined">एक कनेक्शन प्रयास अस्वीकार कर दिया गया। यह डिवाइस अब भी तैयार है।</string>
     <string name="connect_status_connect_again_with_a_new_code">%1$s को फिर से कनेक्ट करें: उस पर नया कोड दिखाएँ और उसे यहाँ दर्ज करें।</string>
     <string name="connect_status_request_failed">Naviamp Connect अनुरोध पूरा नहीं कर सका।</string>
     <string name="connect_status_incomplete_request_closed">कनेक्शन का एक प्रयास पूरा होने से पहले बंद हो गया। यह डिवाइस अभी भी तैयार है।</string>

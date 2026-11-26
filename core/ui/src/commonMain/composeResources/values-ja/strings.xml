@@ -616,6 +616,9 @@
     <string name="connect_status_no_device_showing_a_code">コードを表示しているデバイスがありません。もう一方のデバイスで、設定 → デバイス → 別のデバイスからの接続を許可 を開いてください。</string>
     <string name="connect_status_choose_the_device_showing_this_code">このコードを表示しているデバイスを選択してください。</string>
     <string name="connect_status_connected_to_device">%1$sに接続しました。</string>
+    <string name="connect_status_ready_enter_this_code">準備ができました。もう一方のデバイスでこのコードを入力してください。</string>
+    <string name="connect_status_known_device_could_not_reconnect">デバイスが再接続できませんでした。このデバイスは引き続き準備ができています。</string>
+    <string name="connect_status_connection_attempt_declined">接続の試行が拒否されました。このデバイスは引き続き準備ができています。</string>
     <string name="connect_status_connect_again_with_a_new_code">%1$sに再接続してください: そのデバイスに新しいコードを表示して、ここに入力します。</string>
     <string name="connect_status_request_failed">Naviamp Connectはリクエストを完了できませんでした。</string>
     <string name="connect_status_incomplete_request_closed">接続の試行が完了前に終了しました。このデバイスは引き続き接続を待っています。</string>

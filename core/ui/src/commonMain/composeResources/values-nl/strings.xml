@@ -619,6 +619,9 @@
     <string name="connect_status_no_device_showing_a_code">Geen enkel apparaat toont een code. Open op het andere apparaat Instellingen → Apparaten → Ander apparaat laten verbinden.</string>
     <string name="connect_status_choose_the_device_showing_this_code">Kies het apparaat dat deze code toont.</string>
     <string name="connect_status_connected_to_device">Verbonden met %1$s.</string>
+    <string name="connect_status_ready_enter_this_code">Klaar. Voer deze code in op je andere apparaat.</string>
+    <string name="connect_status_known_device_could_not_reconnect">Een apparaat kon niet opnieuw verbinden. Dit apparaat is nog steeds klaar.</string>
+    <string name="connect_status_connection_attempt_declined">Een verbindingspoging is geweigerd. Dit apparaat is nog steeds klaar.</string>
     <string name="connect_status_connect_again_with_a_new_code">Verbind %1$s opnieuw: toon er een nieuwe code op en voer die hier in.</string>
     <string name="connect_status_request_failed">Naviamp Connect kon het verzoek niet voltooien.</string>
     <string name="connect_status_incomplete_request_closed">Een verbindingspoging werd gesloten voordat deze klaar was. Dit apparaat is nog steeds gereed.</string>
