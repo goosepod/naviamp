@@ -874,6 +874,7 @@ class NaviampCore private constructor(
                     revealTargetNowPlaying = navigation::openNowPlaying,
                     playbackOutputs = playbackOutputs,
                     trackSelectionContext = mediaRegistry::connectTrackSelectionContext,
+                savedPlaybackProfile = playbackProfiles::profile,
                 )
             }
             val castEffect = services.cast?.let { castServices ->

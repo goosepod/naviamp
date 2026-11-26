@@ -73,12 +73,15 @@ class NaviampCoreQueuePlaybackController(
         groupTarget: PlaybackProfileTarget? = null,
         groupLabel: String = "",
         downloadedOnly: Boolean = false,
+        /** A profile chosen elsewhere (a Connect controller's) that replaces this device's saved one. */
+        groupProfile: PlaybackProfile? = null,
     ): Boolean {
         if (downloadedOnly && !effects.capabilities.supportsDownloadedOnly) return false
         val selected = if (shuffle) tracks.shuffled() else tracks
         if (selected.isEmpty()) return false
         val profile = groupTarget?.let { target ->
-            activeSourceId()?.let { sourceId -> profiles.playbackProfile(sourceId, target) }
+            groupProfile?.normalized()
+                ?: activeSourceId()?.let { sourceId -> profiles.playbackProfile(sourceId, target) }
         }
         val group = if (groupTarget != null) {
             PlaybackQueueGroup(
@@ -117,10 +120,11 @@ class NaviampCoreQueuePlaybackController(
         tracks: List<Track>,
         groupTarget: PlaybackProfileTarget,
         groupLabel: String,
+        groupProfile: PlaybackProfile? = null,
     ) = queue.appendTracks(
         tracksToAdd = tracks,
         label = "tracks",
-        group = savedProfileGroup(groupTarget, groupLabel),
+        group = savedProfileGroup(groupTarget, groupLabel, groupProfile),
     )
 
     fun playNext(
@@ -136,8 +140,9 @@ class NaviampCoreQueuePlaybackController(
     private fun savedProfileGroup(
         target: PlaybackProfileTarget,
         label: String,
+        override: PlaybackProfile? = null,
     ): PlaybackQueueGroup? {
-        val profile = activeSourceId()?.let { profiles.playbackProfile(it, target) }
+        val profile = override?.normalized() ?: activeSourceId()?.let { profiles.playbackProfile(it, target) }
         return PlaybackQueueGroup(
             id = "${target.type}:${target.id}",
             target = target,
@@ -188,13 +193,42 @@ class NaviampCoreMediaTransactions(
         publishRecentRadio(recentRadioStreams.remember(stream))
     }
 
-    fun playAlbum(album: Album, tracks: List<Track>, shuffle: Boolean = false, index: Int = 0) {
+    fun playAlbum(
+        album: Album,
+        tracks: List<Track>,
+        shuffle: Boolean = false,
+        index: Int = 0,
+        profile: PlaybackProfile? = null,
+    ) {
         if (!queuePlayback.play(
                 tracks = tracks,
                 index = index,
                 shuffle = shuffle,
                 groupTarget = PlaybackProfileTarget(PlaybackProfileTargetType.Album, album.id.value),
                 groupLabel = album.title,
+                groupProfile = profile,
+            )
+        ) {
+            publish(NaviampStatusMessage.NoTracksAvailable)
+        }
+    }
+
+    /** Plays a playlist as one profile group, like [playAlbum]; the same path serves local and Connect starts. */
+    fun playPlaylist(
+        playlistId: String,
+        playlistName: String,
+        tracks: List<Track>,
+        shuffle: Boolean = false,
+        index: Int = 0,
+        profile: PlaybackProfile? = null,
+    ) {
+        if (!queuePlayback.play(
+                tracks = tracks,
+                index = index,
+                shuffle = shuffle,
+                groupTarget = PlaybackProfileTarget(PlaybackProfileTargetType.Playlist, playlistId),
+                groupLabel = playlistName,
+                groupProfile = profile,
             )
         ) {
             publish(NaviampStatusMessage.NoTracksAvailable)
@@ -205,19 +239,26 @@ class NaviampCoreMediaTransactions(
     fun playNextTrack(track: Track) = apply(queue.playNextTrack(track))
     fun addToQueue(tracks: List<Track>) = apply(queue.appendTracks(tracks, "tracks"))
 
-    fun addAlbumToQueue(album: Album, tracks: List<Track>) = apply(
+    fun addAlbumToQueue(album: Album, tracks: List<Track>, profile: PlaybackProfile? = null) = apply(
         queuePlayback.addToQueue(
             tracks = tracks,
             groupTarget = PlaybackProfileTarget(PlaybackProfileTargetType.Album, album.id.value),
             groupLabel = album.title,
+            groupProfile = profile,
         ),
     )
 
-    fun addPlaylistToQueue(playlistId: String, playlistName: String, tracks: List<Track>) = apply(
+    fun addPlaylistToQueue(
+        playlistId: String,
+        playlistName: String,
+        tracks: List<Track>,
+        profile: PlaybackProfile? = null,
+    ) = apply(
         queuePlayback.addToQueue(
             tracks = tracks,
             groupTarget = PlaybackProfileTarget(PlaybackProfileTargetType.Playlist, playlistId),
             groupLabel = playlistName,
+            groupProfile = profile,
         ),
     )
 

@@ -62,10 +62,17 @@ class NaviampCoreTrackActionController(
             return NaviampCoreCommandResult.Completed
         }
         when (request.action) {
-            app.naviamp.ui.SharedTrackRowAction.Select -> if (albumContext != null) {
-                media.playAlbum(albumContext.album, tracks, index = index)
-            } else {
-                media.play(tracks, index)
+            app.naviamp.ui.SharedTrackRowAction.Select -> {
+                val playlistContext = registry.selectedPlaylist
+                    ?.takeIf { command is NaviampCoreCommand.Detail.PlaylistTrack }
+                when {
+                    albumContext != null -> media.playAlbum(albumContext.album, tracks, index = index)
+                    // Like the playlist's Play button, so its saved profile applies (#666).
+                    // The refreshed list carries a rename before the open playlist's own copy does.
+                    playlistContext != null -> media.playPlaylist(playlistContext.id,
+                        registry.playlist(playlistContext.id)?.name ?: playlistContext.name, tracks, index = index)
+                    else -> media.play(tracks, index)
+                }
             }
             app.naviamp.ui.SharedTrackRowAction.PlayNext -> media.playNext(listOf(track))
             app.naviamp.ui.SharedTrackRowAction.PlayNextTrack -> media.playNextTrack(track)
