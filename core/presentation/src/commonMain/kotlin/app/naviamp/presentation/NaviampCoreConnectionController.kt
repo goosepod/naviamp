@@ -140,13 +140,14 @@ class NaviampCoreConnectionController(
         connect(NaviampCoreConnectionRequest.Saved(id))
 
     suspend fun resetAfterDatabaseClear() {
-        // Join first: a cancelled retry restores its pre-attempt state as it unwinds, which must not
-        // land after the reset and revive the deleted source.
-        stopRecovery()
         certificateSelectionGeneration++
         accountAttempt?.cancel()
         accountAttempt?.join()
         accountAttempt = null
+        // Join, and only after the account attempt: a cancelled switch resumes recovery as it
+        // unwinds, and a cancelled retry restores its pre-attempt state; neither may land after the
+        // reset and revive the deleted source.
+        stopRecovery()
         updateAccounts { NaviampAccountSwitcherUi() }
         sessionPort.clearActiveSession()
         inventory = NaviampCoreConnectionInventory()
@@ -602,9 +603,12 @@ class NaviampCoreConnectionController(
                     publishConnection()
                     stateStore.updateShell { shell -> shell.copy(connectionSettings = shell.connectionSettings.copy(
                         connection = shell.connectionSettings.connection.copy(status = previousStatus))) }
+                    // A user attempt that ends back on the offline session it replaced, whether it
+                    // failed or was cancelled (Back during an account switch), resumes recovery.
+                    // Recovery runs on the runtime scope, so this caller's cancellation cannot stop it.
+                    if (!automatic) resumeRecoveryIfOffline()
                     if (cause is kotlinx.coroutines.CancellationException) throw cause
                     onPreservedFailure(cause)
-                    if (!automatic) resumeRecoveryIfOffline()
                     return@onFailure
                 }
                 val savedSourceId = (request as? NaviampCoreConnectionRequest.Saved)?.id

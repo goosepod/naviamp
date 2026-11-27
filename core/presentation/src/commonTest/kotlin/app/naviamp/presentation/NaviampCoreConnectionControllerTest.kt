@@ -843,6 +843,33 @@ class NaviampCoreConnectionControllerTest {
         assertEquals(3, fixture.port.connectRequests.size, "The superseded retry does not run again")
     }
 
+    @Test
+    fun cancellingAnAccountSwitchFromOfflineResumesRecoveryOfTheOriginalSource() = kotlinx.coroutines.test.runTest {
+        val fixture = offlineWithRetryInFlight(savedRecords = listOf(
+            savedRecord(), savedRecord("source-2", "Studio Music", "https://studio.example")))
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.OpenAccounts)
+        val switch = launch {
+            fixture.controller.execute(NaviampCoreCommand.Connection.SwitchAccount(savedConnectionUi().copy(id = "source-2")))
+        }
+        runCurrent()
+        assertEquals(NaviampCoreConnectionRequest.Saved("source-2"), fixture.port.connectRequests.last().first)
+
+        // Back cancels the switch; the original source is restored to offline.
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.CloseAccounts)
+        switch.join()
+        assertTrue(switch.isCancelled)
+        val restored = fixture.store.state.value.shell.connectionSettings
+        assertTrue(restored.connection.offline)
+        assertEquals("source-1", restored.currentSourceId)
+
+        // The original server comes back; recovery must still be running to notice.
+        fixture.port.connectGate = null
+        val requestsBefore = fixture.port.connectRequests.size
+        advanceTimeBy(NaviampCoreReconnectSchedule().backoffMillis.first() + 1); runCurrent()
+        assertEquals(NaviampCoreConnectionRequest.Saved("source-1"), fixture.port.connectRequests.drop(requestsBefore).single().first)
+        assertFalse(fixture.store.state.value.shell.connectionSettings.connection.offline)
+    }
+
     /** An offline-restored session whose first background retry is suspended inside the provider. */
     private suspend fun kotlinx.coroutines.test.TestScope.offlineWithRetryInFlight(
         offlineModeEnabled: () -> Boolean = { false },
