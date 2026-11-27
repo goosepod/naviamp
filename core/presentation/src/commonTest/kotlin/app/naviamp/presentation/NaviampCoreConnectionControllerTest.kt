@@ -10,6 +10,7 @@ import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampLibrarySourcePickerError
 import app.naviamp.ui.NaviampAccountSwitcherError
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -770,10 +771,83 @@ class NaviampCoreConnectionControllerTest {
         assertFalse(connection.restoringConnection)
     }
 
+    @Test
+    fun deletingTheSourceDuringARetryCannotReviveIt() = kotlinx.coroutines.test.runTest {
+        val fixture = offlineWithRetryInFlight()
+
+        fixture.controller.execute(NaviampCoreCommand.Connection.Delete(savedConnectionUi()))
+        runCurrent()
+        fixture.port.connectGate?.complete(Unit)
+        advanceTimeBy(30 * 60_000L); runCurrent()
+
+        val settings = fixture.store.state.value.shell.connectionSettings
+        assertTrue(settings.connection.savedConnections.isEmpty())
+        assertEquals(null, settings.currentSourceId, "The cancelled retry must not restore the deleted source")
+        assertFalse(settings.connection.offline)
+        assertEquals(2, fixture.port.connectRequests.size, "The deleted source is not retried")
+    }
+
+    @Test
+    fun aTemporaryServerOutageKeepsRecoveringEvenWhenTheProviderCallsItAnAuthenticationFailure() =
+        kotlinx.coroutines.test.runTest {
+            val fixture = fixture(
+                network = { app.naviamp.domain.network.NetworkMetering.Unmetered },
+                connectFailure = IllegalStateException("Failed to connect to server"),
+                recoveryScope = backgroundScope,
+            )
+            fixture.controller.restoreInitialConnection()
+            fixture.port.connectFailure = IllegalStateException("Jellyfin authentication failed (HTTP 503)")
+            val schedule = NaviampCoreReconnectSchedule()
+
+            advanceTimeBy(schedule.backoffMillis[0] + 1); runCurrent()
+            advanceTimeBy(schedule.backoffMillis[1] + 1); runCurrent()
+            assertEquals(3, fixture.port.connectRequests.size, "A 503 is retried on the backoff, not treated as a rejection")
+            val connection = fixture.store.state.value.shell.connectionSettings.connection
+            assertTrue(connection.offline)
+            assertFalse(connection.statusIsError)
+
+            fixture.port.connectFailure = null
+            advanceTimeBy(schedule.backoffMillis[2] + 1); runCurrent()
+            assertEquals(4, fixture.port.connectRequests.size)
+            assertFalse(fixture.store.state.value.shell.connectionSettings.connection.offline, "The server came back")
+        }
+
+    @Test
+    fun aUserRequestedSwitchDuringARetryReplacesItAndIsShownAsConnecting() = kotlinx.coroutines.test.runTest {
+        for (command in listOf(
+            NaviampCoreCommand.Connection.SelectSavedSource("source-2"),
+            NaviampCoreCommand.Connection.SwitchAccount(savedConnectionUi().copy(id = "source-2")),
+        )) switchDuringRetry(command)
+    }
+
+    private suspend fun kotlinx.coroutines.test.TestScope.switchDuringRetry(command: NaviampCoreCommand) {
+        val fixture = offlineWithRetryInFlight(savedRecords = listOf(
+            savedRecord(), savedRecord("source-2", "Studio Music", "https://studio.example")))
+
+        val switch = async { fixture.controller.execute(command) }
+        runCurrent()
+
+        assertEquals(NaviampCoreConnectionRequest.Saved("source-2"), fixture.port.connectRequests.last().first,
+            "The switch is not dropped behind the background retry")
+        val during = fixture.store.state.value.shell.connectionSettings.connection
+        assertTrue(during.isConnecting, "A switch the user asked for is a foreground attempt")
+        assertFalse(during.offline)
+
+        fixture.port.connectGate?.complete(Unit)
+        runCurrent()
+        switch.await()
+        val settings = fixture.store.state.value.shell.connectionSettings
+        assertEquals("source-2", settings.currentSourceId)
+        assertFalse(settings.connection.offline)
+        advanceTimeBy(30 * 60_000L); runCurrent()
+        assertEquals(3, fixture.port.connectRequests.size, "The superseded retry does not run again")
+    }
+
     /** An offline-restored session whose first background retry is suspended inside the provider. */
     private suspend fun kotlinx.coroutines.test.TestScope.offlineWithRetryInFlight(
         offlineModeEnabled: () -> Boolean = { false },
         onReconnected: (String) -> Unit = {},
+        savedRecords: List<NaviampCoreSavedConnectionRecord> = listOf(savedRecord()),
     ): ConnectionFixture {
         val fixture = fixture(
             network = { app.naviamp.domain.network.NetworkMetering.Unmetered },
@@ -781,6 +855,7 @@ class NaviampCoreConnectionControllerTest {
             offlineModeEnabled = offlineModeEnabled,
             onReconnected = onReconnected,
             recoveryScope = backgroundScope,
+            savedRecords = savedRecords,
         )
         fixture.controller.restoreInitialConnection()
         fixture.port.connectFailure = null

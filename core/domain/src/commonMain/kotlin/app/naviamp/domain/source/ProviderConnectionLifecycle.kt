@@ -108,6 +108,11 @@ fun connectionFailureStatus(error: Throwable, fallback: String = "Connection fai
     return if (message.length <= 240 && !containsSensitiveStructure) message else fallback
 }
 
+private val HttpStatusPattern = Regex("""\bhttp\s*(?:status\s*)?(\d{3})\b""")
+
+/** Request timeout, too early, rate limiting and server errors: the account itself was not rejected. */
+private val TransientHttpStatuses = setOf(408, 425, 429) + (500..599)
+
 /** Network reachability failures may restore the saved source in local-only mode. */
 fun connectionFailureAllowsOfflineRestoration(error: Throwable): Boolean {
     val description = generateSequence(error) { it.cause }
@@ -115,6 +120,9 @@ fun connectionFailureAllowsOfflineRestoration(error: Throwable): Boolean {
             "${cause::class.simpleName.orEmpty()} ${cause.message.orEmpty()}"
         }
         .lowercase()
+    // A temporary server status is an outage whatever the surrounding words: providers such as
+    // Jellyfin report every login failure, including an HTTP 503, as "authentication failed".
+    if (HttpStatusPattern.findAll(description).any { it.groupValues[1].toInt() in TransientHttpStatuses }) return true
     val requiresReconnect = listOf(
         "authentication",
         "authorization",

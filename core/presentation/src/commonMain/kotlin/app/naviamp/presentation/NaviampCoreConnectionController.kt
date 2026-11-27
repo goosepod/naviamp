@@ -97,6 +97,7 @@ class NaviampCoreConnectionController(
     private var accountAttempt: Job? = null
     private var recovery: Job? = null
     private var runtimeRecoveryScope: CoroutineScope? = null
+    private var recoveringSourceId: String? = null
     private var certificateSelectionGeneration = 0L
 
     init {
@@ -141,8 +142,7 @@ class NaviampCoreConnectionController(
     suspend fun resetAfterDatabaseClear() {
         // Join first: a cancelled retry restores its pre-attempt state as it unwinds, which must not
         // land after the reset and revive the deleted source.
-        recovery?.cancelAndJoin()
-        recovery = null
+        stopRecovery()
         certificateSelectionGeneration++
         accountAttempt?.cancel()
         accountAttempt?.join()
@@ -197,7 +197,31 @@ class NaviampCoreConnectionController(
     private fun startRecovery(sourceId: String) {
         val scope = runtimeRecoveryScope ?: recoveryScope ?: return
         recovery?.cancel()
+        recoveringSourceId = sourceId
         recovery = scope.launch { recover(sourceId) }
+    }
+
+    /**
+     * Cancels recovery and waits for it to unwind. A cancelled retry restores its pre-attempt state
+     * as it unwinds, so anything that changes the session afterwards must not run before it lands.
+     */
+    private suspend fun stopRecovery() {
+        recovery?.cancelAndJoin()
+        recovery = null
+        recoveringSourceId = null
+    }
+
+    /**
+     * Whether a user-visible attempt is running. A background recovery attempt never blocks what the
+     * user asks for: their request supersedes it (see [connect]).
+     */
+    private fun foregroundConnecting(): Boolean =
+        connection.state.value.let { it.isConnecting && !it.backgroundRecovery }
+
+    private fun resumeRecoveryIfOffline() {
+        val runtime = connection.state.value
+        val sourceId = runtime.sourceId
+        if (runtime.offline && !runtime.isConnecting && sourceId != null) startRecovery(sourceId)
     }
 
     /**
@@ -260,6 +284,7 @@ class NaviampCoreConnectionController(
                 userInitiated = false,
                 onPreservedFailure = { cause = it },
                 commitIf = { !offlineModeEnabled() },
+                automatic = true,
                 // A background success must not close a connection editor the user has open.
                 preserveEditor = true,
                 onSessionConnected = onReconnected,
@@ -354,7 +379,7 @@ class NaviampCoreConnectionController(
                 updateAccounts { it.copy(visible = false, error = null) }
             }
             NaviampCoreCommand.Connection.AddAccount -> {
-                if (!connection.state.value.isConnecting) {
+                if (!foregroundConnecting()) {
                     updateAccounts { NaviampAccountSwitcherUi(addingAccount = true) }
                     openNewForm()
                 }
@@ -410,7 +435,7 @@ class NaviampCoreConnectionController(
             }
             is NaviampCoreCommand.Connection.SelectSavedSource -> {
                 val runtime = connection.state.value
-                if (command.id.isBlank() || runtime.isConnecting || stateStore.state.value.shell.connect.remotePlaybackAuthorityActive ||
+                if (command.id.isBlank() || foregroundConnecting() || stateStore.state.value.shell.connect.remotePlaybackAuthorityActive ||
                     inventory.connections.none { it.id == command.id } ||
                     (command.reconnect && command.id != inventory.currentSourceId))
                     return NaviampCoreCommandResult.SavedSourceSelected(false)
@@ -430,7 +455,7 @@ class NaviampCoreConnectionController(
             is NaviampCoreCommand.Connection.SwitchAccount -> {
                 val id = command.connection.id
                 when {
-                    connection.state.value.isConnecting -> Unit
+                    foregroundConnecting() -> Unit
                     inventory.connections.none { it.id == id } -> updateAccounts {
                         it.copy(visible = true, error = NaviampAccountSwitcherError.ConnectionFailed)
                     }
@@ -501,7 +526,12 @@ class NaviampCoreConnectionController(
         commitIf: () -> Boolean = { true },
         preserveEditor: Boolean = false,
         onSessionConnected: (String) -> Unit = onConnected,
+        /** True only for Core's own offline recovery; anything else supersedes that recovery. */
+        automatic: Boolean = false,
     ): Boolean {
+        // A switch or reconnect the user asked for replaces a background retry; otherwise begin()
+        // would refuse it while the retry is connecting and the request would be lost.
+        if (!automatic) stopRecovery()
         if (request is NaviampCoreConnectionRequest.Form) {
             connectionFormError(
                 form = request.form,
@@ -521,6 +551,7 @@ class NaviampCoreConnectionController(
         val plan = connection.begin(
             restoreSavedSession = preserveExistingSession || request is NaviampCoreConnectionRequest.Saved,
             preserveExistingConnection = preserveExistingSession,
+            automaticRecovery = automatic,
         )
             ?: return false
         val previousSourceId = stateStore.state.value.shell.connectionSettings.currentSourceId
@@ -573,6 +604,7 @@ class NaviampCoreConnectionController(
                         connection = shell.connectionSettings.connection.copy(status = previousStatus))) }
                     if (cause is kotlinx.coroutines.CancellationException) throw cause
                     onPreservedFailure(cause)
+                    if (!automatic) resumeRecoveryIfOffline()
                     return@onFailure
                 }
                 val savedSourceId = (request as? NaviampCoreConnectionRequest.Saved)?.id
@@ -613,7 +645,7 @@ class NaviampCoreConnectionController(
 
     /** A saved-account handoff is validated before clearing any of the current account's state. */
     private suspend fun connectAccount(request: NaviampCoreConnectionRequest) {
-        if (connection.state.value.isConnecting) return
+        if (foregroundConnecting()) return
         val job = currentCoroutineContext()[Job]
         accountAttempt = job
         val adding = accountSwitcher().addingAccount
@@ -752,6 +784,9 @@ class NaviampCoreConnectionController(
     }
 
     private suspend fun delete(saved: NaviampSavedConnectionUi) {
+        // A retry still waiting on the deleted source would otherwise restore it as it fails.
+        val wasRecovering = recoveringSourceId == saved.id
+        if (wasRecovering) stopRecovery()
         runCatching { sessionPort.deleteConnection(saved.id) }
             .onSuccess { updated ->
                 inventory = updated
@@ -762,7 +797,10 @@ class NaviampCoreConnectionController(
                 }
                 publishConnection()
             }
-            .onFailure { cause -> publishStatus(cause.message ?: "Could not delete ${saved.displayName}.") }
+            .onFailure { cause ->
+                publishStatus(cause.message ?: "Could not delete ${saved.displayName}.")
+                if (wasRecovering) resumeRecoveryIfOffline()
+            }
     }
 
     private fun isCompanionOnlyEdit(form: ConnectionFormState): Boolean =
