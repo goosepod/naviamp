@@ -201,6 +201,8 @@ class NaviampCoreConnectController(
     private var codeTargetWaitJob: Job? = null
     /** An outgoing code handshake is running; a background trusted reconnect does not count. */
     private var codePairingInFlight = false
+    /** The code chose [selectedTarget] itself; a failed attempt drops it so the next code uses fresh discovery. */
+    private var codeTargetAutoSelected = false
     private var acceptedPairingConnection: NaviampConnectTransportConnection? = null
     private var pairingExpiryJob: Job? = null
     private var activePairingHandshake: NaviampConnectPendingTargetPairing? = null
@@ -1204,6 +1206,7 @@ class NaviampCoreConnectController(
     private fun selectTarget(targetUi: NaviampConnectDiscoveredTargetUi) {
         suspendAutomaticReconnectForManualPairing()
         selectedManualEndpoint = null
+        codeTargetAutoSelected = false
         selectedTarget = discovery?.state?.value?.targets?.firstOrNull {
             it.advertisement.instanceId == targetUi.instanceId
         }?.also { target ->
@@ -1235,6 +1238,7 @@ class NaviampCoreConnectController(
         }
         suspendAutomaticReconnectForManualPairing()
         selectedTarget = null
+        codeTargetAutoSelected = false
         selectedManualEndpoint = endpoint
         enteredCode = ""
         phase = NaviampConnectPairingUiPhase.AwaitingCode
@@ -1269,8 +1273,11 @@ class NaviampCoreConnectController(
             val pairable = pairableTargets()
             val candidates = pairable.filter { it.advertisement.codeFlagAdvertised }.takeIf { it.size == 1 } ?: pairable
             when {
-                candidates.size == 1 -> selectedTarget = candidates.single().also { target ->
-                    recentlyResolvedTargets[target.advertisement.identityFingerprint] = target
+                candidates.size == 1 -> {
+                    selectedTarget = candidates.single().also { target ->
+                        recentlyResolvedTargets[target.advertisement.identityFingerprint] = target
+                    }
+                    codeTargetAutoSelected = true
                 }
                 candidates.size > 1 -> {
                     status = null
@@ -1358,6 +1365,13 @@ class NaviampCoreConnectController(
                 selectedTarget = result.trust.toManualTarget(manualEndpoint, result.session.protocolVersion, services.nowEpochMillis())
             }
             codePairingInFlight = false
+            if (result is NaviampConnectPairingRuntimeResult.Failed && codeTargetAutoSelected &&
+                selectedTarget === target
+            ) {
+                // The device this code chose did not accept it; the next code must choose again.
+                selectedTarget = null
+            }
+            codeTargetAutoSelected = false
             finishPairing(result, localRole = NaviampConnectDeviceRole.Controller)
             if (manualEndpoint != null && result is NaviampConnectPairingRuntimeResult.Failed &&
                 (result.code == NaviampConnectErrorCode.TargetUnavailable ||
@@ -1408,7 +1422,14 @@ class NaviampCoreConnectController(
                         ensureTrustedTargetListener()
                         // One session at a time: a previous session (or a late reconnect) must not leak.
                         if (authenticatedSession != null) closeAuthenticatedSession()
-                        startControllerSession(result.session)
+                        // Same bounded Welcome wait as a trusted reconnect: a silent target closes the socket.
+                        awaitNaviampConnectSocketOperation(
+                            scope = controllerScope,
+                            timeoutMillis = services.pairingHandshakeTimeoutMillis,
+                            close = result.session::close,
+                        ) {
+                            startControllerSession(result.session)
+                        } == true
                     }
                 }
                 if (connected) {

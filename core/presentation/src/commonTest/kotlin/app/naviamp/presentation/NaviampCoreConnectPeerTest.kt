@@ -184,6 +184,8 @@ internal class ConnectTestNetwork {
     private val advertisements = mutableMapOf<String, NaviampConnectRegistrationService>()
     private val discoveries = mutableSetOf<NaviampConnectDiscoveryListener>()
     private val connections = mutableListOf<NaviampConnectTransportConnection>()
+    /** Peers whose replies are dropped, as if they stopped responding mid-connection. */
+    val silenced = mutableSetOf<String>()
     var connectCount = 0
         private set
 
@@ -193,15 +195,15 @@ internal class ConnectTestNetwork {
             connectCount++
             val outgoing = Channel<ByteArray>(Channel.UNLIMITED)
             val incoming = Channel<ByteArray>(Channel.UNLIMITED)
-            fun endpoint(remote: String, reads: Channel<ByteArray>, writes: Channel<ByteArray>) = object : NaviampConnectTransportConnection {
+            fun endpoint(remote: String, reads: Channel<ByteArray>, writes: Channel<ByteArray>, silent: () -> Boolean = { false }) = object : NaviampConnectTransportConnection {
                 override val remoteAddress = remote
-                override suspend fun send(frame: ByteArray) { writes.send(frame.copyOf()) }
+                override suspend fun send(frame: ByteArray) { if (!silent()) writes.send(frame.copyOf()) }
                 override suspend fun receive() = reads.receiveCatching().getOrNull()
                 override fun close() { reads.close(); writes.close() }
             }
             val local = endpoint(host, incoming, outgoing)
             connections += local
-            listeners.getValue(host).send(endpoint(id, outgoing, incoming))
+            listeners.getValue(host).send(endpoint(id, outgoing, incoming, silent = { host in silenced }))
             return local
         }
         override fun listen(port: Int): NaviampConnectTransportListener {
@@ -224,7 +226,7 @@ internal class ConnectTestNetwork {
         }
         override fun stop() {
             advertisingStops[id] = (advertisingStops[id] ?: 0) + 1
-            advertisements.remove(id)
+            advertisements.remove(id)?.let { service -> discoveries.toList().forEach { it.onServiceLost(service.serviceName) } }
         }
     }
     fun discovery() = object : NaviampConnectDiscoveryEffect {

@@ -282,6 +282,58 @@ class NaviampCoreConnectFreshSetupTest {
     }
 
     @Test
+    fun aFailedCodeDoesNotPinTheNextCodeToThatDevice() = runTest {
+        val network = ConnectTestNetwork()
+        val phone = connectPeer("phone", "mac", network, ConnectTestSource(configured = true), preTrusted = false, configure = realCrypto)
+        val mac = connectPeer("mac", "phone", network, preTrusted = false, configure = realCrypto)
+        val den = connectPeer("den", "phone", network, preTrusted = false, configure = realCrypto)
+        try {
+            val actions = phone.actions.shell.connectActions!!
+            mac.actions.shell.connectActions!!.onStartPairingMode()
+            actions.onConnectScreenVisibilityChanged(true)
+            runCurrent()
+            // Only one device shows a code, so it is chosen automatically; this code is wrong.
+            actions.onPairingCodeChanged("000000")
+            runCurrent()
+            assertNull(phone.state.value.shell.connect.connectedTargetName)
+            mac.actions.shell.connectActions!!.onStopPairingMode()
+            den.actions.shell.connectActions!!.onStartPairingMode()
+            runCurrent()
+            assertEquals(listOf("den"), phone.state.value.shell.connect.discoveredTargets.map { it.displayName })
+            actions.onPairingCodeChanged(assertNotNull(den.state.value.shell.connect.pairingCode))
+            runCurrent()
+            assertEquals("den", phone.state.value.shell.connect.connectedTargetName,
+                "The next code goes to the device that now shows a code")
+        } finally { phone.close(); mac.close(); den.close() }
+    }
+
+    @Test
+    fun aTargetThatNeverSendsWelcomeReleasesTheConnection() = runTest {
+        val network = ConnectTestNetwork()
+        val phone = connectPeer("phone", "mac", network, preTrusted = false,
+            configure = { realCrypto(it).copy(pairingHandshakeTimeoutMillis = 1_000L) })
+        // The code handshake completes (the target saves its trust), then it stops responding before its Welcome.
+        val mac = connectPeer("mac", "phone", network, preTrusted = false, configure = { realCrypto(it).copy(
+            trust = app.naviamp.app.NaviampConnectTrustRepository(app.naviamp.app.NaviampConnectTrustStorageEffect {
+                network.silenced += "mac"
+            }),
+        ) })
+        try {
+            mac.actions.shell.connectActions!!.onStartPairingMode()
+            runCurrent()
+            enterCode(phone, mac, "mac")
+            runCurrent()
+            advanceTimeBy(1_001L)
+            runCurrent()
+            val connect = phone.state.value.shell.connect
+            assertFalse(connect.codeEntryBusy, "A missing Welcome must not block code entry")
+            assertNull(connect.postConnect)
+            assertNull(connect.connectedTargetName)
+            assertEquals(NaviampConnectStatusText.ThePairedDeviceDidNotStartACompatibleControlSession, connect.statusMessage?.text)
+        } finally { phone.close(); mac.close() }
+    }
+
+    @Test
     fun secondPhoneConnectsToAnAlreadyTrustedTargetWithoutApproval() = runTest {
         val network = ConnectTestNetwork()
         val phoneA = connectPeer("phone-a", "mac", network, preTrusted = false, configure = realCrypto)
