@@ -140,5 +140,6 @@ fun naviampCorePlaybackServiceCatalog(
         sessions = NaviampPlaybackSessionController(playbackSessionRepository),
         outputFade = { factor -> (engine as? OutputFadePlaybackEngine)?.setOutputFadeFactor(factor) },
         profiles = playbackProfileRepository,
+        networkMetering = networkMetering,
     )
 }
