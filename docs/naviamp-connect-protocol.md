@@ -75,12 +75,15 @@ November 2026 one-flow update (#713) — supersedes the September 10 consent rul
   approval (validation and rollback are unchanged). `NaviampConnectInitialSetupAuthorization` was
   removed.
 - **Discovery TXT `code`.** `"1"` while the device is showing a code, `"0"` for presence only; a
-  missing key (protocol-v1 targets) means showing a code. Controllers list only `code=1` devices as
-  *Nearby*, auto-select a single one when six digits are typed, and wait up to 5 s for one to appear.
-- **Additive Welcome fields.** `initialSetupAllowed` is now `true` whenever the target supports
-  provisioning (so v1 controllers still set up an empty target), and `hasSavedAccounts` (nullable)
-  tells the controller whether to preselect sign-in in its post-connect sheet. Controllers no longer
-  provision automatically; the user chooses *Sign it in*, *Play on …*, or *Done*.
+  missing key (protocol-v1 targets) means it may be showing one. Controllers list `code=1` and
+  missing-key devices as *Nearby*. When six digits are typed, a single `code=1` device is chosen
+  automatically (waiting up to 5 s for one to appear); a missing-key device is never chosen without a
+  tap, so a device that briefly drops off discovery never sends the code to another device.
+- **Additive Welcome fields.** `initialSetupAllowed` is `true` only when the target supports
+  provisioning and has no saved accounts, so a v1 controller still sets up an empty target but never
+  replaces a configured one. `hasSavedAccounts` (nullable) tells the controller whether to preselect
+  sign-in in its post-connect sheet. Controllers no longer provision automatically; the user chooses
+  *Sign it in*, *Play on …*, or *Done*.
 - The protocol version remains 1: these changes are additive and v1 peers keep pairing and resuming.
 
 September 10 consent update (historical): explicitly choosing **Show pairing code** authorizes one live

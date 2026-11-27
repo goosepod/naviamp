@@ -1006,6 +1006,11 @@ class NaviampCoreConnectController(
         return targets.filter { it.advertisement.pairable && it.advertisement.identityFingerprint != ownFingerprint }
     }
 
+    /** Devices that explicitly say they show a code; only these receive a typed code without a tap. */
+    private fun codeAnnouncingTargets(
+        targets: List<NaviampConnectDiscoveredTarget> = discovery?.state?.value?.targets.orEmpty(),
+    ): List<NaviampConnectDiscoveredTarget> = pairableTargets(targets).filter { it.advertisement.codeFlagAdvertised }
+
     /** A code typed before discovery found its device waits briefly for one to appear. */
     private fun awaitCodeTarget() {
         val discoveryController = discovery ?: return
@@ -1016,13 +1021,17 @@ class NaviampCoreConnectController(
         publish()
         codeTargetWaitJob = controllerScope.launch {
             val found = withTimeoutOrNull(CodeTargetWaitMillis) {
-                discoveryController.state.first { pairableTargets(it.targets).isNotEmpty() }
+                discoveryController.state.first { codeAnnouncingTargets(it.targets).isNotEmpty() }
             }
             codeTargetWaitJob = null
             if (enteredCode.length != 6) return@launch
             if (found == null) {
                 status = null
-                statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.NoDeviceShowingACode)
+                // Older devices cannot say whether they show this code, so the user taps the right one.
+                statusMessage = NaviampConnectStatusMessage(
+                    if (pairableTargets().isNotEmpty()) NaviampConnectStatusText.ChooseTheDeviceShowingThisCode
+                    else NaviampConnectStatusText.NoDeviceShowingACode,
+                )
                 publish()
             } else {
                 submitPairingCode()
@@ -1269,9 +1278,9 @@ class NaviampCoreConnectController(
         if (codePairingInFlight) return
         val manualEndpoint = selectedManualEndpoint
         if (selectedTarget == null && manualEndpoint == null && enteredCode.length == 6) {
-            // Older targets cannot say whether they show a code; one device that does is the clear choice.
-            val pairable = pairableTargets()
-            val candidates = pairable.filter { it.advertisement.codeFlagAdvertised }.takeIf { it.size == 1 } ?: pairable
+            // Only a device that says it shows a code is chosen automatically; an older device needs a tap,
+            // so a briefly missing device never sends the code somewhere else.
+            val candidates = codeAnnouncingTargets()
             when {
                 candidates.size == 1 -> {
                     selectedTarget = candidates.single().also { target ->
@@ -2681,4 +2690,9 @@ private val ConnectPanelStatuses = setOf(
     NaviampConnectStatusText.SearchingThisLocalNetwork,
     NaviampConnectStatusText.NoDeviceShowingACode,
     NaviampConnectStatusText.ChooseTheDeviceShowingThisCode,
+    // Results of a typed code are shown in the code-entry panel and close with it.
+    NaviampConnectStatusText.CodeNotVerified,
+    NaviampConnectStatusText.CodeExpired,
+    NaviampConnectStatusText.TooManyAttempts,
+    NaviampConnectStatusText.EnterAllSixDigitsShownOnTheTv,
 )

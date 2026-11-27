@@ -1588,6 +1588,39 @@ class NaviampCoreConnectControllerTest {
     }
 
     @Test
+    fun aCodeIsNeverSentToAnOlderDeviceWithoutATap() = runTest {
+        val fixture = connectScreenFixture()
+        fixture.controller.actions.onConnectScreenVisibilityChanged(true)
+        // The device showing the code is briefly missing; only an older device is listed.
+        fixture.resolveLegacy("Old Bedroom TV", "192.0.2.13", "old-fp")
+        runCurrent()
+        fixture.controller.actions.onPairingCodeChanged("123456")
+        advanceTimeBy(5_001L)
+        runCurrent()
+        assertTrue(fixture.attempts.isEmpty(), "An older device cannot say it shows this code")
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.ChooseTheDeviceShowingThisCode,
+            fixture.store.state.value.shell.connect.statusMessage?.text)
+        fixture.controller.actions.onTargetSelected(fixture.store.state.value.shell.connect.discoveredTargets.single())
+        runCurrent()
+        assertEquals(listOf("192.0.2.13" to 42_425), fixture.attempts, "Tapping it sends the code")
+        fixture.controller.close()
+    }
+
+    @Test
+    fun theDeviceShowingTheCodeIsUsedOnceItReappears() = runTest {
+        val fixture = connectScreenFixture()
+        fixture.controller.actions.onConnectScreenVisibilityChanged(true)
+        fixture.resolveLegacy("Old Bedroom TV", "192.0.2.13", "old-fp")
+        runCurrent()
+        fixture.controller.actions.onPairingCodeChanged("123456")
+        runCurrent()
+        fixture.resolve("Living Room", "192.0.2.10", "tv-fp", pairable = true)
+        runCurrent()
+        assertEquals(listOf("192.0.2.10" to 42_425), fixture.attempts)
+        fixture.controller.close()
+    }
+
+    @Test
     fun aTrustedDeviceWhoseSecretCannotBeReadAsksForANewCode() = runTest {
         val fixture = connectScreenFixture(trustedTv = true, readableCredential = false)
         val device = fixture.store.state.value.shell.connect.trustedDevices.single()

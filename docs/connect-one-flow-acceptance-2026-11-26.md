@@ -84,3 +84,26 @@ Retest of findings 8–10 (same devices, rebuilt and reinstalled):
 - Found and fixed while verifying 9: after the reorder the remote's first focus landed on the
   provider tiles and scrolled the code off screen with no way back up. The code box now takes focus
   (white outline), so the TV opens on the code and Up returns to it.
+
+## Final-build check after review fixes (2026-11-27)
+
+Same phone and TV, build from the PR head after the review rounds and the merge of `main`. Audio state
+was read from `dumpsys media_session` and `dumpsys audio` rather than by ear.
+
+- Wrong code: both devices say the code didn't match and the TV shows a new code.
+- Correct code connects; the TV replaces the used code. The sheet preselects sign-in for the
+  account-less TV and does not for the signed-in TV. **Done** with sign-in ticked signs the TV in.
+- **Play on** from a playing phone: within 6 s the phone's session is PAUSED (3:25) with its audio
+  output stopped, and the TV's session is PLAYING (3:23).
+- *Your devices* → **Connect** reconnects to the TV's current identity.
+
+Findings:
+
+11. While the TV briefly dropped off discovery, the typed code went automatically to the only other
+    listed device, an older release that cannot say whether it shows a code. **Fixed**: a code is sent
+    without a tap only to a device that advertises `code=1`; older devices need a tap.
+12. "That code didn't match" stayed on screen after closing *Connect a device*. **Fixed**: code
+    results close with the panel.
+13. A TV whose app data was reset keeps its old identity under *Your devices* as a second entry with
+    the same name ("(1)"/"(2)"), and that entry cannot reconnect. Not changed here; forgetting the old
+    entry removes it.

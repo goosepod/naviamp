@@ -334,6 +334,25 @@ class NaviampCoreConnectFreshSetupTest {
     }
 
     @Test
+    fun aWrongCodeMessageClosesWithTheCodePanel() = runTest {
+        val network = ConnectTestNetwork()
+        val phone = connectPeer("phone", "mac", network, preTrusted = false, configure = realCrypto)
+        val mac = connectPeer("mac", "phone", network, preTrusted = false, configure = realCrypto)
+        try {
+            val actions = phone.actions.shell.connectActions!!
+            mac.actions.shell.connectActions!!.onStartPairingMode()
+            actions.onConnectScreenVisibilityChanged(true)
+            runCurrent()
+            actions.onPairingCodeChanged("000000")
+            runCurrent()
+            assertEquals(NaviampConnectStatusText.CodeNotVerified, phone.state.value.shell.connect.statusMessage?.text)
+            actions.onConnectScreenVisibilityChanged(false)
+            runCurrent()
+            assertNull(phone.state.value.shell.connect.statusMessage, "A code result belongs to the closed panel")
+        } finally { phone.close(); mac.close() }
+    }
+
+    @Test
     fun aWelcomeTimeoutDoesNotPinTheNextCodeToThatDevice() = runTest {
         val network = ConnectTestNetwork()
         val phone = connectPeer("phone", "mac", network, preTrusted = false,
