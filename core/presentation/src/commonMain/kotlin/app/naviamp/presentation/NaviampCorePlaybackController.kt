@@ -50,6 +50,7 @@ import app.naviamp.ui.NowPlayingQueueActionRequest
 import app.naviamp.ui.NowPlayingSleepTimerAction
 import app.naviamp.ui.NowPlayingSleepTimerActionRequest
 import app.naviamp.ui.NaviampVisualizer
+import app.naviamp.ui.NaviampStatusMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -530,7 +531,6 @@ class NaviampCorePlaybackController(
                 if (allowAutoPlay && stateStore.state.value.shell.general.interfaceSettings.startPlayingOnLaunch) {
                     effects.startOrRestore()
                 }
-                publishStatus(restored.status)
             }
             is PlaybackSessionRestorePlan.InternetRadio -> {
                 val track = restored.currentTrack ?: internetRadioTrack(restored.station)
@@ -551,7 +551,6 @@ class NaviampCorePlaybackController(
                 if (allowAutoPlay && stateStore.state.value.shell.general.interfaceSettings.startPlayingOnLaunch) {
                     effects.startOrRestore()
                 }
-                publishStatus(restored.status)
             }
         }
         if (sourceTransitionTargetId == sourceId) sourceTransitionTargetId = null
@@ -727,7 +726,7 @@ class NaviampCorePlaybackController(
             NowPlayingPlaybackAction.TogglePlayPause -> commands.playPause()
             NowPlayingPlaybackAction.Resume,
             NowPlayingPlaybackAction.PlayCurrent,
-            -> if (!commands.play()) publishStatus("Nothing is available to play.")
+            -> if (!commands.play()) publishStatus(NaviampStatusMessage.NoTracksAvailable)
             NowPlayingPlaybackAction.Seek -> request.seekSeconds?.let { seconds ->
                 commands.seek(
                     NaviampPlaybackSeekRequest(
@@ -737,24 +736,22 @@ class NaviampCorePlaybackController(
                         playbackSource = effects.playbackSource,
                         issuedAtMillis = nowEpochMillis(),
                     ),
-                ) ?: publishStatus("This stream cannot be seeked.")
-            } ?: publishStatus("Seek position is missing.")
+                ) ?: publishStatus(NaviampStatusMessage.StreamNotSeekable)
+            }
             NowPlayingPlaybackAction.Previous ->
                 navigate(queue.previousCommand(playbackSettings.previousButtonBehavior))
-                    .publishIfUnavailable("No previous track is available.")
+                    .publishIfUnavailable(NaviampStatusMessage.NoPreviousTrack)
             NowPlayingPlaybackAction.Next ->
-                navigate(queue.nextCommand()).publishIfUnavailable("No next track is available.")
+                navigate(queue.nextCommand()).publishIfUnavailable(NaviampStatusMessage.NoNextTrack)
             NowPlayingPlaybackAction.ToggleShuffle -> {
                 val update = queue.toggleUpcomingShuffle()
                 if (update.changed) effects.applyQueue(update.queue, clearPreparedNext = true)
-                else publishStatus("There are not enough upcoming tracks to shuffle.")
+                else publishStatus(NaviampStatusMessage.ShuffleNeedsMoreTracks)
             }
             NowPlayingPlaybackAction.CycleRepeatMode -> repeat.cycle()
             NowPlayingPlaybackAction.ChangeVolume -> {
                 val requested = request.volumePercent
-                if (requested == null) {
-                    publishStatus("Volume value is missing.")
-                } else {
+                if (requested != null) {
                     val softwareVolumeEnabled = effects.capabilities.supportsSoftwareVolume &&
                         stateStore.state.value.shell.capabilities.softwareVolumeControl
                     display.sleepTimer
@@ -777,16 +774,13 @@ class NaviampCorePlaybackController(
         when (request.action) {
             NowPlayingQueueAction.SaveQueueAsPlaylist -> saveQueue(request.playlistName)
             NowPlayingQueueAction.MoveToNext -> request.queueIndex?.let(mutations::moveToNext)
-                ?: publishStatus("Queue position is missing.")
             NowPlayingQueueAction.MoveQueueItem -> {
                 if (request.expectedQueue != null && request.expectedQueue != playback.state.value.queue) return
                 val fromIndex = request.queueIndex
                 val toIndex = request.destinationQueueIndex
-                if (fromIndex == null || toIndex == null) publishStatus("Queue positions are missing.")
-                else mutations.moveUpcoming(fromIndex, toIndex)
+                if (fromIndex != null && toIndex != null) mutations.moveUpcoming(fromIndex, toIndex)
             }
             NowPlayingQueueAction.RemoveFromQueue -> request.queueIndex?.let(::removeFromQueue)
-                ?: publishStatus("Queue position is missing.")
             NowPlayingQueueAction.EmptyQueue -> {
                 val capture = queueUndo?.capture()
                 val update = queue.retainCurrentOnly()
@@ -811,17 +805,17 @@ class NaviampCorePlaybackController(
     private suspend fun saveQueue(requestedName: String?) {
         val provider = providerSource.current()
         if (provider == null) {
-            publishPlaylistStatus("Connect to Navidrome to save the queue.")
+            publishPlaylistStatus(NaviampStatusMessage.ConnectionRequired, "Connect to Navidrome to save the queue.")
             return
         }
         val name = requestedName?.trim().orEmpty()
         val tracks = playback.state.value.queue.tracks.filterNot { it.id.isDiscoveryPreview() }
         when {
-            name.isEmpty() -> publishPlaylistStatus("Playlist name cannot be blank.")
-            tracks.isEmpty() -> publishPlaylistStatus("The queue is empty.")
+            name.isEmpty() -> publishPlaylistStatus(NaviampStatusMessage.PlaylistNameBlank, "Playlist name cannot be blank.")
+            tracks.isEmpty() -> publishPlaylistStatus(NaviampStatusMessage.QueueEmpty, "The queue is empty.")
             else -> runCatching { provider.createPlaylist(name, tracks.map { it.id }) }
-                .onSuccess { publishPlaylistStatus("Saved $name.") }
-                .onFailure { publishPlaylistStatus(it.message ?: "Could not save queue.") }
+                .onSuccess { publishPlaylistStatus(NaviampStatusMessage.QueueSaved(name), "Saved $name.") }
+                .onFailure { publishPlaylistStatus(NaviampStatusMessage.PlaylistFailed, it.message ?: "Could not save queue.") }
         }
     }
 
@@ -829,19 +823,13 @@ class NaviampCorePlaybackController(
         when (request.action) {
             NowPlayingSleepTimerAction.Select -> {
                 val selectionRequest = request.request
-                if (selectionRequest == null) {
-                    publishStatus("Sleep timer selection is missing.")
-                    return
-                }
+                if (selectionRequest == null) return
                 display = display.withSleepTimer(selectionRequest)
                 replaceSleepTimer(display.sleepTimer)
-                publishStatus(display.sleepTimer?.let { app.naviamp.domain.playback.sleepTimerDisplayLabel(it, display.sleepTimerNowEpochMillis) }
-                    ?: "Sleep timer")
             }
             NowPlayingSleepTimerAction.Cancel -> {
                 display = display.copy(sleepTimerNowEpochMillis = nowEpochMillis())
                 replaceSleepTimer(null)
-                publishStatus("Sleep timer canceled.")
             }
         }
     }
@@ -851,7 +839,7 @@ class NaviampCorePlaybackController(
         playback.updatePlaybackState(PlaybackState.Stopped)
         display = display.copy(sleepTimerNowEpochMillis = nowEpochMillis())
         replaceSleepTimer(null)
-        publishStatus("Sleep timer stopped playback.")
+        publishStatus(NaviampStatusMessage.SleepTimerStoppedPlayback)
         presenter.publish(display)
     }
 
@@ -870,7 +858,7 @@ class NaviampCorePlaybackController(
         display = display.copy(sleepTimer = null, sleepTimerNowEpochMillis = nowEpochMillis())
         sleepTimerFadeAwaitingResume = true
         sleepTimerFadeSawPause = false
-        publishStatus("Sleep timer stopped playback.")
+        publishStatus(NaviampStatusMessage.SleepTimerStoppedPlayback)
         presenter.publish(display)
     }
 
@@ -896,7 +884,7 @@ class NaviampCorePlaybackController(
     private fun sleepTimerReachedTrackBoundary() {
         display = display.copy(sleepTimerNowEpochMillis = nowEpochMillis())
         replaceSleepTimer(null)
-        publishStatus("Sleep timer stopped playback.")
+        publishStatus(NaviampStatusMessage.SleepTimerStoppedPlayback)
         presenter.publish(display)
     }
 
@@ -936,7 +924,7 @@ class NaviampCorePlaybackController(
         return copy(sleepTimer = selection.timer, sleepTimerNowEpochMillis = selection.nowEpochMillis)
     }
 
-    private fun PlaybackQueueNavigationCommand.publishIfUnavailable(message: String) {
+    private fun PlaybackQueueNavigationCommand.publishIfUnavailable(message: NaviampStatusMessage) {
         if (this == PlaybackQueueNavigationCommand.None) publishStatus(message)
     }
 
@@ -970,14 +958,13 @@ class NaviampCorePlaybackController(
         playback.updateCurrentTrack(queue.current)
     }
 
-    private fun publishPlaylistStatus(message: String) {
-        display = display.copy(playlistActionStatus = message)
+    /** [dialogText] keeps the playlist dialog's existing in-place line; the notice is the translated outcome. */
+    private fun publishPlaylistStatus(message: NaviampStatusMessage, dialogText: String) {
+        display = display.copy(playlistActionStatus = dialogText)
         publishStatus(message)
     }
 
-    private fun publishStatus(message: String) {
-        stateStore.update { state -> state.copy(overlays = state.overlays.copy(status = message)) }
-    }
+    private fun publishStatus(message: NaviampStatusMessage) = stateStore.publishStatus(message)
 }
 
 internal fun playbackProfileDiagnosticRows(

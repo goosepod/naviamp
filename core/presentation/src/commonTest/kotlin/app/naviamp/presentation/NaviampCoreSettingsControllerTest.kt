@@ -161,7 +161,7 @@ class NaviampCoreSettingsControllerTest {
         router.dispatch(NaviampCoreCommand.Settings.ClearLibrary)
         advanceUntilIdle()
 
-        assertEquals("Completed ClearLibrary", fixture.store.state.value.overlays.status)
+        assertEquals(app.naviamp.ui.NaviampStatusMessage.LibraryIndexCleared, fixture.store.state.value.overlays.status?.message)
     }
 
     @Test
@@ -221,7 +221,7 @@ class NaviampCoreSettingsControllerTest {
 
         assertTrue(refreshed)
         assertFalse(maintenanceCalled)
-        assertEquals("Library refreshed.", fixture.store.state.value.overlays.status)
+        assertEquals(app.naviamp.ui.NaviampStatusMessage.LibraryRefreshed, fixture.store.state.value.overlays.status?.message)
     }
 
     private fun fixture(

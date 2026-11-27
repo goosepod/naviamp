@@ -196,6 +196,14 @@ fun NaviampCoreApp(
                             app.naviamp.ui.NaviampQueueUndoNotice(app.naviamp.ui.NaviampColors.Dark, undo,
                                 onAction = { core.dispatch(NaviampCoreCommand.NowPlaying.QueueUndo(it)) })
                         }
+                        state.overlays.status?.let { notice ->
+                            app.naviamp.ui.NaviampStatusNoticeBar(
+                                app.naviamp.ui.NaviampColors.Dark, notice,
+                                onDismiss = { core.dispatch(NaviampCoreCommand.Home.DismissStatusNotice(notice.id)) },
+                                onLifetime = { action, timeout -> core.dispatch(NaviampCoreCommand.Home.NoticeLifetime(
+                                    app.naviamp.ui.NaviampTimedNoticeRequest(app.naviamp.ui.NaviampTimedNotice.Status, action, timeout))) },
+                            )
+                        }
                     }
                     core.castPickerState?.let { pickerState ->
                         val picker by pickerState.collectAsState()

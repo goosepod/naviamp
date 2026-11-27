@@ -20,7 +20,7 @@ class NaviampCoreRecentRadioController(
         val selected = command as? NaviampCoreCommand.Home.SelectRecentRadio ?: return null
         val stream = recents.current().firstOrNull { it.id == selected.item.id }
         if (stream == null) {
-            media.publish("Recent radio ${selected.item.title} is no longer available.")
+            media.publish(app.naviamp.ui.NaviampStatusMessage.ItemUnavailable)
             return NaviampCoreCommandResult.Completed
         }
         if (stream.sessionTracks.isNotEmpty()) {
@@ -29,7 +29,7 @@ class NaviampCoreRecentRadioController(
         }
         val action = recentRadioAction(stream)
         if (action == null) {
-            media.publish("Recent radio ${stream.label} is incomplete.")
+            media.publish(app.naviamp.ui.NaviampStatusMessage.ItemUnavailable)
             return NaviampCoreCommandResult.Completed
         }
         when (action) {

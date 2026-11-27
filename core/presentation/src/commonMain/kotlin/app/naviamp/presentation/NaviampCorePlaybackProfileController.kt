@@ -25,7 +25,8 @@ class NaviampCorePlaybackProfileController(
         save(PlaybackProfileTarget(PlaybackProfileTargetType.Playlist, playlistId), profile)
     }
 
-    private fun profile(target: PlaybackProfileTarget): PlaybackProfile {
+    /** The saved profile for [target] in the current source, or the inherited default. */
+    fun profile(target: PlaybackProfileTarget): PlaybackProfile {
         val sourceId = currentSourceId() ?: return PlaybackProfile()
         return repository.playbackProfile(sourceId, target)?.normalized() ?: PlaybackProfile()
     }

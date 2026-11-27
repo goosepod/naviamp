@@ -28,17 +28,17 @@ class NaviampCoreNoticeLifetimeController(
     /** The notice value each lifetime belongs to; it survives a focus pause. */
     private val owners = mutableMapOf<NaviampTimedNotice, Any>()
 
-    private data class Observed(val somethingNew: Any?, val radio: Any?, val offline: Boolean)
+    private data class Observed(val values: Map<NaviampTimedNotice, Any?>, val offline: Boolean)
 
     fun start() {
         scope.launch {
             stateStore.state.map { state ->
-                Observed(timedValue(state, NaviampTimedNotice.SomethingNew), timedValue(state, NaviampTimedNotice.Radio),
+                Observed(NaviampTimedNotice.entries.associateWith { timedValue(state, it) },
                     state.shell.connectionSettings.connection.offline)
             }.distinctUntilChanged().collect { observed ->
                 if (!observed.offline) clearOfflineNotices()
                 NaviampTimedNotice.entries.forEach { notice ->
-                    val value = if (notice == NaviampTimedNotice.SomethingNew) observed.somethingNew else observed.radio
+                    val value = observed.values[notice]
                     if (value == null) cancel(notice) else if (owners[notice] != value) schedule(notice, NaviampNoticeBaseTimeoutMillis)
                 }
             }
@@ -46,6 +46,10 @@ class NaviampCoreNoticeLifetimeController(
     }
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult {
+        if (command is NaviampCoreCommand.Home.DismissStatusNotice) {
+            if (stateStore.state.value.overlays.status?.id == command.id) clear(NaviampTimedNotice.Status)
+            return NaviampCoreImmediateCommandResult.Handled()
+        }
         val request = (command as? NaviampCoreCommand.Home.NoticeLifetime)?.request
             ?: return NaviampCoreImmediateCommandResult.Unhandled
         if (timedValue(stateStore.state.value, request.notice) != null) {
@@ -86,6 +90,7 @@ class NaviampCoreNoticeLifetimeController(
             state.copy(overlays = when (notice) {
                 NaviampTimedNotice.SomethingNew -> state.overlays.copy(somethingNewNotice = null)
                 NaviampTimedNotice.Radio -> state.overlays.copy(radioNotice = null)
+                NaviampTimedNotice.Status -> state.overlays.copy(status = null)
             })
         }
     }
@@ -94,6 +99,7 @@ class NaviampCoreNoticeLifetimeController(
     private fun timedValue(state: NaviampCoreState, notice: NaviampTimedNotice): Any? = when (notice) {
         NaviampTimedNotice.SomethingNew -> state.overlays.somethingNewNotice
         NaviampTimedNotice.Radio -> state.overlays.radioNotice?.takeIf { it.outcome == RadioBuildOutcome.Offline }
+        NaviampTimedNotice.Status -> state.overlays.status
     }
 
     private companion object {

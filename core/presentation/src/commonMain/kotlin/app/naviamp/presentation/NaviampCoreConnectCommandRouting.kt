@@ -2,10 +2,14 @@ package app.naviamp.presentation
 
 import app.naviamp.domain.connect.NaviampConnectMediaType
 import app.naviamp.domain.connect.NaviampConnectPlaybackContext
+import app.naviamp.domain.connect.NaviampConnectPlaybackProfile
 import app.naviamp.domain.connect.NaviampConnectQueueMedia
 import app.naviamp.domain.connect.NaviampConnectQueuePlacement
 import app.naviamp.domain.connect.NaviampConnectSourceIdentity
 import app.naviamp.domain.connect.NaviampConnectStartMedia
+import app.naviamp.domain.playback.PlaybackProfile
+import app.naviamp.domain.playback.PlaybackProfileTarget
+import app.naviamp.domain.playback.PlaybackProfileTargetType
 import app.naviamp.ui.NaviampAlbumDetailCommand
 import app.naviamp.ui.NaviampArtistAlbumCommand
 import app.naviamp.ui.NaviampArtistDetailCommand
@@ -24,19 +28,43 @@ internal data class NaviampCoreConnectMediaSelection(
     /** The catalog list a plain track selection came from, so the target can queue all of it. */
     val context: NaviampConnectPlaybackContext? = null,
 ) {
-    fun toCommand(sourceIdentity: NaviampConnectSourceIdentity) = NaviampConnectStartMedia(
+    fun toCommand(
+        sourceIdentity: NaviampConnectSourceIdentity,
+        playbackProfile: PlaybackProfile? = null,
+    ) = NaviampConnectStartMedia(
         mediaType = type,
         mediaId = id,
         startRadio = startRadio,
         shuffle = shuffle,
         sourceIdentity = sourceIdentity,
         context = context,
+        playbackProfile = playbackProfile?.let(NaviampConnectPlaybackProfile::from),
     )
+
+    /**
+     * The album or playlist whose playback profile governs this start, matching the local launch
+     * paths: a direct album or playlist start, or a track chosen inside one. Radio has no profile.
+     */
+    fun playbackProfileTarget(): PlaybackProfileTarget? {
+        if (startRadio) return null
+        val (mediaType, mediaId) = when (type) {
+            NaviampConnectMediaType.Album, NaviampConnectMediaType.Playlist -> type to id
+            NaviampConnectMediaType.Track -> context?.let { it.mediaType to it.mediaId } ?: return null
+            else -> return null
+        }
+        return collectionProfileTarget(mediaType, mediaId)
+    }
 
     /** Attaches the selection's list only to a plain track selection; radio and collections stay as-is. */
     fun withTrackListContext(context: NaviampConnectPlaybackContext?) =
         if (type == NaviampConnectMediaType.Track && !startRadio && context != null) copy(context = context) else this
 }
+
+private fun collectionProfileTarget(type: NaviampConnectMediaType, id: String): PlaybackProfileTarget? = when (type) {
+    NaviampConnectMediaType.Album -> PlaybackProfileTarget(PlaybackProfileTargetType.Album, id)
+    NaviampConnectMediaType.Playlist -> PlaybackProfileTarget(PlaybackProfileTargetType.Playlist, id)
+    else -> null
+}?.normalized()
 
 /**
  * Names the catalog list that local track selection would queue for [command], using the same
@@ -62,12 +90,21 @@ internal data class NaviampCoreConnectQueueSelection(
     val id: String,
     val placement: NaviampConnectQueuePlacement,
 ) {
-    fun toCommand(sourceIdentity: NaviampConnectSourceIdentity) = NaviampConnectQueueMedia(
+    fun toCommand(
+        sourceIdentity: NaviampConnectSourceIdentity,
+        playbackProfile: PlaybackProfile? = null,
+    ) = NaviampConnectQueueMedia(
         mediaType = type,
         mediaId = id,
         placement = placement,
         sourceIdentity = sourceIdentity,
+        playbackProfile = playbackProfile?.let(NaviampConnectPlaybackProfile::from),
     )
+
+    /** Only an album or playlist added as a whole forms a profile group on the target. */
+    fun playbackProfileTarget(): PlaybackProfileTarget? =
+        if (placement != NaviampConnectQueuePlacement.AddToQueue) null
+        else collectionProfileTarget(type, id)
 }
 
 internal fun NaviampCoreCommand.connectQueueSelectionOrNull(): NaviampCoreConnectQueueSelection? = when (this) {

@@ -644,7 +644,7 @@ class NaviampCoreHomeControllerTest {
         controller.execute(NaviampCoreCommand.Home.Refresh)
 
         assertFalse(store.state.value.shell.home.refreshing)
-        assertEquals("Connect to Navidrome to load Home.", store.state.value.overlays.status)
+        assertEquals(null, store.state.value.overlays.status)
     }
 
     @Test

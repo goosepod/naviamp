@@ -279,10 +279,18 @@ data class PlaybackQueue(
                 priorityTracks.any { it.id == track.id }
         }
 
+        val resultTracks = history + currentQueueTrack + priorityTracks + dedupedUpcoming
+        // Where each resulting track came from, so groups keep only the tracks that remain (#667).
+        // The replacement tracks are new (-1) and never join a group.
+        val originalIndexes = (prunedTrackCount until currentQueueIndex).toList() +
+            (if (currentQueueIndex in tracks.indices) currentQueueIndex else -1) +
+            priorityTracks.indices.map { currentIndex + 1 + it } +
+            List(dedupedUpcoming.size) { -1 }
         return PlaybackQueue(
-            tracks = history + currentQueueTrack + priorityTracks + dedupedUpcoming,
+            tracks = resultTracks,
             currentIndex = history.size,
             playNextCount = priorityTracks.size,
+            groups = normalizedGroups().afterReordering(originalIndexes, resultTracks.size),
         )
     }
 

@@ -58,14 +58,21 @@ class NaviampCoreTrackActionController(
         if (track == null) {
             // The playlist page renders its own status line; other surfaces keep the shared notice.
             if (command is NaviampCoreCommand.Detail.PlaylistTrack) publishPlaylistNotice("Track is no longer available.")
-            else media.publish("Track is no longer available.")
+            else media.publish(app.naviamp.ui.NaviampStatusMessage.TrackUnavailable)
             return NaviampCoreCommandResult.Completed
         }
         when (request.action) {
-            app.naviamp.ui.SharedTrackRowAction.Select -> if (albumContext != null) {
-                media.playAlbum(albumContext.album, tracks, index = index)
-            } else {
-                media.play(tracks, index)
+            app.naviamp.ui.SharedTrackRowAction.Select -> {
+                val playlistContext = registry.selectedPlaylist
+                    ?.takeIf { command is NaviampCoreCommand.Detail.PlaylistTrack }
+                when {
+                    albumContext != null -> media.playAlbum(albumContext.album, tracks, index = index)
+                    // Like the playlist's Play button, so its saved profile applies (#666).
+                    // The refreshed list carries a rename before the open playlist's own copy does.
+                    playlistContext != null -> media.playPlaylist(playlistContext.id,
+                        registry.playlist(playlistContext.id)?.name ?: playlistContext.name, tracks, index = index)
+                    else -> media.play(tracks, index)
+                }
             }
             app.naviamp.ui.SharedTrackRowAction.PlayNext -> media.playNext(listOf(track))
             app.naviamp.ui.SharedTrackRowAction.PlayNextTrack -> media.playNextTrack(track)
@@ -77,7 +84,7 @@ class NaviampCoreTrackActionController(
             app.naviamp.ui.SharedTrackRowAction.AddToPlaylist -> request.playlistChoice?.let { media.addToPlaylist(listOf(track), it) }
                 ?: openPlaylistMembership(track)
             app.naviamp.ui.SharedTrackRowAction.CreatePlaylistAndAdd -> request.playlistName?.let { media.createPlaylist(listOf(track), it) }
-                ?: media.publish("Playlist name is missing.")
+                ?: media.publish(app.naviamp.ui.NaviampStatusMessage.PlaylistNameBlank)
             app.naviamp.ui.SharedTrackRowAction.ToggleFavorite -> media.toggleFavorite(track)
             app.naviamp.ui.SharedTrackRowAction.GoToAlbum -> media.openAlbum(track)
             app.naviamp.ui.SharedTrackRowAction.GoToArtist -> media.openArtist(track, request.artistId, request.artistName)

@@ -88,6 +88,7 @@ class PlaybackQueueManagerTest {
                 queue = PlaybackQueue(tracks = listOf(one), currentIndex = 0),
                 tracksChanged = true,
                 status = "Added 1 track to queue.",
+                outcome = PlaybackQueueAddOutcome.AddedToQueue,
             ),
             PlaybackQueueManager().appendTracks(
                 currentQueue = PlaybackQueue(),
@@ -106,6 +107,7 @@ class PlaybackQueueManagerTest {
                 queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 0),
                 tracksChanged = true,
                 status = "Added 1 track to queue.",
+                outcome = PlaybackQueueAddOutcome.AddedToQueue,
             ),
             PlaybackQueueManager().appendTracks(
                 currentQueue = PlaybackQueue(tracks = listOf(one), currentIndex = 0),
@@ -125,6 +127,7 @@ class PlaybackQueueManagerTest {
                 queue = PlaybackQueue(tracks = listOf(one, three, two), currentIndex = 0, playNextCount = 1),
                 tracksChanged = true,
                 status = "Added 1 track to play next.",
+                outcome = PlaybackQueueAddOutcome.AddedToPlayNext,
             ),
             PlaybackQueueManager().playNextTracks(
                 currentQueue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 0),
@@ -142,6 +145,7 @@ class PlaybackQueueManagerTest {
                 queue = PlaybackQueue(tracks = listOf(one), currentIndex = 0),
                 tracksChanged = true,
                 status = "Added 1 track to play next.",
+                outcome = PlaybackQueueAddOutcome.AddedToPlayNext,
             ),
             PlaybackQueueManager().playNextTracks(
                 currentQueue = PlaybackQueue(),
@@ -160,6 +164,7 @@ class PlaybackQueueManagerTest {
                 queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 0),
                 tracksChanged = true,
                 status = "Added 1 popular tracks to queue.",
+                outcome = PlaybackQueueAddOutcome.AddedToQueue,
             ),
             PlaybackQueueManager().appendTracks(
                 currentQueue = PlaybackQueue(tracks = listOf(one), currentIndex = 0),
@@ -181,6 +186,7 @@ class PlaybackQueueManagerTest {
                 queue = currentQueue,
                 tracksChanged = false,
                 status = "No tracks found.",
+                outcome = PlaybackQueueAddOutcome.NothingFound,
             ),
             PlaybackQueueManager().appendTracks(
                 currentQueue = currentQueue,
@@ -192,6 +198,7 @@ class PlaybackQueueManagerTest {
                 queue = currentQueue,
                 tracksChanged = false,
                 status = "Popular tracks are already in the queue.",
+                outcome = PlaybackQueueAddOutcome.AlreadyQueued,
             ),
             PlaybackQueueManager().appendTracks(
                 currentQueue = currentQueue,
@@ -244,6 +251,7 @@ class PlaybackQueueManagerTest {
                     queue = nextQueue,
                     tracksChanged = true,
                     status = "Added 1 track to queue.",
+                outcome = PlaybackQueueAddOutcome.AddedToQueue,
                 ),
                 setStatus = statuses::add,
                 replaceQueue = replacements::add,
@@ -259,6 +267,7 @@ class PlaybackQueueManagerTest {
                     queue = currentQueue,
                     tracksChanged = false,
                     status = "No tracks found.",
+                outcome = PlaybackQueueAddOutcome.NothingFound,
                 ),
                 setStatus = statuses::add,
                 replaceQueue = replacements::add,

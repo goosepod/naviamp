@@ -150,6 +150,9 @@ class NaviampCoreConnectController(
     private val playbackOutputs: NaviampPlaybackOutputSelectionController = NaviampPlaybackOutputSelectionController(),
     private val trackSelectionContext: (NaviampCoreCommand) -> app.naviamp.domain.connect.NaviampConnectPlaybackContext? =
         { null },
+    /** This device's saved profile for an album or playlist, sent with remote starts (#666). */
+    private val savedPlaybackProfile: (app.naviamp.domain.playback.PlaybackProfileTarget) -> app.naviamp.domain.playback.PlaybackProfile? =
+        { null },
 ) {
     private val controllerScope = CoroutineScope(
         scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]),
@@ -566,7 +569,7 @@ class NaviampCoreConnectController(
                 publish()
                 return true
             }
-            sendRemoteCommand(queued.toCommand(identity))
+            sendRemoteCommand(queued.toCommand(identity, queued.playbackProfileTarget()?.let(::sendableProfile)))
             return true
         }
         val selection = command.connectMediaSelectionOrNull()
@@ -579,9 +582,14 @@ class NaviampCoreConnectController(
             publish()
             return true
         }
-        sendRemoteCommand(selection.toCommand(identity), activatesPlaybackAuthority = true)
+        val profile = selection.playbackProfileTarget()?.let(::sendableProfile)
+        sendRemoteCommand(selection.toCommand(identity, profile), activatesPlaybackAuthority = true)
         return true
     }
+
+    /** An inherited profile is not sent, so the target keeps its own saved one. */
+    private fun sendableProfile(target: app.naviamp.domain.playback.PlaybackProfileTarget) =
+        savedPlaybackProfile(target)?.normalized()?.takeUnless { it.isInherited }
 
     /** Shows a code while the user keeps this device's "Let another device connect" panel open. */
     private fun startPairingMode() {
