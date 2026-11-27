@@ -2,4 +2,7 @@
 <full-backup-content>
     <exclude domain="database" path="." />
     <exclude domain="sharedpref" path="naviamp_android_credentials.xml" />
+    <!-- Connect trust and resume secrets depend on Keystore keys that are never backed up. -->
+    <exclude domain="sharedpref" path="naviamp-connect-trust.xml" />
+    <exclude domain="sharedpref" path="naviamp-connect-session-credentials.xml" />
 </full-backup-content>

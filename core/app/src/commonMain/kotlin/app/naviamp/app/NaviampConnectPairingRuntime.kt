@@ -167,9 +167,10 @@ class NaviampConnectControllerPairingRuntime(
         pairingCode: CharArray,
         pairedAtEpochMillis: Long,
         trustedDeviceId: String,
+        onConnectionOpened: (NaviampConnectTransportConnection) -> Unit = {},
     ): NaviampConnectPairingRuntimeResult = pairAtEndpoint(
         host, advertisement.port, advertisement.protocolRange, advertisement.identityFingerprint,
-        pairingCode, pairedAtEpochMillis, trustedDeviceId, {},
+        pairingCode, pairedAtEpochMillis, trustedDeviceId, onConnectionOpened,
     )
 
     /** Manual addresses supply a route only; the code exchange and signed identity establish trust. */

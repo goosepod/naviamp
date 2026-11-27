@@ -93,14 +93,12 @@ class NaviampTelevisionLocalizationTest {
         runComposeUiTest {
             setContent {
                 val state = NaviampConnectSettingsUi(
-                    status = "Diagnostic fallback",
                     statusMessage = NaviampConnectStatusMessage(
                         NaviampConnectStatusText.ReconnectedToDevice, listOf("Sala % café")),
                 )
                 Text(state.displayStatus().orEmpty())
             }
             onNodeWithText("Se ha vuelto a conectar con Sala % café.").assertExists()
-            onNodeWithText("Diagnostic fallback").assertDoesNotExist()
         }
     }
 

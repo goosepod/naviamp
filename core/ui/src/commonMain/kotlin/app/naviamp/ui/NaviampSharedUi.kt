@@ -445,6 +445,14 @@ private fun NaviampSharedAppShellContent(
                 onDismissRequest = { radioDjCreationOpen = false },
             )
         }
+        uiState.connect.postConnect?.let { postConnect ->
+            connectActions?.let { actions ->
+                NaviampConnectPostConnectDialog(postConnect, colors, uiState.connect, actions)
+            }
+        }
+        if (shouldShowConnectCredentialPrompt(uiState.connect)) connectActions?.let { actions ->
+            NaviampConnectCredentialDialog(uiState.connect, colors, actions)
+        }
         uiState.connect.sourceMismatchRecovery?.let { recovery ->
             NaviampConnectSourceMismatchDialog(
                 recovery = recovery,

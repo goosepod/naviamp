@@ -128,6 +128,10 @@ data class NaviampConnectAdvertisement(
     val port: Int,
     val identityFingerprint: String,
     val expiresAtEpochMillis: Long,
+    /** True while the device is showing a code that accepts new connections. */
+    val pairable: Boolean = true,
+    /** True when the advertisement carried the flag; protocol-v1 targets omit it. */
+    val codeFlagAdvertised: Boolean = false,
 ) {
     init {
         require(instanceId.isNotBlank()) { "A discovery instance ID is required." }
@@ -256,6 +260,8 @@ data class NaviampConnectWelcome(
     val initialSetupAllowed: Boolean = false,
     /** Additive negotiation: older targets must not silently discard an attached account. */
     val companionProvisioningSupported: Boolean = false,
+    /** Additive: whether the target has any saved account; null from targets that predate it. */
+    val hasSavedAccounts: Boolean? = null,
 ) : NaviampConnectMessage
 
 /** An opaque PAKE exchange payload. A short code is never placed in a wire message. */

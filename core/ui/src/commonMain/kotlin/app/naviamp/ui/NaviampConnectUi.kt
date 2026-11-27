@@ -19,7 +19,7 @@ internal fun NaviampConnectSettingsUi.displayStatus(): String? = recovery?.descr
         app.naviamp.ui.generated.resources.Res.string.connect_remote_unavailable)
     NaviampConnectStatusNotice.ConnectionTimedOut -> org.jetbrains.compose.resources.stringResource(
         app.naviamp.ui.generated.resources.Res.string.connect_connection_timed_out)
-    null -> statusMessage?.localized() ?: status
+    null -> statusMessage?.localized()
 }
 
 enum class NaviampConnectUiRole {
@@ -32,7 +32,6 @@ enum class NaviampConnectPairingUiPhase {
     Inactive,
     Starting,
     Advertising,
-    AwaitingApproval,
     AwaitingCode,
     Handshaking,
     Paired,
@@ -60,9 +59,19 @@ data class NaviampConnectTrustedDeviceUi(
     val deviceId: String,
     val displayName: String,
     val localAlias: String? = null,
-    val detail: String,
     val reconnectAvailable: Boolean = false,
     val playbackTarget: Boolean = false,
+)
+
+/** Shown on the connecting device right after a code connection. */
+data class NaviampConnectPostConnectUi(
+    val deviceName: String,
+    /** The other device can be set up and this device has a current account to send. */
+    val canSignIn: Boolean,
+    val signInSelected: Boolean,
+    val deviceHasAccounts: Boolean,
+    val canPlayOn: Boolean,
+    val busy: Boolean = false,
 )
 
 data class NaviampConnectSourceMismatchUi(
@@ -75,10 +84,15 @@ data class NaviampConnectSettingsUi(
     val role: NaviampConnectUiRole = NaviampConnectUiRole.Controller,
     val pairingPhase: NaviampConnectPairingUiPhase = NaviampConnectPairingUiPhase.Inactive,
     val pairingCode: String? = null,
+    /** True while this device's "Let another device connect" panel is open. */
+    val codeVisible: Boolean = false,
+    val pairingCodeExpiresAtEpochMillis: Long? = null,
     val enteredPairingCode: String = "",
-    val pendingControllerName: String? = null,
+    /** True while the "Connect a device" panel is open; discovery runs only then. */
+    val connectScreenVisible: Boolean = false,
+    /** An outgoing code handshake is running; code entry waits for its result. */
+    val codeEntryBusy: Boolean = false,
     val selectedTargetId: String? = null,
-    val status: String? = null,
     val statusMessage: NaviampConnectStatusMessage? = null,
     val notice: NaviampConnectStatusNotice? = null,
     val recovery: NaviampConnectRecoveryUi? = null,
@@ -101,10 +115,9 @@ data class NaviampConnectSettingsUi(
     val canReceiveRemoteQueue: Boolean = false,
     val canProvisionTarget: Boolean = false,
     val sourceMismatchRecovery: NaviampConnectSourceMismatchUi? = null,
+    val postConnect: NaviampConnectPostConnectUi? = null,
     val needsProvisioningCredential: Boolean = false,
     val provisioningBusy: Boolean = false,
-    val pendingProvisioningControllerName: String? = null,
-    val pendingProvisioningConnectionName: String? = null,
     val discoveredTargets: List<NaviampConnectDiscoveredTargetUi> = emptyList(),
     val trustedDevices: List<NaviampConnectTrustedDeviceUi> = emptyList(),
     val listeningPort: Int? = null,
@@ -127,7 +140,6 @@ data class NaviampConnectSettingsUi(
 data class NaviampConnectSettingsActions(
     val onStartPairingMode: () -> Unit,
     val onStopPairingMode: () -> Unit,
-    val onRefreshTargets: () -> Unit,
     val onTargetSelected: (NaviampConnectDiscoveredTargetUi) -> Unit,
     val onTrustedDeviceSelected: (NaviampConnectTrustedDeviceUi) -> Unit,
     val onPlaybackDeviceSelected: (String?) -> Unit,
@@ -136,8 +148,6 @@ data class NaviampConnectSettingsActions(
     val onForgetTrustedDevice: (String) -> Unit,
     val onPairingCodeChanged: (String) -> Unit,
     val onSubmitPairingCode: () -> Unit,
-    val onApproveController: () -> Unit,
-    val onRejectController: () -> Unit,
     val onRemotePrevious: () -> Unit,
     val onRemotePlayPause: () -> Unit,
     val onRemoteNext: () -> Unit,
@@ -145,8 +155,6 @@ data class NaviampConnectSettingsActions(
     val onRemoteHandoffQueue: () -> Unit,
     val onReceiveRemoteQueue: () -> Unit,
     val onProvisionTarget: () -> Unit,
-    val onApproveProvisioning: () -> Unit,
-    val onRejectProvisioning: () -> Unit,
     val onDismissSourceMismatchRecovery: () -> Unit,
     val remoteNowPlayingActions: NaviampNowPlayingActions,
     val onSubmitProvisioningCredential: (String) -> Unit = {},
@@ -155,6 +163,12 @@ data class NaviampConnectSettingsActions(
     val onOpenPermissionSettings: () -> Unit = {},
     val onManualEndpointSelected: (String) -> Unit = {},
     val onManualTrustedEndpointSelected: (NaviampConnectTrustedDeviceUi, String) -> Unit = { _, _ -> },
+    val onConnectScreenVisibilityChanged: (Boolean) -> Unit = {},
+    val onPostConnectSignInChanged: (Boolean) -> Unit = {},
+    val onPostConnectPlayOnDevice: () -> Unit = {},
+    val onPostConnectDone: () -> Unit = {},
+    /** Back, Escape or tapping outside: close the sheet without sending anything. */
+    val onPostConnectDismiss: () -> Unit = {},
 )
 
 fun disambiguateNaviampConnectDeviceNames(names: List<String>): List<String> {

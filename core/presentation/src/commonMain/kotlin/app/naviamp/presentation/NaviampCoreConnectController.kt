@@ -190,6 +190,19 @@ class NaviampCoreConnectController(
     private val playbackDestination = NaviampConnectPlaybackDestinationController(playbackOutputs)
     private var listener: NaviampConnectTransportListener? = null
     private var listenerJob: Job? = null
+    /** Registered endpoint for trusted resume; it exists without any code being shown. */
+    private var presenceAdvertisement: NaviampConnectAdvertisement? = null
+    /** True while the user keeps the code panel open; only then does a code exist. */
+    private var codeVisible = false
+    /** Failed code attempts while the panel stays open; each failure rotates the code. */
+    private var codeFailures = 0
+    private var codeRetryJob: Job? = null
+    private var connectScreenVisible = false
+    private var codeTargetWaitJob: Job? = null
+    /** An outgoing code handshake is running; a background trusted reconnect does not count. */
+    private var codePairingInFlight = false
+    /** The code chose [selectedTarget] itself; a failed attempt drops it so the next code uses fresh discovery. */
+    private var codeTargetAutoSelected = false
     private var acceptedPairingConnection: NaviampConnectTransportConnection? = null
     private var pairingExpiryJob: Job? = null
     private var activePairingHandshake: NaviampConnectPendingTargetPairing? = null
@@ -240,12 +253,16 @@ class NaviampCoreConnectController(
         }
     private var pendingProvisioning: NaviampConnectOfferConnectionProvisioning? = null
     private var pendingProvisioningSession: NaviampConnectAuthenticatedSession? = null
-    private var pendingProvisioningControllerName: String? = null
     private var needsProvisioningCredential = false
     private var provisioningCredentialSourceId: String? = null
-    private val initialSetupAuthorization = app.naviamp.app.NaviampConnectInitialSetupAuthorization()
-    private var codePairingOfferId: String? = null
     private var controllerInitialSetupAllowed = false
+    private var postConnectOpen = false
+    private var postConnectSignIn = false
+    private var postConnectDeviceHasAccounts = false
+    private var postConnectSignInFailed = false
+    private var controllerTargetHasSavedAccounts = false
+    /** Set while sheet-started sign-in runs: true = then play on the device, false = then stop. */
+    private var postConnectPendingPlay: Boolean? = null
     private var controllerCompanionProvisioningSupported = false
     private var controllerSetupNeedsNewCode = false
     private var controllerProvisioningBusy = false
@@ -282,11 +299,15 @@ class NaviampCoreConnectController(
     )
 
     val actions = NaviampConnectSettingsActions(
-        onStartPairingMode = { startPairingMode(explicitCodeConsent = true) },
+        onStartPairingMode = ::startPairingMode,
         onRetryConnection = ::retryConnection,
         onOpenPermissionSettings = ::openPermissionSettings,
         onStopPairingMode = ::stopPairingMode,
-        onRefreshTargets = ::refreshTargets,
+        onConnectScreenVisibilityChanged = ::changeConnectScreenVisibility,
+        onPostConnectSignInChanged = { selected -> postConnectSignIn = selected && postConnectCanSignIn(); publish() },
+        onPostConnectPlayOnDevice = { finishPostConnect(playOnDevice = true) },
+        onPostConnectDone = { finishPostConnect(playOnDevice = false) },
+        onPostConnectDismiss = ::dismissPostConnect,
         onTargetSelected = ::selectTarget,
         onManualEndpointSelected = ::selectManualEndpoint,
         onManualTrustedEndpointSelected = ::reconnectTrustedDeviceAtAddress,
@@ -297,8 +318,6 @@ class NaviampCoreConnectController(
         onForgetTrustedDevice = ::forgetTrustedDevice,
         onPairingCodeChanged = ::changePairingCode,
         onSubmitPairingCode = ::submitPairingCode,
-        onApproveController = ::approveController,
-        onRejectController = ::rejectController,
         onRemotePrevious = { sendRemoteCommand(NaviampConnectPrevious) },
         onRemotePlayPause = { sendRemoteCommand(NaviampConnectTogglePlayPause) },
         onRemoteNext = { sendRemoteCommand(NaviampConnectNext) },
@@ -317,8 +336,6 @@ class NaviampCoreConnectController(
             provisioningCredentialSourceId = null
             publish()
         },
-        onApproveProvisioning = ::approveProvisioning,
-        onRejectProvisioning = ::rejectProvisioning,
         onDismissSourceMismatchRecovery = ::dismissSourceMismatchRecovery,
         remoteNowPlayingActions = createNaviampCoreConnectRemoteNowPlayingActions(
             snapshot = { controllerSession?.state?.value?.snapshot },
@@ -351,16 +368,18 @@ class NaviampCoreConnectController(
             .onSuccess {
                 status = "This device is now named ${it ?: services.displayName}."
                 statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ThisDeviceIsNowNamedDevice, listOf(it ?: services.displayName))
-                val restartAdvertising = phase == NaviampConnectPairingUiPhase.Advertising
-                if (restartAdvertising) {
-                    stopPairingMode()
-                    startPairingMode()
-                } else {
-                    publish()
+                // The advertised name is part of presence; a visible code is reissued with it.
+                when {
+                    codeVisible -> issueCode()
+                    presenceAdvertisement != null -> {
+                        ensurePresence(pairable = false)
+                        publish()
+                    }
+                    else -> publish()
                 }
             }
             .onFailure {
-                status = it.message
+                report(NaviampConnectStatusText.RequestFailed)
                 publish()
             }
     }
@@ -369,7 +388,7 @@ class NaviampCoreConnectController(
         runCatching { services.trust.setAlias(trustedDeviceId, alias) }
             .onSuccess { publish() }
             .onFailure {
-                status = it.message
+                report(NaviampConnectStatusText.RequestFailed)
                 publish()
             }
     }
@@ -412,7 +431,7 @@ class NaviampCoreConnectController(
                             is NaviampConnectAdvertisingStatus.Advertising -> {
                                 phase = NaviampConnectPairingUiPhase.Advertising
                                 status = "Ready for a controller on this local network."
-                                statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ReadyForAControllerOnThisLocalNetwork)
+                                statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ReadyEnterThisCode)
                             }
                             is NaviampConnectAdvertisingStatus.Failed -> {
                                 handleAdvertisingFailure(value)
@@ -420,6 +439,9 @@ class NaviampCoreConnectController(
                             NaviampConnectAdvertisingStatus.Idle -> Unit
                             is NaviampConnectAdvertisingStatus.Starting -> Unit
                         }
+                        publish()
+                    } else if (value is NaviampConnectAdvertisingStatus.Failed && presenceAdvertisement != null) {
+                        handleAdvertisingFailure(value)
                         publish()
                     }
                 }
@@ -463,7 +485,11 @@ class NaviampCoreConnectController(
     }
 
     fun close() {
-        stopPairingMode()
+        codeVisible = false
+        pendingTargetPairing?.reject()
+        pendingTargetPairing = null
+        closeTargetResources()
+        targetPairing.stop()
         automaticReconnectRetryJob?.cancel()
         automaticReconnectRetryJob = null
         closeAuthenticatedSession()
@@ -567,85 +593,95 @@ class NaviampCoreConnectController(
     private fun sendableProfile(target: app.naviamp.domain.playback.PlaybackProfileTarget) =
         savedPlaybackProfile(target)?.normalized()?.takeUnless { it.isInherited }
 
-    private fun startPairingMode(explicitCodeConsent: Boolean = false, preserveAdvertisement: Boolean = false) {
+    /** Shows a code while the user keeps this device's "Let another device connect" panel open. */
+    private fun startPairingMode() {
         if (!canPlayRemotely || advertising == null) return
+        // Record the panel's state now; a still-loading identity only delays the code.
+        codeVisible = true
         if (identityState.value !is IdentityState.Ready) {
-            withIdentity { startPairingMode(explicitCodeConsent, preserveAdvertisement) }
+            withIdentity { if (codeVisible) showFreshCode() }
             return
         }
+        showFreshCode()
+    }
+
+    private fun showFreshCode() {
+        codeFailures = 0
         advertisingFailure = null
         settingsOpenFailed = false
-        val existingListener = listener
-        // Pairing consumes a code, not the DNS-SD endpoint. Rotating the next offer must not tear
-        // down native registration after Welcome: a blocking DNS goodbye can starve live heartbeats.
-        // Keep the original expiry; explicit code requests and expired advertisements still renew.
-        val reusableAdvertisement = if (preserveAdvertisement && existingListener != null) {
-            (advertising.state.value as? NaviampConnectAdvertisingStatus.Advertising)?.advertisement
-                ?.takeIf { it.expiresAtEpochMillis > services.nowEpochMillis() }
-        } else null
-        if (existingListener == null) {
-            stopPairingMode()
-        } else {
-            resetPairingOfferKeepingListener(stopAdvertising = reusableAdvertisement == null)
-        }
-        phase = NaviampConnectPairingUiPhase.Starting
-        status = "Starting secure pairing…"
-        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.StartingSecurePairing)
+        issueCode()
+    }
+
+    /** Replaces any current offer with a fresh code on the persistent presence endpoint. */
+    private fun issueCode() {
+        val advertisingController = advertising ?: return
+        codeRetryJob?.cancel()
+        codeRetryJob = null
+        resetPairingOfferKeepingListener()
         val code = services.newPairingCode().filter(Char::isDigit).take(6)
         if (code.length != 6) {
-            fail("Could not create a secure six-digit pairing code.")
+            fail(NaviampConnectStatusText.CouldNotCreateCode)
             return
         }
-        try {
-            val boundListener = existingListener ?: services.transport.listen(services.pairingListenPort)
-            listener = boundListener
-            val now = services.nowEpochMillis()
-            val advertisement = reusableAdvertisement ?: NaviampConnectAdvertisement(
+        val presence = ensurePresence(pairable = true) ?: return
+        val now = services.nowEpochMillis()
+        // The offer shares the presence identity but carries its own lifetime; rotating the code
+        // never re-registers DNS-SD, so a live session is not disturbed by a DNS goodbye.
+        val offer = presence.copy(expiresAtEpochMillis = now + services.pairingLifetimeMillis)
+        val pairingSessionId = services.newOpaqueId()
+        targetPairing.start(offer, pairingSessionId, code, now)
+        if (advertisingController.state.value is NaviampConnectAdvertisingStatus.Advertising) {
+            phase = NaviampConnectPairingUiPhase.Advertising
+            status = "Ready for a controller on this local network."
+            statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ReadyEnterThisCode)
+        } else {
+            phase = NaviampConnectPairingUiPhase.Starting
+            status = "Starting secure pairing…"
+            statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.StartingSecurePairing)
+        }
+        pairingExpiryJob = controllerScope.launch {
+            delay((offer.expiresAtEpochMillis - services.nowEpochMillis()).coerceAtLeast(0L))
+            pairingExpiryJob = null
+            if (targetPairing.expireIfNeeded(services.nowEpochMillis()) && codeVisible) issueCode()
+        }
+        publish()
+    }
+
+    /**
+     * Keeps the listener and DNS-SD registration alive for trusted resume. [pairable] only changes
+     * the advertised "showing a code" flag; it never creates a code.
+     */
+    private fun ensurePresence(pairable: Boolean): NaviampConnectAdvertisement? {
+        val advertisingController = advertising ?: return null
+        if (identityState.value !is IdentityState.Ready) return null
+        return try {
+            val boundListener = listener ?: services.transport.listen(services.pairingListenPort).also { listener = it }
+            val name = localTargetDevice.displayName
+            val current = presenceAdvertisement?.takeIf { it.port == boundListener.port && it.displayName == name }
+            val presence = (current ?: NaviampConnectAdvertisement(
                 instanceId = services.newOpaqueId(),
-                displayName = localTargetDevice.displayName,
+                displayName = name,
                 protocolRange = NaviampConnectProtocolRange(),
                 deviceCapabilities = localTargetDevice.deviceCapabilities,
-                capabilities = if (targetPlayback != null) {
-                    supportedTargetCapabilities
-                } else {
-                    services.targetCapabilities
-                },
+                capabilities = if (targetPlayback != null) supportedTargetCapabilities else services.targetCapabilities,
                 port = boundListener.port,
                 identityFingerprint = localIdentity.identityFingerprint,
-                expiresAtEpochMillis = now + services.pairingLifetimeMillis,
-            )
-            targetPairing.start(advertisement, services.newOpaqueId(), code, now)
-            codePairingOfferId = advertisement.instanceId
-            if (explicitCodeConsent) {
-                initialSetupAuthorization.showCode(advertisement.instanceId, advertisement.expiresAtEpochMillis,
-                    targetIsEmpty = targetIsEmpty())
+                expiresAtEpochMillis = Long.MAX_VALUE,
+            )).copy(pairable = pairable)
+            presenceAdvertisement = presence
+            if (registeredAdvertisement() != presence) {
+                advertisingFailure = null
+                advertisingController.start(presence)
             }
-            if (reusableAdvertisement == null) advertising.start(advertisement)
-            else phase = NaviampConnectPairingUiPhase.Advertising
-            (advertising.state.value as? NaviampConnectAdvertisingStatus.Failed)?.let {
+            (advertisingController.state.value as? NaviampConnectAdvertisingStatus.Failed)?.let {
                 handleAdvertisingFailure(it)
                 publish()
-                return
-            }
-            pairingExpiryJob = controllerScope.launch {
-                delay((advertisement.expiresAtEpochMillis - services.nowEpochMillis()).coerceAtLeast(0L))
-                pairingExpiryJob = null
-                if (targetPairing.expireIfNeeded(services.nowEpochMillis())) {
-                    advertising.refreshExpiry()
-                    if (services.trust.load().isNotEmpty()) {
-                        startPairingMode()
-                    } else {
-                        closeTargetResources()
-                        phase = NaviampConnectPairingUiPhase.Failed
-                        status = NaviampConnectErrorCode.PairingExpired.userMessage()
-                        publish()
-                    }
-                }
+                return null
             }
             if (listenerJob?.isActive != true) {
                 listenerJob = controllerScope.launch { acceptPairingRequests(boundListener) }
             }
-            publish()
+            presence
         } catch (failure: CancellationException) {
             throw failure
         } catch (failure: Exception) {
@@ -653,7 +689,14 @@ class NaviampCoreConnectController(
                 failure.message ?: "Could not start Naviamp Connect pairing.",
             ))
             publish()
+            null
         }
+    }
+
+    private fun registeredAdvertisement(): NaviampConnectAdvertisement? = when (val current = advertising?.state?.value) {
+        is NaviampConnectAdvertisingStatus.Starting -> current.advertisement
+        is NaviampConnectAdvertisingStatus.Advertising -> current.advertisement
+        else -> null
     }
 
     private suspend fun acceptPairingRequests(boundListener: NaviampConnectTransportListener) {
@@ -661,22 +704,21 @@ class NaviampCoreConnectController(
             while (listener === boundListener) {
                 val connection = boundListener.accept()
                 acceptedPairingConnection = connection
-                var initialFailureStatus: String? = null
+                var initialFailure: NaviampConnectStatusText? = null
                 val initialEnvelope = try {
                     receiveInitialConnectEnvelopeWithDeadline(connection)
                 } catch (failure: CancellationException) {
                     throw failure
                 } catch (_: Exception) {
-                    initialFailureStatus = "An incomplete connection request closed. Still waiting for a controller."
+                    initialFailure = NaviampConnectStatusText.IncompleteConnectionRequestClosed
                     null
                 }
                 if (initialEnvelope == null) {
                     connection.close()
                     acceptedPairingConnection = null
                     if (listener !== boundListener) return
-                    phase = NaviampConnectPairingUiPhase.Advertising
-                    status = initialFailureStatus
-                        ?: "An incomplete connection request timed out. Still waiting for a controller."
+                    if (codeVisible) phase = NaviampConnectPairingUiPhase.Advertising
+                    report(initialFailure ?: NaviampConnectStatusText.IncompleteConnectionRequestTimedOut)
                     publish()
                     continue
                 }
@@ -687,8 +729,15 @@ class NaviampCoreConnectController(
                     if (resumed) continue
                     phase = NaviampConnectPairingUiPhase.Advertising
                     status = "A trusted reconnect could not be authenticated. Still waiting for a controller."
-                    statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ATrustedReconnectCouldNotBeAuthenticatedStillWaitingForAController)
+                    statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.KnownDeviceCouldNotReconnect)
                     publish()
+                    continue
+                }
+                if (targetPairing.state !is app.naviamp.domain.connect.NaviampConnectTargetPairingState.Advertising) {
+                    // New connections are accepted only while this device shows a code.
+                    connection.close()
+                    acceptedPairingConnection = null
+                    if (listener !== boundListener) return
                     continue
                 }
                 val runtime = NaviampConnectTargetPairingRuntime(
@@ -706,7 +755,7 @@ class NaviampCoreConnectController(
                     if (listener !== boundListener) return
                     phase = NaviampConnectPairingUiPhase.Advertising
                     status = "An incomplete pairing request timed out. Still waiting for a controller."
-                    statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.AnIncompletePairingRequestTimedOutStillWaitingForAController)
+                    statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.IncompleteConnectionRequestTimedOut)
                     publish()
                     continue
                 }
@@ -715,24 +764,27 @@ class NaviampCoreConnectController(
                         acceptedPairingConnection = null
                         pendingTargetPairing?.reject()
                         pendingTargetPairing = result.request
-                        if (codePairingOfferId?.let {
-                                initialSetupAuthorization.acceptsCodePairing(it, services.nowEpochMillis())
-                            } == true) {
-                            approveController()
-                            return
-                        }
-                        phase = NaviampConnectPairingUiPhase.AwaitingApproval
-                        status = "${result.request.controller.displayName} wants to pair."
-                        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.DeviceWantsToPair, listOf(result.request.controller.displayName))
-                        publish()
+                        // A request exists only while this device shows its code: that is the consent.
+                        approveController()
                         return
                     }
                     is NaviampConnectTargetPairingRequestResult.Rejected -> {
                         acceptedPairingConnection = null
-                        if (targetPairing.expireIfNeeded(services.nowEpochMillis())) return
+                        // This loop also serves trusted resume: an expired offer is replaced, never fatal.
+                        // The handshake may already have marked the offer expired; either way show a new code.
+                        if (targetPairing.state !is app.naviamp.domain.connect.NaviampConnectTargetPairingState.Advertising ||
+                            targetPairing.expireIfNeeded(services.nowEpochMillis())
+                        ) {
+                            val limited = (targetPairing.state as? app.naviamp.domain.connect.NaviampConnectTargetPairingState.Failed)
+                                ?.code == NaviampConnectErrorCode.RateLimited
+                            // A rate-limited offer counts toward the lockout instead of rotating freely.
+                            if (limited) codeAttemptFailed() else if (codeVisible && codeRetryJob == null) issueCode()
+                            publish()
+                            continue
+                        }
                         phase = NaviampConnectPairingUiPhase.Advertising
                         status = "Pairing request rejected. Still waiting for a controller."
-                        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.PairingRequestRejectedStillWaitingForAController)
+                        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ConnectionAttemptDeclined)
                         publish()
                     }
                 }
@@ -740,7 +792,10 @@ class NaviampCoreConnectController(
         } catch (failure: CancellationException) {
             throw failure
         } catch (failure: Exception) {
-            if (listener === boundListener) fail(failure.message ?: "The pairing connection closed.")
+            if (listener === boundListener) {
+                fail(NaviampConnectStatusText.RequestFailed)
+                restorePresenceLater()
+            }
         } finally {
             acceptedPairingConnection?.close()
             acceptedPairingConnection = null
@@ -790,14 +845,10 @@ class NaviampCoreConnectController(
             connection.close()
             return false
         }
-        val advertisement = when (val current = targetPairing.state) {
-            is app.naviamp.domain.connect.NaviampConnectTargetPairingState.Advertising -> current.advertisement
-            is app.naviamp.domain.connect.NaviampConnectTargetPairingState.AwaitingApproval -> current.advertising.advertisement
-            else -> {
-                credential.fill(0)
-                connection.close()
-                return false
-            }
+        val advertisement = presenceAdvertisement ?: run {
+            credential.fill(0)
+            connection.close()
+            return false
         }
         val runtime = app.naviamp.app.NaviampConnectTargetResumptionRuntime(
             localDevice = localTargetDevice,
@@ -843,7 +894,6 @@ class NaviampCoreConnectController(
 
     private fun approveController() {
         val pending = pendingTargetPairing ?: return
-        val consentOfferId = codePairingOfferId
         pendingTargetPairing = null
         phase = NaviampConnectPairingUiPhase.Handshaking
         status = "Authenticating ${pending.controller.displayName}…"
@@ -865,19 +915,8 @@ class NaviampCoreConnectController(
                     NaviampConnectErrorCode.AuthenticationRequired,
                 ),
                 localRole = NaviampConnectDeviceRole.Target,
-                consentOfferId = consentOfferId,
             )
         }
-    }
-
-    private fun rejectController() {
-        pendingTargetPairing?.reject()
-        pendingTargetPairing = null
-        closeTargetResources()
-        phase = NaviampConnectPairingUiPhase.Inactive
-        status = "Pairing request rejected."
-        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.PairingRequestRejected)
-        publish()
     }
 
     private fun handleAdvertisingFailure(failure: NaviampConnectAdvertisingStatus.Failed) {
@@ -914,7 +953,7 @@ class NaviampCoreConnectController(
         if (identityState.value is IdentityState.Unavailable) {
             loadIdentity()
             withIdentity {
-                ensureTrustedTargetListener()
+                if (codeVisible) showFreshCode() else ensureTrustedTargetListener()
                 if (canControl) beginAutomaticTrustedReconnect()
             }
             publish()
@@ -931,26 +970,73 @@ class NaviampCoreConnectController(
             }
             else -> Unit
         }
-        if (retryAdvertising) startPairingMode(explicitCodeConsent = true)
+        if (retryAdvertising) { if (codeVisible) issueCode() else ensureTrustedTargetListener() }
         publish()
     }
 
-    private fun refreshTargets() {
+    /** Discovery runs while the "Connect a device" panel is open (or a trusted reconnect needs it). */
+    private fun changeConnectScreenVisibility(visible: Boolean) {
         if (!canControl || discovery == null) return
-        // Browsing is independent of an authenticated session. Choosing another target owns
-        // replacement; refreshing discovery must not detach either an incoming or outgoing peer.
+        connectScreenVisible = visible
+        codeTargetWaitJob?.cancel()
+        codeTargetWaitJob = null
         if (authenticatedSession == null) {
-            suspendAutomaticReconnectForManualPairing()
-            playbackDestination.reconnecting()
             selectedTarget = null
             selectedManualEndpoint = null
             enteredCode = ""
+            if (phase == NaviampConnectPairingUiPhase.AwaitingCode) phase = NaviampConnectPairingUiPhase.Inactive
         }
+        if (visible) {
+            status = "Searching this local network…"
+            statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.SearchingThisLocalNetwork)
+            discovery.start()
+        } else {
+            // Panel-only messages must not outlive the panel.
+            if (statusMessage?.text in ConnectPanelStatuses) report(null)
+            if (pendingTrustedDeviceId == null && reconnectJob?.isActive != true) discovery.stop()
+        }
+        publish()
+    }
+
+    /** Devices that are showing a code right now, excluding this device. */
+    private fun pairableTargets(
+        targets: List<NaviampConnectDiscoveredTarget> = discovery?.state?.value?.targets.orEmpty(),
+    ): List<NaviampConnectDiscoveredTarget> {
+        val ownFingerprint = (identityState.value as? IdentityState.Ready)?.identity?.identityFingerprint
+        return targets.filter { it.advertisement.pairable && it.advertisement.identityFingerprint != ownFingerprint }
+    }
+
+    /** Devices that explicitly say they show a code; only these receive a typed code without a tap. */
+    private fun codeAnnouncingTargets(
+        targets: List<NaviampConnectDiscoveredTarget> = discovery?.state?.value?.targets.orEmpty(),
+    ): List<NaviampConnectDiscoveredTarget> = pairableTargets(targets).filter { it.advertisement.codeFlagAdvertised }
+
+    /** A code typed before discovery found its device waits briefly for one to appear. */
+    private fun awaitCodeTarget() {
+        val discoveryController = discovery ?: return
+        if (codeTargetWaitJob?.isActive == true) return
+        discoveryController.start()
         status = "Searching this local network…"
         statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.SearchingThisLocalNetwork)
-        discovery.stop()
-        discovery.start()
         publish()
+        codeTargetWaitJob = controllerScope.launch {
+            val found = withTimeoutOrNull(CodeTargetWaitMillis) {
+                discoveryController.state.first { codeAnnouncingTargets(it.targets).isNotEmpty() }
+            }
+            codeTargetWaitJob = null
+            if (enteredCode.length != 6) return@launch
+            if (found == null) {
+                status = null
+                // Older devices cannot say whether they show this code, so the user taps the right one.
+                statusMessage = NaviampConnectStatusMessage(
+                    if (pairableTargets().isNotEmpty()) NaviampConnectStatusText.ChooseTheDeviceShowingThisCode
+                    else NaviampConnectStatusText.NoDeviceShowingACode,
+                )
+                publish()
+            } else {
+                submitPairingCode()
+            }
+        }
     }
 
     private fun reconnectTrustedDevice(device: NaviampConnectTrustedDeviceUi) {
@@ -959,8 +1045,7 @@ class NaviampCoreConnectController(
         val discoveryController = discovery ?: return
         val trust = services.trust.load().firstOrNull { it.trustedDeviceId == device.deviceId } ?: return
         if (services.credentials?.contains(trust.peerDevice.deviceId) != true) {
-            status = "Pair with ${trust.displayName} once more to enable secure reconnect."
-            statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.PairWithDeviceOnceMoreToEnableSecureReconnect, listOf(trust.displayName))
+            report(NaviampConnectStatusText.ConnectAgainWithANewCode, trust.visibleDisplayName())
             publish()
             return
         }
@@ -1030,6 +1115,18 @@ class NaviampCoreConnectController(
             withIdentity { startTrustedReconnect(trust, target, manual) }
             return
         }
+        // A secret that exists but cannot be read (for example restored from a backup without its
+        // Keystore key) can never resume; ask for a new code instead of retrying an "unreachable" peer.
+        val storedSecret = services.credentials?.read(trust.peerDevice.deviceId)
+        if (storedSecret == null) {
+            pendingTrustedDeviceId = null
+            playbackDestination.unavailable()
+            phase = NaviampConnectPairingUiPhase.Failed
+            report(NaviampConnectStatusText.ConnectAgainWithANewCode, trust.visibleDisplayName())
+            publish()
+            return
+        }
+        storedSecret.fill(0)
         pendingTrustedDeviceId = null
         phase = NaviampConnectPairingUiPhase.Handshaking
         playbackDestination.connecting(trust.trustedDeviceId)
@@ -1118,12 +1215,17 @@ class NaviampCoreConnectController(
     private fun selectTarget(targetUi: NaviampConnectDiscoveredTargetUi) {
         suspendAutomaticReconnectForManualPairing()
         selectedManualEndpoint = null
+        codeTargetAutoSelected = false
         selectedTarget = discovery?.state?.value?.targets?.firstOrNull {
             it.advertisement.instanceId == targetUi.instanceId
         }?.also { target ->
             recentlyResolvedTargets[target.advertisement.identityFingerprint] = target
         } ?: return
-        enteredCode = ""
+        // Digits typed before choosing a device are kept and submitted to the chosen one.
+        if (enteredCode.length == 6) {
+            submitPairingCode()
+            return
+        }
         phase = NaviampConnectPairingUiPhase.AwaitingCode
         status = "Enter the six-digit code shown on ${targetUi.displayName}."
         statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.EnterTheSixDigitCodeShownOnDevice, listOf(targetUi.displayName))
@@ -1145,6 +1247,7 @@ class NaviampCoreConnectController(
         }
         suspendAutomaticReconnectForManualPairing()
         selectedTarget = null
+        codeTargetAutoSelected = false
         selectedManualEndpoint = endpoint
         enteredCode = ""
         phase = NaviampConnectPairingUiPhase.AwaitingCode
@@ -1166,13 +1269,43 @@ class NaviampCoreConnectController(
 
     private fun changePairingCode(value: String) {
         enteredCode = value.filter(Char::isDigit).take(6)
-        publish()
+        // The sixth digit submits; there is no separate confirmation step.
+        if (enteredCode.length == 6) submitPairingCode() else publish()
     }
 
     private fun submitPairingCode() {
-        val target = selectedTarget
+        // Only an outgoing code handshake blocks entry; a background trusted reconnect does not.
+        if (codePairingInFlight) return
         val manualEndpoint = selectedManualEndpoint
+        if (selectedTarget == null && manualEndpoint == null && enteredCode.length == 6) {
+            // Only a device that says it shows a code is chosen automatically; an older device needs a tap,
+            // so a briefly missing device never sends the code somewhere else.
+            val candidates = codeAnnouncingTargets()
+            when {
+                candidates.size == 1 -> {
+                    selectedTarget = candidates.single().also { target ->
+                        recentlyResolvedTargets[target.advertisement.identityFingerprint] = target
+                    }
+                    codeTargetAutoSelected = true
+                }
+                candidates.size > 1 -> {
+                    status = null
+                    statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ChooseTheDeviceShowingThisCode)
+                    publish()
+                    return
+                }
+                else -> {
+                    awaitCodeTarget()
+                    return
+                }
+            }
+        }
+        val target = selectedTarget
         if (target == null && manualEndpoint == null) return
+        // Entering a code chooses a new device: stop reconnecting to the previous one.
+        suspendAutomaticReconnectForManualPairing()
+        codeTargetWaitJob?.cancel()
+        codeTargetWaitJob = null
         if (identityState.value !is IdentityState.Ready) {
             withIdentity(::submitPairingCode)
             return
@@ -1190,6 +1323,8 @@ class NaviampCoreConnectController(
         } else NaviampConnectStatusMessage(NaviampConnectStatusText.ManualEndpointAuthenticating)
         val code = enteredCode.toCharArray()
         enteredCode = ""
+        // Mark the handshake before publishing so code entry is disabled while it runs.
+        codePairingInFlight = true
         publish()
         controllerScope.launch {
             val runtime = NaviampConnectControllerPairingRuntime(
@@ -1204,9 +1339,17 @@ class NaviampCoreConnectController(
                 NaviampConnectPairingRuntimeResult.Failed(NaviampConnectErrorCode.TargetUnavailable)
             for (address in target?.addresses ?: listOf(checkNotNull(manualEndpoint).host)) {
                 val attempt = try {
-                    if (target != null) runtime.pair(
-                        address, target.advertisement, code.copyOf(), services.nowEpochMillis(), services.newOpaqueId(),
-                    ) else awaitNaviampConnectSocketOperation(
+                    // Discovered and manual handshakes share one deadline that closes a stalled socket.
+                    if (target != null) awaitNaviampConnectSocketOperation(
+                        scope = controllerScope,
+                        timeoutMillis = services.pairingHandshakeTimeoutMillis,
+                        close = { activeManualPairingConnection?.close() },
+                    ) {
+                        runtime.pair(
+                            address, target.advertisement, code.copyOf(), services.nowEpochMillis(), services.newOpaqueId(),
+                            onConnectionOpened = { activeManualPairingConnection = it },
+                        )
+                    }.also { activeManualPairingConnection = null } else awaitNaviampConnectSocketOperation(
                         scope = controllerScope,
                         timeoutMillis = services.pairingHandshakeTimeoutMillis,
                         close = { activeManualPairingConnection?.close() },
@@ -1230,12 +1373,27 @@ class NaviampCoreConnectController(
             if (manualEndpoint != null && result is NaviampConnectPairingRuntimeResult.Paired) {
                 selectedTarget = result.trust.toManualTarget(manualEndpoint, result.session.protocolVersion, services.nowEpochMillis())
             }
+            codePairingInFlight = false
+            if (result is NaviampConnectPairingRuntimeResult.Failed && codeTargetAutoSelected &&
+                selectedTarget === target
+            ) {
+                // The device this code chose did not accept it; the next code must choose again.
+                selectedTarget = null
+            }
+            // Kept through finishPairing: a session that never starts also drops the automatic choice.
             finishPairing(result, localRole = NaviampConnectDeviceRole.Controller)
+            codeTargetAutoSelected = false
             if (manualEndpoint != null && result is NaviampConnectPairingRuntimeResult.Failed &&
                 (result.code == NaviampConnectErrorCode.TargetUnavailable ||
                     result.stage == app.naviamp.app.NaviampConnectPairingFailureStage.TransportConnect)
             ) {
                 statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ManualEndpointUnreachable)
+                publish()
+            }
+        }.invokeOnCompletion {
+            // However the attempt ends (including cancellation), code entry is released.
+            if (codePairingInFlight) {
+                codePairingInFlight = false
                 publish()
             }
         }
@@ -1244,7 +1402,7 @@ class NaviampCoreConnectController(
     private suspend fun finishPairing(
         result: NaviampConnectPairingRuntimeResult,
         localRole: NaviampConnectDeviceRole,
-        consentOfferId: String? = null,
+
     ) {
         when (result) {
             is NaviampConnectPairingRuntimeResult.Paired -> {
@@ -1265,46 +1423,125 @@ class NaviampCoreConnectController(
                     result.resumptionCredential.fill(0)
                 }
                 val connected = when (localRole) {
-                    NaviampConnectDeviceRole.Target -> {
-                        consentOfferId?.let { initialSetupAuthorization.paired(it, result.session.sessionId,
-                            targetIsEmpty(), services.nowEpochMillis()) }
-                        replaceTargetSession(result.session)
-                    }
+                    NaviampConnectDeviceRole.Target -> replaceTargetSession(result.session)
                     NaviampConnectDeviceRole.Controller -> {
                         playbackDestination.select(persistedTrust)
                         playbackDestination.connecting(persistedTrust.trustedDeviceId)
                         discovery?.stop()
-                        closeTargetResources()
-                        startControllerSession(result.session)
+                        if (codeVisible) stopPairingMode()
+                        ensureTrustedTargetListener()
+                        // One session at a time: a previous session (or a late reconnect) must not leak.
+                        if (authenticatedSession != null) closeAuthenticatedSession()
+                        // Same bounded Welcome wait as a trusted reconnect: a silent target closes the socket.
+                        awaitNaviampConnectSocketOperation(
+                            scope = controllerScope,
+                            timeoutMillis = services.pairingHandshakeTimeoutMillis,
+                            close = result.session::close,
+                        ) {
+                            startControllerSession(result.session)
+                        } == true
                     }
                 }
                 if (connected) {
                     phase = NaviampConnectPairingUiPhase.Paired
-                    status = if (credentialSaved) {
-                        "Connected to ${result.trust.displayName}."
-                    } else {
-                        "Connected to ${result.trust.displayName}, but secure reconnect could not be saved."
+                    report(if (credentialSaved) NaviampConnectStatusText.ConnectedToDevice
+                        else NaviampConnectStatusText.ConnectedWithoutSecureReconnect, result.trust.displayName)
+                    when (localRole) {
+                        NaviampConnectDeviceRole.Target -> {
+                            // The used offer is replaced at once while the panel stays open, so the device never
+                            // advertises a code it no longer has; presence (and its registration) is kept for resume.
+                            ensurePresence(pairable = codeVisible)
+                            replaceUsedCode()
+                            phase = NaviampConnectPairingUiPhase.Paired
+                            report(if (credentialSaved) NaviampConnectStatusText.ConnectedToDevice
+                                else NaviampConnectStatusText.ConnectedWithoutSecureReconnect, result.trust.displayName)
+                        }
+                        NaviampConnectDeviceRole.Controller -> {
+                            openPostConnectSheet()
+                            // The attempt is finished: the next code must find its own device.
+                            selectedTarget = null
+                            selectedManualEndpoint = null
+                            if (connectScreenVisible) discovery?.start()
+                        }
                     }
-                    if (localRole == NaviampConnectDeviceRole.Target) startPairingMode(preserveAdvertisement = true)
                 } else {
                     result.session.close()
-                    if (localRole == NaviampConnectDeviceRole.Controller) playbackDestination.incompatible()
+                    if (localRole == NaviampConnectDeviceRole.Controller) {
+                        playbackDestination.incompatible()
+                        // The code was accepted but no session started: the next code must find its own
+                        // device, and discovery (stopped for this attempt) resumes while the panel is open.
+                        if (codeTargetAutoSelected) selectedTarget = null
+                        if (connectScreenVisible) discovery?.start()
+                    }
                     phase = NaviampConnectPairingUiPhase.Failed
                     status = "The paired device did not start a compatible control session."
                     statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ThePairedDeviceDidNotStartACompatibleControlSession)
+                    if (localRole == NaviampConnectDeviceRole.Target) {
+                        ensurePresence(pairable = codeVisible)
+                        replaceUsedCode()
+                    }
                 }
             }
             is NaviampConnectPairingRuntimeResult.Failed -> {
-                if (localRole == NaviampConnectDeviceRole.Target) closeTargetResources()
-                phase = NaviampConnectPairingUiPhase.Failed
-                status = result.code.userMessage()
+                val retryingCode = localRole == NaviampConnectDeviceRole.Target && codeAttemptFailed()
+                phase = if (retryingCode) NaviampConnectPairingUiPhase.Advertising else NaviampConnectPairingUiPhase.Failed
+                report(result.code.statusText())
             }
         }
         publish()
-        if (localRole == NaviampConnectDeviceRole.Controller &&
-            result is NaviampConnectPairingRuntimeResult.Paired && controllerInitialSetupAllowed) {
+    }
+
+    /** The connecting device chooses sign-in, playback, or neither right after a code connection. */
+    private fun openPostConnectSheet() {
+        postConnectSignInFailed = false
+        val remote = controllerSession?.state?.value ?: return
+        val hasAccounts = controllerTargetHasSavedAccounts
+        postConnectDeviceHasAccounts = hasAccounts
+        postConnectSignIn = postConnectCanSignIn() && !hasAccounts
+        postConnectOpen = true
+    }
+
+    private fun postConnectCanSignIn(): Boolean =
+        controllerSession?.state?.value?.capabilities?.contains(NaviampConnectCapability.ConnectionProvisioning) == true &&
+            providerSessions?.currentSourceId() != null
+
+    private fun finishPostConnect(playOnDevice: Boolean) {
+        if (!postConnectOpen || controllerProvisioningBusy) return
+        // After a failed attempt the choice finishes without retrying; the password prompt retries.
+        if (postConnectSignIn && postConnectCanSignIn() && !postConnectSignInFailed) {
+            postConnectPendingPlay = playOnDevice
             provisionTarget()
+            return
         }
+        completePostConnect(playOnDevice)
+    }
+
+    /** Back, Escape or tapping outside closes the sheet without sending anything. */
+    private fun dismissPostConnect() {
+        if (!postConnectOpen || controllerProvisioningBusy) return
+        postConnectSignIn = false
+        completePostConnect(playOnDevice = false)
+    }
+
+    private fun completePostConnect(playOnDevice: Boolean) {
+        postConnectOpen = false
+        postConnectPendingPlay = null
+        if (playOnDevice) {
+            if (localPlayback?.connectLiveState()?.queue?.current != null) handoffLocalQueue() else publish()
+        } else {
+            stopControlling()
+        }
+    }
+
+    /** Sign-in started from the sheet finishes the user's choice once the device confirms it. */
+    private fun postConnectSignInFinished(succeeded: Boolean) {
+        if (!postConnectOpen) return
+        postConnectSignInFailed = !succeeded
+        if (!succeeded) return // Keep the pending choice: a corrected password completes it.
+        postConnectSignIn = false
+        postConnectSignInFailed = false
+        val pending = postConnectPendingPlay ?: return
+        completePostConnect(pending)
     }
 
     private suspend fun startTargetSession(session: NaviampConnectAuthenticatedSession): Boolean {
@@ -1330,8 +1567,10 @@ class NaviampCoreConnectController(
                 capabilities = supportedTargetCapabilities,
                 snapshot = snapshot,
                 companionProvisioningSupported = NaviampConnectCapability.ConnectionProvisioning in supportedTargetCapabilities,
-                initialSetupAllowed = initialSetupAuthorization.permitsSetup(session.sessionId,
-                    targetIsEmpty(), services.nowEpochMillis()),
+                // Protocol v1 controllers set up an empty target only when this is true.
+                // Protocol-v1 controllers set this device up automatically only when it has no accounts.
+                initialSetupAllowed = NaviampConnectCapability.ConnectionProvisioning in supportedTargetCapabilities && targetIsEmpty(),
+                hasSavedAccounts = stateStore.state.value.shell.connectionSettings.connection.savedConnections.isNotEmpty(),
             ),
         )
         // An authenticated incoming controller makes this device the playback owner. Retaining an
@@ -1354,20 +1593,13 @@ class NaviampCoreConnectController(
                 snapshots,
                 offerProvisioning = { offer ->
                     trace(NaviampCoreConnectTraceKind.SetupOfferReceived, offer.setupId)
-                    val automatic = offer.initialSetup && initialSetupAuthorization.permitsSetup(
-                        session.sessionId, targetIsEmpty(), services.nowEpochMillis())
-                    if (pendingProvisioning != null || targetProvisioningJob?.isActive == true ||
-                        (offer.initialSetup && !automatic)) {
+                    // Every authenticated session came from a displayed code or a trusted device.
+                    if (pendingProvisioning != null || targetProvisioningJob?.isActive == true) {
                         false
                     } else {
                         pendingProvisioning = offer
                         pendingProvisioningSession = session
-                        pendingProvisioningControllerName = session.trust?.peerDevice?.displayName
-                        if (automatic) approveProvisioning() else {
-                            status = null
-                            statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ApproveTheConnectionSetupRequestOnThisTv)
-                            publish()
-                        }
+                        applyProvisioning()
                         true
                     }
                 },
@@ -1420,6 +1652,7 @@ class NaviampCoreConnectController(
             lastReceivedSequence = welcomeEnvelope.sequence,
         )
         authenticatedSession = session
+        controllerTargetHasSavedAccounts = welcome.hasSavedAccounts ?: (welcome.snapshot.sourceIdentity != null)
         controllerInitialSetupAllowed = welcome.initialSetupAllowed &&
             NaviampConnectCapability.ConnectionProvisioning in welcome.capabilities && welcome.snapshot.sourceIdentity == null
         adoptControllerSession(connectedController, welcome.companionProvisioningSupported)
@@ -1507,7 +1740,7 @@ class NaviampCoreConnectController(
         }
         if (authenticatedSession === session) {
             trace(NaviampCoreConnectTraceKind.TargetReceiveEnded)
-            sessionEnded("The controller disconnected.")
+            sessionEnded(NaviampConnectStatusText.ControllerDisconnected)
         }
     }
 
@@ -1521,7 +1754,7 @@ class NaviampCoreConnectController(
                 val message = envelope.message
                 if (message is app.naviamp.domain.connect.NaviampConnectSessionReplaced) {
                     automaticReconnectSuppressed = true
-                    sessionEnded("Another controller took over this TV.", reconnectAutomatically = false)
+                    sessionEnded(NaviampConnectStatusText.AnotherDeviceTookControl, reconnectAutomatically = false)
                     return
                 }
                 if (message is app.naviamp.domain.connect.NaviampConnectConnectionProvisioningResult) {
@@ -1547,7 +1780,7 @@ class NaviampCoreConnectController(
                 if (connectedController.state.value.status ==
                     app.naviamp.app.NaviampConnectControllerConnectionStatus.Disconnected
                 ) {
-                    sessionEnded("The connection failed while replying to the TV. Reconnecting…")
+                    sessionEnded(NaviampConnectStatusText.Reconnecting)
                     return
                 }
                 if (connectedController.state.value.snapshot.shouldResumeNaviampConnectPlaybackAuthority()) {
@@ -1559,11 +1792,11 @@ class NaviampCoreConnectController(
         }
         if (authenticatedSession === session) {
             trace(NaviampCoreConnectTraceKind.ControllerReceiveEnded)
-            sessionEnded("The TV disconnected.")
+            sessionEnded(NaviampConnectStatusText.DeviceDisconnected)
         }
     }
 
-    private fun sessionEnded(message: String?, reconnectAutomatically: Boolean = true) {
+    private fun sessionEnded(message: NaviampConnectStatusText?, reconnectAutomatically: Boolean = true) {
         if (reconnectAutomatically) {
             retryableRemoteCommands += controllerSession
                 ?.state
@@ -1578,7 +1811,7 @@ class NaviampCoreConnectController(
         closeAuthenticatedSession()
         if (reconnectAutomatically) playbackDestination.reconnecting() else playbackDestination.selectLocal()
         phase = NaviampConnectPairingUiPhase.Inactive
-        status = message
+        report(message)
         publish()
         if (!reconnectAutomatically) return
         controllerScope.launch {
@@ -1588,9 +1821,17 @@ class NaviampCoreConnectController(
         }
     }
 
+    /** Keeps presence for trusted resume (and the open code panel's flag); never creates a code. */
     internal fun ensureTrustedTargetListener() {
-        if (!canPlayRemotely) return
-        if (services.trust.load().isNotEmpty() && listener == null) startPairingMode()
+        if (!canPlayRemotely || advertising == null) return
+        if (!codeVisible && services.trust.load().isEmpty()) return
+        if (identityState.value !is IdentityState.Ready) {
+            withIdentity(::ensureTrustedTargetListener)
+            return
+        }
+        ensurePresence(pairable = codeVisible)
+        replaceUsedCode()
+        publish()
     }
 
     private fun beginAutomaticTrustedReconnect() {
@@ -1626,7 +1867,6 @@ class NaviampCoreConnectController(
 
     private fun closeAuthenticatedSession() {
         if (authenticatedSession != null) trace(NaviampCoreConnectTraceKind.SessionClosed)
-        authenticatedSession?.sessionId?.let(initialSetupAuthorization::sessionClosed)
         controllerProvisioningJob?.cancel()
         controllerProvisioningJob = null
         controllerProvisioningAttemptId = null
@@ -1638,6 +1878,10 @@ class NaviampCoreConnectController(
         needsProvisioningCredential = false
         provisioningCredentialSourceId = null
         controllerInitialSetupAllowed = false
+        postConnectOpen = false
+        postConnectSignIn = false
+        postConnectPendingPlay = null
+        postConnectSignInFailed = false
         controllerCompanionProvisioningSupported = false
         controllerSetupNeedsNewCode = false
         heartbeatJob?.cancel()
@@ -1657,7 +1901,6 @@ class NaviampCoreConnectController(
         controllerSession = null
         pendingProvisioning = null
         pendingProvisioningSession = null
-        pendingProvisioningControllerName = null
     }
 
     private fun stopControlling() {
@@ -1714,7 +1957,7 @@ class NaviampCoreConnectController(
             connected = controllerSession != null,
         )
         if (problem != null) {
-            status = problem
+            report(problem)
             publish()
             return
         }
@@ -1739,12 +1982,14 @@ class NaviampCoreConnectController(
                     if (controllerSession !== connected) return@launch
                     if (completed is app.naviamp.app.NaviampConnectRequestTerminalResult.Acknowledged) {
                         trustedDeviceId?.let(playbackDestination::activatePlaybackAuthority)
+                        // The target now plays this queue; stop this device's own audio. A failure keeps it playing.
+                        localPlayback?.executeConnectPlayback(NaviampConnectPause)
                         status = "Queue sent to ${connected.state.value.target?.displayName ?: "the playback device"}."
                         statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.QueueSentToDevice, listOf(connected.state.value.target?.displayName))
                     } else {
                         applyRemoteCommandFailure(
                             completed,
-                            "The playback device did not respond to the queue transfer.",
+                            NaviampConnectStatusText.PlaybackDeviceDidNotRespond,
                         )
                     }
                 }
@@ -1777,6 +2022,7 @@ class NaviampCoreConnectController(
         statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.PreparingThisConnectionForSecureTvSetup)
         publish()
         controllerProvisioningJob = controllerScope.launch {
+            var signedIn = false
             val pending = services.newOpaqueId() to kotlinx.coroutines.CompletableDeferred<app.naviamp.domain.connect.NaviampConnectConnectionProvisioningResult>()
             try {
                 if (password != null && localConnection?.updateProvisioningCredential(sourceId, password) != true) {
@@ -1822,6 +2068,7 @@ class NaviampCoreConnectController(
                                 val result = withTimeoutOrNull(60_000L) { pending.second.await() }
                                 if (controllerSession !== connected) return@launch
                                 if (result?.succeeded == true) {
+                                    signedIn = true
                                     controllerInitialSetupAllowed = false
                                     statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.TvSetupCompletedSecurely)
                                 } else if (controllerSetupNeedsNewCode) {
@@ -1856,6 +2103,7 @@ class NaviampCoreConnectController(
                 if (controllerSession === connected && controllerProvisioningAttemptId == attemptId) {
                     controllerProvisioningAttemptId = null
                     controllerProvisioningBusy = false
+                    postConnectSignInFinished(signedIn)
                     publish()
                 }
             }
@@ -1867,7 +2115,8 @@ class NaviampCoreConnectController(
         statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.CouldNotValidateThatConnectionCheckTheServerAndCredentialThenRetry)
     }
 
-    private fun approveProvisioning() {
+    /** Applies a setup offer from an authenticated session; no approval is needed. */
+    private fun applyProvisioning() {
         val offer = pendingProvisioning ?: return
         val requestingSession = pendingProvisioningSession ?: return
         if (requestingSession !== authenticatedSession || targetProvisioningJob?.isActive == true) return
@@ -1888,14 +2137,12 @@ class NaviampCoreConnectController(
                     else NaviampCoreConnectTraceKind.SetupValidationFailed, offer.setupId)
                 if (connected) {
                     offer.portableSettings?.let(settings::applyConnectPortableSettings)
-                    initialSetupAuthorization.setupCompleted(requestingSession.sessionId)
                     statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.TvSetupCompletedSecurely)
                     publishTargetPlaybackSnapshot()
                 } else provisioningFailed()
                 // Failed validation can be retried with a corrected offer during the live code grant.
                 pendingProvisioning = null
                 pendingProvisioningSession = null
-                pendingProvisioningControllerName = null
                 awaitNaviampConnectSocketOperation(controllerScope, 10_000L, requestingSession::close) {
                     requestingSession.send(app.naviamp.domain.connect.NaviampConnectConnectionProvisioningResult(
                         succeeded = connected, message = "", setupId = offer.setupId,
@@ -1907,34 +2154,10 @@ class NaviampCoreConnectController(
                 if (authenticatedSession === requestingSession) {
                     pendingProvisioning = null
                     pendingProvisioningSession = null
-                    pendingProvisioningControllerName = null
                     provisioningFailed()
                 }
             } finally {
                 if (authenticatedSession === requestingSession) publish()
-            }
-        }
-    }
-
-    private fun rejectProvisioning() {
-        val offer = pendingProvisioning ?: return
-        val requestingSession = pendingProvisioningSession ?: return
-        trace(NaviampCoreConnectTraceKind.SetupRejected, offer.setupId)
-        targetProvisioningJob?.cancel()
-        initialSetupAuthorization.setupCompleted(requestingSession.sessionId)
-        pendingProvisioning = null
-        pendingProvisioningSession = null
-        pendingProvisioningControllerName = null
-        status = null
-        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ConnectionSetupRequestRejected)
-        publish()
-        controllerScope.launch {
-            runCatching {
-                awaitNaviampConnectSocketOperation(controllerScope, 10_000L, requestingSession::close) {
-                    requestingSession.send(app.naviamp.domain.connect.NaviampConnectConnectionProvisioningResult(
-                        succeeded = false, message = "", setupId = offer.setupId, rejected = true,
-                    ))
-                }
             }
         }
     }
@@ -2013,19 +2236,19 @@ class NaviampCoreConnectController(
             sourceMismatchRecoveryVisible = true
             status = null
         } else {
-            status = error.message
+            report(error.code.statusText())
         }
     }
 
     private fun applyRemoteCommandFailure(
         result: app.naviamp.app.NaviampConnectRequestTerminalResult,
-        fallback: String,
+        fallback: NaviampConnectStatusText,
     ) {
         val rejection = result as? app.naviamp.app.NaviampConnectRequestTerminalResult.ProtocolRejected
         if (rejection?.error?.code == NaviampConnectErrorCode.SourceMismatch) {
             applyRemoteCommandError(rejection.error)
         } else {
-            status = result.remoteCommandFailureMessage(fallback)
+            report(result.remoteCommandFailureText(fallback))
         }
     }
 
@@ -2040,7 +2263,7 @@ class NaviampCoreConnectController(
         failure: app.naviamp.app.NaviampConnectRequestTerminalResult.WriteFailed,
     ) {
         if (controllerSession !== connected) return
-        sessionEnded("Connection lost while sending to the playback device. Reconnecting… (${failure.message})")
+        sessionEnded(NaviampConnectStatusText.Reconnecting)
     }
 
     private suspend fun publishTargetPlaybackSnapshot() {
@@ -2062,26 +2285,70 @@ class NaviampCoreConnectController(
         }
     }
 
+    /** Closing the code panel ends the offer only; a live session and trusted presence continue. */
     private fun stopPairingMode() {
-        if (pendingProvisioning != null) rejectProvisioning()
-        authenticatedSession?.sessionId?.let(initialSetupAuthorization::sessionClosed)
-        targetProvisioningJob?.cancel()
+        codeVisible = false
+        codeFailures = 0
+        codeRetryJob?.cancel()
+        codeRetryJob = null
         advertisingFailure = null
-        pendingTargetPairing?.reject()
-        pendingTargetPairing = null
-        closeTargetResources()
-        targetPairing.stop()
+        resetPairingOfferKeepingListener()
+        if (canPlayRemotely && services.trust.load().isNotEmpty()) {
+            ensurePresence(pairable = false)
+        } else if (authenticatedSession == null) {
+            closeTargetResources()
+        }
         phase = NaviampConnectPairingUiPhase.Inactive
         status = null
         publish()
     }
 
-    private fun resetPairingOfferKeepingListener(stopAdvertising: Boolean = true) {
-        initialSetupAuthorization.stopShowingCode()
-        codePairingOfferId = null
+    /** The listener failed: bring presence (and a visible code) back after a short pause. */
+    private fun restorePresenceLater() {
+        if (!canPlayRemotely) return
+        controllerScope.launch {
+            delay(AutomaticReconnectRetryMillis)
+            if (listener != null) return@launch
+            if (codeVisible) issueCode() else ensureTrustedTargetListener()
+        }
+    }
+
+    /** The offer is used or gone while the panel is still open: show the next code. */
+    private fun replaceUsedCode() {
+        if (codeVisible && targetPairing.displayCode() == null && codeRetryJob == null) issueCode()
+    }
+
+    /**
+     * A failed code attempt rotates the code while the panel stays open. After
+     * [MaximumCodeFailures] failures new codes pause for [CodeFailureLockoutMillis].
+     * Returns true when a new code is (or will be) shown.
+     */
+    private fun codeAttemptFailed(): Boolean {
+        if (!codeVisible) {
+            resetPairingOfferKeepingListener()
+            ensureTrustedTargetListener()
+            return false
+        }
+        codeFailures += 1
+        if (codeFailures < MaximumCodeFailures) {
+            issueCode()
+            return true
+        }
+        resetPairingOfferKeepingListener()
+        ensurePresence(pairable = false)
+        codeRetryJob = controllerScope.launch {
+            delay(CodeFailureLockoutMillis)
+            codeRetryJob = null
+            codeFailures = 0
+            if (codeVisible) issueCode()
+        }
+        report(NaviampConnectStatusText.TooManyAttempts)
+        return false
+    }
+
+    private fun resetPairingOfferKeepingListener() {
         pendingTargetPairing?.reject()
         pendingTargetPairing = null
-        if (stopAdvertising) advertising?.stop()
         pairingExpiryJob?.cancel()
         pairingExpiryJob = null
         pairingHandshakeJob?.cancel()
@@ -2094,8 +2361,7 @@ class NaviampCoreConnectController(
     }
 
     private fun closeTargetResources() {
-        initialSetupAuthorization.stopShowingCode()
-        codePairingOfferId = null
+        presenceAdvertisement = null
         advertising?.stop()
         pairingExpiryJob?.cancel()
         pairingExpiryJob = null
@@ -2111,10 +2377,16 @@ class NaviampCoreConnectController(
         listener = null
     }
 
-    private fun fail(message: String) {
+    /** Sets the shown status; the diagnostic text only names the message for traces. */
+    private fun report(text: NaviampConnectStatusText?, vararg arguments: String?) {
+        status = text?.name
+        statusMessage = text?.let { NaviampConnectStatusMessage(it, arguments.toList()) }
+    }
+
+    private fun fail(text: NaviampConnectStatusText) {
         closeTargetResources()
         phase = NaviampConnectPairingUiPhase.Failed
-        status = message
+        report(text)
         publish()
     }
 
@@ -2127,7 +2399,9 @@ class NaviampCoreConnectController(
                 it.occurrenceId == snapshot.playback.currentOccurrenceId
             }
         }
-        val effectiveStatus = discovered?.problem?.userMessage() ?: status ?: remote?.lastError?.message
+        val effectiveStatusMessage = discovered?.problem?.let { NaviampConnectStatusMessage(it.statusText()) }
+            ?: statusMessage
+            ?: remote?.lastError?.let { NaviampConnectStatusMessage(it.code.statusText()) }
         val trusts = services.trust.load()
         val trustDisplayNames = disambiguateNaviampConnectDeviceNames(trusts.map { it.visibleDisplayName() })
         val destination = playbackDestination.snapshot()
@@ -2143,14 +2417,19 @@ class NaviampCoreConnectController(
                     },
                     pairingPhase = phase,
                     pairingCode = targetPairing.displayCode(),
+                    codeVisible = codeVisible,
+                    pairingCodeExpiresAtEpochMillis = targetPairing.displayCode()?.let {
+                        (targetPairing.state as? app.naviamp.domain.connect.NaviampConnectTargetPairingState.Advertising)
+                            ?.advertisement?.expiresAtEpochMillis
+                    },
                     listeningPort = listener?.port,
                     enteredPairingCode = enteredCode,
+                    connectScreenVisible = connectScreenVisible,
+                    codeEntryBusy = codePairingInFlight,
                     manualEndpointAwaitingCode = selectedManualEndpoint != null &&
                         phase in setOf(NaviampConnectPairingUiPhase.AwaitingCode, NaviampConnectPairingUiPhase.Handshaking),
-                    pendingControllerName = pendingTargetPairing?.controller?.displayName,
                     selectedTargetId = selectedTarget?.advertisement?.instanceId,
-                    status = effectiveStatus,
-                    statusMessage = statusMessage.takeIf { discovered?.problem == null && effectiveStatus == status },
+                    statusMessage = effectiveStatusMessage,
                     notice = notice,
                     recovery = recoveryProblem()?.let { problem ->
                         app.naviamp.ui.NaviampConnectRecoveryUi(
@@ -2217,12 +2496,19 @@ class NaviampCoreConnectController(
                     } else {
                         null
                     },
+                    postConnect = remote?.target?.takeIf { postConnectOpen }?.let { target ->
+                        app.naviamp.ui.NaviampConnectPostConnectUi(
+                            deviceName = target.displayName,
+                            canSignIn = postConnectCanSignIn(),
+                            signInSelected = postConnectSignIn,
+                            deviceHasAccounts = postConnectDeviceHasAccounts,
+                            canPlayOn = target.canActAs(NaviampConnectDeviceRole.Target),
+                            busy = controllerProvisioningBusy,
+                        )
+                    },
                     needsProvisioningCredential = needsProvisioningCredential,
                     provisioningBusy = controllerProvisioningBusy,
-                    pendingProvisioningControllerName = pendingProvisioningControllerName.takeUnless { pendingProvisioning?.initialSetup == true },
-                    pendingProvisioningConnectionName = pendingProvisioning?.takeUnless { it.initialSetup }?.profile?.displayName
-                        ?.ifBlank { pendingProvisioning?.profile?.serverUrl },
-                    discoveredTargets = discovered?.targets.orEmpty().map { target ->
+                    discoveredTargets = pairableTargets(discovered?.targets.orEmpty()).map { target ->
                         NaviampConnectDiscoveredTargetUi(
                             instanceId = target.advertisement.instanceId,
                             displayName = target.advertisement.displayName,
@@ -2247,15 +2533,15 @@ class NaviampCoreConnectController(
 internal fun NaviampConnectTargetSnapshot?.shouldResumeNaviampConnectPlaybackAuthority(): Boolean =
     this != null && playback.state != app.naviamp.domain.connect.NaviampConnectPlaybackState.Idle
 
-private fun app.naviamp.app.NaviampConnectRequestTerminalResult.remoteCommandFailureMessage(
-    fallback: String,
-): String = when (this) {
+private fun app.naviamp.app.NaviampConnectRequestTerminalResult.remoteCommandFailureText(
+    fallback: NaviampConnectStatusText,
+): NaviampConnectStatusText = when (this) {
     app.naviamp.app.NaviampConnectRequestTerminalResult.Acknowledged -> fallback
-    is app.naviamp.app.NaviampConnectRequestTerminalResult.ProtocolRejected -> error.message
+    is app.naviamp.app.NaviampConnectRequestTerminalResult.ProtocolRejected -> error.code.statusText()
     app.naviamp.app.NaviampConnectRequestTerminalResult.TimedOut -> fallback
     app.naviamp.app.NaviampConnectRequestTerminalResult.Disconnected ->
-        "The playback device disconnected before confirming the command."
-    is app.naviamp.app.NaviampConnectRequestTerminalResult.WriteFailed -> message
+        NaviampConnectStatusText.PlaybackDeviceDisconnectedBeforeConfirming
+    is app.naviamp.app.NaviampConnectRequestTerminalResult.WriteFailed -> NaviampConnectStatusText.Reconnecting
 }
 
 internal enum class NaviampCoreConnectPlaybackRoute {
@@ -2322,11 +2608,11 @@ internal fun naviampCoreConnectQueueHandoffProblem(
     hasCurrentQueueItem: Boolean,
     hasSourceIdentity: Boolean,
     connected: Boolean,
-): String? = when {
-    !hasPlayback -> "Queue handoff is not available on this device."
-    !hasCurrentQueueItem -> "Start something on this device before sending its queue."
-    !hasSourceIdentity -> "Connect this device to the same music source before sending its queue."
-    !connected -> "Connect to a TV before sending this queue."
+): NaviampConnectStatusText? = when {
+    !hasPlayback -> NaviampConnectStatusText.QueueHandoffUnavailable
+    !hasCurrentQueueItem -> NaviampConnectStatusText.StartSomethingBeforeSendingQueue
+    !hasSourceIdentity -> NaviampConnectStatusText.ConnectSameSourceBeforeSendingQueue
+    !connected -> NaviampConnectStatusText.ConnectBeforeSendingQueue
     else -> null
 }
 
@@ -2373,28 +2659,40 @@ private fun NaviampConnectTrustRecord.toUi(
     deviceId = trustedDeviceId,
     displayName = displayName,
     localAlias = localAlias,
-    detail = "Paired Naviamp ${peerDevice.role.name.lowercase()}",
     reconnectAvailable = reconnectAvailable,
     playbackTarget = peerDevice.canActAs(NaviampConnectDeviceRole.Target),
 )
 
-private fun NaviampConnectDiscoveryProblem.userMessage(): String = when (this) {
-    NaviampConnectDiscoveryProblem.PermissionDenied -> "Local-network permission is required."
-    is NaviampConnectDiscoveryProblem.Unavailable -> message
-    is NaviampConnectDiscoveryProblem.Failed -> message
-    is NaviampConnectDiscoveryProblem.TargetIdentityChanged -> "A discovered target changed identity."
+private fun NaviampConnectDiscoveryProblem.statusText(): NaviampConnectStatusText = when (this) {
+    NaviampConnectDiscoveryProblem.PermissionDenied -> NaviampConnectStatusText.LocalNetworkPermissionRequired
+    is NaviampConnectDiscoveryProblem.Unavailable -> NaviampConnectStatusText.DiscoveryFailed
+    is NaviampConnectDiscoveryProblem.Failed -> NaviampConnectStatusText.DiscoveryFailed
+    is NaviampConnectDiscoveryProblem.TargetIdentityChanged -> NaviampConnectStatusText.DeviceIdentityChanged
 }
 
-private fun NaviampConnectErrorCode.userMessage(): String = when (this) {
-    NaviampConnectErrorCode.IncompatibleProtocol -> "This device requires a different Naviamp version."
-    NaviampConnectErrorCode.AuthenticationRequired -> "The pairing code or device identity could not be verified."
-    NaviampConnectErrorCode.PairingExpired -> "The pairing code expired. Start pairing again."
-    NaviampConnectErrorCode.RateLimited -> "Too many pairing attempts. Try again shortly."
-    NaviampConnectErrorCode.TargetUnavailable -> "The target is no longer available."
-    NaviampConnectErrorCode.InvalidRequest -> "The pairing request was invalid."
-    else -> "Naviamp Connect could not complete the request."
+private fun NaviampConnectErrorCode.statusText(): NaviampConnectStatusText = when (this) {
+    NaviampConnectErrorCode.IncompatibleProtocol -> NaviampConnectStatusText.IncompatibleVersion
+    NaviampConnectErrorCode.AuthenticationRequired -> NaviampConnectStatusText.CodeNotVerified
+    NaviampConnectErrorCode.PairingExpired -> NaviampConnectStatusText.CodeExpired
+    NaviampConnectErrorCode.RateLimited -> NaviampConnectStatusText.TooManyAttempts
+    NaviampConnectErrorCode.TargetUnavailable -> NaviampConnectStatusText.DeviceNoLongerAvailable
+    NaviampConnectErrorCode.InvalidRequest -> NaviampConnectStatusText.InvalidRequest
+    else -> NaviampConnectStatusText.RequestFailed
 }
 
 private const val TargetSnapshotDebounceMillis = 250L
 private const val AutomaticReconnectDelayMillis = 750L
 private const val AutomaticReconnectRetryMillis = 2_000L
+private const val MaximumCodeFailures = 5
+private const val CodeFailureLockoutMillis = 30_000L
+private const val CodeTargetWaitMillis = 5_000L
+private val ConnectPanelStatuses = setOf(
+    NaviampConnectStatusText.SearchingThisLocalNetwork,
+    NaviampConnectStatusText.NoDeviceShowingACode,
+    NaviampConnectStatusText.ChooseTheDeviceShowingThisCode,
+    // Results of a typed code are shown in the code-entry panel and close with it.
+    NaviampConnectStatusText.CodeNotVerified,
+    NaviampConnectStatusText.CodeExpired,
+    NaviampConnectStatusText.TooManyAttempts,
+    NaviampConnectStatusText.EnterAllSixDigitsShownOnTheTv,
+)

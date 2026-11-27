@@ -31,8 +31,8 @@ class NaviampCoreConnectPeerTest {
                     1 -> mac.actions.shell.connectActions!!.onStopPairingMode()
                     2 -> mac.actions.shell.connectActions!!.onStartPairingMode()
                 }
-                mac.actions.shell.connectActions!!.onRefreshTargets()
-                phone.actions.shell.connectActions!!.onRefreshTargets()
+                mac.actions.shell.connectActions!!.onConnectScreenVisibilityChanged(true)
+                phone.actions.shell.connectActions!!.onConnectScreenVisibilityChanged(true)
                 runCurrent()
                 advanceTimeBy(21_000)
                 runCurrent()
@@ -46,7 +46,31 @@ class NaviampCoreConnectPeerTest {
                 assertEquals("Track $pass", phone.state.value.shell.connect.remoteTrackTitle)
                 assertEquals(1, network.connectCount, "Pairing lifecycle must not require a reconnect")
             }
-            assertTrue(network.advertisingStarts.getValue("mac") >= 5, "Expiry must exercise advertisement renewal")
+            // Presence is registered once; only showing or hiding the code changes its TXT record.
+            assertEquals(4, network.advertisingStarts.getValue("mac"), "Code rotation must not re-register DNS-SD")
+        } finally { phone.close(); mac.close(); runCurrent() }
+    }
+
+    @Test
+    fun trustedResumeWorksWhileCodeHiddenAndWhileCodeVisible() = runTest {
+        val network = ConnectTestNetwork()
+        val phone = connectPeer("phone", "mac", network)
+        val mac = connectPeer("mac", "phone", network)
+        try {
+            runCurrent()
+            val actions = phone.actions.shell.connectActions!!
+            assertNull(mac.state.value.shell.connect.pairingCode)
+            actions.onTrustedDeviceSelected(phone.state.value.shell.connect.trustedDevices.single())
+            runCurrent()
+            assertEquals("mac", phone.state.value.shell.connect.connectedTargetName)
+            actions.onStopControlling()
+            runCurrent()
+            mac.actions.shell.connectActions!!.onStartPairingMode()
+            runCurrent()
+            actions.onTrustedDeviceSelected(phone.state.value.shell.connect.trustedDevices.single())
+            runCurrent()
+            assertEquals("mac", phone.state.value.shell.connect.connectedTargetName)
+            assertNotNull(mac.state.value.shell.connect.pairingCode, "A trusted resume must not consume the visible code")
         } finally { phone.close(); mac.close(); runCurrent() }
     }
 
@@ -99,6 +123,8 @@ internal fun TestScope.connectPeer(
     id: String, peerId: String, network: ConnectTestNetwork,
     source: NaviampCoreProviderSessionPort? = null,
     preTrusted: Boolean = true,
+    playbackEffects: NaviampCorePlaybackEffectPort = FakeCorePlaybackEffects(),
+    provider: app.naviamp.domain.provider.MediaProvider? = null,
     configure: (NaviampCoreConnectServices) -> NaviampCoreConnectServices = { it },
 ): NaviampCore {
     var storedTrust: String? = null
@@ -117,7 +143,7 @@ internal fun TestScope.connectPeer(
         override fun remove(peerDeviceId: String) { secrets.remove(peerDeviceId)?.fill(0) }
     })
     var opaqueId = 0
-    val base = fakeCoreServices()
+    val base = fakeCoreServices(provider = provider, playbackEffects = playbackEffects)
     return NaviampCore.create(this, base.copy(connection = source ?: base.connection,
         connect = configure(NaviampCoreConnectServices(
         networkDispatcher = StandardTestDispatcher(testScheduler),
@@ -158,6 +184,8 @@ internal class ConnectTestNetwork {
     private val advertisements = mutableMapOf<String, NaviampConnectRegistrationService>()
     private val discoveries = mutableSetOf<NaviampConnectDiscoveryListener>()
     private val connections = mutableListOf<NaviampConnectTransportConnection>()
+    /** Peers whose replies are dropped, as if they stopped responding mid-connection. */
+    val silenced = mutableSetOf<String>()
     var connectCount = 0
         private set
 
@@ -167,15 +195,15 @@ internal class ConnectTestNetwork {
             connectCount++
             val outgoing = Channel<ByteArray>(Channel.UNLIMITED)
             val incoming = Channel<ByteArray>(Channel.UNLIMITED)
-            fun endpoint(remote: String, reads: Channel<ByteArray>, writes: Channel<ByteArray>) = object : NaviampConnectTransportConnection {
+            fun endpoint(remote: String, reads: Channel<ByteArray>, writes: Channel<ByteArray>, silent: () -> Boolean = { false }) = object : NaviampConnectTransportConnection {
                 override val remoteAddress = remote
-                override suspend fun send(frame: ByteArray) { writes.send(frame.copyOf()) }
+                override suspend fun send(frame: ByteArray) { if (!silent()) writes.send(frame.copyOf()) }
                 override suspend fun receive() = reads.receiveCatching().getOrNull()
                 override fun close() { reads.close(); writes.close() }
             }
             val local = endpoint(host, incoming, outgoing)
             connections += local
-            listeners.getValue(host).send(endpoint(id, outgoing, incoming))
+            listeners.getValue(host).send(endpoint(id, outgoing, incoming, silent = { host in silenced }))
             return local
         }
         override fun listen(port: Int): NaviampConnectTransportListener {
@@ -198,7 +226,7 @@ internal class ConnectTestNetwork {
         }
         override fun stop() {
             advertisingStops[id] = (advertisingStops[id] ?: 0) + 1
-            advertisements.remove(id)
+            advertisements.remove(id)?.let { service -> discoveries.toList().forEach { it.onServiceLost(service.serviceName) } }
         }
     }
     fun discovery() = object : NaviampConnectDiscoveryEffect {

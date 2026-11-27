@@ -2,6 +2,7 @@ package app.naviamp.domain.connect
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class NaviampConnectDiscoveryMetadataTest {
@@ -27,8 +28,8 @@ class NaviampConnectDiscoveryMetadataTest {
         val attributes = NaviampConnectDiscoveryMetadata.encode(advertisement)
         val decoded = NaviampConnectDiscoveryMetadata.decode(attributes, port = 43_434, expiresAtEpochMillis = 9_000)
 
-        assertEquals(advertisement.copy(port = 43_434, expiresAtEpochMillis = 9_000), decoded)
-        assertEquals(setOf("id", "name", "pmin", "pmax", "modes", "caps", "fp"), attributes.keys)
+        assertEquals(advertisement.copy(port = 43_434, expiresAtEpochMillis = 9_000, codeFlagAdvertised = true), decoded)
+        assertEquals(setOf("id", "name", "pmin", "pmax", "modes", "caps", "fp", "code"), attributes.keys)
     }
 
     @Test
@@ -81,6 +82,23 @@ class NaviampConnectDiscoveryMetadataTest {
                 expiresAtEpochMillis = 5_000,
             ),
         )
+    }
+
+    @Test
+    fun pairableFlagRoundTripsThroughTxt() {
+        val presence = assertNotNull(NaviampConnectDiscoveryMetadata.decode(validAttributes(), 42_424, 5_000))
+            .copy(pairable = false)
+        val txt = NaviampConnectDiscoveryMetadata.encode(presence)
+        assertEquals("0", txt["code"])
+        assertEquals(false, NaviampConnectDiscoveryMetadata.decode(txt, 42_424, 5_000)?.pairable)
+        assertEquals(true, NaviampConnectDiscoveryMetadata.decode(txt, 42_424, 5_000)?.codeFlagAdvertised)
+        assertEquals("1", NaviampConnectDiscoveryMetadata.encode(presence.copy(pairable = true))["code"])
+    }
+
+    @Test
+    fun legacyTxtWithoutCodeKeyIsPairable() {
+        assertEquals(true, NaviampConnectDiscoveryMetadata.decode(validAttributes(), 42_424, 5_000)?.pairable)
+        assertEquals(false, NaviampConnectDiscoveryMetadata.decode(validAttributes(), 42_424, 5_000)?.codeFlagAdvertised)
     }
 
     private fun validAttributes() = mapOf(
