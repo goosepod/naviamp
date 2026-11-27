@@ -49,6 +49,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
@@ -1793,7 +1794,7 @@ private fun televisionSettingsChoices(
 }
 
 @Composable
-private fun TelevisionSettingsToggleRow(
+internal fun TelevisionSettingsToggleRow(
     title: String,
     subtitle: String,
     checked: Boolean,
@@ -1811,6 +1812,7 @@ private fun TelevisionSettingsToggleRow(
         colors = colors,
         onClick = onClick,
         modifier = modifier,
+        toggleState = checked,
     )
 }
 
@@ -1829,6 +1831,8 @@ private fun TelevisionSettingsRow(
     modifier: Modifier = Modifier,
     subtitleMaxLines: Int = 2,
     titleMaxLines: Int = 2,
+    // Non-null for an on/off row: exposes switch semantics instead of a plain button.
+    toggleState: Boolean? = null,
 ) {
     val focusManager = LocalFocusManager.current
     var focused by remember { mutableStateOf(false) }
@@ -1846,6 +1850,7 @@ private fun TelevisionSettingsRow(
         shape = shape,
         modifier = modifier
             .fillMaxWidth()
+            .then(if (toggleState != null) Modifier.naviampToggleSemantics(toggleState) else Modifier)
             .onPreviewKeyEvent { event ->
                 val direction = when (event.key) {
                     Key.DirectionUp -> FocusDirection.Up
@@ -1882,7 +1887,9 @@ private fun TelevisionSettingsRow(
             }
         }
         value?.takeIf(String::isNotBlank)?.let {
-            Text(it, color = if (selected) colors.primaryText else colors.secondaryText, fontSize = 14.sp, maxLines = 1, softWrap = false)
+            Text(it, color = if (selected) colors.primaryText else colors.secondaryText, fontSize = 14.sp, maxLines = 1, softWrap = false,
+                // The switch state already announces on/off.
+                modifier = if (toggleState != null) Modifier.clearAndSetSemantics {} else Modifier)
         }
         if (disclosure) {
             Spacer(Modifier.size(9.dp))

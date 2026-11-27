@@ -3682,7 +3682,7 @@ private fun PrimarySettingsButton(
 }
 
 @Composable
-private fun InlineSettingsToggleRow(
+internal fun InlineSettingsToggleRow(
     colors: NaviampColors,
     checked: Boolean,
     enabled: Boolean = true,
@@ -3692,7 +3692,7 @@ private fun InlineSettingsToggleRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = enabled) { onCheckedChange(!checked) }
+            .naviampToggleRow(checked = checked, enabled = enabled, onCheckedChange = onCheckedChange)
             .padding(vertical = SettingsDetailRowVerticalPadding),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -3707,7 +3707,6 @@ private fun InlineSettingsToggleRow(
             colors = colors,
             checked = checked,
             enabled = enabled,
-            onClick = { onCheckedChange(!checked) },
         )
     }
 }
@@ -5866,7 +5865,7 @@ private fun DownloadQualityChangeDialog(
 }
 
 @Composable
-private fun SettingsCheckboxRow(
+internal fun SettingsCheckboxRow(
     colors: NaviampColors,
     checked: Boolean,
     enabled: Boolean = true,
@@ -5878,7 +5877,7 @@ private fun SettingsCheckboxRow(
         modifier = Modifier
             .padding(horizontal = SettingsRowHorizontalPadding)
             .fillMaxWidth()
-            .clickable(enabled = enabled) { onCheckedChange(!checked) }
+            .naviampToggleRow(checked = checked, enabled = enabled, onCheckedChange = onCheckedChange)
             .padding(vertical = SettingsDetailRowVerticalPadding),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -5893,7 +5892,6 @@ private fun SettingsCheckboxRow(
             colors = colors,
             checked = checked,
             enabled = enabled,
-            onClick = { onCheckedChange(!checked) },
         )
     }
 }
@@ -5903,7 +5901,6 @@ private fun CompactSettingsSwitch(
     colors: NaviampColors,
     checked: Boolean,
     enabled: Boolean,
-    onClick: () -> Unit,
 ) {
     val trackColor = when {
         !enabled -> colors.border.copy(alpha = 0.28f)
@@ -5921,7 +5918,6 @@ private fun CompactSettingsSwitch(
             .height(18.dp)
             .background(trackColor, RoundedCornerShape(999.dp))
             .border(1.dp, colors.border.copy(alpha = if (checked) 0.22f else 0.72f), RoundedCornerShape(999.dp))
-            .clickable(enabled = enabled, onClick = onClick)
             .padding(2.dp),
     ) {
         Box(
