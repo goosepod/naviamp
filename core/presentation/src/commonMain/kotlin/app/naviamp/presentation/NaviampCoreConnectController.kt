@@ -1371,8 +1371,9 @@ class NaviampCoreConnectController(
                 // The device this code chose did not accept it; the next code must choose again.
                 selectedTarget = null
             }
-            codeTargetAutoSelected = false
+            // Kept through finishPairing: a session that never starts also drops the automatic choice.
             finishPairing(result, localRole = NaviampConnectDeviceRole.Controller)
+            codeTargetAutoSelected = false
             if (manualEndpoint != null && result is NaviampConnectPairingRuntimeResult.Failed &&
                 (result.code == NaviampConnectErrorCode.TargetUnavailable ||
                     result.stage == app.naviamp.app.NaviampConnectPairingFailureStage.TransportConnect)
@@ -1456,7 +1457,13 @@ class NaviampCoreConnectController(
                     }
                 } else {
                     result.session.close()
-                    if (localRole == NaviampConnectDeviceRole.Controller) playbackDestination.incompatible()
+                    if (localRole == NaviampConnectDeviceRole.Controller) {
+                        playbackDestination.incompatible()
+                        // The code was accepted but no session started: the next code must find its own
+                        // device, and discovery (stopped for this attempt) resumes while the panel is open.
+                        if (codeTargetAutoSelected) selectedTarget = null
+                        if (connectScreenVisible) discovery?.start()
+                    }
                     phase = NaviampConnectPairingUiPhase.Failed
                     status = "The paired device did not start a compatible control session."
                     statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ThePairedDeviceDidNotStartACompatibleControlSession)

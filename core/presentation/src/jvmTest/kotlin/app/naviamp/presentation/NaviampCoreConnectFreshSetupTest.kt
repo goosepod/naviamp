@@ -334,6 +334,38 @@ class NaviampCoreConnectFreshSetupTest {
     }
 
     @Test
+    fun aWelcomeTimeoutDoesNotPinTheNextCodeToThatDevice() = runTest {
+        val network = ConnectTestNetwork()
+        val phone = connectPeer("phone", "mac", network, preTrusted = false,
+            configure = { realCrypto(it).copy(pairingHandshakeTimeoutMillis = 1_000L) })
+        val mac = connectPeer("mac", "phone", network, preTrusted = false, configure = { realCrypto(it).copy(
+            trust = app.naviamp.app.NaviampConnectTrustRepository(app.naviamp.app.NaviampConnectTrustStorageEffect {
+                network.silenced += "mac"
+            }),
+        ) })
+        val den = connectPeer("den", "phone", network, preTrusted = false, configure = realCrypto)
+        try {
+            val actions = phone.actions.shell.connectActions!!
+            mac.actions.shell.connectActions!!.onStartPairingMode()
+            actions.onConnectScreenVisibilityChanged(true)
+            runCurrent()
+            // The only device showing a code is chosen automatically, accepts it, then never sends Welcome.
+            actions.onPairingCodeChanged(assertNotNull(mac.state.value.shell.connect.pairingCode))
+            runCurrent()
+            advanceTimeBy(1_001L)
+            runCurrent()
+            assertNull(phone.state.value.shell.connect.connectedTargetName)
+            mac.actions.shell.connectActions!!.onStopPairingMode()
+            den.actions.shell.connectActions!!.onStartPairingMode()
+            runCurrent()
+            actions.onPairingCodeChanged(assertNotNull(den.state.value.shell.connect.pairingCode))
+            runCurrent()
+            assertEquals("den", phone.state.value.shell.connect.connectedTargetName,
+                "The next code goes to the device that now shows a code")
+        } finally { phone.close(); mac.close(); den.close() }
+    }
+
+    @Test
     fun secondPhoneConnectsToAnAlreadyTrustedTargetWithoutApproval() = runTest {
         val network = ConnectTestNetwork()
         val phoneA = connectPeer("phone-a", "mac", network, preTrusted = false, configure = realCrypto)
