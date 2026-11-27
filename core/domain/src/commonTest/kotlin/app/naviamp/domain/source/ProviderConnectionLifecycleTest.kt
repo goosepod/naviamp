@@ -130,6 +130,23 @@ class ProviderConnectionLifecycleTest {
         assertFalse(connectionFailureAllowsOfflineRestoration(IllegalStateException("TLS certificate verification failed")))
     }
 
+    @Test
+    fun aTemporaryServerFailureDuringLoginIsAnOutageNotARejectedAccount() {
+        // Jellyfin wraps every login failure, including an outage, as "authentication failed".
+        for (status in listOf(408, 425, 429, 500, 502, 503, 504)) {
+            assertTrue(connectionFailureAllowsOfflineRestoration(
+                IllegalStateException("Jellyfin authentication failed (HTTP $status)")), "HTTP $status")
+        }
+        assertTrue(connectionFailureAllowsOfflineRestoration(
+            IllegalStateException("Login failed", IllegalStateException("Server returned HTTP 503 Service Unavailable"))))
+        for (status in listOf(401, 403)) {
+            assertFalse(connectionFailureAllowsOfflineRestoration(
+                IllegalStateException("Jellyfin authentication failed (HTTP $status)")), "HTTP $status")
+        }
+        assertFalse(connectionFailureAllowsOfflineRestoration(IllegalStateException("Jellyfin authentication failed")),
+            "Without a transient status, an authentication failure is still a rejection")
+    }
+
     private data class FakeConnection(
         val baseUrl: String,
         val username: String,

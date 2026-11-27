@@ -24,10 +24,13 @@ import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.toSharedMediaItemUi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -66,6 +69,8 @@ class NaviampCoreOfflinePlaylistsTest {
 
     private class Server(var reachable: Boolean, var playlists: List<Playlist>, val tracks: MutableMap<String, List<Track>>) {
         var requests = 0
+        var connects = 0
+        var network: app.naviamp.domain.network.NetworkMetering = app.naviamp.domain.network.NetworkMetering.Unmetered
     }
 
     private class KeepPolicies(var policies: List<KeepDownloadedCollectionPolicy>) : NaviampCoreKeepDownloadedPort {
@@ -86,6 +91,8 @@ class NaviampCoreOfflinePlaylistsTest {
         reachable: Boolean,
         local: Set<String> = setOf("a", "c"),
         policies: List<KeepDownloadedCollectionPolicy> = emptyList(),
+        /** Null: the host cannot observe the network (Desktop). */
+        initialNetwork: app.naviamp.domain.network.NetworkMetering? = null,
     ): Fixture {
         val snapshots = MemoryOfflinePlaylists().apply {
             saveOfflinePlaylist(OfflinePlaylistSnapshot("source", roadTrip, listOf("a", "b", "a", "c").map(::track),
@@ -93,6 +100,7 @@ class NaviampCoreOfflinePlaylistsTest {
             saveOfflinePlaylist(OfflinePlaylistSnapshot("source", unplayable, listOf(track("x"))))
         }
         val server = Server(reachable, listOf(roadTrip, unplayable), mutableMapOf())
+        initialNetwork?.let { server.network = it }
         val fake = FakeCoreMediaProvider()
         val provider = object : MediaProvider by fake {
             override suspend fun playlists(limit: Int): List<Playlist> {
@@ -115,6 +123,7 @@ class NaviampCoreOfflinePlaylistsTest {
                     request: NaviampCoreConnectionRequest,
                     plan: app.naviamp.app.NaviampConnectionAttemptPlan,
                 ): NaviampCoreConnectedSession {
+                    server.connects++
                     check(server.reachable) { "Failed to connect to server" }
                     return NaviampCoreConnectedSession("source", "Home",
                         inventory = NaviampCoreConnectionInventory(listOf(record), "source"))
@@ -132,6 +141,10 @@ class NaviampCoreOfflinePlaylistsTest {
                 keepDownloaded = keep,
                 offlinePlaylists = snapshots,
             ),
+            // The one path every host uses: the network fact supplied to the playback catalog.
+            playback = defaults.playback.copy(networkMetering = app.naviamp.domain.network.NetworkMeteringSource {
+                server.network
+            }.takeIf { initialNetwork != null }),
         )
         val core = NaviampCore.create(this, services, NaviampCoreInitialState(
             connectionInventory = NaviampCoreConnectionInventory(listOf(record), "source"),
@@ -146,6 +159,26 @@ class NaviampCoreOfflinePlaylistsTest {
 
     private suspend fun Fixture.detail(item: SharedMediaItemUi, command: NaviampPlaylistDetailCommand) =
         core.execute(NaviampCoreCommand.Playlists.Detail(NaviampPlaylistDetailActionRequest(item, command)))
+
+    @Test fun anAirplaneModeColdStartSkipsTheServerAndReconnectsOnceTheNetworkReturns() = runTest {
+        val fixture = fixture(reachable = true, initialNetwork = app.naviamp.domain.network.NetworkMetering.Disconnected)
+        runCurrent()
+
+        assertEquals(0, fixture.server.connects, "No connection attempt while the OS reports no network")
+        assertEquals(0L, testScheduler.currentTime, "Offline content is not held behind a timeout")
+        assertTrue(fixture.core.state.value.shell.connectionSettings.connection.offline)
+        assertEquals(NaviampOfflineAvailabilityUi(3, 4), fixture.listed("road").offlineAvailability)
+
+        fixture.server.network = app.naviamp.domain.network.NetworkMetering.Unmetered
+        fixture.core.startRuntimeServices()
+        // Runtime recovery starts with the network already back, so the first backoff step applies.
+        advanceTimeBy(NaviampCoreReconnectSchedule().backoffMillis.first() + 1); runCurrent()
+
+        assertEquals(1, fixture.server.connects)
+        assertFalse(fixture.core.state.value.shell.connectionSettings.connection.offline)
+        assertNull(fixture.listed("road").offlineAvailability, "Reconnecting returns to server browsing")
+        fixture.core.close()
+    }
 
     @Test fun coldLaunchWithoutServerListsAndOpensDownloadedPlaylistsInSavedOrder() = runTest {
         val fixture = fixture(reachable = false)

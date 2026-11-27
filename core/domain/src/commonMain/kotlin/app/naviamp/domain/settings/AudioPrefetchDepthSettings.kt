@@ -11,7 +11,7 @@ import kotlinx.serialization.json.JsonTransformingSerializer
 fun CacheSettings.audioPrefetchDepthFor(metering: NetworkMetering): Int =
     when (metering) {
         NetworkMetering.Unmetered -> unmeteredAudioPrefetchDepth
-        NetworkMetering.Metered, NetworkMetering.Unknown -> meteredAudioPrefetchDepth
+        NetworkMetering.Metered, NetworkMetering.Unknown, NetworkMetering.Disconnected -> meteredAudioPrefetchDepth
     }.coerceIn(0, MaxAudioPrefetchDepth)
 
 /**

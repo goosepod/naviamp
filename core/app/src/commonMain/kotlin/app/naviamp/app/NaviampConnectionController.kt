@@ -25,13 +25,23 @@ data class NaviampConnectionRuntimeState(
     val serverVersion: String? = null,
     val status: String? = null,
     val retainingExistingConnection: Boolean = false,
+    /**
+     * An automatic recovery attempt from offline: it stays offline until it succeeds, so offline
+     * browsing and downloaded playback are never interrupted. A user-requested switch never sets it.
+     */
+    val retainingOffline: Boolean = false,
+    /** An offline session whose server rejected it (credentials, certificate): downloads stay, the cause shows. */
+    val statusIsError: Boolean = false,
 ) {
     val isConnecting: Boolean get() = phase == NaviampConnectionPhase.Connecting
     val connected: Boolean
         get() = phase == NaviampConnectionPhase.Connected || phase == NaviampConnectionPhase.Offline ||
             (isConnecting && retainingExistingConnection)
-    val offline: Boolean get() = phase == NaviampConnectionPhase.Offline
+    val offline: Boolean get() = phase == NaviampConnectionPhase.Offline || (isConnecting && retainingOffline)
     val restoringConnection: Boolean get() = isConnecting && restoringSavedSession && !retainingExistingConnection
+
+    /** Automatic recovery runs in the background; to the rest of the app the session is simply offline. */
+    val backgroundRecovery: Boolean get() = isConnecting && retainingOffline
 }
 
 data class NaviampConnectionAttemptPlan(
@@ -62,7 +72,12 @@ class NaviampConnectionController(
             else -> NaviampConnectionRestorationSource.None
         }
 
-    fun begin(restoreSavedSession: Boolean, preserveExistingConnection: Boolean = false): NaviampConnectionAttemptPlan? {
+    fun begin(
+        restoreSavedSession: Boolean,
+        preserveExistingConnection: Boolean = false,
+        /** Only Core's own offline recovery passes true; anything the user starts is a foreground attempt. */
+        automaticRecovery: Boolean = false,
+    ): NaviampConnectionAttemptPlan? {
         if (state.value.phase == NaviampConnectionPhase.Connecting) return null
         val previous = state.value
         val retaining = preserveExistingConnection && previous.connected
@@ -74,6 +89,7 @@ class NaviampConnectionController(
             sourceId = previous.sourceId.takeIf { retaining },
             serverVersion = previous.serverVersion.takeIf { retaining },
             retainingExistingConnection = retaining,
+            retainingOffline = automaticRecovery && retaining && previous.offline,
         )
         applicationStatus?.publish(
             area = NaviampApplicationStatusArea.Connection,
@@ -102,15 +118,16 @@ class NaviampConnectionController(
         )
     }
 
-    fun offline(sourceId: String, status: String) {
+    fun offline(sourceId: String, status: String, statusIsError: Boolean = false) {
         mutableState.value = NaviampConnectionRuntimeState(
             phase = NaviampConnectionPhase.Offline,
             sourceId = sourceId,
             status = status,
+            statusIsError = statusIsError,
         )
         applicationStatus?.publish(
             area = NaviampApplicationStatusArea.Connection,
-            level = NaviampApplicationStatusLevel.Warning,
+            level = if (statusIsError) NaviampApplicationStatusLevel.Error else NaviampApplicationStatusLevel.Warning,
             message = status,
         )
     }

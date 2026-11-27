@@ -95,6 +95,11 @@ data class NaviampCorePlaybackServices(
     val visualizerSettings: NaviampCoreVisualizerSettingsPort,
     val sessions: NaviampPlaybackSessionController,
     val profiles: PlaybackProfileRepository = EmptyPlaybackProfileRepository,
+    /**
+     * The host's network fact, shared by prefetch and connection recovery; absent when the host
+     * cannot observe one (Desktop). Every host already supplies it to the playback catalog.
+     */
+    val networkMetering: app.naviamp.domain.network.NetworkMeteringSource? = null,
     val samples: NaviampCoreSamplePlaybackPort = UnavailableNaviampSamplePlayback,
     /** The native engine's sleep-timer fade, applied after user volume and ReplayGain. */
     val outputFade: (Float) -> Unit = {},

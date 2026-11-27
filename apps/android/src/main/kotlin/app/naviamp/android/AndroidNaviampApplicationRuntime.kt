@@ -62,12 +62,13 @@ class AndroidNaviampApplicationRuntime private constructor(context: Context) {
         return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
     }
 
-    /** Translates the ConnectivityManager billing capability of the active network for Core. */
+    /** Translates the ConnectivityManager active network, and its billing capability, for Core. */
     private fun networkMetering(): NetworkMetering {
         val connectivity = appContext.getSystemService(ConnectivityManager::class.java)
             ?: return NetworkMetering.Unknown
-        val capabilities = connectivity.getNetworkCapabilities(connectivity.activeNetwork)
-            ?: return NetworkMetering.Unknown
+        val active = connectivity.activeNetwork ?: return NetworkMetering.Disconnected
+        val capabilities = connectivity.getNetworkCapabilities(active)
+            ?: return NetworkMetering.Disconnected
         return if (capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)) {
             NetworkMetering.Unmetered
         } else {
