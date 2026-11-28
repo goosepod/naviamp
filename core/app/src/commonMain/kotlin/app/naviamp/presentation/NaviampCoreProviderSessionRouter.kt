@@ -69,6 +69,18 @@ class NaviampCoreProviderSessionRouter(
     override suspend fun editableConnection(id: String): NaviampCoreEditableConnection =
         (routeForSaved(id) ?: unsupportedSaved(id)).sessionPort.editableConnection(id)
 
+    override suspend fun saveValidatedConnection(
+        form: app.naviamp.domain.settings.ConnectionFormState,
+        savedConnectionId: String?,
+    ): String {
+        val route = routeForProvider(form.providerId)
+            ?: unsupportedProvider(NaviampCoreConnectionRequest.Form(form, savedConnectionId))
+        // The active route and account do not change; only the saved-account list grows.
+        val id = route.sessionPort.saveValidatedConnection(form, savedConnectionId)
+        inventory = inventory.copy(connections = route.sessionPort.initialInventory().connections)
+        return id
+    }
+
     override suspend fun currentProvisioningConnection(): NaviampCoreEditableConnection? =
         activeRoute?.sessionPort?.currentProvisioningConnection()
 

@@ -213,6 +213,8 @@ class NaviampCoreConnectTargetCommandExecutor(
     private val stateStore: NaviampCoreStateStore,
     private val snapshots: NaviampCoreConnectTargetSnapshotFactory,
     private val offerProvisioning: (NaviampConnectOfferConnectionProvisioning) -> Boolean = { false },
+    /** Receives (send) or serves (pull) a full account transfer (#714); false when one is already running. */
+    private val accountTransfer: (NaviampConnectCommand) -> Boolean = { false },
     private val revealNowPlaying: () -> Unit = {},
 ) : NaviampConnectTargetCommandExecutor {
     override suspend fun execute(
@@ -221,6 +223,9 @@ class NaviampCoreConnectTargetCommandExecutor(
     ): NaviampConnectTargetCommandResult {
         val accepted = when (command) {
             is NaviampConnectOfferConnectionProvisioning -> offerProvisioning(command)
+            is app.naviamp.domain.connect.NaviampConnectOfferAccountTransfer,
+            is app.naviamp.domain.connect.NaviampConnectRequestAccountTransfer,
+            -> accountTransfer(command)
             is NaviampConnectStartMedia -> catalog.start(command)
             is app.naviamp.domain.connect.NaviampConnectQueueMedia -> catalog.queue(command)
             is NaviampConnectHandoffQueue -> playback.handoffConnectQueue(command)
@@ -316,6 +321,9 @@ private fun NaviampConnectCommand.requiredCoreTargetCapability(): NaviampConnect
     NaviampConnectClearUpNext -> NaviampConnectCapability.QueueClear
     is NaviampConnectHandoffQueue -> NaviampConnectCapability.QueueHandoff
     is NaviampConnectOfferConnectionProvisioning -> NaviampConnectCapability.ConnectionProvisioning
+    is app.naviamp.domain.connect.NaviampConnectOfferAccountTransfer,
+    is app.naviamp.domain.connect.NaviampConnectRequestAccountTransfer,
+    -> NaviampConnectCapability.ConnectionProvisioning
     is NaviampConnectStartMedia -> when (mediaType) {
         app.naviamp.domain.connect.NaviampConnectMediaType.InternetRadioStation ->
             NaviampConnectCapability.InternetRadio

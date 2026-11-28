@@ -814,4 +814,23 @@
     <string name="status_library_index_cleared">Wyczyszczono indeks biblioteki.</string>
     <string name="status_database_reset">Zresetowano bazę danych. Zapisane serwery zostały usunięte.</string>
     <string name="status_home_failed">Nie udało się wczytać strony głównej.</string>
+    <string name="connect_status_signing_in_device">Logowanie na %1$s…</string>
+    <string name="connect_status_getting_accounts_from_device">Pobieranie Twoich kont z %1$s…</string>
+    <string name="connect_status_device_is_signed_in">%1$s jest zalogowane.</string>
+    <string name="connect_status_signed_in_from_device">Zalogowano za pomocą kont z %1$s.</string>
+    <string name="connect_status_sent_accounts_to_device">Wysłano Twoje konta do %1$s.</string>
+    <string name="connect_status_some_accounts_need_attention">Niektóre konta nie zostały skopiowane.</string>
+    <string name="connect_status_no_accounts_to_copy">%1$s nie ma kont do skopiowania.</string>
+    <string name="connect_status_account_copy_failed">Nie udało się skopiować Twoich kont. Spróbuj ponownie.</string>
+    <string name="connect_post_sign_in_from">Zaloguj to urządzenie kontami z %1$s</string>
+    <string name="connect_post_choose">Wybierz konta i ustawienia</string>
+    <string name="connect_post_include_settings">Uwzględnij moje ustawienia</string>
+    <string name="connect_account_needs_password">Wymaga hasła</string>
+    <string name="connect_account_set_up_on_device">Skonfiguruj na urządzeniu</string>
+    <string name="connect_account_password_for">Hasło do %1$s</string>
+    <string name="connect_result_added">Dodano</string>
+    <string name="connect_result_updated">Zaktualizowano</string>
+    <string name="connect_result_failed">Nie udało się zalogować</string>
+    <string name="connect_send_my_accounts">Wyślij moje konta</string>
+    <string name="connect_get_accounts">Pobierz konta z tego urządzenia</string>
 </resources>

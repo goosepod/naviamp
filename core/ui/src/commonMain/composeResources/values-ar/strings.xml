@@ -723,4 +723,23 @@
     <string name="status_library_index_cleared">تم مسح فهرس المكتبة.</string>
     <string name="status_database_reset">تمت إعادة تعيين قاعدة البيانات. تمت إزالة الخوادم المحفوظة.</string>
     <string name="status_home_failed">تعذّر تحميل الصفحة الرئيسية.</string>
+    <string name="connect_status_signing_in_device">جارٍ تسجيل دخول %1$s…</string>
+    <string name="connect_status_getting_accounts_from_device">جارٍ جلب حساباتك من %1$s…</string>
+    <string name="connect_status_device_is_signed_in">تم تسجيل دخول %1$s.</string>
+    <string name="connect_status_signed_in_from_device">تم تسجيل الدخول بحسابات من %1$s.</string>
+    <string name="connect_status_sent_accounts_to_device">تم إرسال حساباتك إلى %1$s.</string>
+    <string name="connect_status_some_accounts_need_attention">لم يتم نسخ بعض الحسابات.</string>
+    <string name="connect_status_no_accounts_to_copy">لا توجد حسابات لنسخها على %1$s.</string>
+    <string name="connect_status_account_copy_failed">تعذّر نسخ حساباتك. حاول مرة أخرى.</string>
+    <string name="connect_post_sign_in_from">تسجيل دخول هذا الجهاز بحسابات من %1$s</string>
+    <string name="connect_post_choose">اختيار الحسابات والإعدادات</string>
+    <string name="connect_post_include_settings">تضمين إعداداتي</string>
+    <string name="connect_account_needs_password">تحتاج إلى كلمة مرور</string>
+    <string name="connect_account_set_up_on_device">يُعدّ على الجهاز نفسه</string>
+    <string name="connect_account_password_for">كلمة المرور لـ %1$s</string>
+    <string name="connect_result_added">أُضيف</string>
+    <string name="connect_result_updated">حُدّث</string>
+    <string name="connect_result_failed">تعذّر تسجيل الدخول</string>
+    <string name="connect_send_my_accounts">إرسال حساباتي</string>
+    <string name="connect_get_accounts">جلب الحسابات من هذا الجهاز</string>
 </resources>

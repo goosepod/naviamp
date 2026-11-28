@@ -374,6 +374,8 @@ fun NaviampConnectCommand.isNaviampConnectIdempotent(): Boolean = when (this) {
     is app.naviamp.domain.connect.NaviampConnectQueueMedia,
     is app.naviamp.domain.connect.NaviampConnectHandoffQueue,
     is app.naviamp.domain.connect.NaviampConnectOfferConnectionProvisioning,
+    is app.naviamp.domain.connect.NaviampConnectOfferAccountTransfer,
+    is app.naviamp.domain.connect.NaviampConnectRequestAccountTransfer,
     -> false
     app.naviamp.domain.connect.NaviampConnectClearUpNext -> true
 }
@@ -636,8 +638,11 @@ class NaviampConnectTargetSession(
             completedRequests.remove(completedRequests.keys.first())
         }
         completedRequests[requestId] = CompletedNaviampConnectRequest(
+            // Commands that carry or request credentials are never retained for replay.
             command = command.takeUnless {
-                it is app.naviamp.domain.connect.NaviampConnectOfferConnectionProvisioning
+                it is app.naviamp.domain.connect.NaviampConnectOfferConnectionProvisioning ||
+                    it is app.naviamp.domain.connect.NaviampConnectOfferAccountTransfer ||
+                    it is app.naviamp.domain.connect.NaviampConnectRequestAccountTransfer
             },
             acknowledgement = acknowledgement,
         )

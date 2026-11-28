@@ -708,4 +708,23 @@
     <string name="status_library_index_cleared">资料库索引已清除。</string>
     <string name="status_database_reset">数据库已重置。已删除保存的服务器。</string>
     <string name="status_home_failed">无法加载主页。</string>
+    <string name="connect_status_signing_in_device">正在登录 %1$s…</string>
+    <string name="connect_status_getting_accounts_from_device">正在从 %1$s 获取你的账户…</string>
+    <string name="connect_status_device_is_signed_in">%1$s 已登录。</string>
+    <string name="connect_status_signed_in_from_device">已使用 %1$s 的账户登录。</string>
+    <string name="connect_status_sent_accounts_to_device">已将你的账户发送到 %1$s。</string>
+    <string name="connect_status_some_accounts_need_attention">部分账户未复制。</string>
+    <string name="connect_status_no_accounts_to_copy">%1$s 没有可复制的账户。</string>
+    <string name="connect_status_account_copy_failed">无法复制你的账户。请重试。</string>
+    <string name="connect_post_sign_in_from">使用 %1$s 的账户登录此设备</string>
+    <string name="connect_post_choose">选择账户和设置</string>
+    <string name="connect_post_include_settings">包含我的设置</string>
+    <string name="connect_account_needs_password">需要密码</string>
+    <string name="connect_account_set_up_on_device">在设备上设置</string>
+    <string name="connect_account_password_for">%1$s 的密码</string>
+    <string name="connect_result_added">已添加</string>
+    <string name="connect_result_updated">已更新</string>
+    <string name="connect_result_failed">无法登录</string>
+    <string name="connect_send_my_accounts">发送我的账户</string>
+    <string name="connect_get_accounts">从此设备获取账户</string>
 </resources>

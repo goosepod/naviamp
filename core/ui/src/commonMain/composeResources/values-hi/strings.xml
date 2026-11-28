@@ -711,4 +711,23 @@
     <string name="status_library_index_cleared">लाइब्रेरी इंडेक्स साफ़ किया गया।</string>
     <string name="status_database_reset">डेटाबेस रीसेट किया गया। सहेजे गए सर्वर हटा दिए गए।</string>
     <string name="status_home_failed">होम लोड नहीं हो सका।</string>
+    <string name="connect_status_signing_in_device">%1$s में साइन इन हो रहा है…</string>
+    <string name="connect_status_getting_accounts_from_device">%1$s से आपके खाते लाए जा रहे हैं…</string>
+    <string name="connect_status_device_is_signed_in">%1$s में साइन इन हो गया है।</string>
+    <string name="connect_status_signed_in_from_device">%1$s के खातों से साइन इन किया गया।</string>
+    <string name="connect_status_sent_accounts_to_device">आपके खाते %1$s को भेज दिए गए।</string>
+    <string name="connect_status_some_accounts_need_attention">कुछ खाते कॉपी नहीं हुए।</string>
+    <string name="connect_status_no_accounts_to_copy">%1$s पर कॉपी करने के लिए कोई खाता नहीं है।</string>
+    <string name="connect_status_account_copy_failed">आपके खाते कॉपी नहीं हो सके। फिर से कोशिश करें।</string>
+    <string name="connect_post_sign_in_from">इस डिवाइस में %1$s के खातों से साइन इन करें</string>
+    <string name="connect_post_choose">खाते और सेटिंग्स चुनें</string>
+    <string name="connect_post_include_settings">मेरी सेटिंग्स शामिल करें</string>
+    <string name="connect_account_needs_password">पासवर्ड चाहिए</string>
+    <string name="connect_account_set_up_on_device">डिवाइस पर सेट अप करें</string>
+    <string name="connect_account_password_for">%1$s का पासवर्ड</string>
+    <string name="connect_result_added">जोड़ा गया</string>
+    <string name="connect_result_updated">अपडेट किया गया</string>
+    <string name="connect_result_failed">साइन इन नहीं हो सका</string>
+    <string name="connect_send_my_accounts">मेरे खाते भेजें</string>
+    <string name="connect_get_accounts">इस डिवाइस से खाते लें</string>
 </resources>
