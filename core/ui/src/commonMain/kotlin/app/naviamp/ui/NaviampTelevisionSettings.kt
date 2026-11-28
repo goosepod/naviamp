@@ -503,6 +503,12 @@ internal fun TelevisionControllersSettings(
                     onClick = { codeShown = !codeShown },
                 )
             }
+            connect.pairingLink?.takeIf { codeShown && connect.pairingCode != null }?.let { link ->
+                item(key = "pairing-qr") {
+                    NaviampConnectQrCode(link, stringResource(Res.string.connect_qr_description, connect.localDeviceName),
+                        modifier = Modifier.padding(vertical = 8.dp), size = 220.dp)
+                }
+            }
         }
         if (connect.canDiscover) {
             connect.connectedTargetName?.let { targetName ->

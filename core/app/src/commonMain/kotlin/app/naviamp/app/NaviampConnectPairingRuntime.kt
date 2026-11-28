@@ -186,6 +186,21 @@ class NaviampConnectControllerPairingRuntime(
         onConnectionOpened,
     )
 
+    /**
+     * A scanned QR code (#715): its secret is the J-PAKE password, and the device must prove the
+     * scanned identity and still hold the scanned offer.
+     */
+    suspend fun pairWithLink(
+        host: String,
+        offer: app.naviamp.domain.connect.NaviampConnectLinkOffer,
+        pairedAtEpochMillis: Long,
+        trustedDeviceId: String,
+        onConnectionOpened: (NaviampConnectTransportConnection) -> Unit = {},
+    ): NaviampConnectPairingRuntimeResult = pairAtEndpoint(
+        host, offer.port, localProtocolRange, offer.identityFingerprint, offer.secret.toCharArray(),
+        pairedAtEpochMillis, trustedDeviceId, onConnectionOpened, scannedOfferId = offer.offerId,
+    )
+
     private suspend fun pairAtEndpoint(
         host: String,
         port: Int,
@@ -195,6 +210,7 @@ class NaviampConnectControllerPairingRuntime(
         pairedAtEpochMillis: Long,
         trustedDeviceId: String,
         onConnectionOpened: (NaviampConnectTransportConnection) -> Unit,
+        scannedOfferId: String? = null,
     ): NaviampConnectPairingRuntimeResult {
         var connection: NaviampConnectTransportConnection? = null
         var pake: NaviampConnectPakeSession? = null
@@ -225,12 +241,23 @@ class NaviampConnectControllerPairingRuntime(
                         identity = localIdentity,
                         protocolRange = localProtocolRange,
                         capabilities = emptySet(),
+                        pairingOfferId = scannedOfferId,
                     ),
                 ),
             )
             val offerEnvelope = connection.receivePlaintext()
+            val refusal = offerEnvelope.message as? app.naviamp.domain.connect.NaviampConnectErrorMessage
+            if (scannedOfferId != null && refusal?.code == NaviampConnectErrorCode.PairingExpired) {
+                // The device no longer shows the scanned offer; its current code or QR still works.
+                return failure(connection, pairingCode, NaviampConnectErrorCode.PairingExpired,
+                    NaviampConnectPairingFailureStage.PairingOffer)
+            }
             val offer = offerEnvelope.message as? NaviampConnectPairingOffer
                 ?: return failure(connection, pairingCode, NaviampConnectErrorCode.InvalidRequest)
+            if (scannedOfferId != null && offer.pairingSessionId != scannedOfferId) {
+                return failure(connection, pairingCode, NaviampConnectErrorCode.PairingExpired,
+                    NaviampConnectPairingFailureStage.PairingOffer)
+            }
             if (offerEnvelope.sequence != 0L ||
                 offerEnvelope.protocolVersion != expectedProtocolVersion ||
                 offerEnvelope.sessionId != offer.pairingSessionId ||
@@ -394,6 +421,13 @@ class NaviampConnectTargetPairingRuntime(
         val envelope = initialEnvelope ?: connection.receivePlaintext()
         val hello = envelope.message as? NaviampConnectHello
             ?: return reject(connection, NaviampConnectErrorCode.InvalidRequest)
+        hello.pairingOfferId?.let { scanned ->
+            val current = pairingController.state as? NaviampConnectTargetPairingState.Advertising
+            if (current == null || current.pairingSessionId != scanned || current.qrSecret.isBlank()) {
+                // A QR from an earlier, used or closed offer: say so instead of failing an attempt.
+                return refuseNaviampConnectScannedOffer(connection, envelope.protocolVersion)
+            }
+        }
         val advertising = activeAdvertising()
         val negotiatedProtocol = negotiateNaviampConnectProtocol(
             advertising.advertisement.protocolRange,
@@ -472,7 +506,7 @@ class NaviampConnectPendingTargetPairing internal constructor(
         var failureStage = NaviampConnectPairingFailureStage.LocalIdentity
         return try {
             requireIdentity(localIdentity, localDevice, identityVerifier)
-            val handshakeStart = pairingController.approve(nowEpochMillis)
+            val handshakeStart = pairingController.approve(nowEpochMillis, useQrSecret = hello.pairingOfferId != null)
                 ?: return failure(connection, CharArray(0), NaviampConnectErrorCode.PairingExpired)
             val handshaking = handshakeStart.state
             val advertising = handshaking.advertising
@@ -748,4 +782,25 @@ private fun NaviampConnectIdentityVerifier.verifyProof(
     } finally {
         signature.fill(0)
     }
+}
+
+/**
+ * Tells a device that scanned a QR code that this offer is no longer shown (#715), then closes. Its
+ * current code or QR still works; nothing secret is sent.
+ */
+suspend fun refuseNaviampConnectScannedOffer(
+    connection: NaviampConnectTransportConnection,
+    protocolVersion: Int,
+): NaviampConnectTargetPairingRequestResult.Rejected {
+    runCatching {
+        connection.sendPlaintext(NaviampConnectEnvelope(
+            protocolVersion = protocolVersion.coerceAtLeast(1),
+            sequence = 0,
+            message = app.naviamp.domain.connect.NaviampConnectErrorMessage(
+                NaviampConnectErrorCode.PairingExpired,
+                "This QR code is no longer shown.",
+            ),
+        ))
+    }
+    return reject(connection, NaviampConnectErrorCode.PairingExpired)
 }

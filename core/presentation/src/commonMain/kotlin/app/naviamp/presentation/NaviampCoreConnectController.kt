@@ -111,6 +111,8 @@ data class NaviampCoreConnectServices(
     /** CSPRNG-backed, collision-resistant value used for pairing IDs, challenges, and target nonces. */
     val newOpaqueId: () -> String,
     val newPairingCode: () -> String,
+    /** CSPRNG-backed QR link secret of at least 128 bits (#715); null shows no QR code. */
+    val newLinkSecret: (() -> String)? = null,
     val nowEpochMillis: () -> Long,
     val pairingLifetimeMillis: Long = 5 * 60_000L,
     val pairingHelloTimeoutMillis: Long = 10_000L,
@@ -200,6 +202,10 @@ class NaviampCoreConnectController(
     private var presenceAdvertisement: NaviampConnectAdvertisement? = null
     /** True while the user keeps the code panel open; only then does a code exist. */
     private var codeVisible = false
+    /** This device's addresses, read when an offer is issued, for the QR link (#715). */
+    private var linkHosts: List<String> = emptyList()
+    /** A link opened from outside the app shows its progress and outcome app-wide until dismissed. */
+    private var linkStatusVisible = false
     /** Failed code attempts while the panel stays open; each failure rotates the code. */
     private var codeFailures = 0
     private var codeRetryJob: Job? = null
@@ -367,6 +373,8 @@ class NaviampCoreConnectController(
         onGetAccountsFromDevice = { device -> copyAccountsWith(device, pull = true) },
         onTargetSelected = ::selectTarget,
         onManualEndpointSelected = ::selectManualEndpoint,
+        onConnectLinkScanned = { link -> openConnectLink(link) },
+        onDismissLinkStatus = { linkStatusVisible = false; publish() },
         onManualTrustedEndpointSelected = ::reconnectTrustedDeviceAtAddress,
         onTrustedDeviceSelected = ::reconnectTrustedDevice,
         onPlaybackDeviceSelected = ::selectPlaybackDevice,
@@ -686,7 +694,10 @@ class NaviampCoreConnectController(
         // never re-registers DNS-SD, so a live session is not disturbed by a DNS goodbye.
         val offer = presence.copy(expiresAtEpochMillis = now + services.pairingLifetimeMillis)
         val pairingSessionId = services.newOpaqueId()
-        targetPairing.start(offer, pairingSessionId, code, now)
+        // The QR secret is issued with the code: one offer, one lifetime, both replaced together.
+        val qrSecret = services.newLinkSecret?.let { next -> runCatching(next).getOrNull() }.orEmpty()
+        linkHosts = listener?.localAddresses().orEmpty().take(MaxLinkHosts)
+        targetPairing.start(offer, pairingSessionId, code, now, qrSecret = qrSecret)
         if (advertisingController.state.value is NaviampConnectAdvertisingStatus.Advertising) {
             phase = NaviampConnectPairingUiPhase.Advertising
             status = "Ready for a controller on this local network."
@@ -791,7 +802,12 @@ class NaviampCoreConnectController(
                     continue
                 }
                 if (targetPairing.state !is app.naviamp.domain.connect.NaviampConnectTargetPairingState.Advertising) {
-                    // New connections are accepted only while this device shows a code.
+                    // New connections are accepted only while this device shows a code. A scanned QR
+                    // is told its offer is gone, so the scanner does not report a wrong secret.
+                    val scanned = (initialEnvelope.message as? app.naviamp.domain.connect.NaviampConnectHello)?.pairingOfferId
+                    if (scanned != null) {
+                        app.naviamp.app.refuseNaviampConnectScannedOffer(connection, initialEnvelope.protocolVersion)
+                    }
                     connection.close()
                     acceptedPairingConnection = null
                     if (listener !== boundListener) return
@@ -827,6 +843,13 @@ class NaviampCoreConnectController(
                     }
                     is NaviampConnectTargetPairingRequestResult.Rejected -> {
                         acceptedPairingConnection = null
+                        if (result.code == NaviampConnectErrorCode.PairingExpired &&
+                            targetPairing.state is app.naviamp.domain.connect.NaviampConnectTargetPairingState.Advertising &&
+                            !targetPairing.expireIfNeeded(services.nowEpochMillis())
+                        ) {
+                            // An old QR was scanned; the current code and QR stay on screen unchanged.
+                            continue
+                        }
                         // This loop also serves trusted resume: an expired offer is replaced, never fatal.
                         // The handshake may already have marked the offer expired; either way show a new code.
                         if (targetPairing.state !is app.naviamp.domain.connect.NaviampConnectTargetPairingState.Advertising ||
@@ -1229,7 +1252,8 @@ class NaviampCoreConnectController(
             when (result) {
                 is app.naviamp.app.NaviampConnectResumptionResult.Connected -> {
                     services.trust.upsert(result.trust.withLastKnownEndpoint(target))
-                    discovery?.stop()
+                    // The open Connect screen keeps finding devices that show a code.
+                    if (!connectScreenVisible) discovery?.stop()
                     val connected = awaitNaviampConnectSocketOperation(
                         scope = controllerScope,
                         timeoutMillis = services.pairingHandshakeTimeoutMillis,
@@ -1489,7 +1513,7 @@ class NaviampCoreConnectController(
                     NaviampConnectDeviceRole.Controller -> {
                         playbackDestination.select(persistedTrust)
                         playbackDestination.connecting(persistedTrust.trustedDeviceId)
-                        discovery?.stop()
+                        if (!connectScreenVisible) discovery?.stop()
                         if (codeVisible) stopPairingMode()
                         ensureTrustedTargetListener()
                         // One session at a time: a previous session (or a late reconnect) must not leak.
@@ -2767,6 +2791,137 @@ class NaviampCoreConnectController(
     }
 
     /** Sets the shown status; the diagnostic text only names the message for traces. */
+    /** The QR link for the offer on screen; it exists only while the matching code is shown. */
+    private fun pairingLink(): String? {
+        val advertising = targetPairing.state as? app.naviamp.domain.connect.NaviampConnectTargetPairingState.Advertising
+            ?: return null
+        if (advertising.qrSecret.isBlank()) return null
+        return runCatching {
+            app.naviamp.domain.connect.NaviampConnectLinkOffer(
+                displayName = localTargetDevice.displayName,
+                hosts = linkHosts,
+                port = advertising.advertisement.port,
+                identityFingerprint = advertising.advertisement.identityFingerprint,
+                offerId = advertising.pairingSessionId,
+                secret = advertising.qrSecret,
+            ).toUri()
+        }.getOrNull()
+    }
+
+    /**
+     * A scanned QR code or an opened `naviamp://connect` link (#715). It connects to the device that
+     * showed it with no typing, then continues into the same post-connect sheet as a code.
+     */
+    fun openConnectLink(text: String, fromOutsideApp: Boolean = false) {
+        if (!canControl) return
+        if (codePairingInFlight) return
+        linkStatusVisible = fromOutsideApp
+        val offer = when (val parsed = app.naviamp.domain.connect.parseNaviampConnectLink(text)) {
+            is app.naviamp.domain.connect.NaviampConnectLinkParse.Offer -> parsed.offer
+            app.naviamp.domain.connect.NaviampConnectLinkParse.UnsupportedVersion -> {
+                report(NaviampConnectStatusText.QrNeedsNewerVersion)
+                publish()
+                return
+            }
+            app.naviamp.domain.connect.NaviampConnectLinkParse.Invalid -> {
+                report(NaviampConnectStatusText.QrNotRecognized)
+                publish()
+                return
+            }
+        }
+        val ownFingerprint = (identityState.value as? IdentityState.Ready)?.identity?.identityFingerprint
+        if (offer.identityFingerprint == ownFingerprint) {
+            report(NaviampConnectStatusText.QrIsThisDevice)
+            publish()
+            return
+        }
+        if (identityState.value !is IdentityState.Ready) {
+            withIdentity { openConnectLink(text, fromOutsideApp) }
+            return
+        }
+        suspendAutomaticReconnectForManualPairing()
+        codeTargetWaitJob?.cancel()
+        codeTargetWaitJob = null
+        selectedManualEndpoint = null
+        enteredCode = ""
+        phase = NaviampConnectPairingUiPhase.Handshaking
+        report(NaviampConnectStatusText.AuthenticatingDevice, offer.displayName)
+        codePairingInFlight = true
+        publish()
+        controllerScope.launch {
+            // A discovered advertisement with the scanned identity has the freshest addresses; with
+            // no address in the QR either, look for that device on this network for a moment.
+            fun discoveredWithIdentity() = discovery?.state?.value?.targets.orEmpty()
+                .firstOrNull { it.advertisement.identityFingerprint == offer.identityFingerprint }
+            var discovered = discoveredWithIdentity()
+            if (discovered == null && offer.hosts.isEmpty()) {
+                discovery?.let { controller ->
+                    controller.start()
+                    discovered = withTimeoutOrNull(CodeTargetWaitMillis) {
+                        controller.state.first { state ->
+                            state.targets.any { it.advertisement.identityFingerprint == offer.identityFingerprint }
+                        }
+                        discoveredWithIdentity()
+                    }
+                }
+            }
+            selectedTarget = discovered
+            codeTargetAutoSelected = false
+            val addresses = (discovered?.addresses.orEmpty() + offer.hosts).distinct()
+            val runtime = NaviampConnectControllerPairingRuntime(
+                localControllerDevice, services.identity, services.identityVerifier,
+                services.transport, services.pake, services.cipher,
+            )
+            var result: NaviampConnectPairingRuntimeResult =
+                NaviampConnectPairingRuntimeResult.Failed(NaviampConnectErrorCode.TargetUnavailable)
+            for (address in addresses) {
+                val attempt = try {
+                    awaitNaviampConnectSocketOperation(
+                        scope = controllerScope,
+                        timeoutMillis = services.pairingHandshakeTimeoutMillis,
+                        close = { activeManualPairingConnection?.close() },
+                    ) {
+                        runtime.pairWithLink(address, offer, services.nowEpochMillis(), services.newOpaqueId(),
+                            onConnectionOpened = { activeManualPairingConnection = it })
+                    }.also { activeManualPairingConnection = null }
+                } catch (_: Exception) {
+                    null
+                }
+                if (attempt != null) result = attempt
+                // Only an unreachable address moves on; a device that answered has decided.
+                if (attempt is NaviampConnectPairingRuntimeResult.Paired ||
+                    attempt is NaviampConnectPairingRuntimeResult.Failed &&
+                    attempt.stage != app.naviamp.app.NaviampConnectPairingFailureStage.TransportConnect
+                ) break
+            }
+            activeManualPairingConnection = null
+            if (result is NaviampConnectPairingRuntimeResult.Paired && selectedTarget == null) {
+                val endpoint = app.naviamp.domain.connect.NaviampConnectManualEndpoint(addresses.first(), offer.port)
+                selectedTarget = result.trust.toManualTarget(endpoint, result.session.protocolVersion, services.nowEpochMillis())
+            }
+            codePairingInFlight = false
+            // Success continues in the post-connect sheet, which is shown app-wide.
+            if (result is NaviampConnectPairingRuntimeResult.Paired) linkStatusVisible = false
+            finishPairing(result, localRole = NaviampConnectDeviceRole.Controller)
+            (result as? NaviampConnectPairingRuntimeResult.Failed)?.let { failed ->
+                if (selectedTarget === discovered) selectedTarget = null
+                report(when {
+                    failed.code == NaviampConnectErrorCode.PairingExpired -> NaviampConnectStatusText.QrNoLongerShown
+                    failed.code == NaviampConnectErrorCode.RateLimited -> NaviampConnectStatusText.TooManyAttempts
+                    failed.stage == app.naviamp.app.NaviampConnectPairingFailureStage.TransportConnect ||
+                        failed.code == NaviampConnectErrorCode.TargetUnavailable -> NaviampConnectStatusText.QrDeviceNotFound
+                    else -> NaviampConnectStatusText.QrNotVerified
+                }, offer.displayName)
+                publish()
+            }
+        }.invokeOnCompletion {
+            if (codePairingInFlight) {
+                codePairingInFlight = false
+                publish()
+            }
+        }
+    }
+
     private fun report(text: NaviampConnectStatusText?, vararg arguments: String?) {
         status = text?.name
         statusMessage = text?.let { NaviampConnectStatusMessage(it, arguments.toList()) }
@@ -2812,6 +2967,8 @@ class NaviampCoreConnectController(
                             ?.advertisement?.expiresAtEpochMillis
                     },
                     listeningPort = listener?.port,
+                    pairingLink = pairingLink(),
+                    linkStatus = statusMessage?.takeIf { linkStatusVisible },
                     enteredPairingCode = enteredCode,
                     connectScreenVisible = connectScreenVisible,
                     codeEntryBusy = codePairingInFlight,
@@ -3032,6 +3189,8 @@ internal suspend fun <T> awaitNaviampConnectSocketOperation(
         operationJob.cancel()
     }
 }
+
+private const val MaxLinkHosts = 4
 
 private fun NaviampConnectTargetPairingController.displayCode(): String? =
     when (val current = state) {

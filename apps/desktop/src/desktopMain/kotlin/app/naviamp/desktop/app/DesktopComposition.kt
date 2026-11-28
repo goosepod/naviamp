@@ -115,6 +115,8 @@ internal class DesktopComposition private constructor(
                 advertising = DesktopNaviampConnectAdvertisingEffect(connectNetwork),
                 newOpaqueId = { UUID.randomUUID().toString() },
                 newPairingCode = { secureRandom.nextInt(1_000_000).toString().padStart(6, '0') },
+                // The OS CSPRNG is the host boundary; the QR link policy is shared (#715).
+                newLinkSecret = { app.naviamp.domain.connect.naviampConnectLinkSecret(ByteArray(16).also(secureRandom::nextBytes)) },
                 nowEpochMillis = nowEpochMillis,
             )
             var cacheSettings = settingsCatalog.storedSettings.loadCache()

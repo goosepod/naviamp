@@ -133,6 +133,8 @@ kotlin {
         }
         jvmTest.dependencies {
             implementation(compose.desktop.currentOs)
+            // Independent decoder that checks the shared QR encoder (#715); test only.
+            implementation(libs.zxing.core)
             implementation("org.jetbrains.compose.ui:ui-test:$composeVersion")
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.kotlin.test)

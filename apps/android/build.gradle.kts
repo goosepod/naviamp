@@ -143,6 +143,9 @@ dependencies {
     implementation("org.jetbrains.compose.ui:ui:$composeVersion")
     implementation(libs.kotlinx.coroutines.core)
     implementation("com.google.android.gms:play-services-cast-framework:22.3.1")
+    // Connect QR scanning (#715): camera preview and decoding without Google Play Services.
+    implementation(libs.zxing.android.embedded)
+    implementation(libs.androidx.lifecycle.runtime.compose)
 
     testImplementation(project(":core:testkit"))
     testImplementation(kotlin("test-junit"))

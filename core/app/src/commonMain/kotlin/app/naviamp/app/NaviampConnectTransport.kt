@@ -21,6 +21,9 @@ interface NaviampConnectTransportConnection {
 interface NaviampConnectTransportListener {
     val port: Int
 
+    /** This device's reachable addresses for a QR link (#715); empty when unknown. */
+    fun localAddresses(): List<String> = emptyList()
+
     suspend fun accept(): NaviampConnectTransportConnection
 
     fun close()

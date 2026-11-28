@@ -99,6 +99,8 @@ fun NaviampCoreApp(
         core.state.value.shell.nowPlaying?.visualizerFrame?.bands.orEmpty()
     },
     applicationUpdateChecker: NaviampApplicationUpdateChecker? = null,
+    /** The host's camera scanner for Connect QR codes (#715); null where there is no camera. */
+    qrScanner: app.naviamp.ui.NaviampQrScanner? = null,
     statsForNerdsPresenter: @Composable (State<NaviampDiagnosticsUi>, () -> Unit) -> Unit = { diagnostics, close ->
         NaviampStatsForNerdsDialog(diagnostics.value, close)
     },
@@ -130,6 +132,7 @@ fun NaviampCoreApp(
             CompositionLocalProvider(
                 LocalNaviampApplicationSurface provides applicationSurface,
                 app.naviamp.ui.LocalNaviampNowPlayingNoticeAnchor provides noticeAnchor,
+                app.naviamp.ui.LocalNaviampQrScanner provides qrScanner,
             ) {
               Box(Modifier.fillMaxSize()) {
                 app.naviamp.ui.NaviampWindowEnvironment(

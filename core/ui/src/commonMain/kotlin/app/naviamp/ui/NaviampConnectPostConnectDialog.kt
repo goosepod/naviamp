@@ -196,6 +196,27 @@ internal fun shouldShowConnectCredentialPrompt(connect: NaviampConnectSettingsUi
     connect.needsProvisioningCredential && connect.postConnect == null
 
 @Composable
+internal fun NaviampConnectLinkStatusDialog(
+    status: NaviampConnectStatusMessage,
+    busy: Boolean,
+    colors: NaviampColors,
+    actions: NaviampConnectSettingsActions,
+) {
+    NaviampAlertDialog(
+        onDismissRequest = actions.onDismissLinkStatus,
+        text = {
+            Text(status.localized(), color = colors.secondaryText, modifier = Modifier.testTag("connect-link-status"))
+        },
+        confirmButton = {
+            TextButton(onClick = actions.onDismissLinkStatus, enabled = !busy,
+                modifier = Modifier.testTag("connect-link-status-close")) {
+                Text(stringResource(Res.string.common_close))
+            }
+        },
+    )
+}
+
+@Composable
 internal fun NaviampConnectCredentialDialog(
     connect: NaviampConnectSettingsUi,
     colors: NaviampColors,

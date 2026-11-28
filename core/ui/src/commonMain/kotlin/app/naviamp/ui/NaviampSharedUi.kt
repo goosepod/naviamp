@@ -450,6 +450,11 @@ private fun NaviampSharedAppShellContent(
                 NaviampConnectPostConnectDialog(postConnect, colors, uiState.connect, actions)
             }
         }
+        uiState.connect.linkStatus?.takeIf { uiState.connect.postConnect == null }?.let { status ->
+            connectActions?.let { actions ->
+                NaviampConnectLinkStatusDialog(status, uiState.connect.codeEntryBusy, colors, actions)
+            }
+        }
         if (shouldShowConnectCredentialPrompt(uiState.connect)) connectActions?.let { actions ->
             NaviampConnectCredentialDialog(uiState.connect, colors, actions)
         }

@@ -263,6 +263,15 @@ class NaviampCore private constructor(
         if (castPicker != null) castPicker.selectLocal() else castController?.selectLocal()
     }
 
+    /**
+     * A `naviamp://connect` link the OS delivered, for example from the system camera (#715). The
+     * shared Connect controller validates it and connects exactly as an in-app scan does.
+     */
+    fun openConnectLink(link: String) {
+        if (closed) return
+        connectController?.openConnectLink(link, fromOutsideApp = true)
+    }
+
     /** Starts runtime-owned work once, including when an external surface launches without phone UI. */
     fun startRuntimeServices() {
         if (closed) return
