@@ -336,6 +336,26 @@ class NaviampCoreConnectionControllerTest {
         }
     }
 
+    @Test fun cancellingAfterAFormErrorRestoresTheConnectedStatus() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        val connected = fixture.store.state.value.shell.connectionSettings.connection
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(
+            aurralCompanion = app.naviamp.domain.source.AurralCompanion(true, "", "", ""))))
+        fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
+        assertTrue(fixture.store.state.value.shell.connectionSettings.connection.statusIsError)
+
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.CancelForm)
+
+        val connection = fixture.store.state.value.shell.connectionSettings.connection
+        assertFalse(connection.editingConnection)
+        assertTrue(connection.connected)
+        assertFalse(connection.statusIsError, "A discarded form's error must not outlive the editor")
+        assertEquals(connected.status, connection.status)
+    }
+
     @Test fun serverUrlPathCaseDistinguishesServersButHostCaseDoesNot() = kotlinx.coroutines.test.runTest {
         assertTrue(sameServerUrl("https://Music.Example/library/", "HTTPS://music.example/library"))
         assertFalse(sameServerUrl("https://music.example/Music", "https://music.example/music"))

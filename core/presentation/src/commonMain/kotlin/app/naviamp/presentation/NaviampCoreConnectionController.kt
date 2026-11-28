@@ -376,6 +376,7 @@ class NaviampCoreConnectionController(
                 val adding = accountSwitcher().addingAccount
                 accountAttempt?.cancel()
                 setEditing(false)
+                discardFormStatus()
                 if (adding) updateAccounts { NaviampAccountSwitcherUi(visible = true) }
             }
             NaviampCoreCommand.Connection.OpenAccounts -> updateAccounts {
@@ -875,6 +876,14 @@ class NaviampCoreConnectionController(
         stateStore.updateShell { shell -> shell.copy(connectionSettings = shell.connectionSettings.copy(
             connection = shell.connectionSettings.connection.copy(
                 errorOccurrence = shell.connectionSettings.connection.errorOccurrence + 1L))) }
+    }
+
+    /** A discarded form's error belongs to the form; show the runtime connection's own status again. */
+    private fun discardFormStatus() {
+        val runtime = connection.state.value
+        stateStore.updateShell { shell -> shell.copy(connectionSettings = shell.connectionSettings.copy(
+            connection = shell.connectionSettings.connection.copy(status = runtime.status,
+                statusIsError = runtime.phase == NaviampConnectionPhase.Failed || runtime.statusIsError))) }
     }
 
     private fun showFormError(status: String) {

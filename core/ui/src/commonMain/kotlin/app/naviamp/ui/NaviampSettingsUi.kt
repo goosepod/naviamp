@@ -530,7 +530,7 @@ fun NaviampSharedSettingsContent(
                     colors = colors,
                     enabled = true,
                     subtitle = when (category) {
-                        NaviampSettingsCategory.Source -> currentConnection?.displayName ?: connectionStatus ?: languagePack.categorySubtitle(category)
+                        NaviampSettingsCategory.Source -> currentConnection?.displayName ?: connectionStatus?.let { localizedConnectionStatus(it) } ?: languagePack.categorySubtitle(category)
                         NaviampSettingsCategory.Language -> languagePack.languageTitle(interfaceSettings.language)
                         NaviampSettingsCategory.Controllers -> stringResource(Res.string.connect_devices_description)
                         else -> languagePack.categorySubtitle(category)
@@ -2583,9 +2583,7 @@ private fun NaviampConnectionsSettingsSection(
                     }
                 }
                 PrimaryButton(stringResource(Res.string.settings_source_new_connection_button), colors, enabled = !isConnecting, onClick = onNewConnection)
-                connectionStatus?.let {
-                    Text(it, color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
-                }
+                connectionStatus?.let { NaviampConnectionStatusText(it, colors) }
             }
         }
         SourceSettingsPage.SettingsSync -> {
@@ -2657,9 +2655,7 @@ private fun NaviampConnectionsSettingsSection(
                         selectedPage = SourceSettingsPage.SettingsSync
                     }
                 }
-                connectionStatus?.let {
-                    Text(it, color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
-                }
+                connectionStatus?.let { NaviampConnectionStatusText(it, colors) }
             }
         }
     }

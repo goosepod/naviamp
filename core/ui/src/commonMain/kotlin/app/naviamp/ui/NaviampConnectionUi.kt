@@ -95,8 +95,14 @@ import app.naviamp.domain.provider.ProviderIdSubsonic
 import app.naviamp.domain.source.SubsonicAuthApiKey
 import app.naviamp.domain.source.SubsonicAuthToken
 
+/** A connection status outside the editor, such as on the Source page, localized like the editor shows it. */
 @Composable
-private fun localizedConnectionStatus(status: String): String =
+internal fun NaviampConnectionStatusText(status: String, colors: NaviampColors) {
+    Text(localizedConnectionStatus(status), color = colors.secondaryText, fontSize = 11.sp)
+}
+
+@Composable
+internal fun localizedConnectionStatus(status: String): String =
     when (status) {
         "connection_aurral_companion_save_failed" -> stringResource(Res.string.connection_aurral_companion_save_failed)
         "connection_aurral_companion_invalid" -> stringResource(Res.string.connection_aurral_companion_invalid)
