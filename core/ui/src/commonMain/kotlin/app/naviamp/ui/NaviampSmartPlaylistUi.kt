@@ -54,6 +54,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.focus.onFocusChanged
@@ -961,13 +962,13 @@ internal fun SmartPlaylistCustomControls(
                             onDraftChange(draft.copy(sort = draft.sort.updated(index, sort.copy(field = field))))
                         },
                     )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(
-                            checked = sort.descending,
-                            onCheckedChange = { checked ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.naviampToggleRow(checked = sort.descending, role = Role.Checkbox, onCheckedChange = { checked ->
                                 onDraftChange(draft.copy(sort = draft.sort.updated(index, sort.copy(descending = checked))))
-                            },
-                        )
+                            }),
+                    ) {
+                        Checkbox(checked = sort.descending, onCheckedChange = null)
                         Text("Descending", color = colors.secondaryText, fontSize = 12.sp)
                     }
                 }
@@ -1026,10 +1027,9 @@ private fun SmartPlaylistOptionsControls(
                 fontSize = 12.sp,
             )
             libraries.forEach { library ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(
-                        checked = library.id in selectedIds,
-                        onCheckedChange = { checked ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.naviampToggleRow(checked = library.id in selectedIds, role = Role.Checkbox, onCheckedChange = { checked ->
                             val updated = if (checked) {
                                 selectedIds + library.id
                             } else {
@@ -1042,8 +1042,9 @@ private fun SmartPlaylistOptionsControls(
                                     ),
                                 )
                             }
-                        },
-                    )
+                        }),
+                ) {
+                    Checkbox(checked = library.id in selectedIds, onCheckedChange = null)
                     Text(library.name, color = colors.primaryText, fontSize = 13.sp)
                 }
             }
@@ -1069,11 +1070,11 @@ private fun SmartPlaylistOptionsControls(
             color = if (refreshDelayValid) colors.secondaryText else colors.favorite,
             fontSize = 12.sp,
         )
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(
-                checked = draft.isPublic,
-                onCheckedChange = { onDraftChange(draft.copy(isPublic = it)) },
-            )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.naviampToggleRow(checked = draft.isPublic, role = Role.Checkbox, onCheckedChange = { onDraftChange(draft.copy(isPublic = it)) }),
+        ) {
+            Checkbox(checked = draft.isPublic, onCheckedChange = null)
             Text("Public playlist", color = colors.secondaryText, fontSize = 12.sp)
         }
     }

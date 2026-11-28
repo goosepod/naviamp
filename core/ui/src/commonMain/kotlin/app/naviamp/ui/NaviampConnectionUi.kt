@@ -449,15 +449,13 @@ fun NaviampConnectionForm(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Checkbox(
-                            checked = header.valueIsSecret,
-                            onCheckedChange = { checked ->
+                        modifier = Modifier.naviampToggleRow(checked = header.valueIsSecret, role = Role.Checkbox, onCheckedChange = { checked ->
                                 onFormChanged(form.copy(
                                     customHeaders = form.customHeaders.updateAt(index, header.copy(valueIsSecret = checked)),
                                 ))
-                            },
-                        )
+                            }),
+                    ) {
+                        Checkbox(checked = header.valueIsSecret, onCheckedChange = null)
                         Text(stringResource(Res.string.connection_treat_value_as_secret_do_not_sync_it), color = colors.secondaryText, fontSize = 12.sp)
                     }
                 }

@@ -1,6 +1,5 @@
 package app.naviamp.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +13,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -81,7 +81,7 @@ internal fun NaviampLibrarySourcePicker(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(6.dp))
-                                    .clickable(enabled = !picker.saving) { actions.onToggleSource(library.id) }
+                                    .naviampToggleRow(checked = checked, enabled = !picker.saving, role = Role.Checkbox) { actions.onToggleSource(library.id) }
                                     .padding(vertical = 4.dp)
                                     .testTag(LibrarySourceChoiceTagPrefix + library.id),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
