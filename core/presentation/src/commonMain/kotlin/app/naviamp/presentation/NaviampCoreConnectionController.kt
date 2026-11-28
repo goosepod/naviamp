@@ -514,14 +514,14 @@ class NaviampCoreConnectionController(
         /** True only for Core's own offline recovery; anything else supersedes that recovery. */
         automatic: Boolean = false,
     ): Boolean {
-        // A switch or reconnect the user asked for replaces a background retry; otherwise begin()
-        // would refuse it while the retry is connecting and the request would be lost.
-        if (!automatic) stopRecovery()
         // An attempt that may close the editor, or that switches to another source, supersedes any
-        // save still waiting on its companion check, before it suspends. Background retries of the
+        // save still waiting on its companion check, before anything here suspends (stopRecovery joins a running retry). Background retries of the
         // current source that keep the editor open leave it alone.
         val switchesSource = (request as? NaviampCoreConnectionRequest.Saved)?.id?.let { it != inventory.currentSourceId } == true
         if (!preserveEditor || switchesSource) editorGeneration++
+        // A switch or reconnect the user asked for replaces a background retry; otherwise begin()
+        // would refuse it while the retry is connecting and the request would be lost.
+        if (!automatic) stopRecovery()
         if (request is NaviampCoreConnectionRequest.Form) {
             connectionFormError(
                 form = request.form,

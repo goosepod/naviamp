@@ -443,6 +443,36 @@ class NaviampCoreConnectionControllerTest {
         assertFalse(fixture.store.state.value.shell.connectionSettings.connection.editingConnection)
     }
 
+    @Test fun aPendingSaveIsDroppedWhileASwitchIsStillJoiningOfflineRecovery() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture(
+            savedRecords = listOf(savedRecord(), savedRecord(id = "source-2", displayName = "Other")),
+            network = { app.naviamp.domain.network.NetworkMetering.Disconnected },
+            recoveryScope = backgroundScope,
+        )
+        // Source A is offline and its background recovery is running.
+        fixture.controller.restoreInitialConnection()
+        assertTrue(fixture.store.state.value.shell.connectionSettings.connection.offline)
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(
+            aurralCompanion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret"))))
+        val gate = CompletableDeferred<Unit>().also { fixture.port.verificationGate = it }
+        val save = launch { fixture.controller.execute(NaviampCoreCommand.Connection.Connect) }
+        runCurrent()
+
+        // The switch suspends while it cancels and joins A's recovery; the check completes meanwhile.
+        val switch = launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+            fixture.controller.execute(NaviampCoreCommand.Connection.SwitchAccount(
+                savedConnectionUi().copy(id = "source-2", displayName = "Other")))
+        }
+        gate.complete(Unit)
+        save.join()
+        switch.join()
+
+        assertTrue(fixture.port.savedCompanions.isEmpty(), "The superseded save must not write A's companion")
+        assertEquals("source-2", fixture.store.state.value.shell.connectionSettings.currentSourceId)
+    }
+
     @Test fun companionCertificateSelectionUpdatesOnlyItsOwnTlsIdentity() = kotlinx.coroutines.test.runTest {
         val fixture = fixture(certificateFiles = NaviampCoreCertificateFilePort { "/companion.p12" })
         val original = ConnectionFormState(serverUrl = "https://primary.example", clientCertificatePath = "/primary.p12",

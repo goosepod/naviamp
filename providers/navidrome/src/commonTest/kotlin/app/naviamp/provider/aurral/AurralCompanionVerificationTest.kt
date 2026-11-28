@@ -9,7 +9,10 @@ import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.test.runTest
 import kotlin.test.*
 
@@ -72,7 +75,12 @@ class AurralCompanionVerificationTest {
             })
             assertEquals(if (loginStatus == HttpStatusCode.OK) ProviderDiscoveryStatus.Ready else ProviderDiscoveryStatus.SignInRequired, status)
             val client = created.single()
-            assertFalse(client.coroutineContext[Job]!!.isActive, "HTTP $loginStatus left the probe's client open")
+            // close() starts a graceful shutdown; wait for it in real time, bounded so an unclosed
+            // client (whose job never completes) still fails.
+            val closed = withContext(Dispatchers.Default) {
+                withTimeoutOrNull(5_000) { client.coroutineContext[Job]!!.join() }
+            } != null
+            assertTrue(closed, "HTTP $loginStatus left the probe's client open")
         }
     }
 }
