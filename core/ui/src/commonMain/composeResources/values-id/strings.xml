@@ -534,6 +534,11 @@
     <string name="connection_aurral_companion_invalid">Masukkan URL server Aurral HTTP atau HTTPS dan nama pengguna.</string>
     <string name="discovery_find_in_aurral">Cari di Aurral</string>
     <string name="connection_aurral_companion_save_failed">Pendamping Aurral tidak dapat disimpan. Koneksi musik Anda tidak berubah.</string>
+    <string name="connection_aurral_companion_sign_in_failed">Aurral tidak menerima nama pengguna dan kata sandi ini. Periksa info masuk pendamping lalu coba lagi.</string>
+    <string name="connection_aurral_companion_unreachable">Aurral tidak dapat dijangkau di alamat ini. Periksa URL dan pastikan Aurral sedang berjalan.</string>
+    <string name="connection_aurral_companion_unsupported">Versi server Aurral ini tidak didukung. Perbarui Aurral lalu coba lagi.</string>
+    <string name="connection_aurral_companion_forbidden">Akun Aurral ini tidak diizinkan menggunakan Aurral dari aplikasi. Minta akses kepada administrator Aurral Anda.</string>
+    <string name="connection_save_failed">Koneksi ini tidak dapat disimpan. Koneksi Anda saat ini tidak berubah.</string>
     <string name="storage_recovery_title">Pengaturan tersimpan</string>
     <string name="storage_recovery_capacity">Perubahan ini melebihi batas penyimpanan persisten perangkat. Pengaturan dan koneksi yang sebelumnya disimpan tidak berubah.</string>
     <string name="storage_recovery_unreadable">Pengaturan tersimpan tidak dapat dibuka. Pengaturan tetap disimpan. Coba lagi, atau atur ulang untuk menyiapkan perangkat ini kembali.</string>

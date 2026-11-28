@@ -21,6 +21,26 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 
 class NaviampCoreConnectionControllerTest {
+    @Test fun leavingTheEditorsRouteAfterAFormErrorRestoresTheConnectedStatus() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        val connected = fixture.store.state.value.shell.connectionSettings.connection
+        fixture.store.updateShell { it.copy(shellChrome = it.shellChrome.copy(selectedRoute = app.naviamp.ui.SharedRoute.Settings)) }
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(
+            aurralCompanion = app.naviamp.domain.source.AurralCompanion(true, "", "", ""))))
+        fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
+        assertTrue(fixture.store.state.value.shell.connectionSettings.connection.statusIsError)
+
+        fixture.controller.routeSelected(app.naviamp.ui.SharedRoute.Home)
+
+        val connection = fixture.store.state.value.shell.connectionSettings.connection
+        assertFalse(connection.editingConnection)
+        assertFalse(connection.statusIsError, "Leaving the editor discards its form error like Cancel")
+        assertEquals(connected.status, connection.status)
+    }
+
     @Test fun anEditorOpenedInSettingsClosesWhenAnotherRouteIsChosen() = kotlinx.coroutines.test.runTest {
         val fixture = fixture()
         fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
@@ -180,6 +200,383 @@ class NaviampCoreConnectionControllerTest {
         assertEquals(0, connectedCallbacks)
         assertEquals(0, sourceChanges)
         assertEquals(1, companionChanges)
+    }
+
+    @Test fun companionOnlyEditWithRejectedCredentialsIsReportedAndNotSaved() = kotlinx.coroutines.test.runTest {
+        var companionChanges = 0
+        val fixture = fixture(onCompanionChanged = { companionChanges++ })
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        val companion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "wrong")
+        fixture.port.companionVerification = app.naviamp.domain.provider.ProviderDiscoveryStatus.SignInRequired
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(aurralCompanion = companion)))
+        fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
+        val connection = fixture.store.state.value.shell.connectionSettings.connection
+        assertEquals(listOf(companion), fixture.port.verifiedCompanions)
+        assertTrue(fixture.port.savedCompanions.isEmpty())
+        assertEquals(0, companionChanges)
+        assertTrue(connection.connected)
+        assertTrue(connection.editingConnection)
+        assertTrue(connection.statusIsError)
+        assertEquals("connection_aurral_companion_sign_in_failed", connection.status)
+    }
+
+    @Test fun companionVerificationFailuresMapToSpecificFormErrors() = kotlinx.coroutines.test.runTest {
+        val expected = mapOf(
+            app.naviamp.domain.provider.ProviderDiscoveryStatus.PasswordRequired to "connection_aurral_companion_sign_in_failed",
+            app.naviamp.domain.provider.ProviderDiscoveryStatus.Forbidden to "connection_aurral_companion_forbidden",
+            app.naviamp.domain.provider.ProviderDiscoveryStatus.Unsupported to "connection_aurral_companion_unsupported",
+            app.naviamp.domain.provider.ProviderDiscoveryStatus.Unavailable to "connection_aurral_companion_unreachable",
+        )
+        expected.forEach { (status, key) ->
+            val fixture = fixture()
+            fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+            fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+            val form = fixture.store.state.value.shell.connectionSettings.connection.form
+            fixture.port.companionVerification = status
+            fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(
+                aurralCompanion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret"))))
+            fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
+            assertEquals(key, fixture.store.state.value.shell.connectionSettings.connection.status, "$status")
+            assertTrue(fixture.port.savedCompanions.isEmpty())
+        }
+    }
+
+    @Test fun connectingWithAChangedCompanionVerifiesItBeforeTouchingThePrimary() = kotlinx.coroutines.test.runTest {
+        var sourceChanges = 0
+        val fixture = fixture(onSourceChanging = { _, _ -> sourceChanges++ })
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.port.connectRequests.clear()
+        sourceChanges = 0
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        fixture.port.companionVerification = app.naviamp.domain.provider.ProviderDiscoveryStatus.SignInRequired
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(displayName = "Renamed",
+            aurralCompanion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "wrong"))))
+        fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
+        assertTrue(fixture.port.connectRequests.isEmpty())
+        assertEquals(0, sourceChanges)
+        val connection = fixture.store.state.value.shell.connectionSettings.connection
+        assertTrue(connection.connected)
+        assertTrue(connection.editingConnection)
+        assertEquals("connection_aurral_companion_sign_in_failed", connection.status)
+    }
+
+    @Test fun disabledOrUnchangedCompanionIsNotReverified() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        fixture.port.editableCompanion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret")
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(displayName = "Renamed")))
+        fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
+        assertTrue(fixture.port.verifiedCompanions.isEmpty())
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val edited = fixture.store.state.value.shell.connectionSettings.connection.form
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(edited.copy(
+            aurralCompanion = edited.aurralCompanion!!.copy(enabled = false, password = "other"))))
+        fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
+        assertTrue(fixture.port.verifiedCompanions.isEmpty())
+    }
+
+    @Test fun savingAnEditOfTheCurrentConnectionKeepsItsPlaybackAndLibrary() = kotlinx.coroutines.test.runTest {
+        var connectedCallbacks = 0
+        var sourceChanges = 0
+        val selections = mutableListOf<Pair<String, Boolean>>()
+        val fixture = fixture(onConnected = { connectedCallbacks++ }, onSourceChanging = { _, _ -> sourceChanges++ },
+            onSavedSourceSelected = { id, changed -> selections += id to changed })
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.port.connectRequests.clear()
+        connectedCallbacks = 0; sourceChanges = 0
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(displayName = "Renamed", password = "new-secret")))
+        fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
+        val (request, plan) = fixture.port.connectRequests.single()
+        assertEquals("source-1", (request as NaviampCoreConnectionRequest.Form).savedConnectionId)
+        assertFalse(plan.clearExistingPlayback, "Editing the same account must not reset the queue")
+        assertFalse(plan.clearProviderData, "Editing the same account must not discard its Library cache")
+        assertFalse(plan.runFullLibraryRefresh)
+        assertEquals(0, sourceChanges)
+        assertEquals(0, connectedCallbacks, "The current queue is kept, not restored from storage")
+        assertEquals(listOf("source-1" to false), selections)
+        val connection = fixture.store.state.value.shell.connectionSettings.connection
+        assertTrue(connection.connected)
+        assertFalse(connection.editingConnection)
+    }
+
+    @Test fun failedEditOfTheCurrentConnectionKeepsTheSessionAndReportsTheError() = kotlinx.coroutines.test.runTest {
+        var sourceChanges = 0
+        val fixture = fixture(onSourceChanging = { _, _ -> sourceChanges++ })
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        sourceChanges = 0
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        fixture.port.connectFailure = IllegalStateException("Wrong username or password.")
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(password = "wrong")))
+        fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
+        val settings = fixture.store.state.value.shell.connectionSettings
+        assertEquals(0, sourceChanges)
+        assertEquals("source-1", settings.currentSourceId)
+        assertTrue(settings.connection.connected)
+        assertTrue(settings.connection.editingConnection)
+        assertTrue(settings.connection.statusIsError)
+        assertEquals("Wrong username or password.", settings.connection.status)
+    }
+
+    @Test fun editingTheCurrentConnectionToAnotherServerStillStartsFresh() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.port.connectRequests.clear()
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(serverUrl = "https://other.example")))
+        fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
+        assertTrue(fixture.port.connectRequests.single().second.clearExistingPlayback)
+    }
+
+    @Test fun cancellingWhileTheCompanionIsCheckedSavesAndReconnectsNothing() = kotlinx.coroutines.test.runTest {
+        var sourceChanges = 0
+        var companionChanges = 0
+        val fixture = fixture(onSourceChanging = { _, _ -> sourceChanges++ }, onCompanionChanged = { companionChanges++ })
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.port.connectRequests.clear()
+        sourceChanges = 0
+        for (renamed in listOf(false, true)) {
+            fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+            val form = fixture.store.state.value.shell.connectionSettings.connection.form
+            val companion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret-$renamed")
+            fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(
+                form.copy(displayName = if (renamed) "Renamed" else form.displayName, aurralCompanion = companion)))
+            val gate = CompletableDeferred<Unit>().also { fixture.port.verificationGate = it }
+            val save = launch { fixture.controller.execute(NaviampCoreCommand.Connection.Connect) }
+            runCurrent()
+            fixture.controller.dispatch(NaviampCoreCommand.Connection.CancelForm)
+            gate.complete(Unit)
+            save.join()
+            assertTrue(fixture.port.savedCompanions.isEmpty(), "renamed=$renamed")
+            assertTrue(fixture.port.connectRequests.isEmpty(), "renamed=$renamed")
+            assertEquals(0, sourceChanges)
+            assertEquals(0, companionChanges)
+            assertFalse(fixture.store.state.value.shell.connectionSettings.connection.editingConnection)
+            assertTrue(fixture.store.state.value.shell.connectionSettings.connection.connected)
+        }
+    }
+
+    @Test fun editingTheFormWhileTheCompanionIsCheckedDiscardsTheStaleSave() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        val companion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret")
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(aurralCompanion = companion)))
+        val gate = CompletableDeferred<Unit>().also { fixture.port.verificationGate = it }
+        val save = launch { fixture.controller.execute(NaviampCoreCommand.Connection.Connect) }
+        runCurrent()
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(aurralCompanion = companion.copy(password = "newer"))))
+        gate.complete(Unit)
+        save.join()
+        assertTrue(fixture.port.savedCompanions.isEmpty())
+        assertTrue(fixture.store.state.value.shell.connectionSettings.connection.editingConnection)
+    }
+
+    @Test fun freshDeviceProvisioningChecksTheCompanionBeforeThePrimary() = kotlinx.coroutines.test.runTest {
+        val form = ConnectionFormState(serverUrl = "https://other.example", username = "demo", password = "primary-secret",
+            aurralCompanion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "wrong"))
+        for (connectedFirst in listOf(false, true)) {
+            val fixture = fixture()
+            if (connectedFirst) fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+            fixture.port.connectRequests.clear()
+            fixture.port.companionVerification = app.naviamp.domain.provider.ProviderDiscoveryStatus.SignInRequired
+            assertFalse(fixture.controller.provisionConnect(form), "connectedFirst=$connectedFirst")
+            assertTrue(fixture.port.connectRequests.isEmpty(), "connectedFirst=$connectedFirst")
+            assertEquals(form.aurralCompanion, fixture.port.verifiedCompanions.single())
+            fixture.port.companionVerification = app.naviamp.domain.provider.ProviderDiscoveryStatus.Ready
+            assertTrue(fixture.controller.provisionConnect(form))
+            assertEquals(1, fixture.port.connectRequests.size)
+        }
+    }
+
+    @Test fun localValidationErrorsInAnEditKeepTheSessionConnected() = kotlinx.coroutines.test.runTest {
+        for (renamed in listOf(false, true)) {
+            var sourceChanges = 0
+            val fixture = fixture(onSourceChanging = { _, _ -> sourceChanges++ })
+            fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+            fixture.port.connectRequests.clear()
+            sourceChanges = 0
+            fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+            val form = fixture.store.state.value.shell.connectionSettings.connection.form
+            fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(
+                displayName = if (renamed) "Renamed" else form.displayName,
+                aurralCompanion = app.naviamp.domain.source.AurralCompanion(true, "not a url", "secondary", "secret"))))
+            fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
+            val connection = fixture.store.state.value.shell.connectionSettings.connection
+            assertTrue(connection.connected, "renamed=$renamed")
+            assertTrue(connection.editingConnection)
+            assertTrue(connection.statusIsError)
+            assertEquals("connection_aurral_companion_invalid", connection.status)
+            assertTrue(fixture.port.connectRequests.isEmpty())
+            assertTrue(fixture.port.verifiedCompanions.isEmpty())
+            assertEquals(0, sourceChanges)
+        }
+    }
+
+    @Test fun cancellingAfterAFormErrorRestoresTheConnectedStatus() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        val connected = fixture.store.state.value.shell.connectionSettings.connection
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(
+            aurralCompanion = app.naviamp.domain.source.AurralCompanion(true, "", "", ""))))
+        fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
+        assertTrue(fixture.store.state.value.shell.connectionSettings.connection.statusIsError)
+
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.CancelForm)
+
+        val connection = fixture.store.state.value.shell.connectionSettings.connection
+        assertFalse(connection.editingConnection)
+        assertTrue(connection.connected)
+        assertFalse(connection.statusIsError, "A discarded form's error must not outlive the editor")
+        assertEquals(connected.status, connection.status)
+    }
+
+    @Test fun serverUrlPathCaseDistinguishesServersButHostCaseDoesNot() = kotlinx.coroutines.test.runTest {
+        assertTrue(sameServerUrl("https://Music.Example/library/", "HTTPS://music.example/library"))
+        assertFalse(sameServerUrl("https://music.example/Music", "https://music.example/music"))
+        val fixture = fixture()
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.port.connectRequests.clear()
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(serverUrl = form.serverUrl + "/Music")))
+        fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
+        assertTrue(fixture.port.connectRequests.single().second.clearExistingPlayback, "A different path is a different server")
+    }
+
+    @Test fun aFailedSaveWithoutADetailedReasonShowsTheLocalizedFallback() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        fixture.port.connectFailure = IllegalStateException()
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(password = "other")))
+        fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
+        assertEquals(ConnectionSaveFailedStatus, fixture.store.state.value.shell.connectionSettings.connection.status)
+    }
+
+    @Test fun everyFailedSubmissionCountsAsANewErrorOccurrence() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        fixture.port.companionVerification = app.naviamp.domain.provider.ProviderDiscoveryStatus.SignInRequired
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(
+            aurralCompanion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "wrong"))))
+        fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
+        val first = fixture.store.state.value.shell.connectionSettings.connection
+        fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
+        val second = fixture.store.state.value.shell.connectionSettings.connection
+        assertEquals(first.status, second.status)
+        assertTrue(second.errorOccurrence > first.errorOccurrence, "The same message failing again must still be observable")
+    }
+
+    @Test fun aPendingSaveIsDroppedWhenAnAccountSwitchReplacesTheSession() = kotlinx.coroutines.test.runTest {
+        var sourceChanges = 0
+        val fixture = fixture(savedRecords = listOf(savedRecord(), savedRecord(id = "source-2", displayName = "Other")),
+            onSourceChanging = { _, _ -> sourceChanges++ })
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.port.connectRequests.clear()
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(displayName = "Renamed",
+            aurralCompanion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret"))))
+        val gate = CompletableDeferred<Unit>().also { fixture.port.verificationGate = it }
+        val save = launch { fixture.controller.execute(NaviampCoreCommand.Connection.Connect) }
+        runCurrent()
+
+        fixture.controller.execute(NaviampCoreCommand.Connection.SwitchAccount(savedConnectionUi().copy(id = "source-2", displayName = "Other")))
+        assertEquals("source-2", fixture.store.state.value.shell.connectionSettings.currentSourceId)
+        val afterSwitch = fixture.port.connectRequests.size
+        sourceChanges = 0
+
+        gate.complete(Unit)
+        save.join()
+        assertEquals(afterSwitch, fixture.port.connectRequests.size, "The stale save must not reconnect the replaced account")
+        assertEquals(0, sourceChanges)
+        assertTrue(fixture.port.savedCompanions.isEmpty())
+        assertEquals("source-2", fixture.store.state.value.shell.connectionSettings.currentSourceId)
+    }
+
+    @Test fun aPendingSaveIsDroppedWhenTheDatabaseIsReset() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture(currentSourceId = null, hasSavedConnection = false)
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.New)
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(ConnectionFormState(
+            serverUrl = "https://music.example", username = "demo", password = "secret",
+            aurralCompanion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret"))))
+        val gate = CompletableDeferred<Unit>().also { fixture.port.verificationGate = it }
+        val save = launch { fixture.controller.execute(NaviampCoreCommand.Connection.Connect) }
+        runCurrent()
+
+        fixture.controller.resetAfterDatabaseClear()
+        gate.complete(Unit)
+        save.join()
+
+        assertTrue(fixture.port.connectRequests.isEmpty(), "The discarded account setup must not run after the reset")
+        assertFalse(fixture.store.state.value.shell.connectionSettings.connection.editingConnection)
+    }
+
+    @Test fun aBackgroundRetryThatKeepsTheEditorDoesNotDropAPendingSave() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.port.connectRequests.clear()
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        val companion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret")
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(aurralCompanion = companion)))
+        val gate = CompletableDeferred<Unit>().also { fixture.port.verificationGate = it }
+        val save = launch { fixture.controller.execute(NaviampCoreCommand.Connection.Connect) }
+        runCurrent()
+
+        // Re-selecting the current source keeps the editor open, like a background retry.
+        assertTrue((fixture.controller.execute(NaviampCoreCommand.Connection.SelectSavedSource("source-1", reconnect = true))
+            as NaviampCoreCommandResult.SavedSourceSelected).selected)
+        gate.complete(Unit)
+        save.join()
+
+        assertEquals("source-1" to companion, fixture.port.savedCompanions.single())
+        assertFalse(fixture.store.state.value.shell.connectionSettings.connection.editingConnection)
+    }
+
+    @Test fun aPendingSaveIsDroppedWhileASwitchIsStillJoiningOfflineRecovery() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture(
+            savedRecords = listOf(savedRecord(), savedRecord(id = "source-2", displayName = "Other")),
+            network = { app.naviamp.domain.network.NetworkMetering.Disconnected },
+            recoveryScope = backgroundScope,
+        )
+        // Source A is offline and its background recovery is running.
+        fixture.controller.restoreInitialConnection()
+        assertTrue(fixture.store.state.value.shell.connectionSettings.connection.offline)
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(
+            aurralCompanion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret"))))
+        val gate = CompletableDeferred<Unit>().also { fixture.port.verificationGate = it }
+        val save = launch { fixture.controller.execute(NaviampCoreCommand.Connection.Connect) }
+        runCurrent()
+
+        // The switch suspends while it cancels and joins A's recovery; the check completes meanwhile.
+        val switch = launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+            fixture.controller.execute(NaviampCoreCommand.Connection.SwitchAccount(
+                savedConnectionUi().copy(id = "source-2", displayName = "Other")))
+        }
+        gate.complete(Unit)
+        save.join()
+        switch.join()
+
+        assertTrue(fixture.port.savedCompanions.isEmpty(), "The superseded save must not write A's companion")
+        assertEquals("source-2", fixture.store.state.value.shell.connectionSettings.currentSourceId)
     }
 
     @Test fun companionCertificateSelectionUpdatesOnlyItsOwnTlsIdentity() = kotlinx.coroutines.test.runTest {
@@ -1474,6 +1871,14 @@ private class FakeProviderSessionPort(
     override suspend fun saveAurralCompanion(sourceId: String, companion: app.naviamp.domain.source.AurralCompanion) {
         companionSaveFailure?.let { throw it }
         savedCompanions += sourceId to companion
+    }
+    var companionVerification = app.naviamp.domain.provider.ProviderDiscoveryStatus.Ready
+    var verificationGate: CompletableDeferred<Unit>? = null
+    val verifiedCompanions = mutableListOf<app.naviamp.domain.source.AurralCompanion>()
+    override suspend fun verifyAurralCompanion(companion: app.naviamp.domain.source.AurralCompanion): app.naviamp.domain.provider.ProviderDiscoveryStatus {
+        verifiedCompanions += companion
+        verificationGate?.await()
+        return companionVerification
     }
     var refreshCalls = 0
     var activeSessionCleared = false

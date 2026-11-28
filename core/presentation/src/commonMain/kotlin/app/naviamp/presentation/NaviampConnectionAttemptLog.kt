@@ -15,6 +15,8 @@ enum class NaviampConnectionAttemptTrigger {
     ConnectProvisioning,
     ProvisioningCredential,
     LibrarySources,
+    /** Another device transferred its accounts and this one activated one of them (#714). */
+    AccountTransfer,
 }
 
 enum class NaviampConnectionAttemptOutcome {

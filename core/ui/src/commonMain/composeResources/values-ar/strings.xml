@@ -534,6 +534,11 @@
     <string name="connection_aurral_companion_invalid">أدخل عنوان خادم Aurral ببروتوكول HTTP أو HTTPS واسم المستخدم.</string>
     <string name="discovery_find_in_aurral">البحث في Aurral</string>
     <string name="connection_aurral_companion_save_failed">تعذّر حفظ خدمة Aurral المرافقة. لم يتغير اتصال الموسيقى.</string>
+    <string name="connection_aurral_companion_sign_in_failed">لم يقبل Aurral اسم المستخدم وكلمة المرور هذين. تحقّق من بيانات تسجيل الدخول للخدمة المرافقة وحاول مرة أخرى.</string>
+    <string name="connection_aurral_companion_unreachable">تعذّر الوصول إلى Aurral على هذا العنوان. تحقّق من الرابط ومن أن Aurral يعمل.</string>
+    <string name="connection_aurral_companion_unsupported">إصدار خادم Aurral هذا غير مدعوم. حدّث Aurral وحاول مرة أخرى.</string>
+    <string name="connection_aurral_companion_forbidden">لا يُسمح لحساب Aurral هذا باستخدام Aurral من التطبيقات. اطلب الوصول من مسؤول Aurral.</string>
+    <string name="connection_save_failed">تعذّر حفظ هذا الاتصال. لم يتغير اتصالك الحالي.</string>
     <string name="storage_recovery_title">الإعدادات المحفوظة</string>
     <string name="storage_recovery_capacity">يتجاوز هذا التغيير حد التخزين الدائم للجهاز. لم تتغير الإعدادات والاتصالات المحفوظة سابقًا.</string>
     <string name="storage_recovery_unreadable">تعذر فتح الإعدادات المحفوظة. تم الاحتفاظ بها. حاول مرة أخرى، أو أعد ضبطها لإعداد هذا الجهاز من جديد.</string>
