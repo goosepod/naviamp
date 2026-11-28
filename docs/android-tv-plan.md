@@ -1,5 +1,13 @@
 # Naviamp TV Plan
 
+November 2026 Connect one-flow update (#713): the TV setup screen shows its code immediately, and
+TV Settings → Devices → *Let another device connect* shows a code only while that page is open.
+There are no approval prompts: a displayed code is the consent, and trusted devices may set the TV
+up again without approval. Statements below that a TV advertises only on its pairing screen, that
+every new controller needs visible TV approval, or that later source replacement needs approval are
+superseded; see `docs/naviamp-connect-protocol.md`. TV rename/forget of trusted devices is tracked
+in #716.
+
 September 10 Connect setup update: the empty-TV flow now completes pairing, validated source
 provisioning, and portable settings after code entry, with a one-time password prompt only when
 needed. The [follow-up acceptance record](ANDROID_TV_FOLLOW_UP.md#initial-connect-setup) contains

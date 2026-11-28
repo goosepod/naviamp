@@ -9,6 +9,67 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class NaviampConnectProtocolTest {
+    @Test fun accountTransferIsAdvertisedAdditivelyAndOlderWelcomesDoNotOfferIt() {
+        val welcome = NaviampConnectWelcome("session", 1, targetDevice(), emptySet(), snapshot(0),
+            accountTransferSupported = true)
+        val encoded = NaviampConnectWireCodec.encode(NaviampConnectEnvelope(1, "session", 1, message = welcome))
+        assertTrue((NaviampConnectWireCodec.decode(encoded).message as NaviampConnectWelcome).accountTransferSupported)
+        val legacy = encoded.replace(",\"accountTransferSupported\":true", "")
+        assertFalse((NaviampConnectWireCodec.decode(legacy).message as NaviampConnectWelcome).accountTransferSupported)
+    }
+
+    @Test fun accountTransferRoundTripsEveryAccountAndRedactsSecrets() {
+        val transfer = NaviampConnectAccountTransfer(
+            document = app.naviamp.domain.settings.SettingsSyncDocument(
+                updatedAtEpochMillis = 1L,
+                lastWriterDeviceId = "phone",
+                serverProfiles = listOf(
+                    app.naviamp.domain.settings.SettingsSyncServerProfile(
+                        id = "home", displayName = "Home", username = "ana", primaryUrl = "https://home.example"),
+                    app.naviamp.domain.settings.SettingsSyncServerProfile(
+                        id = "work", providerId = "jellyfin", displayName = "Work", username = "ana",
+                        primaryUrl = "https://work.example"),
+                ),
+            ),
+            credentials = listOf(
+                NaviampConnectAccountCredential("home", NaviampConnectCredentialKind.ApiKey, "key-123",
+                    headerSecrets = mapOf("X-Token" to "header-secret")),
+                NaviampConnectAccountCredential("work", NaviampConnectCredentialKind.Password, "pw-456"),
+            ),
+            activeProfileId = "home",
+            includeSettings = true,
+            skipped = listOf(NaviampConnectSkippedAccount("Office", "navidrome",
+                NaviampConnectAccountSkipReason.SetUpOnDevice)),
+        )
+        val offer = NaviampConnectEnvelope(1, "session", 2,
+            message = NaviampConnectCommandRequest(NaviampConnectOfferAccountTransfer("t-1", transfer)))
+        val decoded = NaviampConnectWireCodec.decode(NaviampConnectWireCodec.encode(offer))
+        assertEquals(offer, decoded)
+        val request = NaviampConnectEnvelope(1, "session", 3,
+            message = NaviampConnectCommandRequest(NaviampConnectRequestAccountTransfer("t-2", includeSettings = true)))
+        assertEquals(request, NaviampConnectWireCodec.decode(NaviampConnectWireCodec.encode(request)))
+        for (message in listOf(
+            NaviampConnectAccountTransferPayload("t-2", transfer),
+            NaviampConnectAccountTransferResult("t-1", listOf(
+                NaviampConnectAccountResult("Home", "navidrome", NaviampConnectAccountOutcome.Added)),
+                settingsApplied = true, activated = true),
+        )) {
+            val envelope = NaviampConnectEnvelope(1, "session", 4, message = message)
+            assertEquals(envelope, NaviampConnectWireCodec.decode(NaviampConnectWireCodec.encode(envelope)))
+        }
+        val printed = "$transfer ${transfer.credentials} ${NaviampConnectAccountTransferPayload("t", transfer)}"
+        listOf("key-123", "pw-456", "header-secret").forEach { secret ->
+            assertFalse(secret in printed, "Logs must never contain a transferred secret")
+        }
+        assertEquals(NaviampConnectCapability.ConnectionProvisioning,
+            NaviampConnectOfferAccountTransfer("t", transfer).requiredCapability())
+        assertEquals(NaviampConnectCapability.ConnectionProvisioning,
+            NaviampConnectRequestAccountTransfer("t").requiredCapability())
+        assertFailsWith<IllegalArgumentException> {
+            NaviampConnectAccountCredential("home", NaviampConnectCredentialKind.Password, " ")
+        }
+    }
+
     @Test fun companionNegotiationIsAdditiveAndOlderOffersHaveNoCompanion() {
         val welcome = NaviampConnectWelcome("session", 1, targetDevice(), emptySet(), snapshot(0),
             companionProvisioningSupported = true)

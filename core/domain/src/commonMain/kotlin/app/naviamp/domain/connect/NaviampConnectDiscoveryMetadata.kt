@@ -7,6 +7,7 @@ private const val MaximumProtocolKey = "pmax"
 private const val DeviceCapabilitiesKey = "modes"
 private const val CapabilitiesKey = "caps"
 private const val FingerprintKey = "fp"
+private const val PairableKey = "code"
 
 /** Stable, minimal DNS-SD TXT representation. Network endpoints and local expiry are not TXT data. */
 object NaviampConnectDiscoveryMetadata {
@@ -24,6 +25,7 @@ object NaviampConnectDiscoveryMetadata {
             .sorted()
             .joinToString(","),
         FingerprintKey to advertisement.identityFingerprint,
+        PairableKey to if (advertisement.pairable) "1" else "0",
     )
 
     fun decode(
@@ -54,6 +56,9 @@ object NaviampConnectDiscoveryMetadata {
             port = port,
             identityFingerprint = attributes.getValue(FingerprintKey),
             expiresAtEpochMillis = expiresAtEpochMillis,
+            // Protocol v1 targets predate the flag and only advertised while accepting connections.
+            pairable = attributes[PairableKey] != "0",
+            codeFlagAdvertised = PairableKey in attributes,
         )
     }.getOrNull()
 }

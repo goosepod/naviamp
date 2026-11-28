@@ -19,7 +19,7 @@ class NaviampCoreOwnershipTest {
         try {
             setContent { if (visible.value) NaviampCoreApp(core) }
             waitForIdle()
-            runOnIdle { core.actions.shell.connectActions!!.onRefreshTargets() }
+            runOnIdle { core.actions.shell.connectActions!!.onConnectScreenVisibilityChanged(true) }
             val stops = discovery.stops
             runOnIdle { visible.value = false }
             waitForIdle()
@@ -39,7 +39,7 @@ class NaviampCoreOwnershipTest {
         var core: NaviampCore? = null
         setContent { if (visible.value) core = rememberNaviampCore(services) }
         waitForIdle()
-        runOnIdle { core!!.actions.shell.connectActions!!.onRefreshTargets() }
+        runOnIdle { core!!.actions.shell.connectActions!!.onConnectScreenVisibilityChanged(true) }
         val stops = discovery.stops
         runOnIdle { visible.value = false }
         waitForIdle()

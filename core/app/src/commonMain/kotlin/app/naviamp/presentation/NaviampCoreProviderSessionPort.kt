@@ -76,6 +76,14 @@ interface NaviampCoreProviderSessionPort {
 
     suspend fun editableConnection(id: String): NaviampCoreEditableConnection
 
+    /**
+     * Validates [form] and saves it as an account without changing the active account (#714).
+     * [savedConnectionId] names an existing account to update instead of adding a new one.
+     * Returns the saved account's id; throws when validation fails.
+     */
+    suspend fun saveValidatedConnection(form: ConnectionFormState, savedConnectionId: String?): String =
+        error("Saving an account without activating it is unavailable.")
+
     suspend fun currentProvisioningConnection(): NaviampCoreEditableConnection? =
         currentSourceId()?.let { id -> editableConnection(id) }
     suspend fun deleteConnection(id: String): NaviampCoreConnectionInventory

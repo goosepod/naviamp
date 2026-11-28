@@ -335,6 +335,28 @@ class NaviampCoreConnectionController(
         )
     }
 
+    /**
+     * Saves a transferred account without changing the active account (#714). Returns its id, or
+     * null when the form is invalid or the server rejects it.
+     */
+    internal suspend fun saveTransferredConnection(form: ConnectionFormState, existingSourceId: String?): String? {
+        if (connectionFormError(form, hasSavedConnectionForLogin = existingSourceId != null) != null) return null
+        val id = try {
+            sessionPort.saveValidatedConnection(form, existingSourceId)
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            return null
+        }
+        replaceSavedConnections(sessionPort.initialInventory().connections)
+        return id
+    }
+
+    /** Makes a transferred account the active one, as choosing it in the account switcher would. */
+    internal suspend fun activateTransferredConnection(id: String): Boolean =
+        id == inventory.currentSourceId && connection.state.value.connected ||
+            connect(NaviampCoreConnectionRequest.Saved(id))
+
     /** Validates and commits an encrypted Connect offer through the normal provider-session owner. */
     internal suspend fun provisionConnect(form: ConnectionFormState): Boolean {
         val active = inventory.currentSourceId

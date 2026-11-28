@@ -192,7 +192,7 @@ class NaviampCoreConnectControllerTest {
         runCurrent()
         assertNull(store.state.value.shell.connect.recovery)
         assertEquals(NaviampConnectPairingUiPhase.Advertising, store.state.value.shell.connect.pairingPhase)
-        assertEquals(app.naviamp.ui.NaviampConnectStatusText.ReadyForAControllerOnThisLocalNetwork,
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.ReadyEnterThisCode,
             store.state.value.shell.connect.statusMessage?.text)
         assertEquals(2, listeners.size)
         assertEquals(42424, store.state.value.shell.connect.listeningPort)
@@ -310,7 +310,7 @@ class NaviampCoreConnectControllerTest {
     fun unavailableDiscoveryHasRetryWithoutPermissionSettings() = runTest {
         val discovery = RecordingDiscoveryEffect()
         val (controller, store, _) = remoteFixture(discovery) { }
-        controller.actions.onRefreshTargets()
+        controller.actions.onConnectScreenVisibilityChanged(true)
         discovery.listener.onDiscoveryFailed("native detail")
         runCurrent()
         assertEquals(app.naviamp.ui.NaviampConnectRecoveryProblem.DiscoveryUnavailable, store.state.value.shell.connect.recovery?.problem)
@@ -480,7 +480,7 @@ class NaviampCoreConnectControllerTest {
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     @Test
-    fun trustedTargetAdvertisesAutomatically() = runTest {
+    fun trustedTargetListensWithoutShowingACode() = runTest {
         var storedTrust: String? = null
         val trust = NaviampConnectTrustRepository(object : NaviampConnectTrustStorageEffect {
             override fun read() = storedTrust
@@ -530,13 +530,16 @@ class NaviampCoreConnectControllerTest {
 
         runCurrent()
 
-        assertNotNull(advertising.service)
-        assertEquals(NaviampConnectPairingUiPhase.Advertising, store.state.value.shell.connect.pairingPhase)
+        val service = assertNotNull(advertising.service)
+        assertEquals("0", service.textAttributes["code"], "Trusted presence must not offer a code")
+        assertNull(store.state.value.shell.connect.pairingCode)
+        assertFalse(store.state.value.shell.connect.codeVisible)
         controller.ensureTrustedTargetListener()
         assertEquals(1, listenCount)
         advanceTimeBy(1_000L)
         runCurrent()
         assertEquals(1, listenCount)
+        assertNull(store.state.value.shell.connect.pairingCode, "No background code after the old lifetime")
         assertTrue(!listener.closed)
         controller.close()
     }
@@ -590,10 +593,10 @@ class NaviampCoreConnectControllerTest {
         )
         controller.actions.onPlaybackDeviceSelected("trusted-tv")
         assertEquals(1, discovery.startCount)
-        assertTrue(store.state.value.shell.connect.status.orEmpty().contains("Looking for Living Room TV"))
-        controller.actions.onRefreshTargets()
-        assertEquals(1, discovery.stopCount)
-        assertEquals(2, discovery.startCount)
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.LookingForDeviceStartPairingModeOnTheTvIfNeeded, store.state.value.shell.connect.statusMessage?.text)
+        controller.actions.onConnectScreenVisibilityChanged(true)
+        assertEquals(0, discovery.stopCount, "Opening the connect panel must not restart a running discovery")
+        assertEquals(1, discovery.startCount)
         controller.close()
     }
 
@@ -675,10 +678,10 @@ class NaviampCoreConnectControllerTest {
         assertEquals(2, connectCount)
         advanceTimeBy(100L)
         runCurrent()
-        controller.actions.onRefreshTargets()
+        controller.actions.onConnectScreenVisibilityChanged(true)
         advanceTimeBy(2_000L)
         runCurrent()
-        assertEquals(2, connectCount)
+        assertEquals(3, connectCount, "Opening the connect panel must not cancel an automatic reconnect")
         controller.close()
     }
 
@@ -724,8 +727,8 @@ class NaviampCoreConnectControllerTest {
         assertEquals(listOf(record), trust.load())
         assertNull(store.state.value.shell.connect.connectedTargetName)
         assertEquals(
-            "Stopped controlling Living Room TV. The TV will keep playing.",
-            store.state.value.shell.connect.status,
+            app.naviamp.ui.NaviampConnectStatusText.StoppedControllingDeviceTheTvWillKeepPlaying,
+            store.state.value.shell.connect.statusMessage?.text,
         )
         controller.close()
     }
@@ -780,7 +783,7 @@ class NaviampCoreConnectControllerTest {
             app.naviamp.ui.NaviampConnectPlaybackDestinationUiStatus.Reconnecting,
             store.state.value.shell.connect.playbackDestinationStatus,
         )
-        assertTrue(store.state.value.shell.connect.status.orEmpty().contains("Reconnecting"))
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.Reconnecting, store.state.value.shell.connect.statusMessage?.text)
         controller.close()
     }
 
@@ -821,7 +824,7 @@ class NaviampCoreConnectControllerTest {
     @Test
     fun queueHandoffExplainsWhyAnEmptyLocalQueueCannotBeSent() {
         assertEquals(
-            "Start something on this device before sending its queue.",
+            app.naviamp.ui.NaviampConnectStatusText.StartSomethingBeforeSendingQueue,
             naviampCoreConnectQueueHandoffProblem(
                 hasPlayback = true,
                 hasCurrentQueueItem = false,
@@ -926,7 +929,7 @@ class NaviampCoreConnectControllerTest {
         assertTrue(stalled.closed)
         assertEquals(2, listener.acceptCount)
         assertEquals(NaviampConnectPairingUiPhase.Advertising, store.state.value.shell.connect.pairingPhase)
-        assertTrue(store.state.value.shell.connect.status.orEmpty().contains("timed out"))
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.IncompleteConnectionRequestTimedOut, store.state.value.shell.connect.statusMessage?.text)
         controller.close()
     }
 
@@ -981,25 +984,73 @@ class NaviampCoreConnectControllerTest {
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     @Test
-    fun pairingLifetimeStopsAdvertisingAndListenerWithoutAnotherRequest() = runTest {
+    fun visibleCodeRegeneratesOnExpiry() = runTest {
         val listener = WaitingListener(42425)
         val store = NaviampCoreStateStore()
+        val codes = sequenceOf("111111", "222222").iterator()
         val controller = targetController(
             listener = listener,
             store = store,
             nowEpochMillis = { testScheduler.currentTime + 1_000L },
             pairingHelloTimeoutMillis = 10_000L,
             pairingLifetimeMillis = 1_000L,
+            newPairingCode = codes::next,
         )
 
         controller.actions.onStartPairingMode()
         runCurrent()
+        assertEquals("111111", store.state.value.shell.connect.pairingCode)
+        assertTrue(store.state.value.shell.connect.codeVisible)
+        assertEquals(2_000L, store.state.value.shell.connect.pairingCodeExpiresAtEpochMillis)
         advanceTimeBy(1_000L)
         runCurrent()
 
-        assertTrue(listener.closed)
-        assertEquals(NaviampConnectPairingUiPhase.Failed, store.state.value.shell.connect.pairingPhase)
-        assertTrue(store.state.value.shell.connect.status.orEmpty().contains("expired"))
+        assertEquals("222222", store.state.value.shell.connect.pairingCode)
+        assertFalse(listener.closed)
+        controller.actions.onStopPairingMode()
+        assertNull(store.state.value.shell.connect.pairingCode)
+        assertFalse(store.state.value.shell.connect.codeVisible)
+        assertTrue(listener.closed, "Without trust, hiding the code closes the listener")
+        controller.close()
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun pairingRequestWithoutVisibleCodeIsClosed() = runTest {
+        var storedTrust: String? = null
+        val trust = NaviampConnectTrustRepository(object : NaviampConnectTrustStorageEffect {
+            override fun read() = storedTrust
+            override fun write(value: String) { storedTrust = value }
+        })
+        trust.upsert(NaviampConnectTrustRecord("trusted-phone",
+            NaviampConnectDevice("phone", "Pixel", NaviampConnectDeviceRole.Controller), "phone-fp", "phone-key", 1L))
+        val listener = QueuedListener(42425)
+        val stranger = ScriptedConnection(app.naviamp.domain.connect.NaviampConnectEnvelope(
+            protocolVersion = 1,
+            sequence = 0,
+            message = app.naviamp.domain.connect.NaviampConnectHello(
+                device = NaviampConnectDevice("stranger", "Stranger", NaviampConnectDeviceRole.Controller),
+                identity = app.naviamp.domain.connect.NaviampConnectPublicIdentity("stranger", "stranger-fp", "stranger-key"),
+                protocolRange = NaviampConnectProtocolRange(),
+                capabilities = emptySet(),
+            ),
+        ))
+        listener.connections.trySend(stranger)
+        val store = NaviampCoreStateStore()
+        val controller = targetController(
+            listener = listener,
+            store = store,
+            nowEpochMillis = { testScheduler.currentTime + 1_000L },
+            pairingHelloTimeoutMillis = 1_000L,
+            pairingLifetimeMillis = 10_000L,
+            trust = trust,
+        )
+        runCurrent()
+
+        assertTrue(stranger.closed)
+        assertEquals(2, listener.acceptCount)
+        assertFalse(listener.closed)
+        assertEquals(NaviampConnectPairingUiPhase.Inactive, store.state.value.shell.connect.pairingPhase)
         controller.close()
     }
 
@@ -1028,7 +1079,7 @@ class NaviampCoreConnectControllerTest {
             ),
         )
 
-        controller.actions.onRefreshTargets()
+        controller.actions.onConnectScreenVisibilityChanged(true)
         discovery.listener.onServiceResolved(
             NaviampConnectResolvedService(
                 serviceName = "Living Room",
@@ -1365,7 +1416,7 @@ class NaviampCoreConnectControllerTest {
             newOpaqueId = { "unused" }, newPairingCode = { "123456" }, nowEpochMillis = { testScheduler.currentTime },
         ), providerSessions = providerSessions, sourceIdentity = sourceIdentity,
             trackSelectionContext = trackSelectionContext, savedPlaybackProfile = savedPlaybackProfile)
-        if (discovery != null) controller.actions.onRefreshTargets()
+        if (discovery != null) controller.actions.onConnectScreenVisibilityChanged(true)
         var next = 0
         val session = NaviampConnectControllerSession(NaviampConnectSessionTransport(send),
             NaviampConnectRequestIdFactory { "request-${++next}" })
@@ -1377,12 +1428,414 @@ class NaviampCoreConnectControllerTest {
         return Triple(controller, store, session)
     }
 
+    @Test
+    fun openingConnectScreenStartsAndClosingStopsDiscovery() = runTest {
+        val fixture = connectScreenFixture()
+        fixture.controller.actions.onConnectScreenVisibilityChanged(true)
+        assertEquals(1, fixture.discovery.startCount)
+        assertTrue(fixture.store.state.value.shell.connect.connectScreenVisible)
+        fixture.controller.actions.onConnectScreenVisibilityChanged(false)
+        assertTrue(fixture.discovery.stopCount >= 1)
+        assertFalse(fixture.store.state.value.shell.connect.connectScreenVisible)
+        fixture.controller.close()
+    }
+
+    @Test
+    fun closingConnectScreenKeepsDiscoveryForAPendingTrustedReconnect() = runTest {
+        val fixture = connectScreenFixture(trustedTv = true)
+        fixture.controller.actions.onTrustedDeviceSelected(fixture.store.state.value.shell.connect.trustedDevices.single())
+        fixture.controller.actions.onConnectScreenVisibilityChanged(true)
+        val stops = fixture.discovery.stopCount
+        fixture.controller.actions.onConnectScreenVisibilityChanged(false)
+        assertEquals(stops, fixture.discovery.stopCount, "A pending trusted reconnect still needs discovery")
+        fixture.controller.close()
+    }
+
+    @Test
+    fun sixthDigitSubmitsToTheOnlyDeviceShowingACode() = runTest {
+        val fixture = connectScreenFixture()
+        fixture.controller.actions.onConnectScreenVisibilityChanged(true)
+        fixture.resolve("Living Room", "192.0.2.10", "tv-fp", pairable = true)
+        fixture.resolve("Kitchen", "192.0.2.11", "kitchen-fp", pairable = false)
+        runCurrent()
+        assertEquals(listOf("Living Room"), fixture.store.state.value.shell.connect.discoveredTargets.map { it.displayName })
+        fixture.controller.actions.onPairingCodeChanged("12345")
+        runCurrent()
+        assertTrue(fixture.attempts.isEmpty())
+        fixture.controller.actions.onPairingCodeChanged("123456")
+        runCurrent()
+        assertEquals(listOf("192.0.2.10" to 42_425), fixture.attempts)
+        fixture.controller.close()
+    }
+
+    @Test
+    fun codeTypedBeforeDiscoveryWaitsForTheDevice() = runTest {
+        val fixture = connectScreenFixture()
+        fixture.controller.actions.onConnectScreenVisibilityChanged(true)
+        fixture.controller.actions.onPairingCodeChanged("123456")
+        advanceTimeBy(2_000L)
+        runCurrent()
+        assertTrue(fixture.attempts.isEmpty())
+        fixture.resolve("Living Room", "192.0.2.10", "tv-fp", pairable = true)
+        runCurrent()
+        assertEquals(listOf("192.0.2.10" to 42_425), fixture.attempts)
+        fixture.controller.close()
+    }
+
+    @Test
+    fun codeTypedWithNoDeviceShowingACodeReportsItAfterWaiting() = runTest {
+        val fixture = connectScreenFixture()
+        fixture.controller.actions.onConnectScreenVisibilityChanged(true)
+        fixture.controller.actions.onPairingCodeChanged("123456")
+        advanceTimeBy(5_001L)
+        runCurrent()
+        assertTrue(fixture.attempts.isEmpty())
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.NoDeviceShowingACode,
+            fixture.store.state.value.shell.connect.statusMessage?.text)
+        fixture.controller.close()
+    }
+
+    @Test
+    fun multipleDevicesShowingCodesRequireAChoice() = runTest {
+        val fixture = connectScreenFixture()
+        fixture.controller.actions.onConnectScreenVisibilityChanged(true)
+        fixture.resolve("Living Room", "192.0.2.10", "tv-fp", pairable = true)
+        fixture.resolve("Bedroom", "192.0.2.12", "bedroom-fp", pairable = true)
+        runCurrent()
+        fixture.controller.actions.onPairingCodeChanged("123456")
+        runCurrent()
+        assertTrue(fixture.attempts.isEmpty())
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.ChooseTheDeviceShowingThisCode,
+            fixture.store.state.value.shell.connect.statusMessage?.text)
+        assertEquals("123456", fixture.store.state.value.shell.connect.enteredPairingCode)
+        fixture.controller.actions.onTargetSelected(
+            fixture.store.state.value.shell.connect.discoveredTargets.single { it.displayName == "Bedroom" })
+        runCurrent()
+        assertEquals(listOf("192.0.2.12" to 42_425), fixture.attempts)
+        fixture.controller.close()
+    }
+
+    @Test
+    fun aRequestArrivingAfterExpiryKeepsAcceptingConnectionsAndShowsANewCode() = runTest {
+        var wallClock = 1_000L
+        val listener = QueuedListener(42425)
+        val store = NaviampCoreStateStore()
+        val codes = sequenceOf("111111", "222222").iterator()
+        val controller = targetController(
+            listener = listener,
+            store = store,
+            nowEpochMillis = { wallClock },
+            pairingHelloTimeoutMillis = 1_000L,
+            pairingLifetimeMillis = 10_000L,
+            newPairingCode = codes::next,
+        )
+        controller.actions.onStartPairingMode()
+        runCurrent()
+        assertEquals("111111", store.state.value.shell.connect.pairingCode)
+        wallClock = 20_000L // The wall clock jumped past expiry before the expiry job ran.
+        listener.connections.trySend(ScriptedConnection(app.naviamp.domain.connect.NaviampConnectEnvelope(
+            protocolVersion = 1,
+            sequence = 0,
+            message = app.naviamp.domain.connect.NaviampConnectHello(
+                device = NaviampConnectDevice("late", "Late phone", NaviampConnectDeviceRole.Controller),
+                identity = app.naviamp.domain.connect.NaviampConnectPublicIdentity("late", "late-fp", "late-key"),
+                protocolRange = NaviampConnectProtocolRange(),
+                capabilities = emptySet(),
+            ),
+        )))
+        runCurrent()
+        val next = ClosedConnection()
+        listener.connections.trySend(next)
+        runCurrent()
+        assertTrue(next.closed, "The listener must keep accepting after a late request")
+        assertEquals("222222", store.state.value.shell.connect.pairingCode)
+        controller.close()
+    }
+
+    @Test
+    fun typingACodeStopsAutomaticReconnectToAnotherDevice() = runTest {
+        val fixture = connectScreenFixture(trustedTv = true)
+        fixture.controller.actions.onTrustedDeviceSelected(fixture.store.state.value.shell.connect.trustedDevices.single())
+        fixture.resolve("Living Room", "192.0.2.10", "tv-fp", pairable = false)
+        runCurrent()
+        advanceTimeBy(100L)
+        runCurrent()
+        assertTrue(fixture.attempts.any { it.first == "192.0.2.10" }, "The selected TV is being reconnected")
+        fixture.controller.actions.onConnectScreenVisibilityChanged(true)
+        fixture.resolve("Bedroom", "192.0.2.12", "bedroom-fp", pairable = true)
+        runCurrent()
+        fixture.controller.actions.onPairingCodeChanged("123456")
+        runCurrent()
+        fixture.attempts.clear()
+        advanceTimeBy(6_000L)
+        runCurrent()
+        assertTrue(fixture.attempts.none { it.first == "192.0.2.10" }, "Entering a code for another device stops the old reconnect")
+        fixture.controller.close()
+    }
+
+    @Test
+    fun theOneDeviceAnnouncingACodeIsChosenOverOlderDevices() = runTest {
+        val fixture = connectScreenFixture()
+        fixture.controller.actions.onConnectScreenVisibilityChanged(true)
+        fixture.resolve("Living Room", "192.0.2.10", "tv-fp", pairable = true)
+        fixture.resolveLegacy("Old Bedroom TV", "192.0.2.13", "old-fp")
+        runCurrent()
+        assertEquals(2, fixture.store.state.value.shell.connect.discoveredTargets.size)
+        fixture.controller.actions.onPairingCodeChanged("123456")
+        runCurrent()
+        assertEquals(listOf("192.0.2.10" to 42_425), fixture.attempts)
+        fixture.controller.close()
+    }
+
+    @Test
+    fun aCodeIsNeverSentToAnOlderDeviceWithoutATap() = runTest {
+        val fixture = connectScreenFixture()
+        fixture.controller.actions.onConnectScreenVisibilityChanged(true)
+        // The device showing the code is briefly missing; only an older device is listed.
+        fixture.resolveLegacy("Old Bedroom TV", "192.0.2.13", "old-fp")
+        runCurrent()
+        fixture.controller.actions.onPairingCodeChanged("123456")
+        advanceTimeBy(5_001L)
+        runCurrent()
+        assertTrue(fixture.attempts.isEmpty(), "An older device cannot say it shows this code")
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.ChooseTheDeviceShowingThisCode,
+            fixture.store.state.value.shell.connect.statusMessage?.text)
+        fixture.controller.actions.onTargetSelected(fixture.store.state.value.shell.connect.discoveredTargets.single())
+        runCurrent()
+        assertEquals(listOf("192.0.2.13" to 42_425), fixture.attempts, "Tapping it sends the code")
+        fixture.controller.close()
+    }
+
+    @Test
+    fun theDeviceShowingTheCodeIsUsedOnceItReappears() = runTest {
+        val fixture = connectScreenFixture()
+        fixture.controller.actions.onConnectScreenVisibilityChanged(true)
+        fixture.resolveLegacy("Old Bedroom TV", "192.0.2.13", "old-fp")
+        runCurrent()
+        fixture.controller.actions.onPairingCodeChanged("123456")
+        runCurrent()
+        fixture.resolve("Living Room", "192.0.2.10", "tv-fp", pairable = true)
+        runCurrent()
+        assertEquals(listOf("192.0.2.10" to 42_425), fixture.attempts)
+        fixture.controller.close()
+    }
+
+    @Test
+    fun aTrustedDeviceWhoseSecretCannotBeReadAsksForANewCode() = runTest {
+        val fixture = connectScreenFixture(trustedTv = true, readableCredential = false)
+        val device = fixture.store.state.value.shell.connect.trustedDevices.single()
+        fixture.controller.actions.onManualTrustedEndpointSelected(device, "192.0.2.10:42425")
+        runCurrent()
+        assertTrue(fixture.attempts.isEmpty())
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.ConnectAgainWithANewCode,
+            fixture.store.state.value.shell.connect.statusMessage?.text)
+        fixture.controller.close()
+    }
+
+    @Test
+    fun closingTheConnectPanelClearsTheSearchingStatus() = runTest {
+        val fixture = connectScreenFixture()
+        fixture.controller.actions.onConnectScreenVisibilityChanged(true)
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.SearchingThisLocalNetwork,
+            fixture.store.state.value.shell.connect.statusMessage?.text)
+        fixture.controller.actions.onConnectScreenVisibilityChanged(false)
+        assertNull(fixture.store.state.value.shell.connect.statusMessage)
+        fixture.controller.close()
+    }
+
+    @Test
+    fun closingThePanelWhileTheIdentityLoadsStartsNoOffer() = runTest {
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val identity = object : NaviampConnectDeviceIdentityEffect {
+            override fun loadOrCreate(): NaviampConnectDeviceIdentity {
+                kotlinx.coroutines.runBlocking { gate.await() }
+                return FakeIdentity.loadOrCreate()
+            }
+            override fun sign(payload: ByteArray) = byteArrayOf(1)
+        }
+        val store = NaviampCoreStateStore()
+        val listeners = mutableListOf<WaitingListener>()
+        val identityDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
+        val controller = secureStorageFixture(this, store, identity, identityDispatcher, listeners) { testScheduler.currentTime }
+        controller.actions.onStartPairingMode()
+        controller.actions.onStopPairingMode()
+        gate.complete(Unit)
+        runCurrent()
+        assertTrue(listeners.isEmpty(), "A panel closed before the identity loaded must not start an offer")
+        assertNull(store.state.value.shell.connect.pairingCode)
+        controller.close()
+    }
+
+    @Test
+    fun retryingSecureStorageShowsTheCodeForTheStillOpenPanel() = runTest {
+        var locked = true
+        val identity = object : NaviampConnectDeviceIdentityEffect {
+            override fun loadOrCreate(): NaviampConnectDeviceIdentity {
+                if (locked) throw IllegalStateException("locked")
+                return FakeIdentity.loadOrCreate()
+            }
+            override fun sign(payload: ByteArray) = byteArrayOf(1)
+        }
+        val store = NaviampCoreStateStore()
+        val listeners = mutableListOf<WaitingListener>()
+        val controller = secureStorageFixture(this, store, identity, kotlinx.coroutines.Dispatchers.Unconfined, listeners) {
+            testScheduler.currentTime
+        }
+        runCurrent()
+        controller.actions.onStartPairingMode()
+        runCurrent()
+        locked = false
+        controller.actions.onRetryConnection()
+        runCurrent()
+        assertEquals("123456", store.state.value.shell.connect.pairingCode)
+        controller.close()
+    }
+
+    @Test
+    fun aValidRequestJustAfterExpiryStillLeavesANewCode() = runTest {
+        var wallClock = 1_000L
+        val listener = QueuedListener(42425)
+        val store = NaviampCoreStateStore()
+        val codes = sequenceOf("111111", "222222").iterator()
+        val controller = targetController(
+            listener = listener, store = store, nowEpochMillis = { wallClock },
+            pairingHelloTimeoutMillis = 1_000L, pairingLifetimeMillis = 10_000L, newPairingCode = codes::next,
+        )
+        controller.actions.onStartPairingMode()
+        runCurrent()
+        wallClock = 20_000L
+        listener.connections.trySend(ScriptedConnection(app.naviamp.domain.connect.NaviampConnectEnvelope(
+            protocolVersion = 1, sequence = 0,
+            message = app.naviamp.domain.connect.NaviampConnectHello(
+                device = NaviampConnectDevice("late", "Late phone", NaviampConnectDeviceRole.Controller),
+                // FakeIdentityVerifier fingerprints every key as "fingerprint": this hello is valid.
+                identity = app.naviamp.domain.connect.NaviampConnectPublicIdentity("late", "fingerprint", "late-key"),
+                protocolRange = NaviampConnectProtocolRange(),
+                capabilities = emptySet(),
+            ),
+        )))
+        runCurrent()
+        assertEquals("222222", store.state.value.shell.connect.pairingCode)
+        controller.close()
+    }
+
+    @Test
+    fun aStalledHandshakeReleasesCodeEntry() = runTest {
+        val stalled = StalledConnection()
+        val discovery = RecordingDiscoveryEffect()
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreConnectController(this, store, NaviampCoreConnectServices(
+            networkDispatcher = kotlinx.coroutines.Dispatchers.Unconfined,
+            deviceCapabilities = setOf(NaviampConnectDeviceCapability.ControlPlayback),
+            displayName = "Pixel", identity = FakeIdentity, identityVerifier = FakeIdentityVerifier,
+            transport = object : NaviampConnectTransportFactory {
+                override suspend fun connect(host: String, port: Int): NaviampConnectTransportConnection = stalled
+                override fun listen(port: Int): NaviampConnectTransportListener = error("unused")
+            },
+            pake = UnusedPakeFactory, cipher = UnusedCipherFactory,
+            trust = NaviampConnectTrustRepository(NaviampConnectTrustStorageEffect {}), discovery = discovery,
+            newOpaqueId = { "opaque" }, newPairingCode = { "123456" },
+            nowEpochMillis = { testScheduler.currentTime + 1_000L }, pairingHandshakeTimeoutMillis = 1_000L,
+        ))
+        controller.actions.onConnectScreenVisibilityChanged(true)
+        discovery.listener.onServiceResolved(NaviampConnectResolvedService(
+            serviceName = "Living Room", addresses = listOf("192.0.2.10"), port = 42_425,
+            textAttributes = NaviampConnectDiscoveryMetadata.encode(NaviampConnectAdvertisement(
+                instanceId = "tv-instance", displayName = "Living Room", protocolRange = NaviampConnectProtocolRange(),
+                capabilities = emptySet(), port = 42_425, identityFingerprint = "tv-fp", expiresAtEpochMillis = Long.MAX_VALUE,
+            )),
+        ))
+        runCurrent()
+        controller.actions.onPairingCodeChanged("123456")
+        runCurrent()
+        assertTrue(store.state.value.shell.connect.codeEntryBusy)
+        advanceTimeBy(1_001L)
+        runCurrent()
+        assertFalse(store.state.value.shell.connect.codeEntryBusy, "A peer that stops responding must not block code entry")
+        assertTrue(stalled.closed)
+        controller.close()
+    }
+
+    private class ConnectScreenFixture(
+        val controller: NaviampCoreConnectController,
+        val store: NaviampCoreStateStore,
+        val discovery: RecordingDiscoveryEffect,
+        val attempts: MutableList<Pair<String, Int>>,
+    ) {
+        /** A protocol-v1 device: its TXT has no "showing a code" flag at all. */
+        fun resolveLegacy(name: String, address: String, fingerprint: String) {
+            discovery.listener.onServiceResolved(NaviampConnectResolvedService(
+                serviceName = name, addresses = listOf(address), port = 42_425,
+                textAttributes = NaviampConnectDiscoveryMetadata.encode(NaviampConnectAdvertisement(
+                    instanceId = "$fingerprint-instance", displayName = name,
+                    protocolRange = NaviampConnectProtocolRange(), capabilities = emptySet(), port = 42_425,
+                    identityFingerprint = fingerprint, expiresAtEpochMillis = Long.MAX_VALUE,
+                )) - "code",
+            ))
+        }
+
+        fun resolve(name: String, address: String, fingerprint: String, pairable: Boolean) {
+            discovery.listener.onServiceResolved(NaviampConnectResolvedService(
+                serviceName = name, addresses = listOf(address), port = 42_425,
+                textAttributes = NaviampConnectDiscoveryMetadata.encode(NaviampConnectAdvertisement(
+                    instanceId = "$fingerprint-instance", displayName = name,
+                    protocolRange = NaviampConnectProtocolRange(), capabilities = emptySet(), port = 42_425,
+                    identityFingerprint = fingerprint, expiresAtEpochMillis = Long.MAX_VALUE, pairable = pairable,
+                )),
+            ))
+        }
+    }
+
+    private fun kotlinx.coroutines.test.TestScope.connectScreenFixture(
+        trustedTv: Boolean = false,
+        readableCredential: Boolean = true,
+    ): ConnectScreenFixture {
+        var storedTrust: String? = null
+        val trust = NaviampConnectTrustRepository(object : NaviampConnectTrustStorageEffect {
+            override fun read() = storedTrust
+            override fun write(value: String) { storedTrust = value }
+        })
+        if (trustedTv) trust.upsert(NaviampConnectTrustRecord("trusted-tv",
+            NaviampConnectDevice("tv", "Living Room", NaviampConnectDeviceRole.Target), "tv-fp", "tv-key", 1L))
+        val discovery = RecordingDiscoveryEffect()
+        val attempts = mutableListOf<Pair<String, Int>>()
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreConnectController(this, store, NaviampCoreConnectServices(
+            networkDispatcher = kotlinx.coroutines.Dispatchers.Unconfined,
+            deviceCapabilities = setOf(NaviampConnectDeviceCapability.ControlPlayback),
+            displayName = "Pixel", identity = FakeIdentity, identityVerifier = FakeIdentityVerifier,
+            transport = object : NaviampConnectTransportFactory {
+                override suspend fun connect(host: String, port: Int): NaviampConnectTransportConnection {
+                    attempts += host to port
+                    error("unreachable")
+                }
+                override fun listen(port: Int): NaviampConnectTransportListener = error("unused")
+            },
+            pake = UnusedPakeFactory, cipher = UnusedCipherFactory, trust = trust,
+            credentials = app.naviamp.app.NaviampConnectSessionCredentialRepository(
+                object : app.naviamp.app.NaviampConnectSessionCredentialStorageEffect {
+                    override fun read(peerDeviceId: String) = byteArrayOf(1, 2, 3).takeIf { readableCredential }
+                    override fun write(peerDeviceId: String, value: ByteArray) = Unit
+                    override fun remove(peerDeviceId: String) = Unit
+                    override fun contains(peerDeviceId: String) = true
+                },
+            ),
+            discovery = discovery,
+            newOpaqueId = { "opaque" }, newPairingCode = { "123456" },
+            nowEpochMillis = { testScheduler.currentTime + 1_000L },
+        ))
+        return ConnectScreenFixture(controller, store, discovery, attempts)
+    }
+
     private fun CoroutineScope.targetController(
         listener: NaviampConnectTransportListener,
         store: NaviampCoreStateStore,
         nowEpochMillis: () -> Long,
         pairingHelloTimeoutMillis: Long,
         pairingLifetimeMillis: Long,
+        newPairingCode: () -> String = { "123456" },
+        trust: NaviampConnectTrustRepository = NaviampConnectTrustRepository(NaviampConnectTrustStorageEffect {}),
+        advertising: NaviampConnectAdvertisingEffect = RecordingAdvertisingEffect(),
     ) = NaviampCoreConnectController(
         scope = this,
         stateStore = store,
@@ -1398,10 +1851,10 @@ class NaviampCoreConnectControllerTest {
             },
             pake = UnusedPakeFactory,
             cipher = UnusedCipherFactory,
-            trust = NaviampConnectTrustRepository(NaviampConnectTrustStorageEffect {}),
-            advertising = RecordingAdvertisingEffect(),
-            newOpaqueId = sequenceOf("instance", "session").iterator()::next,
-            newPairingCode = { "123456" },
+            trust = trust,
+            advertising = advertising,
+            newOpaqueId = generateSequence(0) { it + 1 }.map { "opaque-$it" }.iterator()::next,
+            newPairingCode = newPairingCode,
             nowEpochMillis = nowEpochMillis,
             pairingLifetimeMillis = pairingLifetimeMillis,
             pairingHelloTimeoutMillis = pairingHelloTimeoutMillis,
@@ -1452,6 +1905,17 @@ private class StalledConnection : NaviampConnectTransportConnection {
 
     override suspend fun send(frame: ByteArray) = Unit
     override suspend fun receive(): ByteArray? = awaitCancellation()
+    override fun close() { closed = true }
+}
+
+private class ScriptedConnection(envelope: app.naviamp.domain.connect.NaviampConnectEnvelope) : NaviampConnectTransportConnection {
+    override val remoteAddress = "scripted.test"
+    var closed = false
+    private val frames = ArrayDeque(listOf(app.naviamp.app.NaviampConnectTransportPacketCodec.encode(
+        app.naviamp.app.NaviampConnectTransportPacket.Plaintext(envelope))))
+
+    override suspend fun send(frame: ByteArray) = Unit
+    override suspend fun receive(): ByteArray? = if (closed) null else frames.removeFirstOrNull() ?: awaitCancellation()
     override fun close() { closed = true }
 }
 

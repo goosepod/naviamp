@@ -62,7 +62,55 @@ vectors exist.
 
 ### Protected assets and trust boundary
 
-September 10 consent update: explicitly choosing **Show pairing code** authorizes one live
+November 2026 full sign-in update (#714):
+
+- **Advertised additively.** A target sets `Welcome.accountTransferSupported` when it can receive and
+  serve a full account transfer. Controllers send the new commands only to such a target; older
+  targets keep the single-account `offer_connection_provisioning`. Protocol version stays 1, and no
+  capability enum value was added (older peers reject unknown enum values).
+- **Payload.** `NaviampConnectAccountTransfer` carries the shared `SettingsSyncDocument` (profiles and,
+  when chosen, portable preferences; no secrets, no certificate paths) plus one
+  `NaviampConnectAccountCredential` per profile: a password or an API key, secret header values, and
+  the Aurral companion password. Session tokens (Subsonic token/salt, Navidrome native session,
+  Jellyfin device-bound token) never travel. Accounts without a password or API key are listed as
+  `NeedsPassword` (the sending device may supply one) and certificate-file accounts as
+  `SetUpOnDevice`. Every credential type redacts itself in `toString`.
+- **Send:** `offer_account_transfer` → `account_transfer_result` (per-account Added, Updated,
+  NeedsPassword, SetUpOnDevice, Failed). **Pull:** `request_account_transfer` →
+  `account_transfer_payload`. Both commands require `ConnectionProvisioning`, are non-idempotent, and
+  are never retained for replay.
+- **Receiver policy (Core).** Each account is validated and saved without switching the active
+  account; the same provider + server + user updates the receiver's account (keeping its library
+  choice and name) and nothing is deleted. Settings apply only when chosen, through the settings-sync
+  normalization, keeping the receiver's device-local fields. The sender's active account is then
+  activated; a receiver that had no account activates the first one saved. The receiver never
+  prompts.
+
+November 2026 one-flow update (#713) — supersedes the September 10 consent rules below:
+
+- **Presence vs. code offer.** A target with any trust record keeps its listener and DNS-SD
+  registration alive for trusted resumption without generating a code. A code exists only while the
+  user keeps the *Let another device connect* panel open (or the TV first-run screen is shown); it
+  regenerates on expiry and after each failed attempt, and five failures pause new codes for 30 s.
+  Trusted resumption validates against the presence advertisement and never consumes the code.
+- **Showing a code is the consent.** A pairing request can exist only while a code is shown, so it
+  is approved automatically; there is no approval prompt. Every authenticated session therefore came
+  from a displayed code or a trusted device, and the target applies its provisioning offers without
+  approval (validation and rollback are unchanged). `NaviampConnectInitialSetupAuthorization` was
+  removed.
+- **Discovery TXT `code`.** `"1"` while the device is showing a code, `"0"` for presence only; a
+  missing key (protocol-v1 targets) means it may be showing one. Controllers list `code=1` and
+  missing-key devices as *Nearby*. When six digits are typed, a single `code=1` device is chosen
+  automatically (waiting up to 5 s for one to appear); a missing-key device is never chosen without a
+  tap, so a device that briefly drops off discovery never sends the code to another device.
+- **Additive Welcome fields.** `initialSetupAllowed` is `true` only when the target supports
+  provisioning and has no saved accounts, so a v1 controller still sets up an empty target but never
+  replaces a configured one. `hasSavedAccounts` (nullable) tells the controller whether to preselect
+  sign-in in its post-connect sheet. Controllers no longer provision automatically; the user chooses
+  *Sign it in*, *Play on …*, or *Done*.
+- The protocol version remains 1: these changes are additive and v1 peers keep pairing and resuming.
+
+September 10 consent update (historical): explicitly choosing **Show pairing code** authorizes one live
 code-authenticated peer to pair. On an empty target, that same action also authorizes initial
 source and portable-settings provisioning in the resulting authenticated session. The UI explains
 this before displaying the code. Background advertisements and trusted reconnects never create this
@@ -242,8 +290,9 @@ Hosts provide only the native effects that cannot live in common Kotlin:
   the simulator does not model it completely.
 - Desktop: the selected OS/JVM DNS-SD, socket, and secure-value implementations.
 
-Discovery does not imply trust. An unpaired target advertises only while its explicit pairing screen
-is active, and discovery alone never enables commands or connection provisioning.
+Discovery does not imply trust. A target advertises `code=1` only while its code is shown and
+otherwise only presence for already-trusted peers; discovery alone never enables commands or
+connection provisioning.
 
 ## Delivery sequence
 

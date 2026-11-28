@@ -47,6 +47,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -59,6 +61,9 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.testTag
+import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -170,9 +175,6 @@ private fun NaviampTelevisionAppShellContent(
     var observedControllerDeviceId by remember {
         mutableStateOf(uiState.connect.connectedControllerDeviceId)
     }
-    var observedProvisioningController by remember {
-        mutableStateOf(uiState.connect.pendingProvisioningControllerName)
-    }
     var observedConnected by remember { mutableStateOf(connection.connected) }
     LaunchedEffect(nowPlaying?.id) {
         if (nowPlaying == null) nowPlayingPreview = false
@@ -237,20 +239,13 @@ private fun NaviampTelevisionAppShellContent(
         }
     }
     // Playback and media-identity changes must leave the active settings page and focus intact.
-    LaunchedEffect(
-        uiState.connect.connectedControllerDeviceId,
-        uiState.connect.pendingProvisioningControllerName,
-    ) {
+    LaunchedEffect(uiState.connect.connectedControllerDeviceId) {
         val connectedControllerDeviceId = uiState.connect.connectedControllerDeviceId
-        val provisioningController = uiState.connect.pendingProvisioningControllerName
         val dismiss = televisionSettingsShouldDismissForControllerActivity(
             previousControllerDeviceId = observedControllerDeviceId,
             controllerDeviceId = connectedControllerDeviceId,
-            previousProvisioningController = observedProvisioningController,
-            provisioningController = provisioningController,
         )
         observedControllerDeviceId = connectedControllerDeviceId
-        observedProvisioningController = provisioningController
         if (settingsOpen && dismiss) {
             settingsOpen = false
             restoreSettingsFocus = false
@@ -528,11 +523,7 @@ internal fun televisionNavigationFocusChangesRoute(
 internal fun televisionSettingsShouldDismissForControllerActivity(
     previousControllerDeviceId: String?,
     controllerDeviceId: String?,
-    previousProvisioningController: String?,
-    provisioningController: String?,
-): Boolean =
-    (controllerDeviceId != null && controllerDeviceId != previousControllerDeviceId) ||
-        (previousProvisioningController != null && provisioningController == null)
+): Boolean = controllerDeviceId != null && controllerDeviceId != previousControllerDeviceId
 
 @Composable
 private fun TelevisionNavigationBar(
@@ -861,19 +852,8 @@ private fun TelevisionConnectionScreen(
                 .widthIn(max = 820.dp)
                 .align(Alignment.CenterHorizontally),
         ) {
-            Text(stringResource(if (addingAccount) Res.string.tv_account_add else Res.string.tv_set_up_naviamp_tv),
-                color = colors.primaryText, fontSize = 36.sp, fontWeight = FontWeight.Black)
-            Text(
-                stringResource(Res.string.tv_direct_setup_description),
-                color = colors.secondaryText,
-                fontSize = 18.sp,
-            )
-            Text(
-                stringResource(Res.string.tv_keyboard_navigation_hint),
-                color = colors.mutedText,
-                fontSize = 14.sp,
-            )
-            if (!addingAccount) TelevisionFirstRunConnectSetup(
+            TelevisionSetupIntro(
+                addingAccount = addingAccount,
                 connect = uiState.connect,
                 actions = actions.connectActions,
                 colors = colors,
@@ -908,70 +888,72 @@ private fun TelevisionConnectionScreen(
     }
 }
 
+/** Title, the phone/computer code box, then the direct-setup alternative and keyboard hint. */
 @Composable
-private fun TelevisionFirstRunConnectSetup(
+internal fun TelevisionSetupIntro(
+    addingAccount: Boolean,
+    connect: NaviampConnectSettingsUi,
+    actions: NaviampConnectSettingsActions?,
+    colors: NaviampColors,
+) {
+    Text(stringResource(if (addingAccount) Res.string.tv_account_add else Res.string.tv_set_up_naviamp_tv),
+        color = colors.primaryText, fontSize = 36.sp, fontWeight = FontWeight.Black)
+    if (!addingAccount) {
+        TelevisionFirstRunConnectSetup(connect = connect, actions = actions, colors = colors)
+        // "Or …" names the alternative, so it follows the code box it is an alternative to.
+        Text(stringResource(Res.string.tv_direct_setup_or), color = colors.secondaryText, fontSize = 18.sp)
+    }
+    Text(stringResource(Res.string.tv_keyboard_navigation_hint), color = colors.mutedText, fontSize = 14.sp)
+}
+
+@Composable
+internal fun TelevisionFirstRunConnectSetup(
     connect: NaviampConnectSettingsUi,
     actions: NaviampConnectSettingsActions?,
     colors: NaviampColors,
 ) {
     if (!connect.available || !connect.canAdvertise || actions == null) return
+    // A fresh TV shows its code as soon as setup is on screen; leaving setup ends the offer.
+    val start by rememberUpdatedState(actions.onStartPairingMode)
+    val stop by rememberUpdatedState(actions.onStopPairingMode)
+    NaviampWhileVisibleEffect(onVisible = { start() }, onHidden = { stop() })
+    // The box takes the remote's first focus, so setup opens scrolled to the code and Up returns to it.
+    val codeBoxFocus = remember { FocusRequester() }
+    var codeBoxFocused by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { runCatching { codeBoxFocus.requestFocus() } }
     Column(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier
             .fillMaxWidth()
+            .testTag("tv-connect-code-box")
+            .focusRequester(codeBoxFocus)
+            .onFocusChanged { codeBoxFocused = it.isFocused }
+            .focusable()
             .background(colors.controlSurface.copy(alpha = 0.72f), RoundedCornerShape(14.dp))
+            .then(if (codeBoxFocused) Modifier.border(2.dp, colors.primaryText, RoundedCornerShape(14.dp)) else Modifier)
             .padding(16.dp),
     ) {
         Text(stringResource(Res.string.tv_set_up_from_a_phone_or_computer), color = colors.primaryText, fontSize = 21.sp, fontWeight = FontWeight.Bold)
         Text(
-            stringResource(Res.string.connect_setup_code_consent),
+            stringResource(Res.string.connect_show_code_instructions),
             color = colors.secondaryText,
             fontSize = 15.sp,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            TelevisionTextButton(
-                label = if (connect.pairingActive) stringResource(Res.string.tv_stop_pairing) else stringResource(Res.string.tv_show_pairing_code),
-                colors = colors,
-                calmFocus = true,
-                onClick = if (connect.pairingActive) actions.onStopPairingMode else actions.onStartPairingMode,
+        connect.pairingCode?.let { code ->
+            Text(
+                formatNaviampConnectPairingCode(code),
+                color = colors.primaryText,
+                fontSize = 44.sp,
+                fontWeight = FontWeight.Black,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
             )
-            connect.pairingCode?.let { code ->
-                Text(
-                    formatNaviampConnectPairingCode(code),
-                    color = colors.primaryText,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Black,
-                )
-            }
         }
+        Text(connect.localDeviceName, color = colors.secondaryText, fontSize = 15.sp)
         connect.recovery?.let { recovery ->
             NaviampConnectRecoveryPanel(recovery, colors, actions.onRetryConnection,
                 actions.onOpenPermissionSettings, television = true)
         } ?: run {
             connect.displayStatus()?.let { Text(it, color = colors.secondaryText, fontSize = 14.sp) }
-        }
-        if (connect.pairingPhase == NaviampConnectPairingUiPhase.AwaitingApproval) {
-            Text(
-                stringResource(Res.string.tv_controller_asking_to_pair, connect.pendingControllerName ?: stringResource(Res.string.tv_controller_fallback)),
-                color = colors.primaryText,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                TelevisionTextButton(stringResource(Res.string.tv_approve_controller), colors, calmFocus = true, onClick = actions.onApproveController)
-                TelevisionTextButton(stringResource(Res.string.tv_reject), colors, calmFocus = true, onClick = actions.onRejectController)
-            }
-        }
-        connect.pendingProvisioningConnectionName?.let { connectionName ->
-            Text(
-                stringResource(Res.string.tv_controller_can_set_up, connect.pendingProvisioningControllerName ?: stringResource(Res.string.tv_paired_controller_fallback), connectionName),
-                color = colors.primaryText,
-                fontSize = 16.sp,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                TelevisionTextButton(stringResource(Res.string.tv_set_up_server), colors, calmFocus = true, onClick = actions.onApproveProvisioning)
-                TelevisionTextButton(stringResource(Res.string.tv_reject), colors, calmFocus = true, onClick = actions.onRejectProvisioning)
-            }
         }
     }
 }
