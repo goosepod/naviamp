@@ -376,6 +376,73 @@ class NaviampCoreConnectionControllerTest {
         assertTrue(second.errorOccurrence > first.errorOccurrence, "The same message failing again must still be observable")
     }
 
+    @Test fun aPendingSaveIsDroppedWhenAnAccountSwitchReplacesTheSession() = kotlinx.coroutines.test.runTest {
+        var sourceChanges = 0
+        val fixture = fixture(savedRecords = listOf(savedRecord(), savedRecord(id = "source-2", displayName = "Other")),
+            onSourceChanging = { _, _ -> sourceChanges++ })
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.port.connectRequests.clear()
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(displayName = "Renamed",
+            aurralCompanion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret"))))
+        val gate = CompletableDeferred<Unit>().also { fixture.port.verificationGate = it }
+        val save = launch { fixture.controller.execute(NaviampCoreCommand.Connection.Connect) }
+        runCurrent()
+
+        fixture.controller.execute(NaviampCoreCommand.Connection.SwitchAccount(savedConnectionUi().copy(id = "source-2", displayName = "Other")))
+        assertEquals("source-2", fixture.store.state.value.shell.connectionSettings.currentSourceId)
+        val afterSwitch = fixture.port.connectRequests.size
+        sourceChanges = 0
+
+        gate.complete(Unit)
+        save.join()
+        assertEquals(afterSwitch, fixture.port.connectRequests.size, "The stale save must not reconnect the replaced account")
+        assertEquals(0, sourceChanges)
+        assertTrue(fixture.port.savedCompanions.isEmpty())
+        assertEquals("source-2", fixture.store.state.value.shell.connectionSettings.currentSourceId)
+    }
+
+    @Test fun aPendingSaveIsDroppedWhenTheDatabaseIsReset() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture(currentSourceId = null, hasSavedConnection = false)
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.New)
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(ConnectionFormState(
+            serverUrl = "https://music.example", username = "demo", password = "secret",
+            aurralCompanion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret"))))
+        val gate = CompletableDeferred<Unit>().also { fixture.port.verificationGate = it }
+        val save = launch { fixture.controller.execute(NaviampCoreCommand.Connection.Connect) }
+        runCurrent()
+
+        fixture.controller.resetAfterDatabaseClear()
+        gate.complete(Unit)
+        save.join()
+
+        assertTrue(fixture.port.connectRequests.isEmpty(), "The discarded account setup must not run after the reset")
+        assertFalse(fixture.store.state.value.shell.connectionSettings.connection.editingConnection)
+    }
+
+    @Test fun aBackgroundRetryThatKeepsTheEditorDoesNotDropAPendingSave() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.port.connectRequests.clear()
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        val companion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret")
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(aurralCompanion = companion)))
+        val gate = CompletableDeferred<Unit>().also { fixture.port.verificationGate = it }
+        val save = launch { fixture.controller.execute(NaviampCoreCommand.Connection.Connect) }
+        runCurrent()
+
+        // Re-selecting the current source keeps the editor open, like a background retry.
+        assertTrue((fixture.controller.execute(NaviampCoreCommand.Connection.SelectSavedSource("source-1", reconnect = true))
+            as NaviampCoreCommandResult.SavedSourceSelected).selected)
+        gate.complete(Unit)
+        save.join()
+
+        assertEquals("source-1" to companion, fixture.port.savedCompanions.single())
+        assertFalse(fixture.store.state.value.shell.connectionSettings.connection.editingConnection)
+    }
+
     @Test fun companionCertificateSelectionUpdatesOnlyItsOwnTlsIdentity() = kotlinx.coroutines.test.runTest {
         val fixture = fixture(certificateFiles = NaviampCoreCertificateFilePort { "/companion.p12" })
         val original = ConnectionFormState(serverUrl = "https://primary.example", clientCertificatePath = "/primary.p12",

@@ -144,6 +144,8 @@ class NaviampCoreConnectionController(
 
     suspend fun resetAfterDatabaseClear() {
         certificateSelectionGeneration++
+        // Before anything suspends: a save waiting on its companion check must not commit afterwards.
+        editorGeneration++
         accountAttempt?.cancel()
         accountAttempt?.join()
         accountAttempt = null
@@ -515,6 +517,11 @@ class NaviampCoreConnectionController(
         // A switch or reconnect the user asked for replaces a background retry; otherwise begin()
         // would refuse it while the retry is connecting and the request would be lost.
         if (!automatic) stopRecovery()
+        // An attempt that may close the editor, or that switches to another source, supersedes any
+        // save still waiting on its companion check, before it suspends. Background retries of the
+        // current source that keep the editor open leave it alone.
+        val switchesSource = (request as? NaviampCoreConnectionRequest.Saved)?.id?.let { it != inventory.currentSourceId } == true
+        if (!preserveEditor || switchesSource) editorGeneration++
         if (request is NaviampCoreConnectionRequest.Form) {
             connectionFormError(
                 form = request.form,
