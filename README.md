@@ -29,7 +29,7 @@ and share feedback.
 ### Linux Flatpak
 
 Install the official Linux x86_64 Flatpak from Naviamp's signed GitHub Pages repository.
-The signed package contains v2.11.3, including Java, and runs on X11 or XWayland.
+The signed package contains v2.12.0, including Java, and runs on X11 or XWayland.
 Existing Flatpak installations can update through the same signed remote.
 [Bundles, checksums and release information](https://github.com/goosepod/naviamp-flatpak/releases)
 are hosted on GitHub Releases. A Flathub listing is not required; Flathub supplies the
@@ -350,7 +350,7 @@ make android-debug
   App Bundle; see [Android distribution](docs/android-distribution.md).
 - Windows and Linux standalone/installer targets must run on their respective operating systems.
 
-Release operators should use the [v2.12.0 release readiness record](docs/releases/v2.12.0-readiness.md)
+Release operators should use the [v2.12.1 release readiness record](docs/releases/v2.12.1-readiness.md)
 for exact packages, signing and remaining store gates.
 
 The complete test matrix is documented in [Testing Naviamp](docs/testing.md). The shared

@@ -49,7 +49,7 @@ class NaviampAboutUiTest {
             }
         }
 
-        onNodeWithText("v2.12.0", substring = true).assertIsDisplayed()
+        onNodeWithText("v2.12.1", substring = true).assertIsDisplayed()
         onNodeWithText("Changelog").assertIsDisplayed().performClick()
         onNodeWithText("Latest Changes").assertIsDisplayed()
         onNodeWithText(NaviampAboutUi().changelog.first().entries.first()).assertIsDisplayed()
@@ -64,7 +64,7 @@ class NaviampAboutUiTest {
             } else false
         }
         writeAboutReleaseImage(requireNotNull(rendered))
-        onNodeWithText("Aurral connections now require Aurral 3.x. Aurral 2.x servers are no longer supported.").performScrollTo().assertIsDisplayed()
+        onNodeWithText("No special upgrade steps are required. Existing Jellyfin connections keep working; you do not need to sign in again.").performScrollTo().assertIsDisplayed()
         onNodeWithText("Known issues").performScrollTo().assertIsDisplayed()
     }
 }
@@ -87,7 +87,7 @@ private fun writeAboutReleaseImage(image: androidx.compose.ui.graphics.ImageBitm
     val pixels = image.toPixelMap()
     val output = java.awt.image.BufferedImage(pixels.width, pixels.height, java.awt.image.BufferedImage.TYPE_INT_ARGB)
     for (y in 0 until pixels.height) for (x in 0 until pixels.width) output.setRGB(x, y, pixels[x, y].toArgb())
-    val file = java.io.File("build/reports/release-2.11.2/about-changelog.png")
+    val file = java.io.File("build/reports/release-2.12.1/about-changelog.png")
     file.parentFile.mkdirs()
     javax.imageio.ImageIO.write(output, "png", file)
 }

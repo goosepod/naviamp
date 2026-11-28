@@ -6,6 +6,22 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 No changes yet.
 
+## v2.12.1
+
+Naviamp 2.12.1 restores Jellyfin 12 playback when tracks are converted for streaming.
+
+### Bug fixes
+
+- Play converted (transcoded) tracks from Jellyfin 12 servers again. Jellyfin 12 disables the legacy `api_key` streaming parameter by default, so the server rejected those streams with "Invalid token." Streaming links now use the `ApiKey` parameter, which earlier Jellyfin releases also accept. Reported by @tobycell12-beep (#730).
+
+### Upgrade notes
+
+- No special upgrade steps are required. Existing Jellyfin connections keep working; you do not need to sign in again.
+
+### Thanks
+
+- @tobycell12-beep (first-time contributor) for reporting the Jellyfin 12 playback failure.
+
 ## v2.12.0
 
 Naviamp 2.12.0 lets you add an Aurral account to your music server, brings Apple CarPlay as a beta, and puts playlists, recent listening, and radio first in Android Auto. Apple TV support is available as a beta for builds from source. Aurral connections now require Aurral 3.
