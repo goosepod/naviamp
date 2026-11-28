@@ -540,6 +540,9 @@
     <string name="connection_aurral_companion_invalid">Voer een HTTP- of HTTPS-serveradres en gebruikersnaam voor Aurral in.</string>
     <string name="discovery_find_in_aurral">Zoeken in Aurral</string>
     <string name="connection_aurral_companion_save_failed">De Aurral-aanvulling kon niet worden opgeslagen. Je muziekverbinding blijft ongewijzigd.</string>
+    <string name="connection_aurral_companion_sign_in_failed">Aurral heeft deze gebruikersnaam en dit wachtwoord niet geaccepteerd. Controleer de aanmeldgegevens van de companion en probeer het opnieuw.</string>
+    <string name="connection_aurral_companion_unreachable">Aurral is niet bereikbaar op dit adres. Controleer de URL en of Aurral draait.</string>
+    <string name="connection_aurral_companion_unsupported">Deze Aurral-serverversie wordt niet ondersteund. Werk Aurral bij en probeer het opnieuw.</string>
     <string name="storage_recovery_title">Opgeslagen instellingen</string>
     <string name="storage_recovery_capacity">Deze wijziging overschrijdt de limiet voor permanente opslag op dit apparaat. Eerder opgeslagen instellingen en verbindingen blijven behouden.</string>
     <string name="storage_recovery_unreadable">De opgeslagen instellingen konden niet worden geopend. Ze zijn behouden. Probeer het opnieuw of stel ze opnieuw in om dit apparaat opnieuw te configureren.</string>

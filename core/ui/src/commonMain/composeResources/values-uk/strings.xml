@@ -540,6 +540,9 @@
     <string name="connection_aurral_companion_invalid">Введіть HTTP- або HTTPS-адресу сервера Aurral та ім’я користувача.</string>
     <string name="discovery_find_in_aurral">Знайти в Aurral</string>
     <string name="connection_aurral_companion_save_failed">Не вдалося зберегти підключення Aurral. Підключення до музичного сервера не змінилося.</string>
+    <string name="connection_aurral_companion_sign_in_failed">Aurral не прийняв це ім’я користувача та пароль. Перевірте дані входу для супутнього сервісу й спробуйте ще раз.</string>
+    <string name="connection_aurral_companion_unreachable">Не вдалося підключитися до Aurral за цією адресою. Перевірте URL і чи запущено Aurral.</string>
+    <string name="connection_aurral_companion_unsupported">Ця версія сервера Aurral не підтримується. Оновіть Aurral і спробуйте ще раз.</string>
     <string name="storage_recovery_title">Збережені налаштування</string>
     <string name="storage_recovery_capacity">Ця зміна перевищує ліміт постійного сховища пристрою. Раніше збережені налаштування та підключення не змінено.</string>
     <string name="storage_recovery_unreadable">Не вдалося відкрити збережені налаштування. Їх збережено. Спробуйте знову або скиньте їх, щоб налаштувати пристрій заново.</string>

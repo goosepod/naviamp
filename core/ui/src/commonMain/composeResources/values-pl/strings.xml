@@ -643,6 +643,9 @@
     <string name="connection_aurral_companion_invalid">Podaj adres serwera Aurral HTTP lub HTTPS i nazwę użytkownika.</string>
     <string name="discovery_find_in_aurral">Szukaj w Aurral</string>
     <string name="connection_aurral_companion_save_failed">Nie udało się zapisać towarzyszącego Aurral. Połączenie muzyczne nie uległo zmianie.</string>
+    <string name="connection_aurral_companion_sign_in_failed">Aurral nie zaakceptował tej nazwy użytkownika i hasła. Sprawdź dane logowania usługi towarzyszącej i spróbuj ponownie.</string>
+    <string name="connection_aurral_companion_unreachable">Nie można połączyć się z Aurral pod tym adresem. Sprawdź URL i czy Aurral działa.</string>
+    <string name="connection_aurral_companion_unsupported">Ta wersja serwera Aurral nie jest obsługiwana. Zaktualizuj Aurral i spróbuj ponownie.</string>
     <string name="storage_recovery_title">Zapisane ustawienia</string>
     <string name="storage_recovery_capacity">Ta zmiana przekracza limit trwałej pamięci urządzenia. Wcześniej zapisane ustawienia i połączenia pozostają bez zmian.</string>
     <string name="storage_recovery_unreadable">Nie można otworzyć zapisanych ustawień. Zostały zachowane. Spróbuj ponownie lub zresetuj je, aby ponownie skonfigurować urządzenie.</string>

@@ -69,6 +69,11 @@ interface NaviampCoreProviderSessionPort {
         error("Companion persistence is unavailable.")
     }
 
+    /** Signs in to [companion] once, without saving it, so bad settings are reported before they are kept. */
+    suspend fun verifyAurralCompanion(
+        companion: app.naviamp.domain.source.AurralCompanion,
+    ): app.naviamp.domain.provider.ProviderDiscoveryStatus = app.naviamp.domain.provider.ProviderDiscoveryStatus.Unsupported
+
     suspend fun editableConnection(id: String): NaviampCoreEditableConnection
 
     suspend fun currentProvisioningConnection(): NaviampCoreEditableConnection? =

@@ -540,6 +540,9 @@
     <string name="connection_aurral_companion_invalid">Inserisci un URL del server Aurral HTTP o HTTPS e un nome utente.</string>
     <string name="discovery_find_in_aurral">Cerca in Aurral</string>
     <string name="connection_aurral_companion_save_failed">Impossibile salvare Aurral complementare. La connessione musicale non è cambiata.</string>
+    <string name="connection_aurral_companion_sign_in_failed">Aurral non ha accettato questo nome utente e questa password. Controlla le credenziali del complemento e riprova.</string>
+    <string name="connection_aurral_companion_unreachable">Impossibile raggiungere Aurral a questo indirizzo. Controlla l’URL e che Aurral sia in esecuzione.</string>
+    <string name="connection_aurral_companion_unsupported">Questa versione del server Aurral non è supportata. Aggiorna Aurral e riprova.</string>
     <string name="storage_recovery_title">Impostazioni salvate</string>
     <string name="storage_recovery_capacity">Questa modifica supera il limite di archiviazione persistente del dispositivo. Le impostazioni e le connessioni salvate restano invariate.</string>
     <string name="storage_recovery_unreadable">Impossibile aprire le impostazioni salvate. Sono state conservate. Riprova o reimpostale per configurare nuovamente il dispositivo.</string>

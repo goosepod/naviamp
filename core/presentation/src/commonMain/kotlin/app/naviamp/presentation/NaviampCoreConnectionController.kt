@@ -347,6 +347,8 @@ class NaviampCoreConnectionController(
             val companion = form.aurralCompanion ?: return true
             if (connectionFormError(form, hasSavedConnectionForLogin = true) != null) return false
             return try {
+                if (companion.enabled && aurralCompanionVerificationError(sessionPort.verifyAurralCompanion(companion)) != null)
+                    return false
                 sessionPort.saveAurralCompanion(active.id, companion)
                 onCompanionChanged(active.id)
                 true
@@ -416,23 +418,37 @@ class NaviampCoreConnectionController(
                     stateStore.state.value.shell.connectionSettings.connection.form, editingConnectionId)
                 val savedId = request.savedConnectionId
                 val companion = request.form.aurralCompanion
-                if (savedId != null && companion != null && isCompanionOnlyEdit(request.form)) {
-                    val error = connectionFormError(request.form, hasSavedConnectionForLogin = true)
-                    if (error != null) {
-                        stateStore.updateShell { shell -> shell.copy(connectionSettings = shell.connectionSettings.copy(
-                            connection = shell.connectionSettings.connection.copy(status = error, statusIsError = true))) }
-                    } else {
-                        try {
-                            sessionPort.saveAurralCompanion(savedId, companion)
-                            setEditing(false)
-                            onCompanionChanged(savedId)
-                        } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
-                        catch (_: Exception) {
-                            stateStore.updateShell { shell -> shell.copy(connectionSettings = shell.connectionSettings.copy(
-                                connection = shell.connectionSettings.connection.copy(status = "connection_aurral_companion_save_failed", statusIsError = true))) }
+                val formError = connectionFormError(request.form, hasSavedConnectionForLogin = savedId != null)
+                when {
+                    // Leave plain form errors to the ordinary connect path, which already reports them.
+                    formError == null && companionNeedsVerification(request.form) &&
+                        !companionVerified(checkNotNull(companion)) -> Unit
+                    savedId != null && companion != null && isCompanionOnlyEdit(request.form) -> {
+                        if (formError != null) {
+                            showFormError(formError)
+                        } else {
+                            try {
+                                sessionPort.saveAurralCompanion(savedId, companion)
+                                setEditing(false)
+                                onCompanionChanged(savedId)
+                            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+                            catch (_: Exception) { showFormError("connection_aurral_companion_save_failed") }
                         }
                     }
-                } else if (accountSwitcher().addingAccount) connectAccount(request) else connect(request)
+                    accountSwitcher().addingAccount -> connectAccount(request)
+                    formError == null && isSameAccountEditOfCurrentSource(request) -> connect(
+                        request,
+                        // The edited account is the one already in use: keep its queue, playback and
+                        // Library cache, and report a failed save on the form without dropping the session.
+                        preserveExistingSession = true,
+                        onPreservedFailure = { cause ->
+                            val fallback = "Could not connect to the music server."
+                            showFormError(cause?.let { connectionFailureStatus(it, fallback) } ?: fallback)
+                        },
+                        onSessionConnected = { id -> onSavedSourceSelected(id, false) },
+                    )
+                    else -> connect(request)
+                }
             }
             is NaviampCoreCommand.Connection.SelectSavedSource -> {
                 val runtime = connection.state.value
@@ -807,6 +823,43 @@ class NaviampCoreConnectionController(
             }
     }
 
+    /** A new or changed enabled companion must prove it can sign in before anything is saved. */
+    private fun companionNeedsVerification(form: ConnectionFormState): Boolean {
+        val companion = form.aurralCompanion ?: return false
+        return companion.enabled && form.providerId != app.naviamp.domain.provider.ProviderIdAurral &&
+            (editingConnectionId == null || companion != originalEditingForm?.aurralCompanion)
+    }
+
+    private suspend fun companionVerified(companion: app.naviamp.domain.source.AurralCompanion): Boolean {
+        val status = try {
+            sessionPort.verifyAurralCompanion(companion)
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            app.naviamp.domain.provider.ProviderDiscoveryStatus.Unavailable
+        }
+        val error = aurralCompanionVerificationError(status) ?: return true
+        showFormError(error)
+        return false
+    }
+
+    /** Same saved account, server and Library scope as the session in use; only details such as the name or password differ. */
+    private fun isSameAccountEditOfCurrentSource(request: NaviampCoreConnectionRequest.Form): Boolean {
+        val id = request.savedConnectionId ?: return false
+        val original = originalEditingForm ?: return false
+        if (id != editingConnectionId || id != inventory.currentSourceId) return false
+        val form = request.form
+        return form.providerId == original.providerId &&
+            form.serverUrl.trim().trimEnd('/').equals(original.serverUrl.trim().trimEnd('/'), ignoreCase = true) &&
+            form.username.trim() == original.username.trim() &&
+            form.selectedMusicFolderIds.toSet() == original.selectedMusicFolderIds.toSet()
+    }
+
+    private fun showFormError(status: String) {
+        stateStore.updateShell { shell -> shell.copy(connectionSettings = shell.connectionSettings.copy(
+            connection = shell.connectionSettings.connection.copy(status = status, statusIsError = true))) }
+    }
+
     private fun isCompanionOnlyEdit(form: ConnectionFormState): Boolean =
         editingConnectionId != null && form.aurralCompanion != null &&
             form.aurralCompanion != originalEditingForm?.aurralCompanion &&
@@ -908,4 +961,17 @@ class NaviampCoreConnectionController(
             )
         }
     }
+}
+
+/** Form status key for a companion sign-in check, or null when the companion accepted it. */
+internal fun aurralCompanionVerificationError(status: app.naviamp.domain.provider.ProviderDiscoveryStatus): String? = when (status) {
+    app.naviamp.domain.provider.ProviderDiscoveryStatus.Ready,
+    app.naviamp.domain.provider.ProviderDiscoveryStatus.Building,
+    -> null
+    app.naviamp.domain.provider.ProviderDiscoveryStatus.PasswordRequired,
+    app.naviamp.domain.provider.ProviderDiscoveryStatus.SignInRequired,
+    app.naviamp.domain.provider.ProviderDiscoveryStatus.Forbidden,
+    -> "connection_aurral_companion_sign_in_failed"
+    app.naviamp.domain.provider.ProviderDiscoveryStatus.Unsupported -> "connection_aurral_companion_unsupported"
+    app.naviamp.domain.provider.ProviderDiscoveryStatus.Unavailable -> "connection_aurral_companion_unreachable"
 }

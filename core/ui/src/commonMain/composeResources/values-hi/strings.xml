@@ -540,6 +540,9 @@
     <string name="connection_aurral_companion_invalid">Aurral का HTTP या HTTPS सर्वर URL और उपयोगकर्ता नाम दर्ज करें।</string>
     <string name="discovery_find_in_aurral">Aurral में खोजें</string>
     <string name="connection_aurral_companion_save_failed">Aurral सहायक को सहेजा नहीं जा सका। आपका संगीत कनेक्शन नहीं बदला है।</string>
+    <string name="connection_aurral_companion_sign_in_failed">Aurral ने यह उपयोगकर्ता नाम और पासवर्ड स्वीकार नहीं किया। सहायक का साइन-इन जाँचें और फिर से कोशिश करें।</string>
+    <string name="connection_aurral_companion_unreachable">इस पते पर Aurral तक नहीं पहुँचा जा सका। URL जाँचें और देखें कि Aurral चल रहा है।</string>
+    <string name="connection_aurral_companion_unsupported">Aurral सर्वर का यह संस्करण समर्थित नहीं है। Aurral अपडेट करें और फिर से कोशिश करें।</string>
     <string name="storage_recovery_title">सहेजी गई सेटिंग</string>
     <string name="storage_recovery_capacity">यह बदलाव डिवाइस की स्थायी स्टोरेज सीमा से अधिक है। पहले सहेजी गई सेटिंग और कनेक्शन बदले नहीं गए हैं।</string>
     <string name="storage_recovery_unreadable">सहेजी गई सेटिंग खोली नहीं जा सकीं। उन्हें सुरक्षित रखा गया है। फिर से कोशिश करें या इस डिवाइस को दोबारा सेट अप करने के लिए उन्हें रीसेट करें।</string>

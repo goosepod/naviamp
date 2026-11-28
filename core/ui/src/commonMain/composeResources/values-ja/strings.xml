@@ -540,6 +540,9 @@
     <string name="connection_aurral_companion_invalid">Aurral の HTTP または HTTPS サーバー URL とユーザー名を入力してください。</string>
     <string name="discovery_find_in_aurral">Aurral で検索</string>
     <string name="connection_aurral_companion_save_failed">Aurral 連携を保存できませんでした。音楽サーバーへの接続は変更されていません。</string>
+    <string name="connection_aurral_companion_sign_in_failed">Aurral はこのユーザー名とパスワードを受け付けませんでした。コンパニオンのサインイン情報を確認して、もう一度お試しください。</string>
+    <string name="connection_aurral_companion_unreachable">このアドレスで Aurral に接続できませんでした。URL と Aurral が起動しているかを確認してください。</string>
+    <string name="connection_aurral_companion_unsupported">この Aurral サーバーのバージョンには対応していません。Aurral を更新して、もう一度お試しください。</string>
     <string name="storage_recovery_title">保存済みの設定</string>
     <string name="storage_recovery_capacity">この変更はデバイスの永続ストレージの上限を超えています。保存済みの設定と接続は変更されていません。</string>
     <string name="storage_recovery_unreadable">保存済みの設定を開けませんでした。設定は保持されています。再試行するか、設定をリセットしてこのデバイスを再設定してください。</string>
