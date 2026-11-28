@@ -108,7 +108,7 @@ class NaviampStoredApplicationTest {
             localFilePath = { null }, audioTagReader = AudioTagReader { emptyList() },
             externalUri = NaviampCoreExternalUriPort {}, homeDate = NaviampCoreHomeDateSource { HomeDate(2026, 319) },
             shellCapabilities = NaviampShellCapabilitiesUi(gapless = false, crossfade = false),
-            actionAvailability = NaviampCoreActionAvailability(), providerDeviceId = "test", providerDeviceName = "Test",
+            actionAvailability = NaviampCoreActionAvailability(), providerDeviceIdPrefix = "test", providerDeviceName = "Test",
             settingsSyncDeviceId = "test", downloadLocations = emptyList(), audioCacheLocations = emptyList(),
             selectedDownloadLocationId = null, selectedAudioCacheLocationId = null,
             httpClient = object : SharedHttpClient {

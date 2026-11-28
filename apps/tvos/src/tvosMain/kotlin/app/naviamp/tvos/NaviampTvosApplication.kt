@@ -56,7 +56,7 @@ class NaviampTvosApplication(
                 audioTagReader = AppleAudioTagReader(), externalUri = AppleCoreExternalUriPort(), homeDate = AppleHomeDateSource,
                 shellCapabilities = capabilities.toShellCapabilitiesUi(engine, sonicSimilarityAvailable = false),
                 actionAvailability = capabilities.toCoreActionAvailability(),
-                providerDeviceId = "naviamp-tvos", providerDeviceName = "tvOS", settingsSyncDeviceId = "tvos",
+                providerDeviceIdPrefix = "naviamp-tvos", providerDeviceName = "tvOS", settingsSyncDeviceId = "tvos",
                 downloadLocations = emptyList(), audioCacheLocations = emptyList(),
                 selectedDownloadLocationId = null, selectedAudioCacheLocationId = null,
                 onAsyncFailure = { _, cause -> onFailure(cause) },

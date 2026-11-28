@@ -3,6 +3,7 @@ package app.naviamp.bootstrap
 import app.naviamp.presentation.NaviampCoreEnvironment
 import app.naviamp.presentation.createNaviampCore
 import app.naviamp.presentation.naviampCoreSettingsValueCatalog
+import app.naviamp.presentation.naviampProviderDeviceId
 import app.naviamp.presentation.naviampCoreProviderIdentitySettingsMigrationRepository
 import app.naviamp.presentation.naviampCorePlaybackServiceCatalog
 import app.naviamp.presentation.naviampCoreStoredServiceCatalog
@@ -77,7 +78,7 @@ class NaviampStoredApplication(
     homeDate: NaviampCoreHomeDateSource,
     shellCapabilities: NaviampShellCapabilitiesUi,
     actionAvailability: NaviampCoreActionAvailability,
-    providerDeviceId: String,
+    providerDeviceIdPrefix: String,
     providerDeviceName: String,
     settingsSyncDeviceId: String,
     downloadLocations: List<NaviampStorageLocationUi>,
@@ -92,6 +93,7 @@ class NaviampStoredApplication(
         require(recoveryState == null || (settingsValueStore as? NaviampRecoverySettingsValueStore)?.recovery === recoveryState)
     }
     private val settings = naviampCoreSettingsValueCatalog(settingsValueStore)
+    private val providerDeviceId = naviampProviderDeviceId(settingsValueStore, providerDeviceIdPrefix)
     private var cacheSettings = settings.storedSettings.loadCache()
     private val repositories = StorageCoreRepositoryCatalog(
         database = database,

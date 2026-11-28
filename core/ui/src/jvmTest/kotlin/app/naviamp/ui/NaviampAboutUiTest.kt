@@ -64,7 +64,7 @@ class NaviampAboutUiTest {
             } else false
         }
         writeAboutReleaseImage(requireNotNull(rendered))
-        onNodeWithText("No special upgrade steps are required. Existing Jellyfin connections keep working; you do not need to sign in again.").performScrollTo().assertIsDisplayed()
+        onNodeWithText("Jellyfin connections that are still signed in keep working after the update.").performScrollTo().assertIsDisplayed()
         onNodeWithText("Known issues").performScrollTo().assertIsDisplayed()
     }
 }

@@ -31,9 +31,10 @@ fun desktopCoreProviderSessionPort(
     storage: StorageMediaSourceStore,
     cacheMaintenanceRepository: CacheMaintenanceRepository<*>,
     identitySettingsMigrations: ProviderIdentitySettingsMigrationRepository,
+    jellyfinDeviceId: String,
     nowEpochMillis: () -> Long = DesktopSystemClock::nowEpochMillis,
 ): NaviampCoreProviderSessionPort {
-    val jellyfinServices = desktopJellyfinSessionServices()
+    val jellyfinServices = desktopJellyfinSessionServices(jellyfinDeviceId)
     return subsonicFamilyProviderSessionRouter(
         NavidromeCoreProviderSessionPort(
             mediaSources = storage,
@@ -59,19 +60,19 @@ fun desktopCoreProviderSessionPort(
                         nowEpochMillis = nowEpochMillis,
                     ),
                     sessionServices = jellyfinServices,
-                    deviceId = "naviamp-desktop",
+                    deviceId = jellyfinDeviceId,
                 ),
             ),
         ),
     )
 }
 
-private fun desktopJellyfinSessionServices(): JellyfinSessionServiceFactory =
+private fun desktopJellyfinSessionServices(deviceId: String): JellyfinSessionServiceFactory =
     JellyfinSessionServiceFactory { tlsSettings ->
         JellyfinSessionService(
             httpClient = KtorJellyfinHttpClient(createDefaultNavidromeKtorClient(tlsSettings)),
             identity = jellyfinClientIdentity(
-                deviceId = "naviamp-desktop",
+                deviceId = deviceId,
                 deviceName = System.getProperty("os.name").ifBlank { "Desktop" },
             ),
         )

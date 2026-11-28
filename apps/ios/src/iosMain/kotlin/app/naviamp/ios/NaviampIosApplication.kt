@@ -82,7 +82,7 @@ class NaviampIosApplication(
                 homeDate = AppleHomeDateSource,
                 shellCapabilities = IosCapabilityPresentation.shell(engine),
                 actionAvailability = IosCapabilityPresentation.actionAvailability,
-                providerDeviceId = "naviamp-ios",
+                providerDeviceIdPrefix = "naviamp-ios",
                 providerDeviceName = "iOS",
                 settingsSyncDeviceId = "ios",
                 downloadLocations = listOf(appStorageLocation(downloadDirectory)),

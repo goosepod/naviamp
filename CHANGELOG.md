@@ -8,19 +8,21 @@ No changes yet.
 
 ## v2.12.1
 
-Naviamp 2.12.1 restores Jellyfin 12 playback when tracks are converted for streaming.
+Naviamp 2.12.1 keeps Jellyfin signed in on every device you use, and restores Jellyfin 12 playback when tracks are converted for streaming.
 
 ### Bug fixes
 
+- Signing in to Jellyfin on a second device, such as a phone and an Android TV, no longer signs out the first. Every installation on a platform sent the same Jellyfin DeviceId (for example `naviamp-android`), and Jellyfin revokes a user's earlier tokens for that DeviceId on each sign-in. Each installation now creates its own device-local identifier, excluded from settings export, sync, and Android backup. Reported by @tobycell12-beep (#730).
 - Play converted (transcoded) tracks from Jellyfin 12 servers again. Jellyfin 12 disables the legacy `api_key` streaming parameter by default, so the server rejected those streams with "Invalid token." Streaming links now use the `ApiKey` parameter, which earlier Jellyfin releases also accept. Reported by @tobycell12-beep (#730).
 
 ### Upgrade notes
 
-- No special upgrade steps are required. Existing Jellyfin connections keep working; you do not need to sign in again.
+- Jellyfin connections that are still signed in keep working after the update.
+- If Jellyfin already signed out one of your devices, open Connections on that device, edit the Jellyfin connection, enter your password, and save. You do not need to add the connection again.
 
 ### Thanks
 
-- @tobycell12-beep (first-time contributor) for reporting the Jellyfin 12 playback failure.
+- @tobycell12-beep (first-time contributor) for reporting the Jellyfin sign-out and playback failures.
 
 ## v2.12.0
 

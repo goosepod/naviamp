@@ -2955,13 +2955,15 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Bug fixes",
         entries = listOf(
+            "Signing in to Jellyfin on a second device, such as a phone and an Android TV, no longer signs out the first. Each Naviamp installation now has its own Jellyfin identity.",
             "Play converted (transcoded) tracks from Jellyfin 12 servers again instead of the server rejecting them with \"Invalid token.\"",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Upgrade notes",
         entries = listOf(
-            "No special upgrade steps are required. Existing Jellyfin connections keep working; you do not need to sign in again.",
+            "Jellyfin connections that are still signed in keep working after the update.",
+            "If Jellyfin already signed out one of your devices, open Connections on that device, edit the Jellyfin connection, enter your password, and save. You do not need to add the connection again.",
         ),
     ),
     NaviampChangelogSectionUi(
@@ -2975,7 +2977,7 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Thanks",
         entries = listOf(
-            "tobycell12-beep, for reporting the Jellyfin 12 playback failure. Welcome, first-time contributor!",
+            "tobycell12-beep, for reporting the Jellyfin sign-out and playback failures. Welcome, first-time contributor!",
         ),
     ),
 )

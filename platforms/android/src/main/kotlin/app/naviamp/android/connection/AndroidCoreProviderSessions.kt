@@ -22,8 +22,9 @@ fun androidCoreProviderSessionPort(
     storage: AndroidStorageDependencies,
     clock: NaviampClock,
     identitySettingsMigrations: ProviderIdentitySettingsMigrationRepository,
+    jellyfinDeviceId: String,
 ): NaviampCoreProviderSessionPort {
-    val jellyfinServices = androidJellyfinSessionServices()
+    val jellyfinServices = androidJellyfinSessionServices(jellyfinDeviceId)
     return subsonicFamilyProviderSessionRouter(
         NavidromeCoreProviderSessionPort(
             mediaSources = storage,
@@ -54,19 +55,19 @@ fun androidCoreProviderSessionPort(
                         nowEpochMillis = clock::nowEpochMillis,
                     ),
                     sessionServices = jellyfinServices,
-                    deviceId = "naviamp-android",
+                    deviceId = jellyfinDeviceId,
                 ),
             ),
         ),
     )
 }
 
-private fun androidJellyfinSessionServices(): JellyfinSessionServiceFactory =
+private fun androidJellyfinSessionServices(deviceId: String): JellyfinSessionServiceFactory =
     JellyfinSessionServiceFactory { tlsSettings ->
         JellyfinSessionService(
             httpClient = KtorJellyfinHttpClient(createDefaultNavidromeKtorClient(tlsSettings)),
             identity = jellyfinClientIdentity(
-                deviceId = "naviamp-android",
+                deviceId = deviceId,
                 deviceName = "Android",
             ),
         )
