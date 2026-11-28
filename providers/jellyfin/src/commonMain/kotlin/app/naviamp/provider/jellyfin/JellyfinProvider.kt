@@ -585,8 +585,10 @@ class JellyfinProvider(
         }.getOrNull()
 
     override suspend fun streamUrl(request: StreamRequest): String {
+        // Players fetch stream URLs without Naviamp's headers, so the token travels in the query.
+        // Jellyfin 12 ignores the legacy api_key parameter unless legacy authorization is enabled.
         val authentication = listOf(
-            "api_key" to connection.accessToken,
+            "ApiKey" to connection.accessToken,
             "deviceId" to connection.deviceId,
         )
         return when (val quality = request.quality) {

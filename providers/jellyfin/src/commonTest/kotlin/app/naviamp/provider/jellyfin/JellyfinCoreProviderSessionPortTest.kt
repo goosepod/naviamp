@@ -73,6 +73,102 @@ class JellyfinCoreProviderSessionPortTest {
         assertEquals("original-secret", port.currentProvisioningConnection()?.form?.password)
     }
 
+    @Test
+    fun aSecondInstallationSigningInNoLongerSignsOutTheFirst() = runTest {
+        // #730: Jellyfin revokes a user's earlier tokens for the same DeviceId on every sign-in.
+        val server = RevokingServer()
+        val phone = Installation(server, "naviamp-android-phone")
+        val television = Installation(server, "naviamp-android-television")
+        phone.port().connect(form("secret"), plan)
+        television.port().connect(form("secret"), plan)
+
+        val relaunchedPhone = phone.port(phone.repository.mediaSource("source"))
+        relaunchedPhone.connect(NaviampCoreConnectionRequest.Saved("source"), plan)
+        assertNotNull(relaunchedPhone.currentProvider())
+        assertEquals(listOf("naviamp-android-phone", "naviamp-android-television"), server.loginDeviceIds)
+
+        // The former shared platform constant reproduces the report: the phone's token is revoked.
+        val sharedServer = RevokingServer()
+        val legacyPhone = Installation(sharedServer, "naviamp-android")
+        legacyPhone.port().connect(form("secret"), plan)
+        Installation(sharedServer, "naviamp-android").port().connect(form("secret"), plan)
+        val failure = assertFails {
+            legacyPhone.port(legacyPhone.repository.mediaSource("source"))
+                .connect(NaviampCoreConnectionRequest.Saved("source"), plan)
+        }
+        assertTrue(failure.message.orEmpty().contains("reconnect with your password"), failure.message)
+    }
+
+    @Test
+    fun revokedTokenSignsInAgainThroughTheExistingConnection() = runTest {
+        val server = RevokingServer()
+        val phone = Installation(server, "naviamp-android-phone")
+        phone.port().connect(form("secret"), plan)
+        server.revokeAll()
+
+        val relaunched = phone.port(phone.repository.mediaSource("source"))
+        assertFails { relaunched.connect(NaviampCoreConnectionRequest.Saved("source"), plan) }
+
+        // Re-entering the password on the saved connection reuses it instead of adding a duplicate.
+        val editing = form("secret").copy(savedConnectionId = "source")
+        relaunched.connect(editing, plan)
+        assertEquals(listOf("source"), phone.repository.mediaSources().map { it.id })
+        val renewedToken = assertNotNull(phone.repository.mediaSource("source")?.nativeToken)
+        assertTrue(server.isValid(renewedToken))
+
+        val nextLaunch = phone.port(phone.repository.mediaSource("source"))
+        nextLaunch.connect(NaviampCoreConnectionRequest.Saved("source"), plan)
+        assertNotNull(nextLaunch.currentProvider())
+    }
+
+    /** One app installation: its own saved connections and its own Jellyfin DeviceId. */
+    private class Installation(server: JellyfinHttpClient, deviceId: String) {
+        val repository = Repository(emptyList())
+        private val services = JellyfinSessionServiceFactory {
+            JellyfinSessionService(server, JellyfinClientIdentity(deviceId, "Android", clientVersion = "test"))
+        }
+        private val id = deviceId
+        fun port(initialSource: SavedMediaSource? = null) = JellyfinCoreProviderSessionPort(
+            mediaSources = repository,
+            sessionOpener = jellyfinProviderSessionOpener(services, Maintenance, repository) { 1_000L },
+            sessionServices = services,
+            deviceId = id,
+            initialSource = initialSource,
+        )
+    }
+
+    /** Models Jellyfin 12.4 token issuance: a sign-in revokes the user's tokens for that DeviceId. */
+    private class RevokingServer : JellyfinHttpClient {
+        private val deviceByToken = mutableMapOf<String, String>()
+        private var issued = 0
+        val loginDeviceIds = mutableListOf<String>()
+
+        fun isValid(token: String) = token in deviceByToken
+        fun revokeAll() = deviceByToken.clear()
+
+        override suspend fun get(url: String, headers: Map<String, String>): JellyfinHttpResponse {
+            val token = headers.authorizationField("Token")
+            if (token == null || token !in deviceByToken) return JellyfinHttpResponse(401, "")
+            return when {
+                url.endsWith("/System/Info") -> JellyfinHttpResponse(200, """{"Id":"server","Version":"12.4.0"}""")
+                url.endsWith("/Users/Me") -> JellyfinHttpResponse(200, """{"Id":"user","Name":"alice"}""")
+                else -> error("Unexpected metadata request")
+            }
+        }
+
+        override suspend fun postJson(url: String, body: String, headers: Map<String, String>): JellyfinHttpResponse {
+            val deviceId = checkNotNull(headers.authorizationField("DeviceId"))
+            loginDeviceIds += deviceId
+            deviceByToken.values.removeAll { it == deviceId }
+            val token = "token-${++issued}"
+            deviceByToken[token] = deviceId
+            return JellyfinHttpResponse(200, """{"AccessToken":"$token","User":{"Id":"user","Name":"alice"}}""")
+        }
+
+        private fun Map<String, String>.authorizationField(name: String): String? =
+            Regex("""\b$name="([^"]*)"""").find(getValue("Authorization"))?.groupValues?.get(1)
+    }
+
     private class Fixture(vararg sources: SavedMediaSource) {
         val repository = Repository(sources.toList())
         val http = Http()
@@ -120,6 +216,7 @@ class JellyfinCoreProviderSessionPortTest {
             lastWrite = connection
             val id = preferredSourceId ?: "source"
             sources[id] = saved(id, connection.username, connection.password).copy(
+                nativeToken = connection.nativeToken,
                 selectedMusicFolderIds = connection.selectedMusicFolderIds,
                 cacheNamespace = cacheNamespace,
             )

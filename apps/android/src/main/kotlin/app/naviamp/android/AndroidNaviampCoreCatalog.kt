@@ -26,6 +26,7 @@ import app.naviamp.presentation.NaviampCoreMobileNetworkPort
 import app.naviamp.presentation.NaviampCoreStoredRepositories
 import app.naviamp.presentation.naviampCoreSettingsValueCatalog
 import app.naviamp.presentation.naviampCoreProviderIdentitySettingsMigrationRepository
+import app.naviamp.presentation.naviampProviderDeviceId
 import app.naviamp.presentation.naviampCoreStoredServiceCatalog
 import app.naviamp.presentation.naviampCorePlaybackServiceCatalog
 import app.naviamp.presentation.repositoryNaviampCoreDownloadServices
@@ -83,6 +84,7 @@ class AndroidNaviampCoreCatalog private constructor(
                 storage = storage,
                 clock = clock,
                 identitySettingsMigrations = naviampCoreProviderIdentitySettingsMigrationRepository(settingsValues),
+                jellyfinDeviceId = naviampProviderDeviceId(AndroidDeviceIdentityValueStore(appContext), "naviamp-android"),
             )
             setAndroidPlatformCoverArtByteLoader { url ->
                 runCatching {
