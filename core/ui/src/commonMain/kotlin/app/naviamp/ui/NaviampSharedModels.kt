@@ -1424,6 +1424,8 @@ data class NaviampShellConnectionUi(
     val statusIsError: Boolean = false,
     val serverVersion: String? = null,
     val connected: Boolean = false,
+    /** Counts failures; the same message failing again still brings the editor's error into view. */
+    val errorOccurrence: Long = 0L,
     val editingConnection: Boolean = false,
     val editingSavedConnection: Boolean = false,
     val restoringConnection: Boolean = false,

@@ -1324,6 +1324,8 @@
     <string name="connection_aurral_companion_sign_in_failed">Aurral hat diesen Benutzernamen und dieses Passwort nicht akzeptiert. Prüfe die Anmeldedaten des Begleiters und versuche es erneut.</string>
     <string name="connection_aurral_companion_unreachable">Aurral ist unter dieser Adresse nicht erreichbar. Prüfe die URL und ob Aurral läuft.</string>
     <string name="connection_aurral_companion_unsupported">Diese Aurral-Serverversion wird nicht unterstützt. Aktualisiere Aurral und versuche es erneut.</string>
+    <string name="connection_aurral_companion_forbidden">Dieses Aurral-Konto darf Aurral nicht über Apps nutzen. Bitte deine Aurral-Administration um Zugriff.</string>
+    <string name="connection_save_failed">Diese Verbindung konnte nicht gespeichert werden. Deine aktuelle Verbindung bleibt unverändert.</string>
     <string name="storage_recovery_title">Gespeicherte Einstellungen</string>
     <string name="storage_recovery_capacity">Diese Änderung überschreitet das Speicherbudget des Geräts. Bisher gespeicherte Einstellungen und Verbindungen bleiben erhalten.</string>
     <string name="storage_recovery_unreadable">Gespeicherte Einstellungen konnten nicht geöffnet werden. Sie bleiben erhalten. Versuche es erneut oder setze sie zurück, um dieses Gerät neu einzurichten.</string>

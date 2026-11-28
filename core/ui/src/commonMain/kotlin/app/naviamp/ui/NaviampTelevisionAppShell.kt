@@ -892,6 +892,7 @@ private fun TelevisionConnectionScreen(
                 isConnecting = connection.isConnecting,
                 connectionStatus = connection.status,
                 connectionStatusIsError = connection.statusIsError,
+                connectionErrorOccurrence = connection.errorOccurrence,
                 availableMusicFolders = connection.availableMusicFolders,
                 musicFoldersStatus = connection.musicFoldersStatus,
                 capabilities = connectionSettings.capabilities,

@@ -543,6 +543,8 @@
     <string name="connection_aurral_companion_sign_in_failed">Aurral не принял это имя пользователя и пароль. Проверьте данные для входа в дополнительный сервис и повторите попытку.</string>
     <string name="connection_aurral_companion_unreachable">Не удалось подключиться к Aurral по этому адресу. Проверьте URL и что Aurral запущен.</string>
     <string name="connection_aurral_companion_unsupported">Эта версия сервера Aurral не поддерживается. Обновите Aurral и повторите попытку.</string>
+    <string name="connection_aurral_companion_forbidden">Этой учётной записи Aurral не разрешено использовать Aurral из приложений. Запросите доступ у администратора Aurral.</string>
+    <string name="connection_save_failed">Не удалось сохранить это подключение. Текущее подключение не изменилось.</string>
     <string name="storage_recovery_title">Сохранённые настройки</string>
     <string name="storage_recovery_capacity">Это изменение превышает лимит постоянного хранилища устройства. Ранее сохранённые настройки и подключения не изменены.</string>
     <string name="storage_recovery_unreadable">Не удалось открыть сохранённые настройки. Они сохранены. Повторите попытку или сбросьте их, чтобы настроить устройство заново.</string>

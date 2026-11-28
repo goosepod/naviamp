@@ -1353,6 +1353,8 @@
     <string name="connection_aurral_companion_sign_in_failed">Aurral did not accept this username and password. Check the companion sign-in and try again.</string>
     <string name="connection_aurral_companion_unreachable">Could not reach Aurral at this address. Check the URL and that Aurral is running.</string>
     <string name="connection_aurral_companion_unsupported">This Aurral server version is not supported. Update Aurral and try again.</string>
+    <string name="connection_aurral_companion_forbidden">This Aurral account is not allowed to use Aurral from apps. Ask your Aurral administrator for access.</string>
+    <string name="connection_save_failed">Could not save this connection. Your current connection is unchanged.</string>
     <string name="storage_recovery_title">Saved settings</string>
     <string name="storage_recovery_capacity">This change exceeds the device’s persistent storage budget. Your previously saved settings and connections are unchanged.</string>
     <string name="storage_recovery_unreadable">Saved settings could not be opened. They have been preserved. Try again, or reset them to set up this device again.</string>

@@ -4,6 +4,12 @@ import app.naviamp.domain.provider.ProviderDiscoveryStatus
 import app.naviamp.domain.source.AurralCompanion
 import app.naviamp.provider.navidrome.NavidromeHttpClient
 import app.naviamp.provider.navidrome.NavidromeHttpException
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.test.runTest
 import kotlin.test.*
 
@@ -46,8 +52,27 @@ class AurralCompanionVerificationTest {
         assertEquals(ProviderDiscoveryStatus.Unavailable,
             verifyAurralCompanionSignIn(settings, Http { throw NavidromeHttpException(502) }))
         assertEquals(ProviderDiscoveryStatus.Unavailable,
-            verifyAurralCompanionSignIn(settings.copy(baseUrl = "aurral.example"), createHttp = { error("Invalid address must not reach HTTP") }))
+            verifyAurralCompanionSignIn(settings.copy(baseUrl = "aurral.example"), createClient = { error("Invalid address must not reach HTTP") }))
         assertEquals(ProviderDiscoveryStatus.Unavailable,
             verifyAurralCompanionSignIn(settings, Http { """{"error":"no token"}""" }))
+    }
+
+    @Test fun theProbeClosesTheClientItCreatesWhetherSignInSucceedsOrFails() = runTest {
+        for (loginStatus in listOf(HttpStatusCode.OK, HttpStatusCode.Unauthorized)) {
+            val created = mutableListOf<HttpClient>()
+            val status = verifyAurralCompanionSignIn(settings, createClient = {
+                HttpClient(MockEngine { request ->
+                    val json = headersOf("Content-Type", "application/json")
+                    when {
+                        request.url.encodedPath.endsWith("/api/health/bootstrap") -> respond("""{"api":{"version":2}}""", headers = json)
+                        loginStatus == HttpStatusCode.OK -> respond("""{"token":"session","expiresAt":9999999999999}""", headers = json)
+                        else -> respond("""{"error":"Invalid username or password"}""", loginStatus, json)
+                    }
+                }).also { created += it }
+            })
+            assertEquals(if (loginStatus == HttpStatusCode.OK) ProviderDiscoveryStatus.Ready else ProviderDiscoveryStatus.SignInRequired, status)
+            val client = created.single()
+            assertFalse(client.coroutineContext[Job]!!.isActive, "HTTP $loginStatus left the probe's client open")
+        }
     }
 }

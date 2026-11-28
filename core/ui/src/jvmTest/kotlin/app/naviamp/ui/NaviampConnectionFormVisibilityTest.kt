@@ -59,6 +59,42 @@ class NaviampConnectionFormVisibilityTest {
     }
 
     @Test
+    fun theSameErrorFailingAgainIsScrolledIntoViewAgain() = runDesktopComposeUiTest(600, 500) {
+        val occurrence = mutableStateOf(1L)
+        val scroll = mutableStateOf<androidx.compose.foundation.ScrollState?>(null)
+        var scrollToBottom: () -> Unit = {}
+        setContent {
+            androidx.compose.material3.MaterialTheme {
+                val state = rememberScrollState()
+                val coroutines = rememberCoroutineScope()
+                scroll.value = state
+                scrollToBottom = { coroutines.launch { state.scrollTo(state.maxValue) } }
+                Column(Modifier.fillMaxSize().verticalScroll(state)) {
+                    NaviampConnectionForm(
+                        ConnectionFormState(serverUrl = "https://music.example", username = "demo"),
+                        NaviampColors.Dark, isReconnect = true,
+                        connectionStatus = "connection_aurral_companion_sign_in_failed", connectionStatusIsError = true,
+                        connectionErrorOccurrence = occurrence.value,
+                        onFormChanged = {}, onConnect = {}, onCancel = {},
+                    )
+                }
+            }
+        }
+        waitForIdle()
+        for (attempt in 2L..3L) {
+            // The user scrolls back down to Save and submits another rejected password.
+            scrollToBottom()
+            waitForIdle()
+            val bottom = scroll.value!!.value
+            check(bottom > 0) { "The form must be taller than the window for this check" }
+            occurrence.value = attempt
+            waitForIdle()
+            onNodeWithTag(ConnectionErrorCardTestTag).assertIsDisplayed()
+            check(scroll.value!!.value < bottom) { "Failure $attempt did not scroll up to the error" }
+        }
+    }
+
+    @Test
     fun editingFormShowsAUsableCancelBesideSave() = runDesktopComposeUiTest(600, 1400) {
         var cancels = 0
         setContent {

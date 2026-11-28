@@ -103,6 +103,8 @@ private fun localizedConnectionStatus(status: String): String =
         "connection_aurral_companion_sign_in_failed" -> stringResource(Res.string.connection_aurral_companion_sign_in_failed)
         "connection_aurral_companion_unreachable" -> stringResource(Res.string.connection_aurral_companion_unreachable)
         "connection_aurral_companion_unsupported" -> stringResource(Res.string.connection_aurral_companion_unsupported)
+        "connection_aurral_companion_forbidden" -> stringResource(Res.string.connection_aurral_companion_forbidden)
+        "connection_save_failed" -> stringResource(Res.string.connection_save_failed)
         ConnectionPasswordRequiredStatus -> stringResource(Res.string.connection_password_required)
         "connection_aurral_guidance" -> stringResource(Res.string.connection_aurral_guidance)
         "connection_api_key_required" -> stringResource(Res.string.connection_api_key_required)
@@ -139,6 +141,8 @@ fun NaviampConnectionForm(
     isConnecting: Boolean = false,
     connectionStatus: String? = null,
     connectionStatusIsError: Boolean = false,
+    /** Changes on every failure, so a repeated identical error is brought into view again. */
+    connectionErrorOccurrence: Long = 0L,
     settingsSyncStatus: String? = null,
     availableMusicFolders: List<ConnectionFormMusicFolder> = emptyList(),
     musicFoldersStatus: String? = null,
@@ -180,7 +184,7 @@ fun NaviampConnectionForm(
             )
         }
         if (connectionStatusIsError && !connectionStatus.isNullOrBlank()) {
-            ConnectionErrorCard(localizedConnectionStatus(connectionStatus))
+            ConnectionErrorCard(localizedConnectionStatus(connectionStatus), connectionErrorOccurrence)
         }
         if (!companionMode) {
         SettingsSectionTitle(stringResource(Res.string.connection_connection_details), colors)
@@ -643,11 +647,11 @@ private fun ProviderSelectionTile(
 }
 
 @Composable
-private fun ConnectionErrorCard(message: String) {
+private fun ConnectionErrorCard(message: String, occurrence: Long = 0L) {
     // The form is usually scrolled down to its Save button when an error arrives: bring the
-    // error into view and announce it, once per distinct message.
+    // error into view and announce it, on every failure.
     val bringIntoView = remember { BringIntoViewRequester() }
-    LaunchedEffect(message) {
+    LaunchedEffect(message, occurrence) {
         // A newly shown card has no position until its first layout pass completes.
         androidx.compose.runtime.withFrameNanos { }
         bringIntoView.bringIntoView()

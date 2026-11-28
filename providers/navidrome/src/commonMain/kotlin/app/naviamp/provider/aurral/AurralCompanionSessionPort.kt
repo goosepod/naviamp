@@ -94,17 +94,26 @@ internal fun companionProvider(primary: MediaProvider, settings: AurralCompanion
     }
 }
 
-/** One sign-in with a throwaway client; the companion's settings are not saved or cached. */
+/**
+ * One sign-in with a throwaway client; the companion's settings are not saved or cached. The probe
+ * owns and closes the client it creates, whose TLS settings never leave it. A caller-supplied
+ * [companionHttp] remains the caller's to close.
+ */
 internal suspend fun verifyAurralCompanionSignIn(settings: AurralCompanion,
     companionHttp: NavidromeHttpClient? = null,
-    createHttp: (app.naviamp.domain.source.ConnectionTlsSettings) -> NavidromeHttpClient = ::createDefaultNavidromeHttpClient,
+    createClient: (app.naviamp.domain.source.ConnectionTlsSettings) -> io.ktor.client.HttpClient = ::createScopedNavidromeKtorClient,
 ): ProviderDiscoveryStatus {
-    val client = try {
+    val connection = try {
         requireCompanionEndpoint(settings)
-        val connection = companionConnection(settings)
-        AurralDiscoveryClient(connection, companionHttpClient(connection, companionHttp ?: createHttp(settings.tlsSettings)))
+        companionConnection(settings)
     } catch (_: Exception) { return ProviderDiscoveryStatus.Unavailable }
-    return client.verifySignIn()
+    if (companionHttp != null) return AurralDiscoveryClient(connection, companionHttpClient(connection, companionHttp)).verifySignIn()
+    val owned = try { createClient(settings.tlsSettings) } catch (_: Exception) { return ProviderDiscoveryStatus.Unavailable }
+    try {
+        return AurralDiscoveryClient(connection, companionHttpClient(connection, KtorNavidromeHttpClient(owned))).verifySignIn()
+    } finally {
+        owned.close()
+    }
 }
 
 private fun requireCompanionEndpoint(settings: AurralCompanion) {

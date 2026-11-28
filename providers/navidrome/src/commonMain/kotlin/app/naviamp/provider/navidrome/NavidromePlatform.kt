@@ -17,6 +17,12 @@ fun String.urlEncode(): String =
 
 expect fun createDefaultNavidromeHttpClient(tlsSettings: NavidromeTlsSettings): NavidromeHttpClient
 
+/**
+ * A client whose TLS trust and identity stay confined to it. Unlike the default factory it never
+ * changes process-wide TLS defaults, so a one-off probe cannot affect any other HTTPS consumer.
+ */
+expect fun createScopedNavidromeKtorClient(tlsSettings: NavidromeTlsSettings): HttpClient
+
 /** Optional native challenge facts for diagnostics; engines without delegate challenges need not emit events. */
 expect fun createDefaultNavidromeKtorClient(
     tlsSettings: NavidromeTlsSettings,

@@ -543,6 +543,8 @@
     <string name="connection_aurral_companion_sign_in_failed">Aurral n’a pas accepté ce nom d’utilisateur et ce mot de passe. Vérifiez les identifiants du complément et réessayez.</string>
     <string name="connection_aurral_companion_unreachable">Impossible de joindre Aurral à cette adresse. Vérifiez l’URL et qu’Aurral est en cours d’exécution.</string>
     <string name="connection_aurral_companion_unsupported">Cette version du serveur Aurral n’est pas prise en charge. Mettez Aurral à jour et réessayez.</string>
+    <string name="connection_aurral_companion_forbidden">Ce compte Aurral n’est pas autorisé à utiliser Aurral depuis des applications. Demandez l’accès à l’administrateur d’Aurral.</string>
+    <string name="connection_save_failed">Impossible d’enregistrer cette connexion. Votre connexion actuelle reste inchangée.</string>
     <string name="storage_recovery_title">Paramètres enregistrés</string>
     <string name="storage_recovery_capacity">Cette modification dépasse la limite de stockage persistant de cet appareil. Les paramètres et connexions précédemment enregistrés restent inchangés.</string>
     <string name="storage_recovery_unreadable">Impossible d’ouvrir les paramètres enregistrés. Ils ont été conservés. Réessayez ou réinitialisez-les pour reconfigurer cet appareil.</string>

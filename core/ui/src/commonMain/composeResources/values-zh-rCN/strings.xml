@@ -543,6 +543,8 @@
     <string name="connection_aurral_companion_sign_in_failed">Aurral 不接受此用户名和密码。请检查伴随服务的登录信息后重试。</string>
     <string name="connection_aurral_companion_unreachable">无法通过此地址连接到 Aurral。请检查 URL 以及 Aurral 是否正在运行。</string>
     <string name="connection_aurral_companion_unsupported">不支持此 Aurral 服务器版本。请更新 Aurral 后重试。</string>
+    <string name="connection_aurral_companion_forbidden">此 Aurral 帐户无权通过应用使用 Aurral。请向 Aurral 管理员申请访问权限。</string>
+    <string name="connection_save_failed">无法保存此连接。当前连接未更改。</string>
     <string name="storage_recovery_title">已保存的设置</string>
     <string name="storage_recovery_capacity">此更改超出了设备的持久存储限制。之前保存的设置和连接未更改。</string>
     <string name="storage_recovery_unreadable">无法打开已保存的设置。设置已保留。请重试，或重置设置以重新配置此设备。</string>

@@ -543,6 +543,8 @@
     <string name="connection_aurral_companion_sign_in_failed">Aurral bu kullanıcı adını ve parolayı kabul etmedi. Yardımcı hizmetin oturum açma bilgilerini kontrol edip yeniden deneyin.</string>
     <string name="connection_aurral_companion_unreachable">Bu adreste Aurral’a ulaşılamadı. URL’yi ve Aurral’ın çalıştığını kontrol edin.</string>
     <string name="connection_aurral_companion_unsupported">Bu Aurral sunucu sürümü desteklenmiyor. Aurral’ı güncelleyip yeniden deneyin.</string>
+    <string name="connection_aurral_companion_forbidden">Bu Aurral hesabının uygulamalardan Aurral kullanma izni yok. Aurral yöneticinizden erişim isteyin.</string>
+    <string name="connection_save_failed">Bu bağlantı kaydedilemedi. Mevcut bağlantınız değişmedi.</string>
     <string name="storage_recovery_title">Kayıtlı ayarlar</string>
     <string name="storage_recovery_capacity">Bu değişiklik cihazın kalıcı depolama sınırını aşıyor. Önceden kaydedilmiş ayarlar ve bağlantılar değiştirilmedi.</string>
     <string name="storage_recovery_unreadable">Kayıtlı ayarlar açılamadı. Ayarlar korundu. Yeniden deneyin veya bu cihazı yeniden kurmak için ayarları sıfırlayın.</string>

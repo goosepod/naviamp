@@ -8,6 +8,10 @@ import javax.net.ssl.SSLContext
 actual fun createDefaultNavidromeHttpClient(tlsSettings: NavidromeTlsSettings): NavidromeHttpClient =
     KtorNavidromeHttpClient(createDefaultNavidromeKtorClient(tlsSettings))
 
+// The OkHttp client carries its own SSLSocketFactory; only applyJvmDefaults touches JVM globals.
+actual fun createScopedNavidromeKtorClient(tlsSettings: NavidromeTlsSettings): HttpClient =
+    createNavidromeJvmKtorClient(tlsSettings)
+
 actual fun createDefaultNavidromeKtorClient(tlsSettings: NavidromeTlsSettings, onTlsChallenge: (NavidromeTlsChallengeEvent) -> Unit): HttpClient {
     NavidromeTls.applyJvmDefaults(tlsSettings)
     return createNavidromeJvmKtorClient(tlsSettings)
