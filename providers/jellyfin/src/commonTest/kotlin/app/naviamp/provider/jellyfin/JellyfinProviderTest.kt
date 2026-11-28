@@ -331,7 +331,9 @@ class JellyfinProviderTest {
         val artworkUrl = fixture.provider.coverArtUrl("album-1")
 
         assertTrue(streamUrl.contains("Audio/track-1/stream"))
-        assertTrue(streamUrl.contains("api_key=access-token"))
+        // Jellyfin 12 ignores the legacy api_key parameter unless legacy authorization is re-enabled (#730).
+        assertTrue(streamUrl.contains("ApiKey=access-token"))
+        assertFalse(streamUrl.contains("api_key="))
         assertFalse(artworkUrl.contains("access-token"))
         assertEquals(listOf<Byte>(1, 2, 3), fixture.provider.bytesForOwnedUrl(artworkUrl)?.toList())
         assertTrue(fixture.http.lastBinaryHeaders.getValue("Authorization").contains("Token=\"access-token\""))
@@ -407,6 +409,8 @@ class JellyfinProviderTest {
             assertTrue(url.contains("audioBitRate=128000"))
             assertTrue(url.contains("enableRedirection=false"))
             assertTrue(url.contains("userId=user-id"))
+            assertTrue(url.contains("ApiKey=access-token"))
+            assertFalse(url.contains("api_key="))
             assertTrue(url.contains("startTimeTicks=958000000"))
         }
     }
