@@ -89,6 +89,8 @@ class NaviampCoreConnectionController(
     private val onReconnected: (String) -> Unit = {},
     private val recoveryScope: CoroutineScope? = null,
     private val reconnectSchedule: NaviampCoreReconnectSchedule = NaviampCoreReconnectSchedule(),
+    /** Recent connection attempts and what started them, for diagnostics. */
+    val attemptLog: NaviampConnectionAttemptLog = NaviampConnectionAttemptLog(),
 ) : NaviampCoreCommandController {
     private var inventory = initialInventory
     private var editingConnectionId: String? = null
@@ -99,6 +101,8 @@ class NaviampCoreConnectionController(
     private var runtimeRecoveryScope: CoroutineScope? = null
     private var recoveringSourceId: String? = null
     private var certificateSelectionGeneration = 0L
+    /** The route the open editor belongs to; null while no editor is open. */
+    private var editorRoute: app.naviamp.ui.SharedRoute? = null
 
     init {
         publishConnection()
@@ -116,6 +120,8 @@ class NaviampCoreConnectionController(
      * rather than adding a new connection that would duplicate it.
      */
     fun editImportedConnection(id: String, form: ConnectionFormState) {
+        // The import moves to Settings to show this editor.
+        editorRoute = app.naviamp.ui.SharedRoute.Settings
         editingConnectionId = id
         originalEditingForm = form
         stateStore.updateShell { shell ->
@@ -137,7 +143,7 @@ class NaviampCoreConnectionController(
      * so importing settings never asks again for a password this device already has.
      */
     suspend fun reconnectImportedConnection(id: String): Boolean =
-        connect(NaviampCoreConnectionRequest.Saved(id))
+        connect(NaviampCoreConnectionRequest.Saved(id), NaviampConnectionAttemptTrigger.SettingsImport)
 
     suspend fun resetAfterDatabaseClear() {
         certificateSelectionGeneration++
@@ -184,7 +190,7 @@ class NaviampCoreConnectionController(
                 clearExistingPlayback = false)
             return
         }
-        connect(NaviampCoreConnectionRequest.Saved(saved.id), userInitiated = false)
+        connect(NaviampCoreConnectionRequest.Saved(saved.id), NaviampConnectionAttemptTrigger.StartupRestore, userInitiated = false)
     }
 
     private fun networkDisconnected(): Boolean =
@@ -281,6 +287,7 @@ class NaviampCoreConnectionController(
         val attempt = async {
             connect(
                 NaviampCoreConnectionRequest.Saved(sourceId),
+                NaviampConnectionAttemptTrigger.OfflineRecovery,
                 preserveExistingSession = true,
                 userInitiated = false,
                 onPreservedFailure = { cause = it },
@@ -326,6 +333,7 @@ class NaviampCoreConnectionController(
         if (sessionPort.currentSourceId() != sourceId) return false
         return connect(
             NaviampCoreConnectionRequest.Form(editable.form.copy(password = password), sourceId),
+            NaviampConnectionAttemptTrigger.ProvisioningCredential,
             preserveExistingSession = true,
         )
     }
@@ -356,7 +364,7 @@ class NaviampCoreConnectionController(
                 false
             }
         }
-        return connect(NaviampCoreConnectionRequest.Form(form))
+        return connect(NaviampCoreConnectionRequest.Form(form), NaviampConnectionAttemptTrigger.ConnectProvisioning)
     }
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult {
@@ -432,7 +440,7 @@ class NaviampCoreConnectionController(
                                 connection = shell.connectionSettings.connection.copy(status = "connection_aurral_companion_save_failed", statusIsError = true))) }
                         }
                     }
-                } else if (accountSwitcher().addingAccount) connectAccount(request) else connect(request)
+                } else if (accountSwitcher().addingAccount) connectAccount(request) else connect(request, NaviampConnectionAttemptTrigger.EditorSave)
             }
             is NaviampCoreCommand.Connection.SelectSavedSource -> {
                 val runtime = connection.state.value
@@ -444,7 +452,7 @@ class NaviampCoreConnectionController(
                     return NaviampCoreCommandResult.SavedSourceSelected(true)
                 val previousId = inventory.currentSourceId
                 val selected = kotlinx.coroutines.withTimeoutOrNull(30_000L) {
-                    connect(NaviampCoreConnectionRequest.Saved(command.id), preserveExistingSession = true,
+                    connect(NaviampCoreConnectionRequest.Saved(command.id), NaviampConnectionAttemptTrigger.SavedSourceSelection, preserveExistingSession = true,
                         userInitiated = false, preserveEditor = true,
                         onSessionConnected = { id -> onSavedSourceSelected(id, id != previousId) })
                 } == true
@@ -468,7 +476,7 @@ class NaviampCoreConnectionController(
                 }
             }
             is NaviampCoreCommand.Connection.ConnectSaved ->
-                connect(NaviampCoreConnectionRequest.Saved(command.connection.id))
+                connect(NaviampCoreConnectionRequest.Saved(command.connection.id), NaviampConnectionAttemptTrigger.SavedConnectionButton)
             NaviampCoreCommand.Connection.EditCurrent -> {
                 val id = inventory.currentSourceId
                 if (id == null) publishStatus("No active connection to edit.") else edit(id)
@@ -519,6 +527,7 @@ class NaviampCoreConnectionController(
 
     private suspend fun connect(
         request: NaviampCoreConnectionRequest,
+        trigger: NaviampConnectionAttemptTrigger,
         preserveExistingSession: Boolean = false,
         userInitiated: Boolean = true,
         forceSourceRefresh: Boolean = false,
@@ -533,11 +542,14 @@ class NaviampCoreConnectionController(
         // A switch or reconnect the user asked for replaces a background retry; otherwise begin()
         // would refuse it while the retry is connecting and the request would be lost.
         if (!automatic) stopRecovery()
+        val attempt = attemptLog.started(trigger, request, route = currentRoute().name,
+            editorOpen = stateStore.state.value.shell.connectionSettings.connection.editingConnection)
         if (request is NaviampCoreConnectionRequest.Form) {
             connectionFormError(
                 form = request.form,
                 hasSavedConnectionForLogin = request.savedConnectionId != null,
             )?.let { error ->
+                attemptLog.finished(attempt, NaviampConnectionAttemptOutcome.Invalid, error)
                 if (!preserveExistingSession) {
                     connection.failed(error)
                     publishConnection()
@@ -554,7 +566,11 @@ class NaviampCoreConnectionController(
             preserveExistingConnection = preserveExistingSession,
             automaticRecovery = automatic,
         )
-            ?: return false
+        if (plan == null) {
+            attemptLog.finished(attempt, NaviampConnectionAttemptOutcome.Refused)
+            return false
+        }
+        attemptLog.planned(attempt, restoring = plan.restoreSavedSession, clearsPlayback = plan.clearExistingPlayback)
         val previousSourceId = stateStore.state.value.shell.connectionSettings.currentSourceId
         publishConnection()
         var connected = false
@@ -562,6 +578,7 @@ class NaviampCoreConnectionController(
             sessionPort.connect(request, plan).also { kotlinx.coroutines.currentCoroutineContext().ensureActive() }
         }.onSuccess { session ->
                 if (!commitIf()) {
+                    attemptLog.finished(attempt, NaviampConnectionAttemptOutcome.Discarded)
                     connection.restore(previousConnection)
                     publishConnection()
                     stateStore.updateShell { shell -> shell.copy(connectionSettings = shell.connectionSettings.copy(
@@ -595,10 +612,16 @@ class NaviampCoreConnectionController(
                 publishConnection()
                 onSessionConnected(session.sourceId)
                 if (userInitiated) onUserConnected(session.sourceId)
+                attemptLog.finished(attempt, NaviampConnectionAttemptOutcome.Connected)
                 connected = true
             }
             .onFailure { cause ->
                 if (cause is kotlinx.coroutines.CancellationException || preserveExistingSession) {
+                    attemptLog.finished(attempt,
+                        if (cause is kotlinx.coroutines.CancellationException) NaviampConnectionAttemptOutcome.Cancelled
+                        else NaviampConnectionAttemptOutcome.KeptPrevious,
+                        (cause as? kotlinx.coroutines.CancellationException)?.let { null }
+                            ?: connectionFailureStatus(cause, "Could not connect to the music server."))
                     connection.restore(previousConnection)
                     publishConnection()
                     stateStore.updateShell { shell -> shell.copy(connectionSettings = shell.connectionSettings.copy(
@@ -613,9 +636,13 @@ class NaviampCoreConnectionController(
                 }
                 val savedSourceId = (request as? NaviampCoreConnectionRequest.Saved)?.id
                 if (savedSourceId != null && connectionFailureAllowsOfflineRestoration(cause)) {
+                    attemptLog.finished(attempt, NaviampConnectionAttemptOutcome.Offline,
+                        connectionFailureStatus(cause, "Could not connect to the music server."))
                     enterOffline(savedSourceId, previousSourceId, plan.clearExistingPlayback)
                 } else {
-                    connection.failed(connectionFailureStatus(cause, "Could not connect to the music server."))
+                    val status = connectionFailureStatus(cause, "Could not connect to the music server.")
+                    attemptLog.finished(attempt, NaviampConnectionAttemptOutcome.Failed, status)
+                    connection.failed(status)
                     publishConnection()
                 }
             }
@@ -656,7 +683,7 @@ class NaviampCoreConnectionController(
         updateAccounts { it.copy(connecting = true,
             switchingConnectionId = (request as? NaviampCoreConnectionRequest.Saved)?.id, error = null) }
         try {
-            val succeeded = connect(request, preserveExistingSession = true)
+            val succeeded = connect(request, NaviampConnectionAttemptTrigger.AccountSwitch, preserveExistingSession = true)
             if (succeeded) completeAccountSelection() else updateAccounts { it.copy(
                 visible = !adding, connecting = false, switchingConnectionId = null,
                 error = NaviampAccountSwitcherError.ConnectionFailed) }
@@ -732,6 +759,7 @@ class NaviampCoreConnectionController(
                 form = editable.form.copy(selectedMusicFolderIds = picker.selectedIds),
                 savedConnectionId = sourceId,
             ),
+            trigger = NaviampConnectionAttemptTrigger.LibrarySources,
             preserveExistingSession = true,
             userInitiated = false,
             forceSourceRefresh = true,
@@ -763,6 +791,7 @@ class NaviampCoreConnectionController(
     private suspend fun edit(id: String) {
         runCatching { sessionPort.editableConnection(id) }
             .onSuccess { editable ->
+                editorRoute = currentRoute()
                 editingConnectionId = id
                 originalEditingForm = editable.form
                 stateStore.updateShell { shell ->
@@ -823,6 +852,7 @@ class NaviampCoreConnectionController(
     }
 
     private fun openNewForm() {
+        editorRoute = currentRoute()
         originalEditingForm = null
         editingConnectionId = null
         stateStore.updateShell { shell ->
@@ -842,7 +872,7 @@ class NaviampCoreConnectionController(
     }
 
     private fun setEditing(editing: Boolean) {
-        if (!editing) { editingConnectionId = null; originalEditingForm = null }
+        if (!editing) { editingConnectionId = null; originalEditingForm = null; editorRoute = null }
         stateStore.updateShell { shell ->
             shell.copy(
                 connectionSettings = shell.connectionSettings.copy(
@@ -858,6 +888,23 @@ class NaviampCoreConnectionController(
                 ),
             )
         }
+    }
+
+    private fun currentRoute(): app.naviamp.ui.SharedRoute = stateStore.state.value.shell.shellChrome.selectedRoute
+
+    /**
+     * The editor belongs to the route it was opened on. Choosing another route closes it like
+     * Cancel, so it never takes over that route; a save already in progress finishes first.
+     */
+    fun routeSelected(route: app.naviamp.ui.SharedRoute) {
+        val owner = editorRoute ?: return
+        if (route == owner || foregroundConnecting() ||
+            !stateStore.state.value.shell.connectionSettings.connection.editingConnection) return
+        certificateSelectionGeneration++
+        val adding = accountSwitcher().addingAccount
+        accountAttempt?.cancel()
+        setEditing(false)
+        if (adding) updateAccounts { NaviampAccountSwitcherUi() }
     }
 
     private fun publishStatus(status: String) {

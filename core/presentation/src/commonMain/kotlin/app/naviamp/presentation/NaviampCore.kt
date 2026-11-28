@@ -1,4 +1,5 @@
 package app.naviamp.presentation
+import app.naviamp.ui.toSharedRoute
 import app.naviamp.domain.isInternetRadioTrack
 
 import app.naviamp.app.NaviampConnectionController
@@ -105,6 +106,7 @@ class NaviampCore private constructor(
     private val nowPlayingController: NaviampCoreNowPlayingMediaController,
     private val nowPlayingPresenter: NaviampCoreNowPlayingPresenter,
     private val providerSessionLifecycle: NaviampCoreProviderSessionLifecycle,
+    private val connectionAttemptLog: NaviampConnectionAttemptLog,
     /** Starts offline reconnection on the runtime scope; runtime-owned like provider-session renewal. */
     private val startConnectionRecovery: (CoroutineScope) -> Unit = {},
     private val runtimeScope: CoroutineScope,
@@ -194,6 +196,7 @@ class NaviampCore private constructor(
         playbackEngineRows = playbackDiagnostics(),
         playbackProfileRows = playbackController.playbackProfileDiagnostics(),
         external = diagnostics.snapshot(),
+        connectionAttemptRows = connectionAttemptLog.diagnosticRows(),
     )
 
     /** Uses the same storage facts as Stats for Nerds, only while Settings is mounted. */
@@ -341,11 +344,14 @@ class NaviampCore private constructor(
             routedPlaybackEffects.onSelectionStarted = selectionStarted
             val deferredArtistNavigator = DeferredArtistNavigator()
             val mediaRegistry = NaviampCoreMediaRegistry()
+            // The connection editor belongs to the route it was opened on; it is created below.
+            var routeSelected: (app.naviamp.ui.SharedRoute) -> Unit = {}
             val navigation = NaviampCoreNavigationController(
                 navigationState,
                 stateStore,
                 deferredArtistNavigator,
                 onLeaveDiscovery = samplePlayback::stop,
+                onRouteSelected = { route -> routeSelected(route.toSharedRoute()) },
                 persistNowPlayingOpen = { open ->
                     val sourceId = stateStore.state.value.shell.connectionSettings.currentSourceId
                     services.playback.sessions.updateNowPlayingOpen(open, sourceId)
@@ -795,6 +801,7 @@ class NaviampCore private constructor(
             if (initialState.connectionInventory.currentSourceId != null) {
                 scope.launch { providerSessionLifecycle.refreshNow() }
             }
+            routeSelected = connection::routeSelected
             completeDatabaseReset = {
                 playback.resetAfterDatabaseClear()
                 connection.resetAfterDatabaseClear()
@@ -947,6 +954,7 @@ class NaviampCore private constructor(
                 nowPlayingController = nowPlaying,
                 nowPlayingPresenter = nowPlayingPresenter,
                 providerSessionLifecycle = providerSessionLifecycle,
+                connectionAttemptLog = connection.attemptLog,
                 startConnectionRecovery = connection::startRecovery,
                 runtimeScope = scope,
                 homeController = home,

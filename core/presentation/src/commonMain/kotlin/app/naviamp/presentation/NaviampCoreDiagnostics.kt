@@ -51,6 +51,7 @@ internal fun naviampCoreDiagnostics(
     playbackEngineRows: List<Pair<String, String>>,
     playbackProfileRows: List<Pair<String, String>> = emptyList(),
     external: NaviampCoreDiagnosticsSnapshot,
+    connectionAttemptRows: List<Pair<String, String>> = emptyList(),
 ): NaviampDiagnosticsUi {
     val connection = shell.connectionSettings.connection
     val currentConnection = connection.savedConnections.firstOrNull { it.current }
@@ -84,6 +85,9 @@ internal fun naviampCoreDiagnostics(
             "Selected libraries" to (currentConnection?.selectedLibrarySummary?.ifBlank { "All" } ?: "Unknown"),
         ),
     )
+    if (connectionAttemptRows.isNotEmpty()) {
+        sections += NaviampDiagnosticsSectionUi("Connection attempts", connectionAttemptRows)
+    }
     sections += NaviampDiagnosticsSectionUi(
         "Library",
         listOf(

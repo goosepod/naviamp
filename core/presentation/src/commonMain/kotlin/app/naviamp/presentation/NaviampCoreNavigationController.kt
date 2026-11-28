@@ -23,6 +23,8 @@ class NaviampCoreNavigationController(
     private val artistNavigator: NaviampCoreArtistNavigator,
     private val persistNowPlayingOpen: (Boolean) -> Unit = {},
     private val onLeaveDiscovery: () -> Unit = {},
+    /** Told about every route selection, before the new route is published. */
+    private val onRouteSelected: (NaviampRoute) -> Unit = {},
 ) : NaviampCoreCommandController {
     init {
         publishNavigation()
@@ -127,6 +129,7 @@ class NaviampCoreNavigationController(
 
     private fun selectRoute(route: NaviampRoute) {
         if (stateStore.state.value.shell.home.providerDiscovery?.let { it.artistPage || it.browser != null } == true) onLeaveDiscovery()
+        onRouteSelected(route)
         navigation.navigate(route)
         navigation.updateLastContentRoute(route)
         navigation.clearDetailHistory()

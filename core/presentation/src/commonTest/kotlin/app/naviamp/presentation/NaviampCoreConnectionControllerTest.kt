@@ -21,6 +21,72 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 
 class NaviampCoreConnectionControllerTest {
+    @Test fun anEditorOpenedInSettingsClosesWhenAnotherRouteIsChosen() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.store.updateShell { it.copy(shellChrome = it.shellChrome.copy(selectedRoute = app.naviamp.ui.SharedRoute.Settings)) }
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(displayName = "Unsaved")))
+
+        fixture.controller.routeSelected(app.naviamp.ui.SharedRoute.Settings)
+        assertTrue(fixture.store.state.value.shell.connectionSettings.connection.editingConnection, "Reselecting its own route keeps it")
+
+        fixture.controller.routeSelected(app.naviamp.ui.SharedRoute.Home)
+        val connection = fixture.store.state.value.shell.connectionSettings.connection
+        assertFalse(connection.editingConnection, "The editor must not take over Home")
+        assertTrue(connection.connected)
+        assertTrue(fixture.port.connectRequests.size == 1, "Leaving the editor saves nothing")
+
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        assertEquals("https://edited.example", fixture.store.state.value.shell.connectionSettings.connection.form.serverUrl)
+        assertTrue(fixture.store.state.value.shell.connectionSettings.connection.form.displayName != "Unsaved",
+            "Unsaved edits are discarded like Cancel")
+    }
+
+    @Test fun addingAnAccountOverAnotherRouteClosesWhenTheRouteChanges() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.store.updateShell { it.copy(shellChrome = it.shellChrome.copy(selectedRoute = app.naviamp.ui.SharedRoute.Library)) }
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.AddAccount)
+        assertTrue(fixture.store.state.value.shell.connectionSettings.connection.editingConnection)
+
+        fixture.controller.routeSelected(app.naviamp.ui.SharedRoute.Home)
+
+        val settings = fixture.store.state.value.shell.connectionSettings
+        assertFalse(settings.connection.editingConnection)
+        assertFalse(settings.accountSwitcher.addingAccount)
+        assertFalse(settings.accountSwitcher.visible)
+    }
+
+    @Test fun aSaveInProgressIsNotAbandonedByChangingRoute() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.store.updateShell { it.copy(shellChrome = it.shellChrome.copy(selectedRoute = app.naviamp.ui.SharedRoute.Settings)) }
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val form = fixture.store.state.value.shell.connectionSettings.connection.form
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form.copy(serverUrl = "https://other.example")))
+        val gate = CompletableDeferred<Unit>().also { fixture.port.connectGate = it }
+        val save = launch { fixture.controller.execute(NaviampCoreCommand.Connection.Connect) }
+        runCurrent()
+
+        fixture.controller.routeSelected(app.naviamp.ui.SharedRoute.Home)
+        assertTrue(fixture.store.state.value.shell.connectionSettings.connection.editingConnection)
+
+        gate.complete(Unit)
+        save.join()
+        assertEquals(2, fixture.port.connectRequests.size)
+        assertFalse(fixture.store.state.value.shell.connectionSettings.connection.editingConnection)
+    }
+
+    @Test fun choosingARouteWithNoEditorOpenChangesNothing() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        val before = fixture.store.state.value.shell.connectionSettings
+        fixture.controller.routeSelected(app.naviamp.ui.SharedRoute.Library)
+        assertEquals(before, fixture.store.state.value.shell.connectionSettings)
+    }
+
     @Test
     fun runtimeRenewalIsSharedAndSurvivesSceneWaiterCancellation() = kotlinx.coroutines.test.runTest {
         val fixture = fixture()
