@@ -713,4 +713,23 @@
     <string name="status_library_index_cleared">Index de la bibliothèque vidé.</string>
     <string name="status_database_reset">Base de données réinitialisée. Les serveurs enregistrés ont été supprimés.</string>
     <string name="status_home_failed">Impossible de charger l'accueil.</string>
+    <string name="connect_status_signing_in_device">Connexion de %1$s…</string>
+    <string name="connect_status_getting_accounts_from_device">Récupération de vos comptes depuis %1$s…</string>
+    <string name="connect_status_device_is_signed_in">%1$s est connecté.</string>
+    <string name="connect_status_signed_in_from_device">Connecté avec les comptes de %1$s.</string>
+    <string name="connect_status_sent_accounts_to_device">Vos comptes ont été envoyés à %1$s.</string>
+    <string name="connect_status_some_accounts_need_attention">Certains comptes n'ont pas été copiés.</string>
+    <string name="connect_status_no_accounts_to_copy">%1$s n'a aucun compte à copier.</string>
+    <string name="connect_status_account_copy_failed">Impossible de copier vos comptes. Réessayez.</string>
+    <string name="connect_post_sign_in_from">Connecter cet appareil avec les comptes de %1$s</string>
+    <string name="connect_post_choose">Choisir les comptes et paramètres</string>
+    <string name="connect_post_include_settings">Inclure mes paramètres</string>
+    <string name="connect_account_needs_password">Mot de passe requis</string>
+    <string name="connect_account_set_up_on_device">À configurer sur l'appareil</string>
+    <string name="connect_account_password_for">Mot de passe pour %1$s</string>
+    <string name="connect_result_added">Ajouté</string>
+    <string name="connect_result_updated">Mis à jour</string>
+    <string name="connect_result_failed">Connexion impossible</string>
+    <string name="connect_send_my_accounts">Envoyer mes comptes</string>
+    <string name="connect_get_accounts">Récupérer les comptes de cet appareil</string>
 </resources>

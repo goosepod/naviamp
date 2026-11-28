@@ -717,4 +717,23 @@
     <string name="status_library_index_cleared">Индекс библиотеки очищен.</string>
     <string name="status_database_reset">База данных сброшена. Сохранённые серверы удалены.</string>
     <string name="status_home_failed">Не удалось загрузить главную страницу.</string>
+    <string name="connect_status_signing_in_device">Выполняется вход на %1$s…</string>
+    <string name="connect_status_getting_accounts_from_device">Получение ваших аккаунтов с %1$s…</string>
+    <string name="connect_status_device_is_signed_in">На %1$s выполнен вход.</string>
+    <string name="connect_status_signed_in_from_device">Вход выполнен с аккаунтами с %1$s.</string>
+    <string name="connect_status_sent_accounts_to_device">Ваши аккаунты отправлены на %1$s.</string>
+    <string name="connect_status_some_accounts_need_attention">Некоторые аккаунты не скопированы.</string>
+    <string name="connect_status_no_accounts_to_copy">На %1$s нет аккаунтов для копирования.</string>
+    <string name="connect_status_account_copy_failed">Не удалось скопировать ваши аккаунты. Повторите попытку.</string>
+    <string name="connect_post_sign_in_from">Войти на этом устройстве с аккаунтами с %1$s</string>
+    <string name="connect_post_choose">Выбрать аккаунты и настройки</string>
+    <string name="connect_post_include_settings">Включить мои настройки</string>
+    <string name="connect_account_needs_password">Нужен пароль</string>
+    <string name="connect_account_set_up_on_device">Настроить на устройстве</string>
+    <string name="connect_account_password_for">Пароль для %1$s</string>
+    <string name="connect_result_added">Добавлен</string>
+    <string name="connect_result_updated">Обновлён</string>
+    <string name="connect_result_failed">Не удалось войти</string>
+    <string name="connect_send_my_accounts">Отправить мои аккаунты</string>
+    <string name="connect_get_accounts">Получить аккаунты с этого устройства</string>
 </resources>

@@ -711,4 +711,23 @@
     <string name="status_library_index_cleared">Bibliotheekindex gewist.</string>
     <string name="status_database_reset">Database opnieuw ingesteld. Opgeslagen servers zijn verwijderd.</string>
     <string name="status_home_failed">Kan Start niet laden.</string>
+    <string name="connect_status_signing_in_device">%1$s wordt aangemeld…</string>
+    <string name="connect_status_getting_accounts_from_device">Je accounts worden opgehaald van %1$s…</string>
+    <string name="connect_status_device_is_signed_in">%1$s is aangemeld.</string>
+    <string name="connect_status_signed_in_from_device">Aangemeld met accounts van %1$s.</string>
+    <string name="connect_status_sent_accounts_to_device">Je accounts zijn naar %1$s gestuurd.</string>
+    <string name="connect_status_some_accounts_need_attention">Sommige accounts zijn niet gekopieerd.</string>
+    <string name="connect_status_no_accounts_to_copy">%1$s heeft geen accounts om te kopiëren.</string>
+    <string name="connect_status_account_copy_failed">Je accounts konden niet worden gekopieerd. Probeer het opnieuw.</string>
+    <string name="connect_post_sign_in_from">Dit apparaat aanmelden met accounts van %1$s</string>
+    <string name="connect_post_choose">Accounts en instellingen kiezen</string>
+    <string name="connect_post_include_settings">Mijn instellingen meenemen</string>
+    <string name="connect_account_needs_password">Wachtwoord nodig</string>
+    <string name="connect_account_set_up_on_device">Instellen op het apparaat</string>
+    <string name="connect_account_password_for">Wachtwoord voor %1$s</string>
+    <string name="connect_result_added">Toegevoegd</string>
+    <string name="connect_result_updated">Bijgewerkt</string>
+    <string name="connect_result_failed">Aanmelden mislukt</string>
+    <string name="connect_send_my_accounts">Mijn accounts sturen</string>
+    <string name="connect_get_accounts">Accounts van dit apparaat ophalen</string>
 </resources>

@@ -62,6 +62,30 @@ vectors exist.
 
 ### Protected assets and trust boundary
 
+November 2026 full sign-in update (#714):
+
+- **Advertised additively.** A target sets `Welcome.accountTransferSupported` when it can receive and
+  serve a full account transfer. Controllers send the new commands only to such a target; older
+  targets keep the single-account `offer_connection_provisioning`. Protocol version stays 1, and no
+  capability enum value was added (older peers reject unknown enum values).
+- **Payload.** `NaviampConnectAccountTransfer` carries the shared `SettingsSyncDocument` (profiles and,
+  when chosen, portable preferences; no secrets, no certificate paths) plus one
+  `NaviampConnectAccountCredential` per profile: a password or an API key, secret header values, and
+  the Aurral companion password. Session tokens (Subsonic token/salt, Navidrome native session,
+  Jellyfin device-bound token) never travel. Accounts without a password or API key are listed as
+  `NeedsPassword` (the sending device may supply one) and certificate-file accounts as
+  `SetUpOnDevice`. Every credential type redacts itself in `toString`.
+- **Send:** `offer_account_transfer` → `account_transfer_result` (per-account Added, Updated,
+  NeedsPassword, SetUpOnDevice, Failed). **Pull:** `request_account_transfer` →
+  `account_transfer_payload`. Both commands require `ConnectionProvisioning`, are non-idempotent, and
+  are never retained for replay.
+- **Receiver policy (Core).** Each account is validated and saved without switching the active
+  account; the same provider + server + user updates the receiver's account (keeping its library
+  choice and name) and nothing is deleted. Settings apply only when chosen, through the settings-sync
+  normalization, keeping the receiver's device-local fields. The sender's active account is then
+  activated; a receiver that had no account activates the first one saved. The receiver never
+  prompts.
+
 November 2026 one-flow update (#713) — supersedes the September 10 consent rules below:
 
 - **Presence vs. code offer.** A target with any trust record keeps its listener and DNS-SD

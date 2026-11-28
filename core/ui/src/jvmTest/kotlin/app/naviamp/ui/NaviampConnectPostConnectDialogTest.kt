@@ -65,6 +65,46 @@ class NaviampConnectPostConnectDialogTest {
         assertEquals(listOf("password"), calls)
     }
 
+    @Test fun pullingSaysWhichDeviceSignsThisOneIn() = runComposeUiTest {
+        setContent {
+            NaviampConnectPostConnectDialog(sheet().copy(pull = true), NaviampColors.Dark, NaviampConnectSettingsUi(),
+                actions(mutableListOf()))
+        }
+        onNodeWithText("Sign this device in with accounts from Living Room").assertExists()
+        onNodeWithTag("connect-post-choose").assertDoesNotExist()
+    }
+
+    @Test fun choosingListsAccountsAndAsksForAMissingPasswordHere() = runComposeUiTest {
+        val calls = mutableListOf<String>()
+        setContent {
+            NaviampConnectPostConnectDialog(sheet().copy(canChoose = true, choosing = true, includeSettings = true,
+                accounts = listOf(
+                    NaviampConnectTransferAccountUi("home", "Home", "navidrome", true, NaviampConnectTransferAccountStatus.Ready),
+                    NaviampConnectTransferAccountUi("old", "Old", "subsonic", true, NaviampConnectTransferAccountStatus.NeedsPassword),
+                    NaviampConnectTransferAccountUi("cert", "Office", "navidrome", true, NaviampConnectTransferAccountStatus.SetUpOnDevice),
+                )), NaviampColors.Dark, NaviampConnectSettingsUi(), actions(calls))
+        }
+        onNodeWithText("Needs password").assertExists()
+        onNodeWithText("Set up on the device").assertExists()
+        onNodeWithTag("connect-post-account-cert").assertIsOff().assertIsNotEnabled()
+        onNodeWithTag("connect-post-password-old").performTextInput("typed")
+        onNodeWithTag("connect-post-account-home").performClick()
+        onNodeWithTag("connect-post-settings").assertIsOn().performClick()
+        assertEquals(listOf("password:old", "account:home:false", "settings:false"), calls)
+    }
+
+    @Test fun resultsShowEachAccountsOutcome() = runComposeUiTest {
+        setContent {
+            NaviampConnectPostConnectDialog(sheet().copy(canChoose = true, results = listOf(
+                NaviampConnectTransferResultUi("Home", "navidrome", NaviampConnectTransferOutcome.Added),
+                NaviampConnectTransferResultUi("Old", "subsonic", NaviampConnectTransferOutcome.Failed),
+            )), NaviampColors.Dark, NaviampConnectSettingsUi(), actions(mutableListOf()))
+        }
+        onNodeWithText("Home · Added").assertExists()
+        onNodeWithText("Old · Could not sign in").assertExists()
+        onNodeWithTag("connect-post-choose").assertDoesNotExist()
+    }
+
     private fun sheet() = NaviampConnectPostConnectUi(deviceName = "Living Room", canSignIn = true,
         signInSelected = true, deviceHasAccounts = false, canPlayOn = true)
 
@@ -81,5 +121,8 @@ class NaviampConnectPostConnectDialogTest {
         onPostConnectDone = { calls += "done" },
         onPostConnectDismiss = { calls += "dismiss" },
         onSubmitProvisioningCredential = { calls += "password" },
+        onPostConnectAccountPassword = { id, _ -> if ("password:$id" !in calls) calls += "password:$id" },
+        onPostConnectAccountSelected = { id, selected -> calls += "account:$id:$selected" },
+        onPostConnectSettingsChanged = { calls += "settings:$it" },
     )
 }

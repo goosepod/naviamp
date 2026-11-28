@@ -72,6 +72,33 @@ data class NaviampConnectPostConnectUi(
     val deviceHasAccounts: Boolean,
     val canPlayOn: Boolean,
     val busy: Boolean = false,
+    /** Sign this device in from the other one instead of signing the other one in (#714). */
+    val pull: Boolean = false,
+    /** Accounts and settings can be chosen ("Change…"); false for older devices that take one account. */
+    val canChoose: Boolean = false,
+    val choosing: Boolean = false,
+    val includeSettings: Boolean = false,
+    val accounts: List<NaviampConnectTransferAccountUi> = emptyList(),
+    /** Per-account outcomes once a transfer finished with something left to do. */
+    val results: List<NaviampConnectTransferResultUi> = emptyList(),
+)
+
+enum class NaviampConnectTransferAccountStatus { Ready, NeedsPassword, SetUpOnDevice }
+
+data class NaviampConnectTransferAccountUi(
+    val id: String,
+    val displayName: String,
+    val providerId: String,
+    val selected: Boolean,
+    val status: NaviampConnectTransferAccountStatus,
+)
+
+enum class NaviampConnectTransferOutcome { Added, Updated, NeedsPassword, SetUpOnDevice, Failed }
+
+data class NaviampConnectTransferResultUi(
+    val displayName: String,
+    val providerId: String,
+    val outcome: NaviampConnectTransferOutcome,
 )
 
 data class NaviampConnectSourceMismatchUi(
@@ -169,6 +196,14 @@ data class NaviampConnectSettingsActions(
     val onPostConnectDone: () -> Unit = {},
     /** Back, Escape or tapping outside: close the sheet without sending anything. */
     val onPostConnectDismiss: () -> Unit = {},
+    val onPostConnectChoose: () -> Unit = {},
+    val onPostConnectAccountSelected: (String, Boolean) -> Unit = { _, _ -> },
+    val onPostConnectSettingsChanged: (Boolean) -> Unit = {},
+    /** A password typed on this (sending) device for an account that has none stored. */
+    val onPostConnectAccountPassword: (String, String) -> Unit = { _, _ -> },
+    /** Your devices: send this device's accounts to a trusted device, or get its accounts. */
+    val onSendAccountsToDevice: (NaviampConnectTrustedDeviceUi) -> Unit = {},
+    val onGetAccountsFromDevice: (NaviampConnectTrustedDeviceUi) -> Unit = {},
 )
 
 fun disambiguateNaviampConnectDeviceNames(names: List<String>): List<String> {

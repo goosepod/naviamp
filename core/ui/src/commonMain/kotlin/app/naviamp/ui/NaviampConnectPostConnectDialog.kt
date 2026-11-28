@@ -52,8 +52,25 @@ internal fun NaviampConnectPostConnectDialog(
                             .testTag("connect-post-sign-in"),
                     ) {
                         Checkbox(checked = postConnect.signInSelected, onCheckedChange = null, enabled = enabled)
-                        Text(stringResource(Res.string.connect_post_sign_in))
+                        Text(if (postConnect.pull) stringResource(Res.string.connect_post_sign_in_from, postConnect.deviceName)
+                            else stringResource(Res.string.connect_post_sign_in))
                     }
+                    if (postConnect.canChoose && postConnect.signInSelected && postConnect.results.isEmpty()) {
+                        TextButton(onClick = actions.onPostConnectChoose, enabled = enabled,
+                            modifier = Modifier.testTag("connect-post-choose")) {
+                            Text(stringResource(Res.string.connect_post_choose))
+                        }
+                    }
+                    if (postConnect.choosing && postConnect.results.isEmpty()) {
+                        NaviampConnectTransferChoices(postConnect, colors, actions, enabled)
+                    }
+                }
+                postConnect.results.forEach { result ->
+                    Text(
+                        "${result.displayName} · ${stringResource(result.outcome.label())}",
+                        color = colors.secondaryText,
+                        modifier = Modifier.testTag("connect-post-result"),
+                    )
                 }
                 // The title already says the device is connected; show only later progress or problems.
                 connect.displayStatus()?.takeIf { connect.statusMessage?.text != NaviampConnectStatusText.ConnectedToDevice }
@@ -95,6 +112,83 @@ internal fun NaviampConnectPostConnectDialog(
             }
         },
     )
+}
+
+/** "Choose accounts and settings": each account with its status, and the settings group. */
+@Composable
+private fun NaviampConnectTransferChoices(
+    postConnect: NaviampConnectPostConnectUi,
+    colors: NaviampColors,
+    actions: NaviampConnectSettingsActions,
+    enabled: Boolean,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.testTag("connect-post-choices")) {
+        postConnect.accounts.forEach { account ->
+            val sendable = account.status != NaviampConnectTransferAccountStatus.SetUpOnDevice
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+                    .toggleable(
+                        value = account.selected && sendable,
+                        enabled = enabled && sendable,
+                        role = Role.Checkbox,
+                        onValueChange = { actions.onPostConnectAccountSelected(account.id, it) },
+                    )
+                    .testTag("connect-post-account-${account.id}"),
+            ) {
+                Checkbox(checked = account.selected && sendable, onCheckedChange = null, enabled = enabled && sendable)
+                Column {
+                    Text(account.displayName)
+                    when (account.status) {
+                        NaviampConnectTransferAccountStatus.NeedsPassword ->
+                            Text(stringResource(Res.string.connect_account_needs_password), color = colors.secondaryText)
+                        NaviampConnectTransferAccountStatus.SetUpOnDevice ->
+                            Text(stringResource(Res.string.connect_account_set_up_on_device), color = colors.secondaryText)
+                        NaviampConnectTransferAccountStatus.Ready -> Unit
+                    }
+                }
+            }
+            if (account.status == NaviampConnectTransferAccountStatus.NeedsPassword && account.selected) {
+                var password by remember(account.id) { mutableStateOf("") }
+                OutlinedTextField(
+                    colors = naviampOutlinedTextFieldColors(colors),
+                    value = password,
+                    onValueChange = {
+                        password = it
+                        actions.onPostConnectAccountPassword(account.id, it)
+                    },
+                    label = { Text(stringResource(Res.string.connect_account_password_for, account.displayName)) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Password),
+                    singleLine = true,
+                    enabled = enabled,
+                    modifier = Modifier.fillMaxWidth().testTag("connect-post-password-${account.id}"),
+                )
+            }
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+                .toggleable(
+                    value = postConnect.includeSettings,
+                    enabled = enabled,
+                    role = Role.Checkbox,
+                    onValueChange = actions.onPostConnectSettingsChanged,
+                )
+                .testTag("connect-post-settings"),
+        ) {
+            Checkbox(checked = postConnect.includeSettings, onCheckedChange = null, enabled = enabled)
+            Text(stringResource(Res.string.connect_post_include_settings))
+        }
+    }
+}
+
+private fun NaviampConnectTransferOutcome.label() = when (this) {
+    NaviampConnectTransferOutcome.Added -> Res.string.connect_result_added
+    NaviampConnectTransferOutcome.Updated -> Res.string.connect_result_updated
+    NaviampConnectTransferOutcome.NeedsPassword -> Res.string.connect_account_needs_password
+    NaviampConnectTransferOutcome.SetUpOnDevice -> Res.string.connect_account_set_up_on_device
+    NaviampConnectTransferOutcome.Failed -> Res.string.connect_result_failed
 }
 
 /** A missing or rejected password outside the post-connect sheet (for example after a trusted reconnect). */
