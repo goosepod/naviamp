@@ -193,8 +193,10 @@ class NaviampFontChoiceUiTest {
             }
         }
         val row = hasText(name) and hasAnyAncestor(hasTestTag("installed-font-list"))
-        waitUntil(timeoutMillis = 10_000) { onAllNodes(row).fetchSemanticsNodes().isNotEmpty() }
+        // The list is lazy: on machines with many fonts the chosen family is far below the first
+        // composed rows, so find it the way a user does — search first, then wait for its row.
         onNodeWithTag("installed-font-search").performScrollTo().performTextInput(name)
+        waitUntil(timeoutMillis = 10_000) { onAllNodes(row).fetchSemanticsNodes().isNotEmpty() }
         onNode(row).performClick()
         runOnIdle { assertEquals(name, settings.value.installedFontFamily) }
         waitForIdle()
