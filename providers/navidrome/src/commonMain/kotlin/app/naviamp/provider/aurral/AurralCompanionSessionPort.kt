@@ -71,6 +71,9 @@ internal class AurralCompanionSessionPort(
         return result
     }
 
+    override suspend fun verifyAurralCompanion(companion: AurralCompanion): ProviderDiscoveryStatus =
+        verifyAurralCompanionSignIn(companion.normalized() ?: companion)
+
     override suspend fun saveValidatedConnection(
         form: app.naviamp.domain.settings.ConnectionFormState,
         savedConnectionId: String?,
@@ -92,10 +95,7 @@ internal fun companionProvider(primary: MediaProvider, settings: AurralCompanion
     companionHttp: NavidromeHttpClient? = null,
     createHttp: (app.naviamp.domain.source.ConnectionTlsSettings) -> NavidromeHttpClient = ::createDefaultNavidromeHttpClient,
 ): MediaProvider = try {
-    val endpoint = settings.baseUrl.trim()
-    val authority = endpoint.substringAfter("://", "").substringBefore('/').substringBefore('?').substringBefore('#')
-    require((endpoint.startsWith("https://", true) || endpoint.startsWith("http://", true)) &&
-        authority.isNotBlank() && '@' !in authority && settings.username.isNotBlank())
+    requireCompanionEndpoint(settings)
     createCompanionProvider(primary, settings, companionHttp ?: createHttp(settings.tlsSettings))
 } catch (_: Exception) {
     object : MediaProvider by primary {
@@ -105,17 +105,51 @@ internal fun companionProvider(primary: MediaProvider, settings: AurralCompanion
     }
 }
 
+/**
+ * One sign-in with a throwaway client; the companion's settings are not saved or cached. The probe
+ * owns and closes the client it creates, whose TLS settings never leave it. A caller-supplied
+ * [companionHttp] remains the caller's to close.
+ */
+internal suspend fun verifyAurralCompanionSignIn(settings: AurralCompanion,
+    companionHttp: NavidromeHttpClient? = null,
+    createClient: (app.naviamp.domain.source.ConnectionTlsSettings) -> io.ktor.client.HttpClient = ::createScopedNavidromeKtorClient,
+): ProviderDiscoveryStatus {
+    val connection = try {
+        requireCompanionEndpoint(settings)
+        companionConnection(settings)
+    } catch (_: Exception) { return ProviderDiscoveryStatus.Unavailable }
+    if (companionHttp != null) return AurralDiscoveryClient(connection, companionHttpClient(connection, companionHttp)).verifySignIn()
+    val owned = try { createClient(settings.tlsSettings) } catch (_: Exception) { return ProviderDiscoveryStatus.Unavailable }
+    try {
+        return AurralDiscoveryClient(connection, companionHttpClient(connection, KtorNavidromeHttpClient(owned))).verifySignIn()
+    } finally {
+        owned.close()
+    }
+}
+
+private fun requireCompanionEndpoint(settings: AurralCompanion) {
+    val endpoint = settings.baseUrl.trim()
+    val authority = endpoint.substringAfter("://", "").substringBefore('/').substringBefore('?').substringBefore('#')
+    require((endpoint.startsWith("https://", true) || endpoint.startsWith("http://", true)) &&
+        authority.isNotBlank() && '@' !in authority && settings.username.isNotBlank())
+}
+
+private fun companionConnection(settings: AurralCompanion) = NavidromeConnection(
+    providerId = ProviderIdAurral, baseUrl = settings.baseUrl, username = settings.username,
+    password = settings.password, token = "", salt = "", tlsSettings = settings.tlsSettings,
+    customHeaders = settings.customHeaders,
+)
+
+private fun companionHttpClient(connection: NavidromeConnection, rawHttp: NavidromeHttpClient): NavidromeHttpClient =
+    (rawHttp as? KtorNavidromeHttpClient)?.withConnectionHeaderNames(
+        connection.customHeaders.mapNotNull { it.normalized()?.takeIf { header -> !header.value.isNullOrBlank() }?.name }.toSet(),
+    ) ?: rawHttp
+
 private fun createCompanionProvider(primary: MediaProvider, settings: AurralCompanion,
     rawHttp: NavidromeHttpClient,
 ): MediaProvider {
-    val connection = NavidromeConnection(
-        providerId = ProviderIdAurral, baseUrl = settings.baseUrl, username = settings.username,
-        password = settings.password, token = "", salt = "", tlsSettings = settings.tlsSettings,
-        customHeaders = settings.customHeaders,
-    )
-    val http = (rawHttp as? KtorNavidromeHttpClient)?.withConnectionHeaderNames(
-        connection.customHeaders.mapNotNull { it.normalized()?.takeIf { header -> !header.value.isNullOrBlank() }?.name }.toSet(),
-    ) ?: rawHttp
+    val connection = companionConnection(settings)
+    val http = companionHttpClient(connection, rawHttp)
     val previews = NavidromeProvider(connection, http)
     // Always use the companion HTTP client for samples, including its own TLS policy. The primary
     // connection's native URL-consumer certificate defaults must never govern another account.

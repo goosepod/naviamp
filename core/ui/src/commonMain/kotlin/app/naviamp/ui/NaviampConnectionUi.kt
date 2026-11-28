@@ -23,6 +23,11 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -90,11 +95,22 @@ import app.naviamp.domain.provider.ProviderIdSubsonic
 import app.naviamp.domain.source.SubsonicAuthApiKey
 import app.naviamp.domain.source.SubsonicAuthToken
 
+/** A connection status outside the editor, such as on the Source page, localized like the editor shows it. */
 @Composable
-private fun localizedConnectionStatus(status: String): String =
+internal fun NaviampConnectionStatusText(status: String, colors: NaviampColors) {
+    Text(localizedConnectionStatus(status), color = colors.secondaryText, fontSize = 11.sp)
+}
+
+@Composable
+internal fun localizedConnectionStatus(status: String): String =
     when (status) {
         "connection_aurral_companion_save_failed" -> stringResource(Res.string.connection_aurral_companion_save_failed)
         "connection_aurral_companion_invalid" -> stringResource(Res.string.connection_aurral_companion_invalid)
+        "connection_aurral_companion_sign_in_failed" -> stringResource(Res.string.connection_aurral_companion_sign_in_failed)
+        "connection_aurral_companion_unreachable" -> stringResource(Res.string.connection_aurral_companion_unreachable)
+        "connection_aurral_companion_unsupported" -> stringResource(Res.string.connection_aurral_companion_unsupported)
+        "connection_aurral_companion_forbidden" -> stringResource(Res.string.connection_aurral_companion_forbidden)
+        "connection_save_failed" -> stringResource(Res.string.connection_save_failed)
         ConnectionPasswordRequiredStatus -> stringResource(Res.string.connection_password_required)
         "connection_aurral_guidance" -> stringResource(Res.string.connection_aurral_guidance)
         "connection_api_key_required" -> stringResource(Res.string.connection_api_key_required)
@@ -131,6 +147,8 @@ fun NaviampConnectionForm(
     isConnecting: Boolean = false,
     connectionStatus: String? = null,
     connectionStatusIsError: Boolean = false,
+    /** Changes on every failure, so a repeated identical error is brought into view again. */
+    connectionErrorOccurrence: Long = 0L,
     settingsSyncStatus: String? = null,
     availableMusicFolders: List<ConnectionFormMusicFolder> = emptyList(),
     musicFoldersStatus: String? = null,
@@ -172,7 +190,7 @@ fun NaviampConnectionForm(
             )
         }
         if (connectionStatusIsError && !connectionStatus.isNullOrBlank()) {
-            ConnectionErrorCard(localizedConnectionStatus(connectionStatus))
+            ConnectionErrorCard(localizedConnectionStatus(connectionStatus), connectionErrorOccurrence)
         }
         if (!companionMode) {
         SettingsSectionTitle(stringResource(Res.string.connection_connection_details), colors)
@@ -510,7 +528,9 @@ fun NaviampConnectionForm(
                 label = if (isConnecting) stringResource(Res.string.common_connecting) else if (saveWithoutReconnect) stringResource(Res.string.common_save) else if (isReconnect) stringResource(Res.string.connection_save_and_connect) else stringResource(Res.string.common_connect),
                 colors = colors,
                 enabled = !isConnecting,
+                // PrimaryButton fills its width; weighting it leaves Cancel its own room in this row.
                 modifier = Modifier
+                    .weight(1f)
                     .focusRequester(connectFocusRequester)
                     .onPreviewKeyEvent { event ->
                         if (!advancedVisible && event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp) {
@@ -525,7 +545,7 @@ fun NaviampConnectionForm(
                 onClick = onConnect,
             )
             onCancel?.let {
-                TextButton(enabled = !isConnecting, onClick = it) {
+                TextButton(enabled = !isConnecting, onClick = it, modifier = Modifier.testTag(fieldTagPrefix + ConnectionCancelButtonTestTag)) {
                     Text(stringResource(Res.string.common_cancel), color = colors.secondaryText)
                 }
             }
@@ -535,6 +555,8 @@ fun NaviampConnectionForm(
 
 internal const val ConnectionNameFieldTestTag = "connection-name"
 internal const val ConnectionBackButtonTestTag = "connection-back"
+internal const val ConnectionErrorCardTestTag = "connection-error"
+internal const val ConnectionCancelButtonTestTag = "connection-cancel"
 internal const val ConnectionServerUrlFieldTestTag = "connection-server-url"
 internal const val ConnectionUsernameFieldTestTag = "connection-username"
 internal const val ConnectionPasswordFieldTestTag = "connection-password"
@@ -631,9 +653,20 @@ private fun ProviderSelectionTile(
 }
 
 @Composable
-private fun ConnectionErrorCard(message: String) {
+private fun ConnectionErrorCard(message: String, occurrence: Long = 0L) {
+    // The form is usually scrolled down to its Save button when an error arrives: bring the
+    // error into view and announce it, on every failure.
+    val bringIntoView = remember { BringIntoViewRequester() }
+    LaunchedEffect(message, occurrence) {
+        // A newly shown card has no position until its first layout pass completes.
+        androidx.compose.runtime.withFrameNanos { }
+        bringIntoView.bringIntoView()
+    }
     Column(
         modifier = Modifier
+            .testTag(ConnectionErrorCardTestTag)
+            .bringIntoViewRequester(bringIntoView)
+            .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Assertive }
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.errorContainer)

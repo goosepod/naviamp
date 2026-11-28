@@ -236,7 +236,7 @@ private fun NaviampSharedAppShellContent(
             outerContentScrollState.scrollTo(0)
         }
     }
-    LaunchedEffect(connection.statusIsError, connection.status) {
+    LaunchedEffect(connection.statusIsError, connection.status, connection.errorOccurrence) {
         if (connection.statusIsError && !connection.status.isNullOrBlank()) {
             outerContentScrollState.animateScrollTo(0)
         }
@@ -373,6 +373,7 @@ private fun NaviampSharedAppShellContent(
                                     isConnecting = isConnecting,
                                     connectionStatus = connectionStatus,
                                     connectionStatusIsError = connection.statusIsError,
+                                    connectionErrorOccurrence = connection.errorOccurrence,
                                     availableMusicFolders = availableMusicFolders,
                                     musicFoldersStatus = musicFoldersStatus,
                                     capabilities = connectionCapabilities,
@@ -1148,6 +1149,7 @@ fun NaviampSettingsContent(
         isConnecting = connection.isConnecting,
         connectionStatus = connection.status,
         connectionStatusIsError = connection.statusIsError,
+        connectionErrorOccurrence = connection.errorOccurrence,
         settingsSyncStatus = settingsSync.status,
         availableMusicFolders = connection.availableMusicFolders,
         musicFoldersStatus = connection.musicFoldersStatus,

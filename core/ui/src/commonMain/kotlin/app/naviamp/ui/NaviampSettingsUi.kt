@@ -264,6 +264,7 @@ fun NaviampSharedSettingsContent(
     isConnecting: Boolean = false,
     connectionStatus: String? = null,
     connectionStatusIsError: Boolean = false,
+    connectionErrorOccurrence: Long = 0L,
     settingsSyncStatus: String? = null,
     availableMusicFolders: List<ConnectionFormMusicFolder> = emptyList(),
     musicFoldersStatus: String? = null,
@@ -382,6 +383,7 @@ fun NaviampSharedSettingsContent(
                         isConnecting = isConnecting,
                         connectionStatus = connectionStatus,
                         connectionStatusIsError = connectionStatusIsError,
+                        connectionErrorOccurrence = connectionErrorOccurrence,
                         settingsSyncStatus = settingsSyncStatus,
                         availableMusicFolders = availableMusicFolders,
                         musicFoldersStatus = musicFoldersStatus,
@@ -527,7 +529,7 @@ fun NaviampSharedSettingsContent(
                     colors = colors,
                     enabled = true,
                     subtitle = when (category) {
-                        NaviampSettingsCategory.Source -> currentConnection?.displayName ?: connectionStatus ?: languagePack.categorySubtitle(category)
+                        NaviampSettingsCategory.Source -> currentConnection?.displayName ?: connectionStatus?.let { localizedConnectionStatus(it) } ?: languagePack.categorySubtitle(category)
                         NaviampSettingsCategory.Language -> languagePack.languageTitle(interfaceSettings.language)
                         else -> languagePack.categorySubtitle(category)
                     },
@@ -2428,6 +2430,7 @@ private fun NaviampConnectionsSettingsSection(
     isConnecting: Boolean,
     connectionStatus: String?,
     connectionStatusIsError: Boolean,
+    connectionErrorOccurrence: Long = 0L,
     settingsSyncStatus: String?,
     availableMusicFolders: List<ConnectionFormMusicFolder>,
     musicFoldersStatus: String?,
@@ -2488,6 +2491,7 @@ private fun NaviampConnectionsSettingsSection(
                 isConnecting = isConnecting,
                 connectionStatus = connectionStatus,
                 connectionStatusIsError = connectionStatusIsError,
+                connectionErrorOccurrence = connectionErrorOccurrence,
                 settingsSyncStatus = settingsSyncStatus,
                 availableMusicFolders = availableMusicFolders,
                 musicFoldersStatus = musicFoldersStatus,
@@ -2532,9 +2536,7 @@ private fun NaviampConnectionsSettingsSection(
                     }
                 }
                 PrimaryButton(stringResource(Res.string.settings_source_new_connection_button), colors, enabled = !isConnecting, onClick = onNewConnection)
-                connectionStatus?.let {
-                    Text(it, color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
-                }
+                connectionStatus?.let { NaviampConnectionStatusText(it, colors) }
             }
         }
         SourceSettingsPage.SettingsSync -> {
@@ -2606,9 +2608,7 @@ private fun NaviampConnectionsSettingsSection(
                         selectedPage = SourceSettingsPage.SettingsSync
                     }
                 }
-                connectionStatus?.let {
-                    Text(it, color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
-                }
+                connectionStatus?.let { NaviampConnectionStatusText(it, colors) }
             }
         }
     }

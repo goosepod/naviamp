@@ -17,6 +17,10 @@ import platform.Foundation.serverTrust
 actual fun createDefaultNavidromeHttpClient(tlsSettings: NavidromeTlsSettings): NavidromeHttpClient =
     KtorNavidromeHttpClient(createDefaultNavidromeKtorClient(tlsSettings))
 
+// Darwin applies TLS material through this client's own session challenge handler.
+actual fun createScopedNavidromeKtorClient(tlsSettings: NavidromeTlsSettings): HttpClient =
+    createDefaultNavidromeKtorClient(tlsSettings)
+
 actual fun createDefaultNavidromeKtorClient(tlsSettings: NavidromeTlsSettings, onTlsChallenge: (NavidromeTlsChallengeEvent) -> Unit): HttpClient {
     tlsSettings.requireSupportedBy(navidromeTlsCapabilities())
     val material = NavidromeAppleTlsMaterial(tlsSettings)

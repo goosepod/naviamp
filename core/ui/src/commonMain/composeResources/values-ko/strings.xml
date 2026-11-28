@@ -534,6 +534,11 @@
     <string name="connection_aurral_companion_invalid">Aurral HTTP 또는 HTTPS 서버 URL과 사용자 이름을 입력하세요.</string>
     <string name="discovery_find_in_aurral">Aurral에서 찾기</string>
     <string name="connection_aurral_companion_save_failed">Aurral 연동을 저장하지 못했습니다. 음악 서버 연결은 변경되지 않았습니다.</string>
+    <string name="connection_aurral_companion_sign_in_failed">Aurral에서 이 사용자 이름과 비밀번호를 허용하지 않았습니다. 컴패니언 로그인 정보를 확인하고 다시 시도하세요.</string>
+    <string name="connection_aurral_companion_unreachable">이 주소에서 Aurral에 연결할 수 없습니다. URL과 Aurral 실행 여부를 확인하세요.</string>
+    <string name="connection_aurral_companion_unsupported">이 Aurral 서버 버전은 지원되지 않습니다. Aurral을 업데이트하고 다시 시도하세요.</string>
+    <string name="connection_aurral_companion_forbidden">이 Aurral 계정은 앱에서 Aurral을 사용할 권한이 없습니다. Aurral 관리자에게 접근 권한을 요청하세요.</string>
+    <string name="connection_save_failed">이 연결을 저장할 수 없습니다. 현재 연결은 변경되지 않았습니다.</string>
     <string name="storage_recovery_title">저장된 설정</string>
     <string name="storage_recovery_capacity">이 변경 사항은 기기의 영구 저장 공간 한도를 초과합니다. 이전에 저장된 설정과 연결은 변경되지 않았습니다.</string>
     <string name="storage_recovery_unreadable">저장된 설정을 열 수 없습니다. 설정은 보존되었습니다. 다시 시도하거나 설정을 초기화하여 이 기기를 다시 설정하세요.</string>

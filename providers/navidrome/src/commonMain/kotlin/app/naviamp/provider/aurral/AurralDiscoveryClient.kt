@@ -589,6 +589,29 @@ internal class AurralDiscoveryClient(
         }
     }
 
+    /** Checks the app contract and signs in once; no discovery route is read. */
+    internal suspend fun verifySignIn(): ProviderDiscoveryStatus = try {
+        val bootstrap = get("/api/health/bootstrap", authenticated = false)
+        val version = ((bootstrap["api"] as? JsonObject)?.get("version") as? JsonPrimitive)?.takeUnless { it.isString }?.intOrNull
+        when {
+            version != AppApiVersion -> ProviderDiscoveryStatus.Unsupported
+            connection.password.isNullOrBlank() -> ProviderDiscoveryStatus.PasswordRequired
+            else -> {
+                mutex.withLock { signIn() }
+                ProviderDiscoveryStatus.Ready
+            }
+        }
+    } catch (error: Throwable) {
+        if (error is CancellationException) throw error
+        when ((error as? NavidromeHttpException)?.statusCode) {
+            // A rejected login is a credential problem whether it is reported as 400 or 401.
+            400, 401 -> ProviderDiscoveryStatus.SignInRequired
+            403 -> ProviderDiscoveryStatus.Forbidden
+            404 -> ProviderDiscoveryStatus.Unsupported
+            else -> ProviderDiscoveryStatus.Unavailable
+        }
+    }
+
     private suspend fun signIn() {
         session = null
         val response = http.postJson("$base/api/auth/login", buildJsonObject {
