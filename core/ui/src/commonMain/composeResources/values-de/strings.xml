@@ -1427,4 +1427,23 @@
     <string name="status_library_index_cleared">Bibliotheksindex geleert.</string>
     <string name="status_database_reset">Datenbank zurückgesetzt. Gespeicherte Server wurden entfernt.</string>
     <string name="status_home_failed">Die Startseite konnte nicht geladen werden.</string>
+    <string name="connect_status_signing_in_device">%1$s wird angemeldet…</string>
+    <string name="connect_status_getting_accounts_from_device">Deine Konten werden von %1$s abgerufen…</string>
+    <string name="connect_status_device_is_signed_in">%1$s ist angemeldet.</string>
+    <string name="connect_status_signed_in_from_device">Mit Konten von %1$s angemeldet.</string>
+    <string name="connect_status_sent_accounts_to_device">Deine Konten wurden an %1$s gesendet.</string>
+    <string name="connect_status_some_accounts_need_attention">Einige Konten wurden nicht kopiert.</string>
+    <string name="connect_status_no_accounts_to_copy">%1$s hat keine Konten zum Kopieren.</string>
+    <string name="connect_status_account_copy_failed">Deine Konten konnten nicht kopiert werden. Versuche es erneut.</string>
+    <string name="connect_post_sign_in_from">Dieses Gerät mit Konten von %1$s anmelden</string>
+    <string name="connect_post_choose">Konten und Einstellungen auswählen</string>
+    <string name="connect_post_include_settings">Meine Einstellungen einbeziehen</string>
+    <string name="connect_account_needs_password">Passwort erforderlich</string>
+    <string name="connect_account_set_up_on_device">Auf dem Gerät einrichten</string>
+    <string name="connect_account_password_for">Passwort für %1$s</string>
+    <string name="connect_result_added">Hinzugefügt</string>
+    <string name="connect_result_updated">Aktualisiert</string>
+    <string name="connect_result_failed">Anmeldung nicht möglich</string>
+    <string name="connect_send_my_accounts">Meine Konten senden</string>
+    <string name="connect_get_accounts">Konten von diesem Gerät abrufen</string>
 </resources>

@@ -624,6 +624,15 @@ private fun NaviampConnectTrustedDeviceRow(
             PrimaryButton(stringResource(Res.string.common_connect), colors,
                 onClick = { actions.onTrustedDeviceSelected(device) },
                 modifier = Modifier.fillMaxWidth().testTag("connect-trusted-${device.deviceId}"))
+            // A one-time copy of accounts and settings, in either direction (#714).
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                PrimaryButton(stringResource(Res.string.connect_send_my_accounts), colors,
+                    onClick = { actions.onSendAccountsToDevice(device) },
+                    modifier = Modifier.weight(1f).testTag("connect-send-accounts-${device.deviceId}"))
+                PrimaryButton(stringResource(Res.string.connect_get_accounts), colors,
+                    onClick = { actions.onGetAccountsFromDevice(device) },
+                    modifier = Modifier.weight(1f).testTag("connect-get-accounts-${device.deviceId}"))
+            }
         }
         OutlinedTextField(
             colors = naviampOutlinedTextFieldColors(colors),

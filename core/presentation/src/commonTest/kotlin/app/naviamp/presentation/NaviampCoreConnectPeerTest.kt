@@ -125,6 +125,8 @@ internal fun TestScope.connectPeer(
     preTrusted: Boolean = true,
     playbackEffects: NaviampCorePlaybackEffectPort = FakeCorePlaybackEffects(),
     provider: app.naviamp.domain.provider.MediaProvider? = null,
+    /** Several saved accounts with secrets and recorded settings; null reproduces a previous release. */
+    accounts: ConnectTestAccounts? = null,
     configure: (NaviampCoreConnectServices) -> NaviampCoreConnectServices = { it },
 ): NaviampCore {
     var storedTrust: String? = null
@@ -143,9 +145,14 @@ internal fun TestScope.connectPeer(
         override fun remove(peerDeviceId: String) { secrets.remove(peerDeviceId)?.fill(0) }
     })
     var opaqueId = 0
-    val base = fakeCoreServices(provider = provider, playbackEffects = playbackEffects)
-    return NaviampCore.create(this, base.copy(connection = source ?: base.connection,
+    val base = fakeCoreServices(provider = provider, playbackEffects = playbackEffects).let { services ->
+        if (accounts == null) services
+        else services.copy(settings = services.settings.copy(sync = accounts.settingsSync()))
+    }
+    val connection = accounts ?: source
+    return NaviampCore.create(this, base.copy(connection = connection ?: base.connection,
         connect = configure(NaviampCoreConnectServices(
+        fullAccountTransfer = accounts != null,
         networkDispatcher = StandardTestDispatcher(testScheduler),
         deviceCapabilities = NaviampCoreBidirectionalConnectCapabilities, displayName = id,
         identity = object : NaviampConnectDeviceIdentityEffect {
@@ -174,7 +181,7 @@ internal fun TestScope.connectPeer(
             }
         },
         newOpaqueId = { "$id-${++opaqueId}" }, newPairingCode = { "123456" }, nowEpochMillis = { testScheduler.currentTime },
-    ))), initialState = NaviampCoreInitialState(connectionInventory = source?.initialInventory() ?: NaviampCoreConnectionInventory()))
+    ))), initialState = NaviampCoreInitialState(connectionInventory = connection?.initialInventory() ?: NaviampCoreConnectionInventory()))
 }
 
 internal class ConnectTestNetwork {

@@ -23,6 +23,8 @@ data class NavidromeConnectionLoginRequest(
     val nativeAuthRequired: Boolean = false,
     val apiKey: String = "",
     val authenticationMode: String = app.naviamp.domain.source.SubsonicAuthToken,
+    /** False when saving an account without activating it, so other accounts' caches are untouched. */
+    val pruneUnusedSourceScopes: Boolean = true,
 )
 
 data class PreparedNavidromeConnection(

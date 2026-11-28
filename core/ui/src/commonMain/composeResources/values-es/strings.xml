@@ -1434,4 +1434,23 @@
     <string name="status_library_index_cleared">Índice de la biblioteca borrado.</string>
     <string name="status_database_reset">Base de datos restablecida. Se eliminaron los servidores guardados.</string>
     <string name="status_home_failed">No se pudo cargar Inicio.</string>
+    <string name="connect_status_signing_in_device">Iniciando sesión en %1$s…</string>
+    <string name="connect_status_getting_accounts_from_device">Obteniendo tus cuentas de %1$s…</string>
+    <string name="connect_status_device_is_signed_in">%1$s ha iniciado sesión.</string>
+    <string name="connect_status_signed_in_from_device">Sesión iniciada con cuentas de %1$s.</string>
+    <string name="connect_status_sent_accounts_to_device">Tus cuentas se enviaron a %1$s.</string>
+    <string name="connect_status_some_accounts_need_attention">Algunas cuentas no se copiaron.</string>
+    <string name="connect_status_no_accounts_to_copy">%1$s no tiene cuentas para copiar.</string>
+    <string name="connect_status_account_copy_failed">No se pudieron copiar tus cuentas. Inténtalo de nuevo.</string>
+    <string name="connect_post_sign_in_from">Iniciar sesión en este dispositivo con cuentas de %1$s</string>
+    <string name="connect_post_choose">Elegir cuentas y ajustes</string>
+    <string name="connect_post_include_settings">Incluir mis ajustes</string>
+    <string name="connect_account_needs_password">Necesita contraseña</string>
+    <string name="connect_account_set_up_on_device">Configurar en el dispositivo</string>
+    <string name="connect_account_password_for">Contraseña de %1$s</string>
+    <string name="connect_result_added">Añadida</string>
+    <string name="connect_result_updated">Actualizada</string>
+    <string name="connect_result_failed">No se pudo iniciar sesión</string>
+    <string name="connect_send_my_accounts">Enviar mis cuentas</string>
+    <string name="connect_get_accounts">Obtener cuentas de este dispositivo</string>
 </resources>
