@@ -708,4 +708,23 @@
     <string name="status_library_index_cleared">Indeks pustaka dihapus.</string>
     <string name="status_database_reset">Database direset. Server yang tersimpan telah dihapus.</string>
     <string name="status_home_failed">Tidak dapat memuat Beranda.</string>
+    <string name="connect_status_signing_in_device">Memasukkan %1$s…</string>
+    <string name="connect_status_getting_accounts_from_device">Mengambil akun Anda dari %1$s…</string>
+    <string name="connect_status_device_is_signed_in">%1$s sudah masuk.</string>
+    <string name="connect_status_signed_in_from_device">Masuk dengan akun dari %1$s.</string>
+    <string name="connect_status_sent_accounts_to_device">Akun Anda dikirim ke %1$s.</string>
+    <string name="connect_status_some_accounts_need_attention">Beberapa akun tidak disalin.</string>
+    <string name="connect_status_no_accounts_to_copy">%1$s tidak memiliki akun untuk disalin.</string>
+    <string name="connect_status_account_copy_failed">Akun Anda tidak dapat disalin. Coba lagi.</string>
+    <string name="connect_post_sign_in_from">Masukkan perangkat ini dengan akun dari %1$s</string>
+    <string name="connect_post_choose">Pilih akun dan pengaturan</string>
+    <string name="connect_post_include_settings">Sertakan pengaturan saya</string>
+    <string name="connect_account_needs_password">Perlu kata sandi</string>
+    <string name="connect_account_set_up_on_device">Siapkan di perangkat</string>
+    <string name="connect_account_password_for">Kata sandi untuk %1$s</string>
+    <string name="connect_result_added">Ditambahkan</string>
+    <string name="connect_result_updated">Diperbarui</string>
+    <string name="connect_result_failed">Tidak dapat masuk</string>
+    <string name="connect_send_my_accounts">Kirim akun saya</string>
+    <string name="connect_get_accounts">Ambil akun dari perangkat ini</string>
 </resources>

@@ -708,4 +708,23 @@
     <string name="status_library_index_cleared">라이브러리 색인을 지웠습니다.</string>
     <string name="status_database_reset">데이터베이스를 초기화했습니다. 저장된 서버가 삭제되었습니다.</string>
     <string name="status_home_failed">홈을 불러올 수 없습니다.</string>
+    <string name="connect_status_signing_in_device">%1$s에 로그인하는 중…</string>
+    <string name="connect_status_getting_accounts_from_device">%1$s에서 계정을 가져오는 중…</string>
+    <string name="connect_status_device_is_signed_in">%1$s에 로그인했습니다.</string>
+    <string name="connect_status_signed_in_from_device">%1$s의 계정으로 로그인했습니다.</string>
+    <string name="connect_status_sent_accounts_to_device">계정을 %1$s(으)로 보냈습니다.</string>
+    <string name="connect_status_some_accounts_need_attention">일부 계정은 복사되지 않았습니다.</string>
+    <string name="connect_status_no_accounts_to_copy">%1$s에 복사할 계정이 없습니다.</string>
+    <string name="connect_status_account_copy_failed">계정을 복사할 수 없습니다. 다시 시도하세요.</string>
+    <string name="connect_post_sign_in_from">%1$s의 계정으로 이 기기에 로그인</string>
+    <string name="connect_post_choose">계정 및 설정 선택</string>
+    <string name="connect_post_include_settings">내 설정 포함</string>
+    <string name="connect_account_needs_password">비밀번호 필요</string>
+    <string name="connect_account_set_up_on_device">기기에서 설정</string>
+    <string name="connect_account_password_for">%1$s 비밀번호</string>
+    <string name="connect_result_added">추가됨</string>
+    <string name="connect_result_updated">업데이트됨</string>
+    <string name="connect_result_failed">로그인할 수 없음</string>
+    <string name="connect_send_my_accounts">내 계정 보내기</string>
+    <string name="connect_get_accounts">이 기기에서 계정 가져오기</string>
 </resources>

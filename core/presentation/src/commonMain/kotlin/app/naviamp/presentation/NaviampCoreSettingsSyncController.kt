@@ -179,6 +179,26 @@ class NaviampCoreSettingsSyncController(
         publishAppliedSnapshot(services.controller.localSnapshot(), document)
     }
 
+    /**
+     * Applies the portable preferences of a Connect account transfer (#714) with the same
+     * normalization and defaults as a file import. Accounts are handled by Connect itself, so
+     * server profiles are ignored here and no import follow-up (reconnect or password editor) runs.
+     */
+    fun applyTransferredPreferences(document: SettingsSyncDocument) {
+        services.controller.applySyncedDocument(document.copy(serverProfiles = emptyList()))
+        val snapshot = services.controller.localSnapshot()
+        stateStore.updateShell { shell ->
+            shell.copy(
+                general = shell.general.copy(interfaceSettings = snapshot.interfaceSettings),
+                playback = shell.playback.copy(settings = snapshot.playback),
+                cache = snapshot.cache?.let { shell.cache.copy(settings = it) } ?: shell.cache,
+                shellChrome = shell.shellChrome.copy(
+                    selectedVisualizer = naviampVisualizerFromName(snapshot.visualizer.selectedVisualizer),
+                ),
+            )
+        }
+    }
+
     private suspend fun chooseFolder() {
         val selected = pickDirectory("Choose settings sync folder") ?: return
         changeDirectory(selected)

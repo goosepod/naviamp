@@ -122,6 +122,8 @@ data class NaviampCoreConnectServices(
     val trace: (NaviampCoreConnectTraceEvent) -> Unit = { println(it.logLine()) },
     /** Monotonic milliseconds for playback timelines; wall-clock changes must not look like seeks. */
     val monotonicMillis: () -> Long = NaviampCoreConnectMonotonicClock,
+    /** False reproduces a previous release that copies only the active account (#714 compatibility). */
+    val fullAccountTransfer: Boolean = true,
 ) {
     init {
         require(pairingLifetimeMillis > 0) { "The pairing lifetime must be positive." }
@@ -153,6 +155,10 @@ class NaviampCoreConnectController(
     /** This device's saved profile for an album or playlist, sent with remote starts (#666). */
     private val savedPlaybackProfile: (app.naviamp.domain.playback.PlaybackProfileTarget) -> app.naviamp.domain.playback.PlaybackProfile? =
         { null },
+    /** This device's accounts (with secrets) and portable settings for a full account transfer (#714). */
+    private val localSettingsSnapshot: () -> app.naviamp.domain.settings.SettingsSyncLocalSnapshot? = { null },
+    /** Applies transferred portable settings with the settings-sync normalization. */
+    private val applyTransferredPreferences: ((app.naviamp.domain.settings.SettingsSyncDocument) -> Unit)? = null,
 ) {
     private val controllerScope = CoroutineScope(
         scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]),
@@ -271,6 +277,32 @@ class NaviampCoreConnectController(
     private var targetProvisioningJob: Job? = null
     private var provisioningResult: Pair<String, kotlinx.coroutines.CompletableDeferred<app.naviamp.domain.connect.NaviampConnectConnectionProvisioningResult>>? = null
     private var sourceMismatchRecoveryVisible = false
+    /** The connected target receives and serves full account transfers (#714). */
+    private var controllerAccountTransferSupported = false
+    /** The sheet signs this device in from the other one. */
+    private var postConnectPull = false
+    private var postConnectChoosing = false
+    private var postConnectIncludeSettings = false
+    private val postConnectDeselected = mutableSetOf<String>()
+    /** Passwords typed on this device for accounts with none stored; cleared with the sheet. */
+    private val postConnectTypedSecrets = mutableMapOf<String, String>()
+    private var postConnectResults: List<app.naviamp.domain.connect.NaviampConnectAccountResult> = emptyList()
+    /** Your devices asked for an account copy once this trusted device connects: true = pull. */
+    private var accountCopyRequest: Pair<String, Boolean>? = null
+    private var accountTransferWaiter:
+        Pair<String, kotlinx.coroutines.CompletableDeferred<app.naviamp.domain.connect.NaviampConnectMessage?>>? = null
+    private var targetAccountTransferJob: Job? = null
+    private val accountImporter: NaviampCoreAccountTransferImporter? = (localConnection ?: targetConnection)
+        ?.let { connection ->
+            NaviampCoreAccountTransferImporter(
+                connection = connection,
+                localSnapshot = localSettingsSnapshot,
+                applyPreferences = applyTransferredPreferences,
+                currentInterface = { stateStore.state.value.shell.general.interfaceSettings },
+                currentPlayback = { stateStore.state.value.shell.playback.settings },
+                currentSourceId = { providerSessions?.currentSourceId() },
+            )
+        }
     private val supportedTargetCapabilities: Set<NaviampConnectCapability> =
         NaviampCoreSupportedConnectTargetCapabilities + if (
             targetConnection != null && targetSettings != null
@@ -279,6 +311,14 @@ class NaviampCoreConnectController(
         } else {
             emptySet()
         }
+
+    /** This device can export, import, and serve full account transfers. */
+    private fun accountTransfersAvailable(): Boolean =
+        services.fullAccountTransfer && accountImporter != null && localSettingsSnapshot() != null
+
+    private fun localHasAccounts(): Boolean =
+        stateStore.state.value.shell.connectionSettings.connection.savedConnections.isNotEmpty() ||
+            providerSessions?.currentSourceId() != null
 
     private fun targetIsEmpty(): Boolean = providerSessions != null &&
         providerSessions.currentSourceId() == null &&
@@ -308,6 +348,23 @@ class NaviampCoreConnectController(
         onPostConnectPlayOnDevice = { finishPostConnect(playOnDevice = true) },
         onPostConnectDone = { finishPostConnect(playOnDevice = false) },
         onPostConnectDismiss = ::dismissPostConnect,
+        onPostConnectChoose = {
+            if (postConnectOpen && !controllerProvisioningBusy && controllerAccountTransferSupported) {
+                postConnectChoosing = !postConnectChoosing
+                publish()
+            }
+        },
+        onPostConnectAccountSelected = { id, selected ->
+            if (selected) postConnectDeselected.remove(id) else postConnectDeselected.add(id)
+            publish()
+        },
+        onPostConnectSettingsChanged = { include -> postConnectIncludeSettings = include; publish() },
+        onPostConnectAccountPassword = { id, password ->
+            if (password.isBlank()) postConnectTypedSecrets.remove(id) else postConnectTypedSecrets[id] = password
+            publish()
+        },
+        onSendAccountsToDevice = { device -> copyAccountsWith(device, pull = false) },
+        onGetAccountsFromDevice = { device -> copyAccountsWith(device, pull = true) },
         onTargetSelected = ::selectTarget,
         onManualEndpointSelected = ::selectManualEndpoint,
         onManualTrustedEndpointSelected = ::reconnectTrustedDeviceAtAddress,
@@ -1186,6 +1243,10 @@ class NaviampCoreConnectController(
                         phase = NaviampConnectPairingUiPhase.Paired
                         status = "Reconnected to ${trust.displayName}."
                         statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ReconnectedToDevice, listOf(trust.displayName))
+                        accountCopyRequest?.takeIf { it.first == trust.peerDevice.deviceId }?.let { (_, pull) ->
+                            accountCopyRequest = null
+                            openAccountCopySheet(pull)
+                        }
                     } else {
                         result.session.close()
                         playbackDestination.incompatible()
@@ -1195,6 +1256,7 @@ class NaviampCoreConnectController(
                     }
                 }
                 is app.naviamp.app.NaviampConnectResumptionResult.Failed -> {
+                    accountCopyRequest = null
                     playbackDestination.unavailable()
                     phase = NaviampConnectPairingUiPhase.Failed
                     status = if (manual) null else "Could not securely reconnect to ${trust.displayName}. Naviamp will retry when the TV is available."
@@ -1497,20 +1559,86 @@ class NaviampCoreConnectController(
         val remote = controllerSession?.state?.value ?: return
         val hasAccounts = controllerTargetHasSavedAccounts
         postConnectDeviceHasAccounts = hasAccounts
-        postConnectSignIn = postConnectCanSignIn() && !hasAccounts
+        resetAccountChoices()
+        // A device without accounts is signed in from one that has them, in either direction.
+        postConnectPull = controllerAccountTransferSupported && !localHasAccounts() && hasAccounts
+        postConnectSignIn = postConnectCanSignIn() && (postConnectPull || !hasAccounts)
+        // Settings follow the accounts onto an empty device only.
+        postConnectIncludeSettings = postConnectPull || !hasAccounts
         postConnectOpen = true
+    }
+
+    /** The accounts this device would send, read only while the user is choosing. */
+    private fun transferAccountChoices(): List<app.naviamp.ui.NaviampConnectTransferAccountUi> {
+        val sources = localSettingsSnapshot()?.serverProfiles.orEmpty()
+        val readiness = app.naviamp.domain.connect.naviampConnectTransferReadiness(
+            sources, providerSessions?.currentSourceId(), postConnectTypedSecrets)
+        return sources.filter { it.id in readiness }.map { source ->
+            app.naviamp.ui.NaviampConnectTransferAccountUi(
+                id = source.id,
+                displayName = source.displayName,
+                providerId = source.providerId,
+                selected = source.id !in postConnectDeselected,
+                status = when (readiness.getValue(source.id)) {
+                    app.naviamp.domain.connect.NaviampConnectTransferReadiness.Ready ->
+                        app.naviamp.ui.NaviampConnectTransferAccountStatus.Ready
+                    app.naviamp.domain.connect.NaviampConnectTransferReadiness.NeedsPassword ->
+                        app.naviamp.ui.NaviampConnectTransferAccountStatus.NeedsPassword
+                    app.naviamp.domain.connect.NaviampConnectTransferReadiness.SetUpOnDevice ->
+                        app.naviamp.ui.NaviampConnectTransferAccountStatus.SetUpOnDevice
+                },
+            )
+        }
+    }
+
+    /**
+     * Your devices → Send my accounts / Get accounts: connect to the trusted device (if needed) and
+     * open the post-connect sheet in that direction with sign-in selected.
+     */
+    private fun copyAccountsWith(device: NaviampConnectTrustedDeviceUi, pull: Boolean) {
+        if (!canControl || controllerProvisioningBusy) return
+        val connectedId = controllerSession?.state?.value?.target?.deviceId
+        val trust = services.trust.load().firstOrNull { it.trustedDeviceId == device.deviceId } ?: return
+        if (connectedId == trust.peerDevice.deviceId && controllerSession != null) {
+            openAccountCopySheet(pull)
+            publish()
+            return
+        }
+        accountCopyRequest = trust.peerDevice.deviceId to pull
+        reconnectTrustedDevice(device)
+    }
+
+    private fun openAccountCopySheet(pull: Boolean) {
+        openPostConnectSheet()
+        if (!postConnectOpen) return
+        postConnectPull = pull && controllerAccountTransferSupported
+        postConnectSignIn = postConnectCanSignIn()
+        postConnectIncludeSettings = if (pull) !localHasAccounts() else !postConnectDeviceHasAccounts
+    }
+
+    private fun resetAccountChoices() {
+        postConnectPull = false
+        postConnectChoosing = false
+        postConnectIncludeSettings = false
+        postConnectDeselected.clear()
+        postConnectTypedSecrets.clear()
+        postConnectResults = emptyList()
     }
 
     private fun postConnectCanSignIn(): Boolean =
         controllerSession?.state?.value?.capabilities?.contains(NaviampConnectCapability.ConnectionProvisioning) == true &&
-            providerSessions?.currentSourceId() != null
+            when {
+                postConnectPull -> controllerAccountTransferSupported
+                controllerAccountTransferSupported -> localHasAccounts()
+                else -> providerSessions?.currentSourceId() != null
+            }
 
     private fun finishPostConnect(playOnDevice: Boolean) {
         if (!postConnectOpen || controllerProvisioningBusy) return
         // After a failed attempt the choice finishes without retrying; the password prompt retries.
         if (postConnectSignIn && postConnectCanSignIn() && !postConnectSignInFailed) {
             postConnectPendingPlay = playOnDevice
-            provisionTarget()
+            if (controllerAccountTransferSupported) transferAccounts() else provisionTarget()
             return
         }
         completePostConnect(playOnDevice)
@@ -1526,6 +1654,7 @@ class NaviampCoreConnectController(
     private fun completePostConnect(playOnDevice: Boolean) {
         postConnectOpen = false
         postConnectPendingPlay = null
+        resetAccountChoices()
         if (playOnDevice) {
             if (localPlayback?.connectLiveState()?.queue?.current != null) handoffLocalQueue() else publish()
         } else {
@@ -1571,6 +1700,8 @@ class NaviampCoreConnectController(
                 // Protocol-v1 controllers set this device up automatically only when it has no accounts.
                 initialSetupAllowed = NaviampConnectCapability.ConnectionProvisioning in supportedTargetCapabilities && targetIsEmpty(),
                 hasSavedAccounts = stateStore.state.value.shell.connectionSettings.connection.savedConnections.isNotEmpty(),
+                accountTransferSupported = NaviampConnectCapability.ConnectionProvisioning in supportedTargetCapabilities &&
+                    accountTransfersAvailable(),
             ),
         )
         // An authenticated incoming controller makes this device the playback owner. Retaining an
@@ -1600,6 +1731,17 @@ class NaviampCoreConnectController(
                         pendingProvisioning = offer
                         pendingProvisioningSession = session
                         applyProvisioning()
+                        true
+                    }
+                },
+                accountTransfer = { command ->
+                    // One copy at a time; it runs after the acknowledgement so the session stays responsive.
+                    if (!accountTransfersAvailable() || targetAccountTransferJob?.isActive == true ||
+                        targetProvisioningJob?.isActive == true
+                    ) {
+                        false
+                    } else {
+                        targetAccountTransferJob = controllerScope.launch { runTargetAccountTransfer(session, command) }
                         true
                     }
                 },
@@ -1653,6 +1795,8 @@ class NaviampCoreConnectController(
         )
         authenticatedSession = session
         controllerTargetHasSavedAccounts = welcome.hasSavedAccounts ?: (welcome.snapshot.sourceIdentity != null)
+        controllerAccountTransferSupported = welcome.accountTransferSupported &&
+            NaviampConnectCapability.ConnectionProvisioning in welcome.capabilities && accountTransfersAvailable()
         controllerInitialSetupAllowed = welcome.initialSetupAllowed &&
             NaviampConnectCapability.ConnectionProvisioning in welcome.capabilities && welcome.snapshot.sourceIdentity == null
         adoptControllerSession(connectedController, welcome.companionProvisioningSupported)
@@ -1740,7 +1884,13 @@ class NaviampCoreConnectController(
         }
         if (authenticatedSession === session) {
             trace(NaviampCoreConnectTraceKind.TargetReceiveEnded)
+            // After an account copy the other device usually leaves at once; its result stays shown.
+            val copyResult = statusMessage?.takeIf { it.text in AccountCopyResultStatuses }
             sessionEnded(NaviampConnectStatusText.ControllerDisconnected)
+            if (copyResult != null) {
+                statusMessage = copyResult
+                publish()
+            }
         }
     }
 
@@ -1766,7 +1916,22 @@ class NaviampCoreConnectController(
                     }
                     continue
                 }
+                val transferId = when (message) {
+                    is app.naviamp.domain.connect.NaviampConnectAccountTransferResult -> message.transferId
+                    is app.naviamp.domain.connect.NaviampConnectAccountTransferPayload -> message.transferId
+                    else -> null
+                }
+                if (transferId != null) {
+                    accountTransferWaiter?.takeIf { it.first == transferId }?.second?.complete(message)
+                    continue
+                }
                 if (message is app.naviamp.domain.connect.NaviampConnectErrorMessage) {
+                    // A refused or failed transfer request ends the wait instead of timing out.
+                    val transferCommand = connectedController.state.value.pendingRequests
+                        .firstOrNull { it.requestId == envelope.responseToRequestId }?.command
+                    val refusedId = (transferCommand as? app.naviamp.domain.connect.NaviampConnectOfferAccountTransfer)?.transferId
+                        ?: (transferCommand as? app.naviamp.domain.connect.NaviampConnectRequestAccountTransfer)?.transferId
+                    accountTransferWaiter?.takeIf { it.first == refusedId }?.second?.complete(null)
                     val offer = connectedController.state.value.pendingRequests
                         .firstOrNull { it.requestId == envelope.responseToRequestId }?.command as? NaviampConnectOfferConnectionProvisioning
                     val pending = provisioningResult
@@ -2110,9 +2275,233 @@ class NaviampCoreConnectController(
         }
     }
 
+    /**
+     * Copies every chosen account (and the settings when chosen) to the connected device, or pulls
+     * the connected device's accounts onto this one (#714). One transfer runs at a time.
+     */
+    private fun transferAccounts() {
+        val connected = controllerSession ?: return
+        val importer = accountImporter ?: return
+        if (controllerProvisioningBusy) return
+        val deviceName = connected.state.value.target?.displayName
+        val pull = postConnectPull
+        controllerProvisioningBusy = true
+        postConnectResults = emptyList()
+        status = null
+        statusMessage = NaviampConnectStatusMessage(
+            if (pull) NaviampConnectStatusText.GettingAccountsFromDevice else NaviampConnectStatusText.SigningInDevice,
+            listOf(deviceName),
+        )
+        publish()
+        val transferId = services.newOpaqueId()
+        val waiter = transferId to kotlinx.coroutines.CompletableDeferred<app.naviamp.domain.connect.NaviampConnectMessage?>()
+        controllerProvisioningJob = controllerScope.launch {
+            var outcome: AccountCopyOutcome = AccountCopyOutcome.Failed
+            try {
+                accountTransferWaiter = waiter
+                outcome = if (pull) pullAccounts(connected, importer, waiter) else sendAccounts(connected, waiter)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                outcome = AccountCopyOutcome.Failed
+            } finally {
+                if (accountTransferWaiter === waiter) accountTransferWaiter = null
+                waiter.second.cancel()
+                if (controllerSession === connected) {
+                    controllerProvisioningBusy = false
+                    accountCopyFinished(outcome, deviceName, pull)
+                    publish()
+                }
+            }
+        }
+    }
+
+    private sealed interface AccountCopyOutcome {
+        data object Failed : AccountCopyOutcome
+        data object Nothing : AccountCopyOutcome
+        data class Copied(val results: List<app.naviamp.domain.connect.NaviampConnectAccountResult>) : AccountCopyOutcome
+    }
+
+    private suspend fun sendAccounts(
+        connected: NaviampConnectControllerSession,
+        waiter: Pair<String, kotlinx.coroutines.CompletableDeferred<app.naviamp.domain.connect.NaviampConnectMessage?>>,
+    ): AccountCopyOutcome {
+        val snapshot = localSettingsSnapshot() ?: return AccountCopyOutcome.Failed
+        val visibleIds = app.naviamp.domain.connect.naviampConnectTransferReadiness(
+            snapshot.serverProfiles, providerSessions?.currentSourceId()).keys
+        val transfer = app.naviamp.domain.connect.buildNaviampConnectAccountTransfer(
+            snapshot = snapshot,
+            activeSourceId = providerSessions?.currentSourceId(),
+            includeSettings = postConnectIncludeSettings,
+            selectedSourceIds = visibleIds - postConnectDeselected,
+            typedSecrets = postConnectTypedSecrets.toMap(),
+            nowEpochMillis = services.nowEpochMillis(),
+            deviceId = localIdentity.deviceId,
+        )
+        if (transfer.credentials.isEmpty()) {
+            // Nothing can travel; report each chosen account so the user sees why.
+            return if (transfer.skipped.isEmpty()) AccountCopyOutcome.Nothing
+            else AccountCopyOutcome.Copied(transfer.skipped.map(::skippedResult))
+        }
+        return when (val sent = sendBounded(connected,
+            app.naviamp.domain.connect.NaviampConnectOfferAccountTransfer(waiter.first, transfer))) {
+            is app.naviamp.app.NaviampConnectCommandSendResult.Sent -> {
+                trace(NaviampCoreConnectTraceKind.SetupOfferSent, waiter.first)
+                val result = withTimeoutOrNull(naviampCoreAccountTransferTimeoutMillis(transfer.credentials.size)) {
+                    waiter.second.await()
+                } as? app.naviamp.domain.connect.NaviampConnectAccountTransferResult
+                if (result == null) AccountCopyOutcome.Failed else {
+                    trace(NaviampCoreConnectTraceKind.SetupResultReceived, waiter.first)
+                    AccountCopyOutcome.Copied(result.results)
+                }
+            }
+            is app.naviamp.app.NaviampConnectCommandSendResult.Failed -> {
+                handleControllerWriteFailure(connected, sent.result)
+                AccountCopyOutcome.Failed
+            }
+            else -> AccountCopyOutcome.Failed
+        }
+    }
+
+    private suspend fun pullAccounts(
+        connected: NaviampConnectControllerSession,
+        importer: NaviampCoreAccountTransferImporter,
+        waiter: Pair<String, kotlinx.coroutines.CompletableDeferred<app.naviamp.domain.connect.NaviampConnectMessage?>>,
+    ): AccountCopyOutcome {
+        val sent = sendBounded(connected, app.naviamp.domain.connect.NaviampConnectRequestAccountTransfer(
+            waiter.first, includeSettings = postConnectIncludeSettings))
+        if (sent !is app.naviamp.app.NaviampConnectCommandSendResult.Sent) {
+            if (sent is app.naviamp.app.NaviampConnectCommandSendResult.Failed) handleControllerWriteFailure(connected, sent.result)
+            return AccountCopyOutcome.Failed
+        }
+        val payload = withTimeoutOrNull(NaviampCoreAccountTransferAccountTimeoutMillis) { waiter.second.await() }
+            as? app.naviamp.domain.connect.NaviampConnectAccountTransferPayload
+            ?: return AccountCopyOutcome.Failed
+        val transfer = payload.transfer ?: return AccountCopyOutcome.Nothing
+        if (transfer.credentials.isEmpty() && transfer.skipped.isEmpty()) return AccountCopyOutcome.Nothing
+        return AccountCopyOutcome.Copied(importer.import(transfer).results)
+    }
+
+    private fun skippedResult(skipped: app.naviamp.domain.connect.NaviampConnectSkippedAccount) =
+        app.naviamp.domain.connect.NaviampConnectAccountResult(
+            displayName = skipped.displayName,
+            providerId = skipped.providerId,
+            outcome = when (skipped.reason) {
+                app.naviamp.domain.connect.NaviampConnectAccountSkipReason.NeedsPassword ->
+                    app.naviamp.domain.connect.NaviampConnectAccountOutcome.NeedsPassword
+                app.naviamp.domain.connect.NaviampConnectAccountSkipReason.SetUpOnDevice ->
+                    app.naviamp.domain.connect.NaviampConnectAccountOutcome.SetUpOnDevice
+            },
+        )
+
+    /**
+     * A copy where every account arrived finishes the user's choice (Done or Play on). Anything left
+     * to do keeps the sheet open with each account's outcome; the next tap finishes without retrying.
+     */
+    private fun accountCopyFinished(outcome: AccountCopyOutcome, deviceName: String?, pull: Boolean) {
+        val succeeded = outcome is AccountCopyOutcome.Copied && outcome.results.any { it.copied() }
+        val complete = outcome is AccountCopyOutcome.Copied && outcome.results.all { it.copied() }
+        status = null
+        statusMessage = when {
+            complete -> NaviampConnectStatusMessage(
+                if (pull) NaviampConnectStatusText.SignedInFromDevice else NaviampConnectStatusText.DeviceIsSignedIn,
+                listOf(deviceName))
+            outcome is AccountCopyOutcome.Copied -> NaviampConnectStatusMessage(NaviampConnectStatusText.SomeAccountsNeedAttention)
+            outcome is AccountCopyOutcome.Nothing -> NaviampConnectStatusMessage(NaviampConnectStatusText.NoAccountsToCopy, listOf(
+                if (pull) deviceName else services.trust.selfName() ?: services.displayName))
+            else -> NaviampConnectStatusMessage(NaviampConnectStatusText.AccountCopyFailed)
+        }
+        if (succeeded && !pull) controllerTargetHasSavedAccounts = true
+        if (!postConnectOpen) return
+        if (complete) {
+            val pending = postConnectPendingPlay
+            val signedIn = statusMessage
+            postConnectSignIn = false
+            postConnectSignInFailed = false
+            if (pending != null) completePostConnect(pending)
+            // Done leaves the other device alone; the sign-in result is the useful message.
+            if (pending == false) statusMessage = signedIn
+            return
+        }
+        postConnectResults = (outcome as? AccountCopyOutcome.Copied)?.results.orEmpty()
+        postConnectSignInFailed = true
+        postConnectChoosing = false
+    }
+
+    private fun app.naviamp.domain.connect.NaviampConnectAccountResult.copied(): Boolean =
+        outcome == app.naviamp.domain.connect.NaviampConnectAccountOutcome.Added ||
+            outcome == app.naviamp.domain.connect.NaviampConnectAccountOutcome.Updated
+
     private fun provisioningFailed() {
         status = null
         statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.CouldNotValidateThatConnectionCheckTheServerAndCredentialThenRetry)
+    }
+
+    /**
+     * The target's side of a full account transfer (#714): a sent copy is imported and answered with
+     * each account's outcome; a pull request is answered with this device's accounts. The other
+     * device is authenticated by a displayed code or an existing trust, so no prompt is shown.
+     */
+    private suspend fun runTargetAccountTransfer(
+        session: NaviampConnectAuthenticatedSession,
+        command: app.naviamp.domain.connect.NaviampConnectCommand,
+    ) {
+        val requester = session.trust?.peerDevice?.displayName
+        try {
+            when (command) {
+                is app.naviamp.domain.connect.NaviampConnectOfferAccountTransfer -> {
+                    val importer = accountImporter ?: return
+                    trace(NaviampCoreConnectTraceKind.SetupValidationStarted, command.transferId)
+                    status = null
+                    statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ValidatingDevice, listOf(requester))
+                    publish()
+                    val imported = importer.import(command.transfer)
+                    trace(NaviampCoreConnectTraceKind.SetupValidationSucceeded, command.transferId)
+                    statusMessage = NaviampConnectStatusMessage(
+                        if (imported.results.any { it.copied() }) NaviampConnectStatusText.SignedInFromDevice
+                        else NaviampConnectStatusText.AccountCopyFailed,
+                        listOf(requester),
+                    )
+                    publishTargetPlaybackSnapshot()
+                    awaitNaviampConnectSocketOperation(controllerScope, 10_000L, session::close) {
+                        session.send(app.naviamp.domain.connect.NaviampConnectAccountTransferResult(
+                            transferId = command.transferId,
+                            results = imported.results,
+                            settingsApplied = imported.settingsApplied,
+                            activated = imported.activated,
+                        ))
+                    }
+                }
+                is app.naviamp.domain.connect.NaviampConnectRequestAccountTransfer -> {
+                    val snapshot = localSettingsSnapshot()
+                    val transfer = snapshot?.let {
+                        app.naviamp.domain.connect.buildNaviampConnectAccountTransfer(
+                            snapshot = it,
+                            activeSourceId = providerSessions?.currentSourceId(),
+                            includeSettings = command.includeSettings,
+                            nowEpochMillis = services.nowEpochMillis(),
+                            deviceId = localIdentity.deviceId,
+                        )
+                    }?.takeIf { it.credentials.isNotEmpty() || it.skipped.isNotEmpty() }
+                    awaitNaviampConnectSocketOperation(controllerScope, 10_000L, session::close) {
+                        session.send(app.naviamp.domain.connect.NaviampConnectAccountTransferPayload(
+                            command.transferId, transfer))
+                    }
+                    if (transfer != null && transfer.credentials.isNotEmpty()) {
+                        // The serving device shows what it sent.
+                        status = null
+                        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.SentAccountsToDevice, listOf(requester))
+                    }
+                }
+                else -> Unit
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            if (authenticatedSession === session) statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.AccountCopyFailed)
+        } finally {
+            if (authenticatedSession === session) publish()
+        }
     }
 
     /** Applies a setup offer from an authenticated session; no approval is needed. */
@@ -2504,6 +2893,18 @@ class NaviampCoreConnectController(
                             deviceHasAccounts = postConnectDeviceHasAccounts,
                             canPlayOn = target.canActAs(NaviampConnectDeviceRole.Target),
                             busy = controllerProvisioningBusy,
+                            pull = postConnectPull,
+                            canChoose = controllerAccountTransferSupported && !postConnectPull,
+                            choosing = postConnectChoosing,
+                            includeSettings = postConnectIncludeSettings,
+                            accounts = if (postConnectChoosing && !postConnectPull) transferAccountChoices() else emptyList(),
+                            results = postConnectResults.map { result ->
+                                app.naviamp.ui.NaviampConnectTransferResultUi(
+                                    displayName = result.displayName,
+                                    providerId = result.providerId,
+                                    outcome = app.naviamp.ui.NaviampConnectTransferOutcome.valueOf(result.outcome.name),
+                                )
+                            },
                         )
                     },
                     needsProvisioningCredential = needsProvisioningCredential,
@@ -2686,6 +3087,11 @@ private const val AutomaticReconnectRetryMillis = 2_000L
 private const val MaximumCodeFailures = 5
 private const val CodeFailureLockoutMillis = 30_000L
 private const val CodeTargetWaitMillis = 5_000L
+private val AccountCopyResultStatuses = setOf(
+    NaviampConnectStatusText.SignedInFromDevice,
+    NaviampConnectStatusText.SentAccountsToDevice,
+)
+
 private val ConnectPanelStatuses = setOf(
     NaviampConnectStatusText.SearchingThisLocalNetwork,
     NaviampConnectStatusText.NoDeviceShowingACode,

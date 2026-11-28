@@ -40,6 +40,30 @@ class NavidromeCoreProviderSessionPortTest {
         assertEquals(source.password.orEmpty(), router.currentProvisioningConnection()!!.form.password)
     }
 
+    @Test fun aTransferredAccountIsSavedWithoutSwitchingAccountsOrPruningCaches() = runTest {
+        val source = savedSource()
+        val repository = TestMediaSourceRepository(source)
+        val logins = mutableListOf<NavidromeConnectionLoginRequest>()
+        val primary = NavidromeCoreProviderSessionPort(mediaSources = repository, initialSource = source,
+            sessionOpener = NavidromeProviderSessionOpener { login, clearProviderData ->
+                logins += login
+                assertFalse(clearProviderData, "Saving another account never clears this one's data")
+                session(source.toNavidromeConnection()).copy(sourceId = "source-2")
+            })
+        val router = subsonicFamilyProviderSessionRouter(primary)
+        val activeProvider = router.currentProvider()
+        val companion = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "secondary", "secret")
+        val saved = router.saveValidatedConnection(app.naviamp.domain.settings.ConnectionFormState(
+            serverUrl = "https://work.example", username = "ana", password = "pw", aurralCompanion = companion,
+        ), savedConnectionId = null)
+        assertEquals("source-2", saved)
+        assertFalse(logins.single().pruneUnusedSourceScopes, "Other accounts' caches stay untouched")
+        assertEquals("pw", logins.single().password)
+        assertEquals(source.id, router.currentSourceId(), "The active account does not change")
+        assertSame(activeProvider?.cacheNamespace, router.currentProvider()?.cacheNamespace)
+        assertEquals(companion, repository.lastCompanionWrite)
+    }
+
     @Test fun settingsImportDuringTheFirstCompanionReadCannotPublishThePreviousAccount() {
         val old = app.naviamp.domain.source.AurralCompanion(true, "https://aurral.example", "old-secondary", "secret")
         val source = savedSource().copy(aurralCompanion = old)
@@ -488,9 +512,11 @@ private class TestMediaSourceRepository(source: SavedMediaSource) :
     var probeState: ProviderIdentityProbeState? = null
 
     var companionWrites = 0
+    var lastCompanionWrite: app.naviamp.domain.source.AurralCompanion? = null
     override fun updateAurralCompanion(sourceId: String, companion: app.naviamp.domain.source.AurralCompanion) {
         companionWrites++
-        sources[sourceId] = sources.getValue(sourceId).copy(aurralCompanion = companion)
+        lastCompanionWrite = companion
+        sources[sourceId]?.let { sources[sourceId] = it.copy(aurralCompanion = companion) }
     }
     override fun latestMediaSource(): SavedMediaSource? = sources.values.lastOrNull()
     override fun mediaSources(): List<SavedMediaSource> = sources.values.toList()

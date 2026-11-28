@@ -71,6 +71,17 @@ internal class AurralCompanionSessionPort(
         return result
     }
 
+    override suspend fun saveValidatedConnection(
+        form: app.naviamp.domain.settings.ConnectionFormState,
+        savedConnectionId: String?,
+    ): String {
+        val sourceId = primary.saveValidatedConnection(form, savedConnectionId)
+        form.aurralCompanion?.takeIf { form.providerId != ProviderIdAurral }
+            ?.let { sources.updateAurralCompanion(sourceId, it) }
+        invalidate()
+        return sourceId
+    }
+
     override suspend fun saveAurralCompanion(sourceId: String, companion: AurralCompanion) {
         sources.updateAurralCompanion(sourceId, companion)
         invalidate()

@@ -262,6 +262,8 @@ data class NaviampConnectWelcome(
     val companionProvisioningSupported: Boolean = false,
     /** Additive: whether the target has any saved account; null from targets that predate it. */
     val hasSavedAccounts: Boolean? = null,
+    /** Additive (#714): the target receives and serves full account transfers. */
+    val accountTransferSupported: Boolean = false,
 ) : NaviampConnectMessage
 
 /** An opaque PAKE exchange payload. A short code is never placed in a wire message. */
@@ -662,6 +664,9 @@ fun NaviampConnectCommand.requiredCapability(): NaviampConnectCapability? = when
     }
     is NaviampConnectQueueMedia -> NaviampConnectCapability.QueueEdit
     is NaviampConnectOfferConnectionProvisioning -> NaviampConnectCapability.ConnectionProvisioning
+    is NaviampConnectOfferAccountTransfer,
+    is NaviampConnectRequestAccountTransfer,
+    -> NaviampConnectCapability.ConnectionProvisioning
     is NaviampConnectHandoffQueue -> NaviampConnectCapability.QueueHandoff
 }
 

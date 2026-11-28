@@ -892,6 +892,8 @@ class NaviampCore private constructor(
                     playbackOutputs = playbackOutputs,
                     trackSelectionContext = mediaRegistry::connectTrackSelectionContext,
                 savedPlaybackProfile = playbackProfiles::profile,
+                    localSettingsSnapshot = { runCatching { services.settings.sync.controller.localSnapshot() }.getOrNull() },
+                    applyTransferredPreferences = settingsSync::applyTransferredPreferences,
                 )
             }
             val castEffect = services.cast?.let { castServices ->

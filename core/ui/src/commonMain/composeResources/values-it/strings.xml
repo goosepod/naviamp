@@ -713,4 +713,23 @@
     <string name="status_library_index_cleared">Indice della libreria svuotato.</string>
     <string name="status_database_reset">Database reimpostato. I server salvati sono stati rimossi.</string>
     <string name="status_home_failed">Impossibile caricare la Home.</string>
+    <string name="connect_status_signing_in_device">Accesso su %1$s…</string>
+    <string name="connect_status_getting_accounts_from_device">Recupero dei tuoi account da %1$s…</string>
+    <string name="connect_status_device_is_signed_in">%1$s ha effettuato l'accesso.</string>
+    <string name="connect_status_signed_in_from_device">Accesso effettuato con gli account di %1$s.</string>
+    <string name="connect_status_sent_accounts_to_device">I tuoi account sono stati inviati a %1$s.</string>
+    <string name="connect_status_some_accounts_need_attention">Alcuni account non sono stati copiati.</string>
+    <string name="connect_status_no_accounts_to_copy">%1$s non ha account da copiare.</string>
+    <string name="connect_status_account_copy_failed">Impossibile copiare i tuoi account. Riprova.</string>
+    <string name="connect_post_sign_in_from">Accedi su questo dispositivo con gli account di %1$s</string>
+    <string name="connect_post_choose">Scegli account e impostazioni</string>
+    <string name="connect_post_include_settings">Includi le mie impostazioni</string>
+    <string name="connect_account_needs_password">Serve la password</string>
+    <string name="connect_account_set_up_on_device">Da configurare sul dispositivo</string>
+    <string name="connect_account_password_for">Password per %1$s</string>
+    <string name="connect_result_added">Aggiunto</string>
+    <string name="connect_result_updated">Aggiornato</string>
+    <string name="connect_result_failed">Accesso non riuscito</string>
+    <string name="connect_send_my_accounts">Invia i miei account</string>
+    <string name="connect_get_accounts">Ottieni gli account da questo dispositivo</string>
 </resources>

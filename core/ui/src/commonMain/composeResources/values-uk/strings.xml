@@ -717,4 +717,23 @@
     <string name="status_library_index_cleared">Індекс бібліотеки очищено.</string>
     <string name="status_database_reset">Базу даних скинуто. Збережені сервери видалено.</string>
     <string name="status_home_failed">Не вдалося завантажити головну сторінку.</string>
+    <string name="connect_status_signing_in_device">Виконується вхід на %1$s…</string>
+    <string name="connect_status_getting_accounts_from_device">Отримання ваших облікових записів з %1$s…</string>
+    <string name="connect_status_device_is_signed_in">На %1$s виконано вхід.</string>
+    <string name="connect_status_signed_in_from_device">Вхід виконано з обліковими записами з %1$s.</string>
+    <string name="connect_status_sent_accounts_to_device">Ваші облікові записи надіслано на %1$s.</string>
+    <string name="connect_status_some_accounts_need_attention">Деякі облікові записи не скопійовано.</string>
+    <string name="connect_status_no_accounts_to_copy">На %1$s немає облікових записів для копіювання.</string>
+    <string name="connect_status_account_copy_failed">Не вдалося скопіювати ваші облікові записи. Спробуйте ще раз.</string>
+    <string name="connect_post_sign_in_from">Увійти на цьому пристрої з обліковими записами з %1$s</string>
+    <string name="connect_post_choose">Вибрати облікові записи й налаштування</string>
+    <string name="connect_post_include_settings">Включити мої налаштування</string>
+    <string name="connect_account_needs_password">Потрібен пароль</string>
+    <string name="connect_account_set_up_on_device">Налаштувати на пристрої</string>
+    <string name="connect_account_password_for">Пароль для %1$s</string>
+    <string name="connect_result_added">Додано</string>
+    <string name="connect_result_updated">Оновлено</string>
+    <string name="connect_result_failed">Не вдалося увійти</string>
+    <string name="connect_send_my_accounts">Надіслати мої облікові записи</string>
+    <string name="connect_get_accounts">Отримати облікові записи з цього пристрою</string>
 </resources>

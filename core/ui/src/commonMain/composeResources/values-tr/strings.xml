@@ -711,4 +711,23 @@
     <string name="status_library_index_cleared">Kitaplık dizini temizlendi.</string>
     <string name="status_database_reset">Veritabanı sıfırlandı. Kayıtlı sunucular kaldırıldı.</string>
     <string name="status_home_failed">Ana Sayfa yüklenemedi.</string>
+    <string name="connect_status_signing_in_device">%1$s cihazında oturum açılıyor…</string>
+    <string name="connect_status_getting_accounts_from_device">Hesaplarınız %1$s cihazından alınıyor…</string>
+    <string name="connect_status_device_is_signed_in">%1$s cihazında oturum açıldı.</string>
+    <string name="connect_status_signed_in_from_device">%1$s cihazındaki hesaplarla oturum açıldı.</string>
+    <string name="connect_status_sent_accounts_to_device">Hesaplarınız %1$s cihazına gönderildi.</string>
+    <string name="connect_status_some_accounts_need_attention">Bazı hesaplar kopyalanmadı.</string>
+    <string name="connect_status_no_accounts_to_copy">%1$s cihazında kopyalanacak hesap yok.</string>
+    <string name="connect_status_account_copy_failed">Hesaplarınız kopyalanamadı. Tekrar deneyin.</string>
+    <string name="connect_post_sign_in_from">Bu cihazda %1$s cihazındaki hesaplarla oturum aç</string>
+    <string name="connect_post_choose">Hesapları ve ayarları seç</string>
+    <string name="connect_post_include_settings">Ayarlarımı da ekle</string>
+    <string name="connect_account_needs_password">Parola gerekli</string>
+    <string name="connect_account_set_up_on_device">Cihazda kurulmalı</string>
+    <string name="connect_account_password_for">%1$s için parola</string>
+    <string name="connect_result_added">Eklendi</string>
+    <string name="connect_result_updated">Güncellendi</string>
+    <string name="connect_result_failed">Oturum açılamadı</string>
+    <string name="connect_send_my_accounts">Hesaplarımı gönder</string>
+    <string name="connect_get_accounts">Bu cihazdaki hesapları al</string>
 </resources>

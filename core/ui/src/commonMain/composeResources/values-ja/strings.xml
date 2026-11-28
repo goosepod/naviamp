@@ -708,4 +708,23 @@
     <string name="status_library_index_cleared">ライブラリのインデックスを消去しました。</string>
     <string name="status_database_reset">データベースをリセットしました。保存済みのサーバーは削除されました。</string>
     <string name="status_home_failed">ホームを読み込めませんでした。</string>
+    <string name="connect_status_signing_in_device">%1$s にサインインしています…</string>
+    <string name="connect_status_getting_accounts_from_device">%1$s からアカウントを取得しています…</string>
+    <string name="connect_status_device_is_signed_in">%1$s にサインインしました。</string>
+    <string name="connect_status_signed_in_from_device">%1$s のアカウントでサインインしました。</string>
+    <string name="connect_status_sent_accounts_to_device">アカウントを %1$s に送信しました。</string>
+    <string name="connect_status_some_accounts_need_attention">一部のアカウントはコピーされませんでした。</string>
+    <string name="connect_status_no_accounts_to_copy">%1$s にはコピーできるアカウントがありません。</string>
+    <string name="connect_status_account_copy_failed">アカウントをコピーできませんでした。もう一度お試しください。</string>
+    <string name="connect_post_sign_in_from">%1$s のアカウントでこのデバイスにサインイン</string>
+    <string name="connect_post_choose">アカウントと設定を選択</string>
+    <string name="connect_post_include_settings">自分の設定も含める</string>
+    <string name="connect_account_needs_password">パスワードが必要</string>
+    <string name="connect_account_set_up_on_device">デバイスで設定</string>
+    <string name="connect_account_password_for">%1$s のパスワード</string>
+    <string name="connect_result_added">追加しました</string>
+    <string name="connect_result_updated">更新しました</string>
+    <string name="connect_result_failed">サインインできませんでした</string>
+    <string name="connect_send_my_accounts">自分のアカウントを送信</string>
+    <string name="connect_get_accounts">このデバイスからアカウントを取得</string>
 </resources>

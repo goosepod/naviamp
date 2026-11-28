@@ -125,6 +125,14 @@ class NavidromeCoreProviderSessionPort(
         )
     }
 
+    override suspend fun saveValidatedConnection(form: ConnectionFormState, savedConnectionId: String?): String =
+        // The opened session is discarded: the active provider, account, and caches stay as they are.
+        sessionOpener.open(
+            NaviampCoreConnectionRequest.Form(form, savedConnectionId).toLoginRequest()
+                .copy(pruneUnusedSourceScopes = false),
+            clearProviderData = false,
+        ).sourceId
+
     override suspend fun currentProvisioningConnection(): NaviampCoreEditableConnection? {
         val id = currentSourceId ?: return null
         val saved = requireSubsonicSaved(id)
@@ -328,7 +336,8 @@ fun navidromeProviderSessionOpener(
             smartPlaylistAuthWarning = { it.nativeAuthErrorMessage },
             preferredSourceId = login.savedSourceId,
             clearProviderData = clearProviderData,
-            pruneUnusedSourceScopesBeforeEpochMillis = unusedSourceScopeCleanupCutoff(nowEpochMillis()),
+            pruneUnusedSourceScopesBeforeEpochMillis = unusedSourceScopeCleanupCutoff(nowEpochMillis())
+                .takeIf { login.pruneUnusedSourceScopes },
         ),
         cacheMaintenanceRepository = cacheMaintenanceRepository,
         providerMediaSourceRepository = providerMediaSourceRepository,
