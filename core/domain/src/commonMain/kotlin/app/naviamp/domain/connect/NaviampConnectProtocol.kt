@@ -188,9 +188,17 @@ data class NaviampConnectHello(
     val protocolRange: NaviampConnectProtocolRange,
     val capabilities: Set<NaviampConnectCapability>,
     val trustedDeviceId: String? = null,
+    /**
+     * Additive (#715): the offer a scanned QR code named. The target then authenticates with that
+     * offer's QR secret instead of the six digits. Only targets that show a QR code receive it.
+     */
+    val pairingOfferId: String? = null,
 ) : NaviampConnectMessage {
     init {
         require(identity.deviceId == device.deviceId) { "The hello identity must belong to the device." }
+        require(pairingOfferId == null || pairingOfferId.isNotBlank() && pairingOfferId.length <= 120) {
+            "A scanned offer ID must be present and bounded."
+        }
     }
 }
 

@@ -935,18 +935,29 @@ internal fun TelevisionFirstRunConnectSetup(
     ) {
         Text(stringResource(Res.string.tv_set_up_from_a_phone_or_computer), color = colors.primaryText, fontSize = 21.sp, fontWeight = FontWeight.Bold)
         Text(
-            stringResource(Res.string.connect_show_code_instructions),
+            stringResource(if (connect.pairingLink != null) Res.string.connect_show_code_or_scan_instructions
+                else Res.string.connect_show_code_instructions),
             color = colors.secondaryText,
             fontSize = 15.sp,
         )
         connect.pairingCode?.let { code ->
-            Text(
-                formatNaviampConnectPairingCode(code),
-                color = colors.primaryText,
-                fontSize = 44.sp,
-                fontWeight = FontWeight.Black,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-            )
+            androidx.compose.foundation.layout.Row(
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // A phone scans the QR; the code beside it is for devices without a camera.
+                connect.pairingLink?.let { link ->
+                    NaviampConnectQrCode(link, stringResource(Res.string.connect_qr_description, connect.localDeviceName),
+                        size = 220.dp)
+                }
+                Text(
+                    formatNaviampConnectPairingCode(code),
+                    color = colors.primaryText,
+                    fontSize = 44.sp,
+                    fontWeight = FontWeight.Black,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                )
+            }
         }
         Text(connect.localDeviceName, color = colors.secondaryText, fontSize = 15.sp)
         connect.recovery?.let { recovery ->

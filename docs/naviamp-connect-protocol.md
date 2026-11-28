@@ -62,6 +62,31 @@ vectors exist.
 
 ### Protected assets and trust boundary
 
+November 2026 QR connect update (#715):
+
+- **Link.** `naviamp://connect?v=1#n=<name>&h=<hosts>&p=<port>&f=<fingerprint>&o=<offer id>&s=<secret>`,
+  with every value percent-encoded in the fragment. `s` is 16 CSPRNG bytes (base64url, no padding),
+  `o` is the offer's pairing session ID, and `f` is the 64-hex identity fingerprint, which identifies the
+  device (no separate device ID). `NaviampConnectLinkOffer` validates every field, refuses repeated
+  fields, and redacts the secret. Symbols use byte mode at error-correction level M.
+- **One offer.** The code and the QR secret are issued together. They share the offer's lifetime and
+  session ID, and both are replaced when the offer is used, expires, or the panel closes. The QR is shown
+  only next to the code.
+- **Handshake.** `NaviampConnectHello.pairingOfferId` is additive. When it is present, the target uses the
+  QR secret instead of the six digits as the J-PAKE password. The transcript binding, identity proofs and
+  key confirmation are unchanged. The controller also requires `offer.identity.identityFingerprint == f`
+  and `offer.pairingSessionId == o`. An earlier, used or closed offer gets a plaintext `PairingExpired`
+  error before the target closes, so the scanner can say the QR was replaced. That rejection is not a
+  failed attempt, and the code on screen keeps working. A wrong secret fails J-PAKE and counts as a
+  failed attempt, like a wrong code. Only targets that show a QR receive the field, so older peers never
+  see it.
+- **Routes.** The scanner tries the addresses of a discovered target with the scanned fingerprint first,
+  then the QR's hosts (from the listener's interfaces). If the QR has no hosts and the device has not been
+  discovered yet, it searches briefly.
+- **Platforms.** Encoding, decoding, validation, rendering and the scan flow are shared. Android supplies
+  only the camera preview, its permission prompt and `naviamp://connect` intent delivery. Desktop shows
+  the QR and has no scanner.
+
 November 2026 full sign-in update (#714):
 
 - **Advertised additively.** A target sets `Welcome.accountTransferSupported` when it can receive and

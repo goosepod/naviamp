@@ -148,6 +148,13 @@ data class NaviampConnectSettingsUi(
     val discoveredTargets: List<NaviampConnectDiscoveredTargetUi> = emptyList(),
     val trustedDevices: List<NaviampConnectTrustedDeviceUi> = emptyList(),
     val listeningPort: Int? = null,
+    /** `naviamp://connect` link for the offer on screen, drawn as a QR code next to the code (#715). */
+    val pairingLink: String? = null,
+    /**
+     * Progress or failure of a Connect link opened from outside the app, e.g. by the system camera
+     * (#715); shown app-wide because the user is not on the Connect screen.
+     */
+    val linkStatus: NaviampConnectStatusMessage? = null,
     val manualEndpointAwaitingCode: Boolean = false,
 ) {
     val remoteOutputSelected: Boolean
@@ -189,6 +196,9 @@ data class NaviampConnectSettingsActions(
     val onRetryConnection: () -> Unit = {},
     val onOpenPermissionSettings: () -> Unit = {},
     val onManualEndpointSelected: (String) -> Unit = {},
+    /** A scanned QR code's text (#715); the shared controller validates it. */
+    val onConnectLinkScanned: (String) -> Unit = {},
+    val onDismissLinkStatus: () -> Unit = {},
     val onManualTrustedEndpointSelected: (NaviampConnectTrustedDeviceUi, String) -> Unit = { _, _ -> },
     val onConnectScreenVisibilityChanged: (Boolean) -> Unit = {},
     val onPostConnectSignInChanged: (Boolean) -> Unit = {},

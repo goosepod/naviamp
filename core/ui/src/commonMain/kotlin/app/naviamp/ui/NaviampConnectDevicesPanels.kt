@@ -2,6 +2,8 @@ package app.naviamp.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
@@ -51,8 +53,13 @@ internal fun NaviampConnectShowCodePanel(
         connect.connectedControllerName?.let { controllerName ->
             Text(stringResource(Res.string.connect_status_connected_to_device, controllerName), color = colors.primaryText)
         }
-        Text(stringResource(Res.string.connect_show_code_instructions), color = colors.secondaryText)
+        Text(stringResource(if (connect.pairingLink != null) Res.string.connect_show_code_or_scan_instructions
+            else Res.string.connect_show_code_instructions), color = colors.secondaryText)
         Text(connect.localDeviceName, color = colors.primaryText, fontWeight = FontWeight.Bold)
+        // The QR and the code are one offer; the code stays visible for devices without a camera.
+        connect.pairingLink?.takeIf { connect.pairingCode != null }?.let { link ->
+            NaviampConnectQrCode(link, stringResource(Res.string.connect_qr_description, connect.localDeviceName))
+        }
         connect.pairingCode?.let { code ->
             Text(
                 formatNaviampConnectPairingCode(code),
@@ -106,6 +113,7 @@ internal fun NaviampConnectEnterCodePanel(
         onDispose { visibility(false) }
     }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = modifier.fillMaxWidth()) {
+        NaviampConnectScanSection(connect, colors, actions)
         Text(stringResource(Res.string.connect_enter_code_instructions), color = colors.secondaryText)
         OutlinedTextField(
             colors = naviampOutlinedTextFieldColors(colors),
@@ -161,6 +169,61 @@ internal fun NaviampConnectEnterCodePanel(
             PrimaryButton(stringResource(Res.string.common_connect), colors,
                 enabled = manualAddress.isNotBlank(),
                 onClick = { actions.onManualEndpointSelected(manualAddress) })
+        }
+    }
+}
+
+/**
+ * Scanning a QR code (#715): the camera opens only when asked, asks permission on first use, and
+ * falls back to code entry when there is no camera or access is denied.
+ */
+@Composable
+private fun NaviampConnectScanSection(
+    connect: NaviampConnectSettingsUi,
+    colors: NaviampColors,
+    actions: NaviampConnectSettingsActions,
+) {
+    val scanner = LocalNaviampQrScanner.current?.takeIf { it.available } ?: return
+    var scanning by rememberSaveable { mutableStateOf(false) }
+    var denied by rememberSaveable { mutableStateOf(false) }
+    val granted = scanner.hasCameraPermission()
+    val requestPermission = scanner.rememberCameraPermissionRequest { allowed ->
+        denied = !allowed
+        scanning = allowed
+    }
+    val onScanned by rememberUpdatedState(actions.onConnectLinkScanned)
+    // A scan that is connecting closes the camera; the result follows in the status line.
+    LaunchedEffect(connect.codeEntryBusy) { if (connect.codeEntryBusy) scanning = false }
+    if (scanning && granted) {
+        Text(stringResource(Res.string.connect_scan_qr_instructions), color = colors.secondaryText)
+        scanner.Viewfinder(
+            onScanned = { text ->
+                scanning = false
+                onScanned(text)
+            },
+            modifier = Modifier.fillMaxWidth().widthIn(max = 360.dp).aspectRatio(1f).testTag("connect-qr-viewfinder"),
+        )
+        TextButton(onClick = { scanning = false }, modifier = Modifier.testTag("connect-qr-stop")) {
+            Text(stringResource(Res.string.connect_stop_scanning))
+        }
+    } else {
+        PrimaryButton(
+            label = stringResource(Res.string.connect_scan_qr),
+            colors = colors,
+            enabled = !connect.codeEntryBusy,
+            onClick = {
+                if (granted) {
+                    denied = false
+                    scanning = true
+                } else {
+                    requestPermission()
+                }
+            },
+            modifier = Modifier.fillMaxWidth().testTag("connect-qr-scan"),
+        )
+        if (denied && !granted) {
+            Text(stringResource(Res.string.connect_camera_denied), color = colors.secondaryText, fontSize = 12.sp,
+                modifier = Modifier.testTag("connect-qr-denied"))
         }
     }
 }

@@ -59,6 +59,8 @@ sealed interface NaviampConnectTargetPairingState {
         /** Display-only secret. It must be consumed by a PAKE adapter and never serialized. */
         val displayCode: String,
         val failedAttempts: Int = 0,
+        /** Display-only QR secret (#715), issued with the code; blank when no QR is shown. */
+        val qrSecret: String = "",
     ) : NaviampConnectTargetPairingState
 
     data class AwaitingApproval(
@@ -102,6 +104,7 @@ class NaviampConnectTargetPairingController(
         pairingSessionId: String,
         displayCode: String,
         nowEpochMillis: Long,
+        qrSecret: String = "",
     ): NaviampConnectTargetPairingState {
         require(pairingSessionId.isNotBlank()) { "A pairing session ID is required." }
         require(displayCode.isNotBlank()) { "A display code is required." }
@@ -110,6 +113,7 @@ class NaviampConnectTargetPairingController(
             advertisement = advertisement,
             pairingSessionId = pairingSessionId,
             displayCode = displayCode,
+            qrSecret = qrSecret,
         )
         return state
     }
@@ -133,13 +137,18 @@ class NaviampConnectTargetPairingController(
         return state
     }
 
-    /** Moves to handshaking while removing the display code from retained state. */
-    fun approve(nowEpochMillis: Long): NaviampConnectTargetHandshakeStart? {
+    /**
+     * Moves to handshaking while removing the display code and QR secret from retained state. A
+     * scanned QR ([useQrSecret]) authenticates with the QR secret instead of the six digits.
+     */
+    fun approve(nowEpochMillis: Long, useQrSecret: Boolean = false): NaviampConnectTargetHandshakeStart? {
         val current = state as? NaviampConnectTargetPairingState.AwaitingApproval ?: return null
         if (expireIfNeeded(nowEpochMillis)) return null
-        val code = current.advertising.displayCode.toCharArray()
+        val secret = if (useQrSecret) current.advertising.qrSecret else current.advertising.displayCode
+        if (secret.isBlank()) return null
+        val code = secret.toCharArray()
         val handshaking = NaviampConnectTargetPairingState.Handshaking(
-            current.advertising.copy(displayCode = ""),
+            current.advertising.copy(displayCode = "", qrSecret = ""),
             current.controller,
         )
         state = handshaking

@@ -246,6 +246,8 @@ class AndroidNaviampCoreCatalog private constructor(
                 permissionSettings = AndroidNaviampConnectPermissionSettingsEffect(appContext),
                 newOpaqueId = { UUID.randomUUID().toString() },
                 newPairingCode = { secureRandom.nextInt(1_000_000).toString().padStart(6, '0') },
+                // The OS CSPRNG is the host boundary; the QR link policy is shared (#715).
+                newLinkSecret = { app.naviamp.domain.connect.naviampConnectLinkSecret(ByteArray(16).also(secureRandom::nextBytes)) },
                 nowEpochMillis = clock::nowEpochMillis,
                 pairingListenPort = if (connectDebugHost == null) 0 else AndroidEmulatorPairingPort,
             )

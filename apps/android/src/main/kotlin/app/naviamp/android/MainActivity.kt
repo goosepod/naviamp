@@ -41,6 +41,7 @@ import app.naviamp.ui.NaviampSystemBackDispatcher
 class MainActivity : FragmentActivity() {
     private var openNowPlayingRequest by mutableIntStateOf(0)
     private var settingsImportRequest by mutableStateOf<String?>(null)
+    private var connectLinkRequest by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -64,6 +65,12 @@ class MainActivity : FragmentActivity() {
                     runtime.core.dispatch(NaviampCoreCommand.Navigation.OpenNowPlaying)
                 }
             }
+            LaunchedEffect(runtime, connectLinkRequest) {
+                connectLinkRequest?.let { link ->
+                    runtime.core.openConnectLink(link)
+                    connectLinkRequest = null
+                }
+            }
             LaunchedEffect(runtime, settingsImportRequest) {
                 settingsImportRequest?.let { path ->
                     runtime.core.dispatch(NaviampCoreCommand.SettingsSync.ImportFilePath(path))
@@ -79,6 +86,7 @@ class MainActivity : FragmentActivity() {
                             applicationSurface = naviampApplicationSurface(),
                             screenAwakeEffect = remember(window) { AndroidScreenAwakeEffect(window) },
                             applicationUpdateChecker = runtime.applicationUpdateChecker,
+                            qrScanner = remember { AndroidNaviampQrScanner(this@MainActivity) },
                         )
                         if (runtime.core.castAvailable) {
                             AndroidView(
@@ -106,6 +114,12 @@ class MainActivity : FragmentActivity() {
     private fun handleIntent(intent: Intent?) {
         if (intent?.getBooleanExtra(IntentExtraOpenNowPlaying, false) == true) {
             openNowPlayingRequest += 1
+        }
+        // A naviamp://connect link is handed to shared Connect; it is never a settings document.
+        val data = intent?.data
+        if (intent?.action == Intent.ACTION_VIEW && data?.scheme == "naviamp") {
+            connectLinkRequest = data.toString()
+            return
         }
         settingsDocumentUri(intent)?.let { settingsImportRequest = it.toString() }
     }

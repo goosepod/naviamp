@@ -3,7 +3,10 @@ package app.naviamp.app
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.EOFException
+import java.net.Inet4Address
+import java.net.Inet6Address
 import java.net.InetSocketAddress
+import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketException
@@ -67,6 +70,23 @@ private class JvmNaviampConnectTcpListener(
     private val maximumFrameBytes: Int,
 ) : NaviampConnectTransportListener {
     override val port: Int = serverSocket.localPort
+
+    /** The JVM network-interface API is the boundary; the QR link policy that uses these is shared. */
+    override fun localAddresses(): List<String> = runCatching {
+        NetworkInterface.getNetworkInterfaces()?.toList().orEmpty()
+            .filter { it.isUp && !it.isLoopback && !it.isVirtual }
+            .flatMap { it.inetAddresses.toList() }
+            .filter { !it.isLoopbackAddress && !it.isLinkLocalAddress && !it.isMulticastAddress }
+            .sortedBy { if (it is Inet4Address) 0 else 1 }
+            .mapNotNull { address ->
+                when (address) {
+                    is Inet4Address -> address.hostAddress
+                    is Inet6Address -> address.hostAddress?.substringBefore('%')
+                    else -> null
+                }
+            }
+            .distinct()
+    }.getOrDefault(emptyList())
 
     override suspend fun accept(): NaviampConnectTransportConnection = withContext(Dispatchers.IO) {
         try {
